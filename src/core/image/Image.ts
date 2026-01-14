@@ -20,8 +20,7 @@ export class Image extends Group {
     set width(val: number) {
         this._width = val;
         this._isSetWidth = true;
-        this._isSetWidth = true;
-        this.display.texture.orig.width = val;
+        this.display.width = val;
         this.refreshPivot();
         this.emitter.emit(GameObject.Event.RESIZE);
     }
@@ -36,7 +35,7 @@ export class Image extends Group {
     set height(val: number) {
         this._height = val;
         this._isSetHeight = true;
-        this.display.texture.orig.height = val;
+        this.display.height = val;
         this.refreshPivot();
         this.emitter.emit(GameObject.Event.RESIZE);
     }
@@ -47,14 +46,14 @@ export class Image extends Group {
     set texture(tex: Texture) {
         this.display.texture = tex;
         if (this._isSetWidth) {
-            this.display.texture.orig.width = this.width;
+            this.display.width = this.width;
         } else {
-            this._width = this.display.texture.orig.width;
+            this._width = this.display.width;
         }
         if (this._isSetHeight) {
-            this.display.texture.orig.height = this.height;
+            this.display.height = this.height;
         } else {
-            this._height = this.display.texture.orig.height;
+            this._height = this.display.height;
         }
     }
 

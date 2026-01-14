@@ -4,8 +4,6 @@ import { GameObject } from "../GameObject";
 export class Group extends GameObject<Container> {
     display = new Container();
 
-
-
     protected _width: number = 0;
     protected _height: number = 0;
 

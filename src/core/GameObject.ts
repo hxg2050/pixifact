@@ -134,7 +134,6 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
     }
     set height(val: number) {
         this.display.height = val;
-
         this.refreshPivot();
         this.emitter.emit(GameObject.Event.RESIZE);
     }
@@ -236,7 +235,7 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
 
     public update?(dt: number): void;
 
-    public async render?(): Promise<void>;
+    public render?(): void;
 
     public onDestroy?(): void;
 
@@ -245,13 +244,14 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
     //     this.onDestroy && this.onDestroy();
     // }
 
-    static async instantiate<T extends GameObject = GameObject>(gameObject: Constructor<T>, parent?: GameObject, props?: Partial<T>): Promise<T> {
+    static instantiate<T extends GameObject = GameObject>(gameObject: Constructor<T>, parent?: GameObject, props?: Partial<T>): T {
         const go = new gameObject();
-        await go.render?.();
+        go.render?.();
         go.setDisplay(go.display);
         (parent as Group)?.addChild(go);
+        props && setProps(go, props);
 
-        if (go.update) {
+        // if (go.update) {
             const update = (ticker: Ticker) => {
                 go.emitter.emit(GameObject.Event.TICKER_BEFORE, ticker);
                 go.update?.(ticker.deltaTime);
@@ -261,9 +261,8 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
             go.display.once('destroyed', () => {
                 Ticker.shared.remove(update);
             });
-        }
+        // }
 
-        props && setProps(go, props);
         return go;
     }
 

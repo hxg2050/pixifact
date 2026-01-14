@@ -15,7 +15,7 @@ export class Textarea extends Input {
         this.element = document.createElement('textarea')
     }
 
-    public async render() {
+    public render() {
         super.render()
         this.lineHeight = this._labelStyle.lineHeight;
         this._labelStyle.wordWrap = true;

@@ -4,20 +4,6 @@ import { FillInput, Graphics as PIXIGraphics, StrokeInput } from 'pixi.js'
 export class Graphics extends GameObject<PIXIGraphics> {
     public display = new PIXIGraphics();
 
-    async render() {
-
-    }
-
-    // public beginFill(color: ColorSource = 0, alpha?: number) {
-    //     this.display.beginFill(color, alpha);
-    //     return this;
-    // }
-
-    // public endFill() {
-    //     this.display.endFill();
-    //     return this;
-    // }
-
     public rect(x: number, y: number, width: number, height: number) {
         this.display.rect(x, y, width, height);
         return this;

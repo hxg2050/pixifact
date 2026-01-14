@@ -112,7 +112,7 @@ export class Input extends Group {
         this.element = document.createElement('input')
     }
 
-    public async render() {
+    public render() {
         const mask = new PIXIGraphics();
         mask.rect(0, 0, 100, 50)
         mask.fill(0x0000ff);
@@ -129,8 +129,8 @@ export class Input extends Group {
         this.fontSize = this._labelStyle.fontSize;
 
         window.document.body.append(this.element);
-        this.graphics = await GameObject.instantiate(Graphics, this)
-        this.value = await GameObject.instantiate(Label, this, {
+        this.graphics = GameObject.instantiate(Graphics, this)
+        this.value = GameObject.instantiate(Label, this, {
             style: this._labelStyle,
             x: this.paddingLeft
         })
