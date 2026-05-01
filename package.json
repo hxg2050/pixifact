@@ -1,13 +1,18 @@
 {
   "name": "pixif",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "type": "module",
   "files": [
-    "dist/"
+    "dist/",
+    "skills/",
+    "scripts/install-skills.mjs"
   ],
+  "bin": {
+    "pixif-skills": "./scripts/install-skills.mjs"
+  },
   "repository": "https://github.com/hxg2050/pixif.git",
   "author": "youxia <243802688@qq.com>",
   "license": "MIT",
@@ -15,6 +20,7 @@
     "build": "rollup -c",
     "example": "vite examples/basic",
     "example:build": "vite build examples/basic",
+    "skills:install": "node scripts/install-skills.mjs --replace",
     "test": "vitest run",
     "test:watch": "vitest"
   },

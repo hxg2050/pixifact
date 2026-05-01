@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pixif Framework"
+  short_description: "Build and maintain pixif projects"
+  default_prompt: "Use $pixif-framework to implement a pixif UI component or layout change."

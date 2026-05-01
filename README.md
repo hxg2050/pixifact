@@ -221,6 +221,40 @@ pnpm example:build
 examples/basic/src/main.ts
 ```
 
+## Codex Skills
+
+pixif 的 npm 包会随包发布项目专用 Codex skill：
+
+```text
+skills/pixif-framework
+```
+
+未 clone 仓库时，可直接从 npm 包安装到当前用户的 Codex skills 目录：
+
+```bash
+npm exec --package pixif -- pixif-skills --replace
+```
+
+如果 pixif 已作为当前项目依赖安装：
+
+```bash
+pnpm exec pixif-skills --replace
+```
+
+在 pixif 源码仓库内开发时：
+
+```bash
+pnpm skills:install
+```
+
+默认安装目标是 `${CODEX_HOME:-$HOME/.codex}/skills`。如需安装到其他目录：
+
+```bash
+node scripts/install-skills.mjs --target /path/to/skills --replace
+```
+
+安装后可以在 Codex 中使用 `$pixif-framework`，用于处理 pixif 的组件、布局、示例、测试和发布入口等项目约定。
+
 ## 开发脚本
 
 ```bash
@@ -240,6 +274,12 @@ pnpm example
 ```
 
 启动 Vite 示例。
+
+```bash
+pnpm skills:install
+```
+
+从源码仓库安装当前维护的 Codex skills。
 
 ```bash
 pnpm example:build

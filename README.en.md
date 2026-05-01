@@ -221,6 +221,40 @@ Example source:
 examples/basic/src/main.ts
 ```
 
+## Codex Skills
+
+The pixif npm package ships a project-specific Codex skill:
+
+```text
+skills/pixif-framework
+```
+
+Install from npm without cloning the repository:
+
+```bash
+npm exec --package pixif -- pixif-skills --replace
+```
+
+If pixif is already installed as a dependency in the current project:
+
+```bash
+pnpm exec pixif-skills --replace
+```
+
+When developing inside the pixif source repository:
+
+```bash
+pnpm skills:install
+```
+
+The default target is `${CODEX_HOME:-$HOME/.codex}/skills`. To install elsewhere:
+
+```bash
+node scripts/install-skills.mjs --target /path/to/skills --replace
+```
+
+After installation, use `$pixif-framework` in Codex for pixif-specific components, layout, examples, tests, and package-entry conventions.
+
 ## Development Scripts
 
 ```bash
@@ -246,6 +280,12 @@ pnpm example:build
 ```
 
 Build the example project.
+
+```bash
+pnpm skills:install
+```
+
+Install the repository-owned Codex skills from the source checkout.
 
 ## Package Entry Points
 
