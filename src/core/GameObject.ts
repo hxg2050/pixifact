@@ -263,8 +263,8 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
         const _component = new component(this);
         this.components.push(_component);
     
-        _component.awake && _component.awake();
         props && setProps(_component, props);
+        _component.awake && _component.awake();
 
         _component.start && _component.start();
         _component.update && this.emitter.on(GameObject.Event.TICKER_BEFORE, _component.update, _component);

@@ -34,14 +34,21 @@ export class Transform {
         this.setPosition(this.position.x, val);
     }
 
-    private setPosition(x: number, y: number) {
-        if (this.position.x === x && this.position.y === y) {
+    public setPosition(x: number, y: number) {
+        const displayPosition = this.gameObject.display?.position;
+        const isPositionChanged = this.position.x !== x || this.position.y !== y;
+        const isDisplayPositionChanged = displayPosition
+            ? displayPosition.x !== x || displayPosition.y !== y
+            : false;
+
+        if (!isPositionChanged && !isDisplayPositionChanged) {
             return;
         }
 
-        this.position.x = x;
-        this.position.y = y;
-        this.gameObject.display.position.set(x, y);
+        this.position.set(x, y);
+        if (displayPosition) {
+            displayPosition.set(x, y);
+        }
         this.gameObject.emitter.emit(GameObject.Event.REPOSITION);
     }
 

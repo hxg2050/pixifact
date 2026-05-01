@@ -1,6 +1,6 @@
 import { Container, Ticker } from 'pixi.js';
 import { describe, expect, it, vi } from 'vitest';
-import { Component, GameObject, Graphics, Group, Image, Label, NineSliceImage } from '../src/core';
+import { Component, GameObject, Graphics, GridLayout, Group, Image, Label, Layout, NineSliceImage } from '../src/core';
 import { setProps, sp } from '../src/core/utils/setProps';
 import { onlyOnceQueueMicrotask } from '../src/core/utils/onlyOnceQueueMicrotask';
 
@@ -60,6 +60,35 @@ describe('GameObject transform', () => {
         expect(object.display.skew.x).toBe(0.25);
         expect(object.display.skew.y).toBe(0.75);
         expect(reposition).toHaveBeenCalledTimes(2);
+
+        object.display.destroy();
+    });
+
+    it('syncs position when the same Vector2 instance is mutated and assigned back', () => {
+        const object = new TestObject();
+        const reposition = vi.fn();
+        const position = object.transform.position;
+        object.emitter.on(GameObject.Event.REPOSITION, reposition);
+
+        position.x = 40;
+        position.y = 50;
+        object.transform.position = position;
+
+        expect(object.display.x).toBe(40);
+        expect(object.display.y).toBe(50);
+        expect(reposition).toHaveBeenCalledTimes(1);
+
+        object.display.destroy();
+    });
+
+    it('keeps internal position in sync when display position was changed directly', () => {
+        const object = new TestObject();
+        object.display.position.set(70, 80);
+
+        object.transform.position = object.display.position;
+
+        expect(object.x).toBe(70);
+        expect(object.y).toBe(80);
 
         object.display.destroy();
     });
@@ -140,6 +169,278 @@ describe('Group children', () => {
         image.display.destroy();
         label.display.destroy();
         nineSliceImage.display.destroy();
+    });
+});
+
+describe('Layout components', () => {
+    it('applies layout props before awake so centered children render immediately', async () => {
+        const stage = new Group();
+        stage.width = 800;
+        stage.height = 600;
+
+        const panel = GameObject.instantiate(Group, stage, {
+            width: 720,
+            height: 460,
+            anchorX: 0.5,
+            anchorY: 0.5,
+        });
+
+        panel.addComponent(Layout, { centerX: 0, centerY: 0 });
+
+        expect(panel.x).toBe(400);
+        expect(panel.y).toBe(300);
+        expect(panel.display.x).toBe(400);
+        expect(panel.display.y).toBe(300);
+
+        stage.width = 1000;
+        stage.height = 700;
+        await Promise.resolve();
+
+        expect(panel.x).toBe(500);
+        expect(panel.y).toBe(350);
+
+        GameObject.destroy(stage);
+    });
+
+    it('keeps deprecated vertical and horizontal aliases compatible', () => {
+        const stage = new Group();
+        stage.width = 400;
+        stage.height = 300;
+
+        const panel = GameObject.instantiate(Group, stage, {
+            width: 100,
+            height: 60,
+            anchorX: 0.5,
+            anchorY: 0.5,
+        });
+
+        const layout = panel.addComponent(Layout, { vertical: 10, horizontal: -20 });
+
+        expect(layout.centerX).toBe(10);
+        expect(layout.centerY).toBe(-20);
+        expect(panel.x).toBe(210);
+        expect(panel.y).toBe(130);
+
+        GameObject.destroy(stage);
+    });
+
+    it('recomputes when center constraints are cleared', async () => {
+        const stage = new Group();
+        stage.width = 400;
+        stage.height = 300;
+
+        const panel = GameObject.instantiate(Group, stage, {
+            width: 100,
+            height: 60,
+            anchorX: 0.5,
+            anchorY: 0.5,
+        });
+        const layout = panel.addComponent(Layout, {
+            left: 20,
+            top: 30,
+            centerX: 0,
+            centerY: 0,
+        });
+
+        expect(panel.x).toBe(200);
+        expect(panel.y).toBe(150);
+
+        layout.centerX = undefined;
+        layout.centerY = undefined;
+        await Promise.resolve();
+
+        expect(panel.x).toBe(70);
+        expect(panel.y).toBe(60);
+
+        GameObject.destroy(stage);
+    });
+
+    it('stretches within parent bounds and clamps negative sizes to minimums', async () => {
+        const stage = new Group();
+        stage.width = 300;
+        stage.height = 200;
+
+        const panel = GameObject.instantiate(Group, stage, {
+            width: 100,
+            height: 80,
+        });
+        const layout = panel.addComponent(Layout, {
+            left: 20,
+            right: 30,
+            top: 10,
+            bottom: 20,
+            minWidth: 50,
+            minHeight: 40,
+        });
+
+        expect(panel.width).toBe(250);
+        expect(panel.height).toBe(170);
+        expect(panel.x).toBe(20);
+        expect(panel.y).toBe(10);
+
+        stage.width = 60;
+        stage.height = 40;
+        await Promise.resolve();
+
+        expect(panel.width).toBe(50);
+        expect(panel.height).toBe(40);
+        expect(panel.x).toBe(20);
+        expect(panel.y).toBe(10);
+
+        layout.left = undefined;
+        layout.top = undefined;
+        await Promise.resolve();
+
+        expect(panel.width).toBe(100);
+        expect(panel.height).toBe(80);
+        expect(panel.x).toBe(-70);
+        expect(panel.y).toBe(-60);
+
+        GameObject.destroy(stage);
+    });
+
+    it('updates preferred size after manual size changes', async () => {
+        const stage = new Group();
+        stage.width = 500;
+        stage.height = 400;
+
+        const panel = GameObject.instantiate(Group, stage, {
+            width: 100,
+            height: 80,
+        });
+        panel.addComponent(Layout, { right: 20, bottom: 30 });
+
+        expect(panel.x).toBe(380);
+        expect(panel.y).toBe(290);
+
+        panel.width = 140;
+        panel.height = 120;
+        await Promise.resolve();
+
+        expect(panel.x).toBe(340);
+        expect(panel.y).toBe(250);
+
+        stage.width = 600;
+        stage.height = 500;
+        await Promise.resolve();
+
+        expect(panel.x).toBe(440);
+        expect(panel.y).toBe(350);
+
+        GameObject.destroy(stage);
+    });
+
+    it('rebinds parent resize listeners when reparented', async () => {
+        const firstParent = new Group();
+        firstParent.width = 400;
+        firstParent.height = 300;
+        const secondParent = new Group();
+        secondParent.width = 800;
+        secondParent.height = 600;
+
+        const panel = GameObject.instantiate(Group, firstParent, {
+            width: 100,
+            height: 80,
+            anchorX: 0.5,
+            anchorY: 0.5,
+        });
+        panel.addComponent(Layout, { centerX: 0, centerY: 0 });
+
+        expect(panel.x).toBe(200);
+        expect(panel.y).toBe(150);
+
+        secondParent.addChild(panel);
+        await Promise.resolve();
+
+        expect(firstParent.emitter.listenerCount(GameObject.Event.RESIZE)).toBe(0);
+        expect(secondParent.emitter.listenerCount(GameObject.Event.RESIZE)).toBe(1);
+        expect(panel.x).toBe(400);
+        expect(panel.y).toBe(300);
+
+        secondParent.width = 1000;
+        secondParent.height = 700;
+        await Promise.resolve();
+
+        expect(panel.x).toBe(500);
+        expect(panel.y).toBe(350);
+
+        GameObject.destroy(firstParent);
+        GameObject.destroy(secondParent);
+    });
+
+    it('coalesces layout position updates into one reposition event', () => {
+        const stage = new Group();
+        stage.width = 800;
+        stage.height = 600;
+        const panel = GameObject.instantiate(Group, stage, {
+            width: 200,
+            height: 100,
+            anchorX: 0.5,
+            anchorY: 0.5,
+        });
+        const reposition = vi.fn();
+        panel.emitter.on(GameObject.Event.REPOSITION, reposition);
+
+        panel.addComponent(Layout, { centerX: 0, centerY: 0 });
+
+        expect(panel.x).toBe(400);
+        expect(panel.y).toBe(300);
+        expect(reposition).toHaveBeenCalledTimes(1);
+
+        GameObject.destroy(stage);
+    });
+
+    it('does not register ticker just to refresh layout', () => {
+        const baseTickerCount = Ticker.shared.count;
+        const stage = new Group();
+        const panel = GameObject.instantiate(Group, stage, {
+            width: 100,
+            height: 80,
+        });
+
+        panel.addComponent(Layout, { left: 0, top: 0 });
+
+        expect(Ticker.shared.count).toBe(baseTickerCount);
+
+        GameObject.destroy(stage);
+    });
+
+    it('removes layout listeners when components are removed', () => {
+        const parent = new Group();
+        const child = GameObject.instantiate(Group, parent, {
+            width: 100,
+            height: 80,
+        });
+        const layout = child.addComponent(Layout, { left: 10, top: 20 });
+
+        expect(parent.emitter.listenerCount(GameObject.Event.RESIZE)).toBe(1);
+        expect(child.emitter.listenerCount(GameObject.Event.RESIZE)).toBe(1);
+        expect(child.emitter.listenerCount(GameObject.Event.ADDED)).toBe(1);
+        expect(child.emitter.listenerCount(GameObject.Event.REMOVED)).toBe(1);
+
+        child.removeComponent(layout);
+
+        expect(parent.emitter.listenerCount(GameObject.Event.RESIZE)).toBe(0);
+        expect(child.emitter.listenerCount(GameObject.Event.RESIZE)).toBe(0);
+        expect(child.emitter.listenerCount(GameObject.Event.ADDED)).toBe(0);
+        expect(child.emitter.listenerCount(GameObject.Event.REMOVED)).toBe(0);
+
+        GameObject.destroy(parent);
+    });
+
+    it('removes grid layout listeners when components are removed', () => {
+        const grid = new Group();
+        const layout = grid.addComponent(GridLayout);
+
+        expect(grid.emitter.listenerCount(GameObject.Event.CHILD_ADDED)).toBe(1);
+        expect(grid.emitter.listenerCount(GameObject.Event.CHILD_REMOVED)).toBe(1);
+
+        grid.removeComponent(layout);
+
+        expect(grid.emitter.listenerCount(GameObject.Event.CHILD_ADDED)).toBe(0);
+        expect(grid.emitter.listenerCount(GameObject.Event.CHILD_REMOVED)).toBe(0);
+
+        grid.display.destroy();
     });
 });
 

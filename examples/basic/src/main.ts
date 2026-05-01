@@ -43,7 +43,7 @@ const panel = GameObject.instantiate(Group, stage, {
     anchorX: 0.5,
     anchorY: 0.5,
 });
-panel.addComponent(Layout, { vertical: 0, horizontal: 0 });
+panel.addComponent(Layout, { centerX: 0, centerY: 0 });
 
 const panelBackground = GameObject.instantiate(Graphics, panel);
 panelBackground.roundRect(0, 0, panel.width, panel.height, 18).fill(0xffffff).stroke({ width: 2, color: 0x2f3437, alpha: 0.18 });

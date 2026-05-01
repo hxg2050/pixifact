@@ -44,13 +44,17 @@ export class GridLayout extends Component<Group> {
 
     private _refresh = true
 
+    private handleChildAdded = () => {
+        this._resize();
+    }
+
+    private handleChildRemoved = () => {
+        this._resize();
+    }
+
     awake(): void {
-        this.gameObject.emitter.on(GameObject.Event.CHILD_ADDED, () => {
-            this._resize();
-        }, this)
-        this.gameObject.emitter.on(GameObject.Event.CHILD_REMOVED, () => {
-            this._resize();
-        }, this)
+        this.gameObject.emitter.on(GameObject.Event.CHILD_ADDED, this.handleChildAdded, this)
+        this.gameObject.emitter.on(GameObject.Event.CHILD_REMOVED, this.handleChildRemoved, this)
     }
 
     _resize() {
@@ -92,7 +96,7 @@ export class GridLayout extends Component<Group> {
     }
 
     onDestroy(): void {
-        this.gameObject.emitter.off(GameObject.Event.CHILD_ADDED, this._resize, this)
-        this.gameObject.emitter.off(GameObject.Event.CHILD_REMOVED, this._resize, this)
+        this.gameObject.emitter.off(GameObject.Event.CHILD_ADDED, this.handleChildAdded, this)
+        this.gameObject.emitter.off(GameObject.Event.CHILD_REMOVED, this.handleChildRemoved, this)
     }
 }
