@@ -11,9 +11,12 @@
     "scripts/install-skills.mjs"
   ],
   "bin": {
-    "pixif-skills": "./scripts/install-skills.mjs"
+    "pixif-skills": "scripts/install-skills.mjs"
   },
-  "repository": "https://github.com/hxg2050/pixif.git",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hxg2050/pixif.git"
+  },
   "author": "youxia <243802688@qq.com>",
   "license": "MIT",
   "scripts": {
@@ -25,9 +28,7 @@
     "test:watch": "vitest"
   },
   "publishConfig": {
-    "main": "./dist/index.cjs",
-    "module": "./dist/index.mjs",
-    "types": "./dist/index.d.ts"
+    "registry": "https://registry.npmjs.org/"
   },
   "exports": {
     ".": {
