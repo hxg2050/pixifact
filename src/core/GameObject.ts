@@ -215,6 +215,9 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
             return;
         }
         this.components.splice(index, 1);
+        component.start && this.emitter.off(GameObject.Event.TICKER_BEFORE, component.start, component);
+        component.update && this.emitter.off(GameObject.Event.TICKER_BEFORE, component.update, component);
+        component.gameObject.display.off('destroyed', component.destroy, component);
         component.onDestroy && component.onDestroy();
         return component;
     }

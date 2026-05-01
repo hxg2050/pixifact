@@ -13,7 +13,7 @@ export abstract class Component<T extends GameObject = GameObject> {
 
     }
 
-    update?(dt: number) {
+    update?(_dt: number) {
 
     }
 
@@ -22,7 +22,6 @@ export abstract class Component<T extends GameObject = GameObject> {
      */
     destroy() {
         this.gameObject.removeComponent(this);
-        this.update && this.gameObject.emitter.off(GameObject.Event.TICKER_BEFORE, this.update, this);
     }
 
     onDestroy?() {

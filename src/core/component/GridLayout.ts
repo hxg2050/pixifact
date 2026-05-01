@@ -1,4 +1,5 @@
-import { GameObject, Group } from "pixif";
+import { GameObject } from "../GameObject";
+import { Group } from "../group";
 import { Component } from "./Component";
 
 export class GridLayout extends Component<Group> {
@@ -45,11 +46,9 @@ export class GridLayout extends Component<Group> {
 
     awake(): void {
         this.gameObject.emitter.on(GameObject.Event.CHILD_ADDED, () => {
-            console.log('GameObject.Event.CHILD_ADDED');
             this._resize();
         }, this)
         this.gameObject.emitter.on(GameObject.Event.CHILD_REMOVED, () => {
-            console.log('GameObject.Event.CHILD_REMOVED');
             this._resize();
         }, this)
     }

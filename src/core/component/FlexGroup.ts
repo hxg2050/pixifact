@@ -1,4 +1,5 @@
-import { GameObject, Group } from "pixif";
+import { GameObject } from "../GameObject";
+import { Group } from "../group";
 import { onlyOnceQueueMicrotask } from "../utils/onlyOnceQueueMicrotask";
 import { Component } from "./Component";
 import { Flex } from "./Flex";
@@ -17,7 +18,7 @@ export class FlexGroup extends Component<Group> {
         this.gameObject.emitter.on(GameObject.Event.CHILD_ADDED, this.resize, this);
     }
 
-    resize = onlyOnceQueueMicrotask((a: any) => {
+    resize = onlyOnceQueueMicrotask(() => {
         const length = this.gameObject.children.length;
         let total = 0;
         let fix = length * this.gap;
@@ -47,7 +48,6 @@ export class FlexGroup extends Component<Group> {
             if (this.direction === FlexDirection.ROW) {
                 child.x = location;
                 !!perc && (child.width = available  * perc);
-                console.log(!!perc, child.width, child.height);
                 location += child.width + this.gap;
             } else {
                 child.y = location;
