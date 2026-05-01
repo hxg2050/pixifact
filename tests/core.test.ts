@@ -15,6 +15,14 @@ class TestComponent extends Component<TestObject> {
     onDestroy = vi.fn();
 }
 
+class StartComponent extends Component<TestObject> {
+    start = vi.fn();
+}
+
+class UpdateObject extends TestObject {
+    update = vi.fn();
+}
+
 describe('setProps', () => {
     it('assigns shallow properties and returns the target object', () => {
         const target = { x: 0, y: 0, label: 'old' };
@@ -141,6 +149,7 @@ describe('Component lifecycle', () => {
         const component = object.addComponent(TestComponent);
 
         expect(component.awake).toHaveBeenCalledTimes(1);
+        expect(component.start).toHaveBeenCalledTimes(1);
 
         object.emitter.emit(GameObject.Event.TICKER_BEFORE, 1);
         object.emitter.emit(GameObject.Event.TICKER_BEFORE, 2);
@@ -171,6 +180,61 @@ describe('Component lifecycle', () => {
         expect(typeof component.update.mock.calls[0][0]).toBe('number');
 
         GameObject.destroy(object);
+    });
+
+    it('does not register ticker for a component that only uses start', () => {
+        const baseTickerCount = Ticker.shared.count;
+        const object = GameObject.instantiate(TestObject);
+        const component = object.addComponent(StartComponent);
+
+        expect(component.start).toHaveBeenCalledTimes(1);
+        expect(Ticker.shared.count).toBe(baseTickerCount);
+
+        GameObject.destroy(object);
+    });
+
+    it('registers ticker only while the object or its components need updates', () => {
+        const baseTickerCount = Ticker.shared.count;
+        const idleObject = GameObject.instantiate(TestObject);
+
+        expect(Ticker.shared.count).toBe(baseTickerCount);
+
+        const updateObject = GameObject.instantiate(UpdateObject);
+
+        expect(Ticker.shared.count).toBe(baseTickerCount + 1);
+
+        GameObject.destroy(updateObject);
+
+        expect(Ticker.shared.count).toBe(baseTickerCount);
+
+        const componentObject = GameObject.instantiate(TestObject);
+        const component = componentObject.addComponent(TestComponent);
+
+        expect(Ticker.shared.count).toBe(baseTickerCount + 1);
+
+        componentObject.removeComponent(component);
+
+        expect(Ticker.shared.count).toBe(baseTickerCount);
+
+        GameObject.destroy(componentObject);
+        GameObject.destroy(idleObject);
+    });
+
+    it('releases ticker and component listeners when destroyed', () => {
+        const baseTickerCount = Ticker.shared.count;
+        const object = GameObject.instantiate(TestObject);
+        const component = object.addComponent(TestComponent);
+
+        expect(Ticker.shared.count).toBe(baseTickerCount + 1);
+
+        GameObject.destroy(object);
+
+        expect(Ticker.shared.count).toBe(baseTickerCount);
+        expect(component.onDestroy).toHaveBeenCalledTimes(1);
+
+        Ticker.shared.update(performance.now() + 16);
+
+        expect(component.update).not.toHaveBeenCalled();
     });
 });
 

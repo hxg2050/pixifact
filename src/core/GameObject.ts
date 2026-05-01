@@ -96,6 +96,19 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
     parent?: Group;
 
     public components: Component[] = [];
+    private _tickerActive = false;
+    private _destroying = false;
+
+    private _updateTicker = (ticker: Ticker) => {
+        const dt = ticker.deltaTime;
+        this.emitter.emit(GameObject.Event.TICKER_BEFORE, dt);
+        this.update?.(dt);
+        this.emitter.emit(GameObject.Event.TICKER_AFTER, dt);
+
+        if (!this.hasTickerWork()) {
+            this.releaseTicker();
+        }
+    };
 
     get visible() {
         return this.display.visible;
@@ -209,14 +222,53 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
 
     start?(): void;
 
+    private hasTickerWork() {
+        return !!this.update
+            || this.emitter.listenerCount(GameObject.Event.TICKER_BEFORE) > 0
+            || this.emitter.listenerCount(GameObject.Event.TICKER_AFTER) > 0;
+    }
+
+    private syncTicker() {
+        if (this._destroying) {
+            return;
+        }
+
+        if (this.hasTickerWork()) {
+            this.ensureTicker();
+            return;
+        }
+
+        this.releaseTicker();
+    }
+
+    private ensureTicker() {
+        if (this._tickerActive || this._destroying) {
+            return;
+        }
+
+        Ticker.shared.add(this._updateTicker);
+        this._tickerActive = true;
+    }
+
+    private releaseTicker() {
+        if (!this._tickerActive) {
+            return;
+        }
+
+        Ticker.shared.remove(this._updateTicker);
+        this._tickerActive = false;
+    }
+
     addComponent<T extends Component>(component: Constructor<T>, props?: Partial<T>): T {
         const _component = new component(this);
         this.components.push(_component);
     
         _component.awake && _component.awake();
-        _component.start && this.emitter.once(GameObject.Event.TICKER_BEFORE, _component.start, _component);
-        _component.update && this.emitter.on(GameObject.Event.TICKER_BEFORE, _component.update, _component);
         props && setProps(_component, props);
+
+        _component.start && _component.start();
+        _component.update && this.emitter.on(GameObject.Event.TICKER_BEFORE, _component.update, _component);
+        this.syncTicker();
         
         return _component;
     }
@@ -227,10 +279,10 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
             return;
         }
         this.components.splice(index, 1);
-        component.start && this.emitter.off(GameObject.Event.TICKER_BEFORE, component.start, component);
         component.update && this.emitter.off(GameObject.Event.TICKER_BEFORE, component.update, component);
         component.gameObject.display.off('destroyed', component.destroy, component);
         component.onDestroy && component.onDestroy();
+        this.syncTicker();
         return component;
     }
 
@@ -244,8 +296,21 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
     
     private setDisplay(display: T) {
         this.display = display;
-        this.start && this.display.once('added', this.start, this);
-        // this.onDestroy && this.display.once('destroyed', this.onDestroy);
+        if (this.start) {
+            if (this.display.parent) {
+                this.start.call(this);
+            } else {
+                this.display.once('added', this.start, this);
+            }
+        }
+
+        this.display.once('destroyed', () => {
+            this._destroying = true;
+            this.releaseTicker();
+            queueMicrotask(() => {
+                this.emitter.removeAllListeners();
+            });
+        });
     }
 
     public update?(dt: number): void;
@@ -262,27 +327,17 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
     static instantiate<T extends GameObject = GameObject>(gameObject: Constructor<T>, parent?: Group, props?: Partial<T>): T {
         const go = new gameObject();
         go.render?.();
+        props && setProps(go, props);
         go.setDisplay(go.display);
         parent?.addChild(go);
-        props && setProps(go, props);
-
-        // if (go.update) {
-            const update = (ticker: Ticker) => {
-                const dt = ticker.deltaTime;
-                go.emitter.emit(GameObject.Event.TICKER_BEFORE, dt);
-                go.update?.(dt);
-                go.emitter.emit(GameObject.Event.TICKER_AFTER, dt);
-            }
-            Ticker.shared.add(update);
-            go.display.once('destroyed', () => {
-                Ticker.shared.remove(update);
-            });
-        // }
+        go.syncTicker();
 
         return go;
     }
 
     static async destroy(go: GameObject) {
+        go._destroying = true;
+        go.releaseTicker();
         if (hasChildren(go)) {
             for (let i = go.children.length - 1; i >= 0; i--) {
                 GameObject.destroy(go.children[i]);
@@ -291,5 +346,7 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
         go.parent?.removeChild(go);
         go.onDestroy && go.onDestroy();
         go.display.destroy();
+        go.emitter.removeAllListeners();
+        go.components.length = 0;
     }
 }

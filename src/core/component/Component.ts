@@ -5,17 +5,11 @@ export abstract class Component<T extends GameObject = GameObject> {
         gameObject.display.on('destroyed', this.destroy, this)
     }
 
-    awake?() {
+    awake?(): void;
 
-    }
+    start?(): void;
 
-    start?() {
-
-    }
-
-    update?(_dt: number) {
-
-    }
+    update?(_dt: number): void;
 
     /**
      * 销毁组件
@@ -24,7 +18,5 @@ export abstract class Component<T extends GameObject = GameObject> {
         this.gameObject.removeComponent(this);
     }
 
-    onDestroy?() {
-
-    }
+    onDestroy?(): void;
 }

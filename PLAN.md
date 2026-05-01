@@ -8,11 +8,11 @@
 - [x] 收敛容器模型，不引入额外 `ContainerGameObject` 抽象。
 - [x] 将 `Image`、`NineSliceImage` 调整为叶子节点，不再继承容器能力。
 
-## 2. Ticker 生命周期优化
+## 2. Ticker 生命周期优化（已完成）
 
-- 只有对象自身或组件需要 `update` 时才注册 ticker。
-- 销毁对象时确保 ticker、事件监听和组件生命周期全部释放。
-- 长期考虑由 `Application` 统一驱动对象树，减少 `Ticker.shared` 上的全局回调数量。
+- [x] 只有对象自身或组件需要 `update` 时才注册 ticker。
+- [x] 销毁对象时确保 ticker、事件监听和组件生命周期全部释放。
+- [ ] 长期考虑由 `Application` 统一驱动对象树，减少 `Ticker.shared` 上的全局回调数量。
 
 ## 3. 布局 API 整理
 
