@@ -1,11 +1,12 @@
 import { NineSliceSprite, Texture } from "pixi.js";
 import { GameObject } from "../GameObject";
-import { Group } from "../group";
 
-export class NineSliceImage extends Group {
+export class NineSliceImage extends GameObject<NineSliceSprite> {
     private _texture = new Texture();
 
     display = new NineSliceSprite(this._texture);
+    protected _width: number = 0;
+    protected _height: number = 0;
 
     /**
      * 这两个参数主要用于解决从来没有执行过resize或没有宽高进行赋值的情况下，使用默认纹理的宽高进行配置

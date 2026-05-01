@@ -3,13 +3,17 @@ import { Transform } from "./Transform";
 import { Vector2 } from "@math.gl/core";
 import EventEmitter from "eventemitter3";
 import { setProps } from "./utils/setProps";
-import { Group } from "./group";
 import { Component } from "./component/Component";
+import type { Group } from "./group";
 export type Constructor<T = unknown> = new (...args: any[]) => T;
 
 export type ValueOf<T extends {} = {}> = T[keyof T];
 
 export type GameObjectEvent = ValueOf<typeof GameObject.Event>;
+
+function hasChildren(go: GameObject): go is GameObject & { children: GameObject[] } {
+    return 'children' in go && Array.isArray(go.children);
+}
 
 export abstract class BaseGameObject<T extends Container> {
     public abstract display: T;
@@ -82,8 +86,6 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
     parent?: Group;
 
     public components: Component[] = [];
-
-    children: GameObject[] = [];
 
     get visible() {
         return this.display.visible;
@@ -247,11 +249,11 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
     //     this.onDestroy && this.onDestroy();
     // }
 
-    static instantiate<T extends GameObject = GameObject>(gameObject: Constructor<T>, parent?: GameObject, props?: Partial<T>): T {
+    static instantiate<T extends GameObject = GameObject>(gameObject: Constructor<T>, parent?: Group, props?: Partial<T>): T {
         const go = new gameObject();
         go.render?.();
         go.setDisplay(go.display);
-        (parent as Group)?.addChild(go);
+        parent?.addChild(go);
         props && setProps(go, props);
 
         // if (go.update) {
@@ -271,11 +273,12 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
     }
 
     static async destroy(go: GameObject) {
-        // console.log(go.children);
-        for (let i = go.children.length - 1; i >= 0; i--) {
-            GameObject.destroy(go.children[i]);
+        if (hasChildren(go)) {
+            for (let i = go.children.length - 1; i >= 0; i--) {
+                GameObject.destroy(go.children[i]);
+            }
         }
-        (go.parent as Group)?.removeChild(go);
+        go.parent?.removeChild(go);
         go.onDestroy && go.onDestroy();
         go.display.destroy();
     }

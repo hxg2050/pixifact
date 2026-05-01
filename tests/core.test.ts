@@ -1,6 +1,6 @@
 import { Container, Ticker } from 'pixi.js';
 import { describe, expect, it, vi } from 'vitest';
-import { Component, GameObject, Group } from '../src/core';
+import { Component, GameObject, Graphics, Group, Image, Label, NineSliceImage } from '../src/core';
 import { setProps, sp } from '../src/core/utils/setProps';
 import { onlyOnceQueueMicrotask } from '../src/core/utils/onlyOnceQueueMicrotask';
 
@@ -105,6 +105,30 @@ describe('Group children', () => {
         child.display.destroy();
         firstParent.display.destroy();
         secondParent.display.destroy();
+    });
+
+    it('keeps child APIs on container objects only', () => {
+        const group = new Group();
+        const graphics = new Graphics();
+        const image = new Image();
+        const label = new Label();
+        const nineSliceImage = new NineSliceImage();
+
+        expect(group.children).toEqual([]);
+        expect('children' in graphics).toBe(false);
+        expect('children' in image).toBe(false);
+        expect('children' in label).toBe(false);
+        expect('children' in nineSliceImage).toBe(false);
+        expect('addChild' in graphics).toBe(false);
+        expect('addChild' in image).toBe(false);
+        expect('addChild' in label).toBe(false);
+        expect('addChild' in nineSliceImage).toBe(false);
+
+        group.display.destroy();
+        graphics.display.destroy();
+        image.display.destroy();
+        label.display.destroy();
+        nineSliceImage.display.destroy();
     });
 });
 
