@@ -1,7 +1,7 @@
 import './styles.css';
 import { Application, Component, GameObject, Graphics, GridLayout, Group, Input, Label, LabelStyle, Layout } from '../../../src';
 
-class Spinner extends Component<Graphics> {
+class Spinner extends Component<Group> {
     speed = 0.018;
 
     update(dt: number) {
@@ -71,14 +71,18 @@ GameObject.instantiate(Label, panel, {
     }),
 });
 
-const rotatingBadge = GameObject.instantiate(Graphics, panel, {
+const rotatingBadge = GameObject.instantiate(Group, panel, {
     x: 635,
     y: 62,
+    width: 64,
+    height: 64,
     anchorX: 0.5,
     anchorY: 0.5,
 });
-rotatingBadge.roundRect(0, 0, 64, 64, 14).fill(0xffc857).stroke({ width: 2, color: 0x2f3437, alpha: 0.18 });
 rotatingBadge.addComponent(Spinner);
+
+const rotatingBadgeBackground = GameObject.instantiate(Graphics, rotatingBadge);
+rotatingBadgeBackground.roundRect(0, 0, rotatingBadge.width, rotatingBadge.height, 14).fill(0xffc857).stroke({ width: 2, color: 0x2f3437, alpha: 0.18 });
 
 GameObject.instantiate(Label, rotatingBadge, {
     value: 'GO',

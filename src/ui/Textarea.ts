@@ -4,7 +4,10 @@ export class Textarea extends Input {
 
     set lineHeight(val: number) {
         this._labelStyle.lineHeight = val;
-        this.element.style.lineHeight = val + 'px';
+        if (this.element) {
+            this.element.style.lineHeight = val + 'px';
+        }
+        this._isUpdateElementSize = true;
     }
     get lineHeight() {
         return this._labelStyle.lineHeight;
@@ -12,7 +15,9 @@ export class Textarea extends Input {
 
     protected _padding = [6, 6, 6, 6];
     protected createElement(): void {
-        this.element = document.createElement('textarea')
+        this.element = document.createElement('textarea');
+        this.element.style.resize = 'none';
+        this.element.style.overflow = 'hidden';
     }
 
     public render() {
@@ -25,9 +30,9 @@ export class Textarea extends Input {
     public resize(): void {
         this._isResize = false;
         this._isUpdateElementSize = true;
-        this.value.x = this.paddingLeft;
-        this.value.y = this.paddingTop;
-        this._labelStyle.wordWrapWidth = this.width - this.paddingLeft - this.paddinRight;
+        this.valueLabel.x = this.paddingLeft;
+        this.valueLabel.y = this.paddingTop;
+        this._labelStyle.wordWrapWidth = this.contentWidth;
         this.updateMask();
     }
 }

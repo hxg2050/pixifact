@@ -100,7 +100,7 @@ export class Group extends GameObject<Container> {
     removeChildAt(index: number) {
         const node = this.children.splice(index, 1)[0];
         node.parent = undefined;
-        node.display.parent.removeChildAt(index);
+        node.display.parent?.removeChild(node.display);
 
         this.emitter.emit(GameObject.Event.CHILD_REMOVED, node);
         node.emitter.emit(GameObject.Event.REMOVED, this);

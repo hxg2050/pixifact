@@ -256,9 +256,10 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
 
         // if (go.update) {
             const update = (ticker: Ticker) => {
-                go.emitter.emit(GameObject.Event.TICKER_BEFORE, ticker);
-                go.update?.(ticker.deltaTime);
-                go.emitter.emit(GameObject.Event.TICKER_AFTER, ticker);
+                const dt = ticker.deltaTime;
+                go.emitter.emit(GameObject.Event.TICKER_BEFORE, dt);
+                go.update?.(dt);
+                go.emitter.emit(GameObject.Event.TICKER_AFTER, dt);
             }
             Ticker.shared.add(update);
             go.display.once('destroyed', () => {

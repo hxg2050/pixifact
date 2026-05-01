@@ -13,9 +13,15 @@ export class Input extends Group {
     /**
      * 输入框失去焦点时显示的内容
      */
-    public value!: Label;
+    public valueLabel!: Label;
 
     private _mask!: PIXIGraphics;
+    private _value = '';
+    private _destroyed = false;
+    private _isFocused = false;
+    private _textColor = '#23272a';
+    private _focusedBorderColor = 0x0000ff;
+    private _blurredBorderColor = 0x828282;
 
     set width(val: number) {
         super.width = val;
@@ -35,7 +41,6 @@ export class Input extends Group {
 
     set x(val: number) {
         super.x = val;
-        this._isUpdateTransform = true;
     }
     get x() {
         return super.x;
@@ -43,7 +48,6 @@ export class Input extends Group {
 
     set y(val: number) {
         super.y = val;
-        this._isUpdateTransform = true;
     }
     get y() {
         return super.y
@@ -51,7 +55,6 @@ export class Input extends Group {
 
     set scaleX(val: number) {
         super.scaleX = val;
-        this._isUpdateTransform = true;
     }
     get scaleX() {
         return super.scaleX
@@ -59,7 +62,6 @@ export class Input extends Group {
 
     set scaleY(val: number) {
         super.scaleY = val;
-        this._isUpdateTransform = true;
     }
     get scaleY() {
         return super.scaleY
@@ -69,29 +71,36 @@ export class Input extends Group {
      * 更新mask，条件：1、padding改变 2、宽高改变
      */
     protected updateMask() {
-        this._mask.height = this.height - this.paddingTop;
-        this._mask.width = this.width - this.paddingLeft;
+        if (!this._mask) {
+            return;
+        }
+
+        this._mask.x = this.paddingLeft;
+        this._mask.y = this.paddingTop;
+        this._mask.width = this.contentWidth;
+        this._mask.height = this.contentHeight;
     }
 
     protected _isUpdateElementSize = false;
     protected updateElementSize() {
         this._isUpdateElementSize = false;
-        this.element.style.width = this.width + 'px'
-        this.element.style.height = this.height + 'px'
-        this.element.style.borderWidth = this._padding.join('px ') + 'px'
-        this.element.style.fontSize = this.fontSize + 'px'
+        this.element.style.width = this.width + 'px';
+        this.element.style.height = this.height + 'px';
+        this.element.style.padding = this._padding.map((value) => value + 'px').join(' ');
+        this.element.style.borderWidth = '0';
+        this.element.style.fontSize = this.fontSize + 'px';
+        this.element.style.lineHeight = this.contentHeight + 'px';
         this.updateMask();
     }
 
-    private _isUpdateTransform = false;
     /**
      * 更新2d变换，位置，缩放，斜切，旋转
      */
     updateTransform() {
-        this._isUpdateTransform = false;
         const { a, b, c, d, tx, ty } = this.display.worldTransform;
-        this.element.style.transform = `matrix(${a}, ${b}, ${c}, ${d}, ${tx}, ${ty})`
-        this.element.style.transformOrigin = `${this.anchorX}% ${this.anchorY}%`;
+        this.element.style.transform = `matrix(${a}, ${b}, ${c}, ${d}, ${tx}, ${ty})`;
+        this.element.style.transformOrigin = `${this.anchorX * 100}% ${this.anchorY * 100}%`;
+        this.element.style.opacity = String(this.display.alpha);
         this.updateMask();
     }
 
@@ -102,49 +111,66 @@ export class Input extends Group {
     public resize(): void {
         this._isResize = false;
         this._isUpdateElementSize = true;
-        this.value.x = this.paddingLeft;
-        this.value.y = this.paddingTop;
-        this._labelStyle.lineHeight = this.height;
+        this.valueLabel.x = this.paddingLeft;
+        this.valueLabel.y = this.paddingTop;
+        this._labelStyle.lineHeight = this.contentHeight;
         this.updateMask();
     }
 
     protected createElement() {
-        this.element = document.createElement('input')
+        const element = document.createElement('input');
+        element.type = 'text';
+        this.element = element;
     }
 
     public render() {
         const mask = new PIXIGraphics();
-        mask.rect(0, 0, 100, 50)
+        mask.rect(0, 0, 100, 50);
         mask.fill(0x0000ff);
         this.display.addChild(mask);
         this._mask = mask;
+
         this.createElement();
-        this.element.setAttribute('type', 'text');
-        this.element.className = 'textarea'
+        this.element.className = 'textarea';
+        this.element.style.boxSizing = 'border-box';
+        this.element.style.position = 'fixed';
+        this.element.style.left = '0';
+        this.element.style.top = '0';
+        this.element.style.zIndex = '10';
+        this.element.style.margin = '0';
+        this.element.style.borderStyle = 'solid';
+        this.element.style.borderRadius = '0';
         this.element.style.display = 'none';
+        this.element.style.color = 'transparent';
+        this.element.style.background = 'transparent';
+        this.element.style.caretColor = this._textColor;
+        this.element.style.outline = 'none';
         this.element.onfocus = this.onFocus.bind(this);
         this.element.onblur = this.onBlur.bind(this);
+        this.element.oninput = this.onInput.bind(this);
         
         this.fontFamily = this._labelStyle.fontFamily;
         this.fontSize = this._labelStyle.fontSize;
 
         window.document.body.append(this.element);
-        this.graphics = GameObject.instantiate(Graphics, this)
-        this.value = GameObject.instantiate(Label, this, {
+        this.graphics = GameObject.instantiate(Graphics, this);
+        this.valueLabel = GameObject.instantiate(Label, this, {
             style: this._labelStyle,
             x: this.paddingLeft
-        })
-        this.value.display.mask = mask;
+        });
+        this.valueLabel.display.mask = mask;
+        this.value = this._value;
 
 
         this.graphics.display.eventMode = 'static';
-        this.graphics.display.on('pointerdown', this.focus, this)
+        this.graphics.display.on('pointerdown', this.focus, this);
+        this.display.once('destroyed', this.onDestroy, this);
+        this._isResize = true;
+        this._isDrawStyle = true;
+        this._isUpdateElementSize = true;
     }
 
     public update(): void {
-        if (this._isUpdateTransform) {
-            this.updateTransform();
-        }
         if (this._isResize) {
             this.resize();
         }
@@ -154,9 +180,10 @@ export class Input extends Group {
         if (this._isUpdateElementSize) {
             this.updateElementSize();
         }
+        this.updateTransform();
     }
 
-    private _stokeStyle: StrokeStyle = { width: 1, color: 0x828282 }
+    private _stokeStyle: StrokeStyle = { width: 1, color: this._blurredBorderColor }
 
     private _backgroundColor = 0xffffff;
     set backgroundColor(val: number) {
@@ -180,7 +207,9 @@ export class Input extends Group {
     })
     set fontFamily(val: string | string[]) {
         this._labelStyle.fontFamily = val;
-        this.element.style.fontFamily = Array.isArray(val) ? val.join(',') : val;
+        if (this.element) {
+            this.element.style.fontFamily = Array.isArray(val) ? val.join(',') : val;
+        }
     }
     get fontFamily() {
         return this._labelStyle.fontFamily;
@@ -188,7 +217,10 @@ export class Input extends Group {
 
     set fontSize(val: number) {
         this._labelStyle.fontSize = val;
-        this.element.style.fontSize = val + 'px';
+        if (this.element) {
+            this.element.style.fontSize = val + 'px';
+        }
+        this._isUpdateElementSize = true;
     }
     get fontSize() {
         return this._labelStyle.fontSize;
@@ -202,11 +234,19 @@ export class Input extends Group {
         this._isDrawStyle = false;
         this.graphics.clear();
         this.graphics.rect(0, 0, this.width, this.height);
-        this.graphics.fill(this._backgroundColor)
+        this.graphics.fill(this._backgroundColor);
         this.graphics.stroke(this._stokeStyle);
     }
 
     protected _padding = [0, 6, 0, 6];
+    protected get contentWidth() {
+        return Math.max(0, this.width - this.paddingLeft - this.paddingRight);
+    }
+
+    protected get contentHeight() {
+        return Math.max(0, this.height - this.paddingTop - this.paddingBottom);
+    }
+
     set paddingLeft(val: number) {
         this._padding[3] = val;
         this._isResize = true;
@@ -221,8 +261,11 @@ export class Input extends Group {
         this._isResize = true;
         this._isUpdateElementSize = true;
     }
-    get paddinRight() {
+    get paddingRight() {
         return this._padding[1];
+    }
+    get paddinRight() {
+        return this.paddingRight;
     }
 
     set paddingTop(val: number) {
@@ -242,33 +285,80 @@ export class Input extends Group {
     get paddingBottom() {
         return this._padding[2]
     }
-    
+
+    get value() {
+        return this._value;
+    }
+    set value(val: string) {
+        this._value = val;
+        if (this.element && this.element.value !== val) {
+            this.element.value = val;
+        }
+        if (this.valueLabel) {
+            this.valueLabel.value = val;
+        }
+    }
 
     private onFocus() {
-        console.log('focus');
-        this.value.display.visible = false
-        this.borderColor = 0x0000ff;
-        this.borderSize = 2
+        this._isFocused = true;
+        this.valueLabel.display.visible = false;
+        this.element.style.color = this._textColor;
+        this.borderColor = this._focusedBorderColor;
+        this.borderSize = 2;
         this.emitter.emit('focus');
     }
     public focus() {
-        console.log('f');
+        if (this._isResize) {
+            this.resize();
+        }
+        if (this._isDrawStyle) {
+            this.drawStyle();
+        }
+        if (this._isUpdateElementSize) {
+            this.updateElementSize();
+        }
+        this.updateTransform();
         this.element.style.display = 'block';
         Ticker.shared.addOnce(() => {
-            this.element.focus()
-        })
+            this.element.focus();
+        });
+    }
+
+    private onInput() {
+        this._value = this.element.value;
     }
 
     private onBlur() {
-        console.log('blur');
-        this.borderColor = 0x828282;
-        this.borderSize = 1
+        if (!this._isFocused && this.element.style.display === 'none') {
+            return;
+        }
+        this._isFocused = false;
+        this.value = this.element.value;
+        this.borderColor = this._blurredBorderColor;
+        this.borderSize = 1;
+        this.element.style.color = 'transparent';
         this.element.style.display = 'none';
-        this.value.value = this.element.value;
-        this.value.display.visible = true
+        this.valueLabel.display.visible = true;
         this.emitter.emit('blur');
     }
     public blur() {
-        this.element.blur()
+        this.element.blur();
+        if (this._isFocused || this.element.style.display !== 'none') {
+            this.onBlur();
+        }
+    }
+
+    public onDestroy() {
+        if (this._destroyed) {
+            return;
+        }
+        this._destroyed = true;
+        this.graphics?.display.off('pointerdown', this.focus, this);
+        if (this.element) {
+            this.element.onfocus = null;
+            this.element.onblur = null;
+            this.element.oninput = null;
+            this.element.remove();
+        }
     }
 }

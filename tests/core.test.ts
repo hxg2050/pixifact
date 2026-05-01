@@ -1,4 +1,4 @@
-import { Container } from 'pixi.js';
+import { Container, Ticker } from 'pixi.js';
 import { describe, expect, it, vi } from 'vitest';
 import { Component, GameObject, Group } from '../src/core';
 import { setProps, sp } from '../src/core/utils/setProps';
@@ -132,6 +132,18 @@ describe('Component lifecycle', () => {
         expect(component.update).toHaveBeenCalledTimes(2);
 
         object.display.destroy();
+    });
+
+    it('passes ticker deltaTime to instantiated components', () => {
+        const object = GameObject.instantiate(TestObject);
+        const component = object.addComponent(TestComponent);
+
+        Ticker.shared.update(performance.now() + 16);
+
+        expect(component.update).toHaveBeenCalledWith(expect.any(Number));
+        expect(typeof component.update.mock.calls[0][0]).toBe('number');
+
+        GameObject.destroy(object);
     });
 });
 
