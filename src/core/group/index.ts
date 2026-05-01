@@ -48,6 +48,7 @@ export class Group extends GameObject<Container> {
         this.children.push(child);
         child.parent = this;
         this.display.addChild(child.display);
+        child.setApplication(this.app);
 
         this.emitter.emit(GameObject.Event.CHILD_ADDED, child);
         child.emitter.emit(GameObject.Event.ADDED, this);
@@ -69,6 +70,7 @@ export class Group extends GameObject<Container> {
         this.children.splice(index, 0, child);
         child.parent = this;
         this.display.addChildAt(child.display, index);
+        child.setApplication(this.app);
 
         this.emitter.emit(GameObject.Event.CHILD_ADDED, child);
         child.emitter.emit(GameObject.Event.ADDED, this);
@@ -101,6 +103,7 @@ export class Group extends GameObject<Container> {
         const node = this.children.splice(index, 1)[0];
         node.parent = undefined;
         node.display.parent?.removeChild(node.display);
+        node.setApplication(undefined);
 
         this.emitter.emit(GameObject.Event.CHILD_REMOVED, node);
         node.emitter.emit(GameObject.Event.REMOVED, this);

@@ -1,6 +1,6 @@
 import { Container, Ticker } from 'pixi.js';
 import { describe, expect, it, vi } from 'vitest';
-import { Component, Flex, FlexDirection, FlexGroup, GameObject, Graphics, GridLayout, Group, Image, Label, Layout, NineSliceImage } from '../src/core';
+import { Application, Component, Flex, FlexDirection, FlexGroup, GameObject, Graphics, GridLayout, Group, Image, Label, Layout, NineSliceImage } from '../src/core';
 import { setProps, sp } from '../src/core/utils/setProps';
 import { onlyOnceQueueMicrotask } from '../src/core/utils/onlyOnceQueueMicrotask';
 
@@ -21,6 +21,23 @@ class StartComponent extends Component<TestObject> {
 
 class UpdateObject extends TestObject {
     update = vi.fn();
+}
+
+function createTestApplication() {
+    const app = new Application();
+    const root = new Group();
+    const ticker = new Ticker();
+
+    Object.assign(app, {
+        root,
+        stage: root.display,
+        ticker,
+    });
+    root.display = new Container();
+    app.stage = root.display;
+    root.setApplication(app);
+
+    return app;
 }
 
 describe('setProps', () => {
@@ -742,71 +759,114 @@ describe('Component lifecycle', () => {
         object.display.destroy();
     });
 
-    it('passes ticker deltaTime to instantiated components', () => {
-        const object = GameObject.instantiate(TestObject);
+    it('passes app ticker deltaTime to mounted components', () => {
+        const app = createTestApplication();
+        const object = GameObject.instantiate(TestObject, app.root);
         const component = object.addComponent(TestComponent);
 
-        Ticker.shared.update(performance.now() + 16);
+        app.ticker.update(performance.now() + 16);
 
         expect(component.update).toHaveBeenCalledWith(expect.any(Number));
         expect(typeof component.update.mock.calls[0][0]).toBe('number');
 
-        GameObject.destroy(object);
+        GameObject.destroy(app.root);
+        app.ticker.destroy();
     });
 
-    it('does not register ticker for a component that only uses start', () => {
-        const baseTickerCount = Ticker.shared.count;
-        const object = GameObject.instantiate(TestObject);
+    it('does not register the app ticker for a component that only uses start', () => {
+        const app = createTestApplication();
+        const object = GameObject.instantiate(TestObject, app.root);
         const component = object.addComponent(StartComponent);
 
         expect(component.start).toHaveBeenCalledTimes(1);
-        expect(Ticker.shared.count).toBe(baseTickerCount);
+        expect(app.ticker.count).toBe(0);
 
-        GameObject.destroy(object);
+        GameObject.destroy(app.root);
+        app.ticker.destroy();
     });
 
-    it('registers ticker only while the object or its components need updates', () => {
-        const baseTickerCount = Ticker.shared.count;
-        const idleObject = GameObject.instantiate(TestObject);
+    it('registers the app ticker only while mounted objects or components need updates', () => {
+        const app = createTestApplication();
+        const idleObject = GameObject.instantiate(TestObject, app.root);
 
-        expect(Ticker.shared.count).toBe(baseTickerCount);
+        expect(app.ticker.count).toBe(0);
 
-        const updateObject = GameObject.instantiate(UpdateObject);
+        const updateObject = GameObject.instantiate(UpdateObject, app.root);
 
-        expect(Ticker.shared.count).toBe(baseTickerCount + 1);
+        expect(app.ticker.count).toBe(1);
 
         GameObject.destroy(updateObject);
 
-        expect(Ticker.shared.count).toBe(baseTickerCount);
+        expect(app.ticker.count).toBe(0);
 
-        const componentObject = GameObject.instantiate(TestObject);
+        const componentObject = GameObject.instantiate(TestObject, app.root);
         const component = componentObject.addComponent(TestComponent);
 
-        expect(Ticker.shared.count).toBe(baseTickerCount + 1);
+        expect(app.ticker.count).toBe(1);
 
         componentObject.removeComponent(component);
 
-        expect(Ticker.shared.count).toBe(baseTickerCount);
+        expect(app.ticker.count).toBe(0);
+
+        app.root.removeChild(idleObject);
+        const detachedObject = GameObject.instantiate(UpdateObject);
+        expect(app.ticker.count).toBe(0);
+        app.root.addChild(detachedObject);
+        expect(app.ticker.count).toBe(1);
+        app.root.removeChild(detachedObject);
+        expect(app.ticker.count).toBe(0);
 
         GameObject.destroy(componentObject);
         GameObject.destroy(idleObject);
+        GameObject.destroy(detachedObject);
+        GameObject.destroy(app.root);
+        app.ticker.destroy();
     });
 
-    it('releases ticker and component listeners when destroyed', () => {
-        const baseTickerCount = Ticker.shared.count;
-        const object = GameObject.instantiate(TestObject);
+    it('releases app ticker and component listeners when destroyed', () => {
+        const app = createTestApplication();
+        const object = GameObject.instantiate(TestObject, app.root);
         const component = object.addComponent(TestComponent);
 
-        expect(Ticker.shared.count).toBe(baseTickerCount + 1);
+        expect(app.ticker.count).toBe(1);
 
         GameObject.destroy(object);
 
-        expect(Ticker.shared.count).toBe(baseTickerCount);
+        expect(app.ticker.count).toBe(0);
         expect(component.onDestroy).toHaveBeenCalledTimes(1);
 
-        Ticker.shared.update(performance.now() + 16);
+        app.ticker.update(performance.now() + 16);
 
         expect(component.update).not.toHaveBeenCalled();
+
+        GameObject.destroy(app.root);
+        app.ticker.destroy();
+    });
+
+    it('updates direct ticker listeners through the mounted app only', () => {
+        const app = createTestApplication();
+        const object = GameObject.instantiate(TestObject);
+        const before = vi.fn();
+        const after = vi.fn();
+
+        object.emitter.on(GameObject.Event.TICKER_BEFORE, before);
+        object.emitter.on(GameObject.Event.TICKER_AFTER, after);
+        expect(app.ticker.count).toBe(0);
+
+        app.root.addChild(object);
+        expect(app.ticker.count).toBe(1);
+
+        app.ticker.update(performance.now() + 16);
+        expect(before).toHaveBeenCalledWith(expect.any(Number));
+        expect(after).toHaveBeenCalledWith(expect.any(Number));
+
+        object.emitter.off(GameObject.Event.TICKER_BEFORE, before);
+        expect(app.ticker.count).toBe(1);
+        object.emitter.off(GameObject.Event.TICKER_AFTER, after);
+        expect(app.ticker.count).toBe(0);
+
+        GameObject.destroy(app.root);
+        app.ticker.destroy();
     });
 });
 

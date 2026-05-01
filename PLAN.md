@@ -12,7 +12,8 @@
 
 - [x] 只有对象自身或组件需要 `update` 时才注册 ticker。
 - [x] 销毁对象时确保 ticker、事件监听和组件生命周期全部释放。
-- [ ] 长期考虑由 `Application` 统一驱动对象树，减少 `Ticker.shared` 上的全局回调数量。
+- [x] 由 `Application` 维护活跃更新对象集合，通过单个 `app.ticker` 回调统一驱动对象树，避免每个对象直接注册 `Ticker.shared`。
+- [x] 对象挂载、移除、重挂载和销毁时同步活跃更新集合。
 
 ## 3. Layout 优化计划
 

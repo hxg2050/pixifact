@@ -1,10 +1,11 @@
-import { Container, Ticker } from "pixi.js";
+import { Container } from "pixi.js";
 import { Transform } from "./Transform";
 import { Vector2 } from "@math.gl/core";
 import EventEmitter from "eventemitter3";
 import { setProps } from "./utils/setProps";
 import { Component } from "./component/Component";
 import type { Group } from "./group";
+import type { Application } from "./Application";
 export type Constructor<T = unknown> = new (...args: any[]) => T;
 
 export const GameObjectEvent = {
@@ -63,6 +64,81 @@ function hasChildren(go: GameObject): go is GameObject & { children: GameObject[
     return 'children' in go && Array.isArray(go.children);
 }
 
+class GameObjectEmitter extends EventEmitter<GameObjectEventMap> {
+    constructor(private gameObject: GameObject) {
+        super();
+    }
+
+    private syncUpdateRegistration() {
+        this.gameObject.syncUpdateRegistration();
+    }
+
+    override on<T extends EventEmitter.EventNames<GameObjectEventMap>>(
+        event: T,
+        fn: EventEmitter.EventListener<GameObjectEventMap, T>,
+        context?: unknown,
+    ) {
+        super.on(event, fn, context);
+        this.syncUpdateRegistration();
+        return this;
+    }
+
+    override addListener<T extends EventEmitter.EventNames<GameObjectEventMap>>(
+        event: T,
+        fn: EventEmitter.EventListener<GameObjectEventMap, T>,
+        context?: unknown,
+    ) {
+        return this.on(event, fn, context);
+    }
+
+    override once<T extends EventEmitter.EventNames<GameObjectEventMap>>(
+        event: T,
+        fn: EventEmitter.EventListener<GameObjectEventMap, T>,
+        context?: unknown,
+    ) {
+        super.once(event, fn, context);
+        this.syncUpdateRegistration();
+        return this;
+    }
+
+    override off<T extends EventEmitter.EventNames<GameObjectEventMap>>(
+        event: T,
+        fn?: EventEmitter.EventListener<GameObjectEventMap, T>,
+        context?: unknown,
+        once?: boolean,
+    ) {
+        super.off(event, fn, context, once);
+        this.syncUpdateRegistration();
+        return this;
+    }
+
+    override removeListener<T extends EventEmitter.EventNames<GameObjectEventMap>>(
+        event: T,
+        fn?: EventEmitter.EventListener<GameObjectEventMap, T>,
+        context?: unknown,
+        once?: boolean,
+    ) {
+        return this.off(event, fn, context, once);
+    }
+
+    override removeAllListeners(event?: EventEmitter.EventNames<GameObjectEventMap>) {
+        super.removeAllListeners(event);
+        this.syncUpdateRegistration();
+        return this;
+    }
+
+    override emit<T extends EventEmitter.EventNames<GameObjectEventMap>>(
+        event: T,
+        ...args: EventEmitter.EventArgs<GameObjectEventMap, T>
+    ) {
+        const result = super.emit(event, ...args);
+        if (event === GameObject.Event.TICKER_BEFORE || event === GameObject.Event.TICKER_AFTER) {
+            this.syncUpdateRegistration();
+        }
+        return result;
+    }
+}
+
 export abstract class BaseGameObject<T extends Container> {
     public abstract display: T;
 
@@ -87,28 +163,17 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
 
     static Event = GameObjectEvent;
 
-    public emitter = new EventEmitter<GameObjectEventMap>();
+    public emitter = new GameObjectEmitter(this);
 
     public display!: T;
 
     public transform: Transform = new Transform(this);
+    public app?: Application;
 
     parent?: Group;
 
     public components: Component[] = [];
-    private _tickerActive = false;
     private _destroying = false;
-
-    private _updateTicker = (ticker: Ticker) => {
-        const dt = ticker.deltaTime;
-        this.emitter.emit(GameObject.Event.TICKER_BEFORE, dt);
-        this.update?.(dt);
-        this.emitter.emit(GameObject.Event.TICKER_AFTER, dt);
-
-        if (!this.hasTickerWork()) {
-            this.releaseTicker();
-        }
-    };
 
     get visible() {
         return this.display.visible;
@@ -222,41 +287,45 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
 
     start?(): void;
 
-    private hasTickerWork() {
+    public hasUpdateWork() {
         return !!this.update
             || this.emitter.listenerCount(GameObject.Event.TICKER_BEFORE) > 0
             || this.emitter.listenerCount(GameObject.Event.TICKER_AFTER) > 0;
     }
 
-    private syncTicker() {
-        if (this._destroying) {
+    public syncUpdateRegistration() {
+        if (this._destroying || !this.app) {
             return;
         }
 
-        if (this.hasTickerWork()) {
-            this.ensureTicker();
-            return;
+        if (this.hasUpdateWork()) {
+            this.app.registerUpdateTarget(this);
+        } else {
+            this.app.unregisterUpdateTarget(this);
         }
-
-        this.releaseTicker();
     }
 
-    private ensureTicker() {
-        if (this._tickerActive || this._destroying) {
+    public setApplication(app?: Application) {
+        if (this.app === app) {
             return;
         }
 
-        Ticker.shared.add(this._updateTicker);
-        this._tickerActive = true;
-    }
+        const previousApp = this.app;
+        this.app = app;
 
-    private releaseTicker() {
-        if (!this._tickerActive) {
-            return;
+        if (previousApp) {
+            previousApp.unregisterUpdateTarget(this);
         }
 
-        Ticker.shared.remove(this._updateTicker);
-        this._tickerActive = false;
+        if (hasChildren(this)) {
+            for (const child of this.children) {
+                child.setApplication(app);
+            }
+        }
+
+        if (app && this.hasUpdateWork()) {
+            app.registerUpdateTarget(this);
+        }
     }
 
     addComponent<T extends Component>(component: Constructor<T>, props?: Partial<T>): T {
@@ -268,7 +337,7 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
 
         _component.start && _component.start();
         _component.update && this.emitter.on(GameObject.Event.TICKER_BEFORE, _component.update, _component);
-        this.syncTicker();
+        this.syncUpdateRegistration();
         
         return _component;
     }
@@ -282,7 +351,7 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
         component.update && this.emitter.off(GameObject.Event.TICKER_BEFORE, component.update, component);
         component.gameObject.display.off('destroyed', component.destroy, component);
         component.onDestroy && component.onDestroy();
-        this.syncTicker();
+        this.syncUpdateRegistration();
         return component;
     }
 
@@ -306,7 +375,7 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
 
         this.display.once('destroyed', () => {
             this._destroying = true;
-            this.releaseTicker();
+            this.setApplication(undefined);
             queueMicrotask(() => {
                 this.emitter.removeAllListeners();
             });
@@ -330,14 +399,13 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
         props && setProps(go, props);
         go.setDisplay(go.display);
         parent?.addChild(go);
-        go.syncTicker();
 
         return go;
     }
 
     static async destroy(go: GameObject) {
         go._destroying = true;
-        go.releaseTicker();
+        go.setApplication(undefined);
         if (hasChildren(go)) {
             for (let i = go.children.length - 1; i >= 0; i--) {
                 GameObject.destroy(go.children[i]);

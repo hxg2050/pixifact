@@ -1,4 +1,4 @@
-import { StrokeStyle, Ticker, Graphics as PIXIGraphics } from "pixi.js";
+import { StrokeStyle, Graphics as PIXIGraphics } from "pixi.js";
 import { GameObject, Graphics, Group, Label, LabelStyle } from "../core";
 
 export class Input extends Group {
@@ -363,8 +363,10 @@ export class Input extends Group {
         }
         this.updateTransform();
         this.element.style.display = 'block';
-        Ticker.shared.addOnce(() => {
-            this.element.focus();
+        queueMicrotask(() => {
+            if (!this._destroyed && this.element.isConnected) {
+                this.element.focus();
+            }
         });
     }
 
