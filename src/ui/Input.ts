@@ -14,6 +14,10 @@ export class Input extends Group {
      * 输入框失去焦点时显示的内容
      */
     public valueLabel!: Label;
+    /**
+     * HTML 输入元素对齐的 canvas。默认取文档中的第一个 canvas。
+     */
+    public canvas?: Element;
 
     private _mask!: PIXIGraphics;
     private _value = '';
@@ -22,6 +26,7 @@ export class Input extends Group {
     private _textColor = '#23272a';
     private _focusedBorderColor = 0x0000ff;
     private _blurredBorderColor = 0x828282;
+    protected _isUpdateTransform = false;
 
     set width(val: number) {
         super.width = val;
@@ -41,6 +46,7 @@ export class Input extends Group {
 
     set x(val: number) {
         super.x = val;
+        this._isUpdateTransform = true;
     }
     get x() {
         return super.x;
@@ -48,6 +54,7 @@ export class Input extends Group {
 
     set y(val: number) {
         super.y = val;
+        this._isUpdateTransform = true;
     }
     get y() {
         return super.y
@@ -55,6 +62,7 @@ export class Input extends Group {
 
     set scaleX(val: number) {
         super.scaleX = val;
+        this._isUpdateTransform = true;
     }
     get scaleX() {
         return super.scaleX
@@ -62,6 +70,7 @@ export class Input extends Group {
 
     set scaleY(val: number) {
         super.scaleY = val;
+        this._isUpdateTransform = true;
     }
     get scaleY() {
         return super.scaleY
@@ -98,10 +107,26 @@ export class Input extends Group {
      */
     updateTransform() {
         const { a, b, c, d, tx, ty } = this.display.worldTransform;
-        this.element.style.transform = `matrix(${a}, ${b}, ${c}, ${d}, ${tx}, ${ty})`;
+        const offset = this.getCanvasOffset();
+        this.element.style.transform = `matrix(${a}, ${b}, ${c}, ${d}, ${tx + offset.x}, ${ty + offset.y})`;
         this.element.style.transformOrigin = `${this.anchorX * 100}% ${this.anchorY * 100}%`;
         this.element.style.opacity = String(this.display.alpha);
+        this._isUpdateTransform = false;
         this.updateMask();
+    }
+
+    private getCanvasOffset() {
+        const view = this.getCanvasView();
+        if (!view) {
+            return { x: 0, y: 0 };
+        }
+
+        const rect = view.getBoundingClientRect();
+        return { x: rect.left, y: rect.top };
+    }
+
+    private getCanvasView(): Element | undefined {
+        return this.canvas ?? document.querySelector('canvas') ?? undefined;
     }
 
     protected _isResize = false;
@@ -111,6 +136,7 @@ export class Input extends Group {
     public resize(): void {
         this._isResize = false;
         this._isUpdateElementSize = true;
+        this._isUpdateTransform = true;
         this.valueLabel.x = this.paddingLeft;
         this.valueLabel.y = this.paddingTop;
         this._labelStyle.lineHeight = this.contentHeight;
@@ -145,6 +171,11 @@ export class Input extends Group {
         this.element.style.background = 'transparent';
         this.element.style.caretColor = this._textColor;
         this.element.style.outline = 'none';
+        this.element.style.padding = '0 6px';
+        this.element.style.fontFamily = Array.isArray(this._labelStyle.fontFamily)
+            ? this._labelStyle.fontFamily.join(',')
+            : this._labelStyle.fontFamily;
+        this.element.style.fontSize = this._labelStyle.fontSize + 'px';
         this.element.onfocus = this.onFocus.bind(this);
         this.element.onblur = this.onBlur.bind(this);
         this.element.oninput = this.onInput.bind(this);
@@ -165,9 +196,12 @@ export class Input extends Group {
         this.graphics.display.eventMode = 'static';
         this.graphics.display.on('pointerdown', this.focus, this);
         this.display.once('destroyed', this.onDestroy, this);
+        window.addEventListener('resize', this.handleViewportChange);
+        window.addEventListener('scroll', this.handleViewportChange, true);
         this._isResize = true;
         this._isDrawStyle = true;
         this._isUpdateElementSize = true;
+        this._isUpdateTransform = true;
     }
 
     public update(): void {
@@ -180,8 +214,14 @@ export class Input extends Group {
         if (this._isUpdateElementSize) {
             this.updateElementSize();
         }
-        this.updateTransform();
+        if (this._isUpdateTransform || this.element.style.display !== 'none') {
+            this.updateTransform();
+        }
     }
+
+    private handleViewportChange = () => {
+        this._isUpdateTransform = true;
+    };
 
     private _stokeStyle: StrokeStyle = { width: 1, color: this._blurredBorderColor }
 
@@ -221,6 +261,7 @@ export class Input extends Group {
             this.element.style.fontSize = val + 'px';
         }
         this._isUpdateElementSize = true;
+        this._isUpdateTransform = true;
     }
     get fontSize() {
         return this._labelStyle.fontSize;
@@ -264,6 +305,9 @@ export class Input extends Group {
     get paddingRight() {
         return this._padding[1];
     }
+    /**
+     * @deprecated 使用 `paddingRight`。该拼写错误保留用于兼容旧代码。
+     */
     get paddinRight() {
         return this.paddingRight;
     }
@@ -354,6 +398,8 @@ export class Input extends Group {
         }
         this._destroyed = true;
         this.graphics?.display.off('pointerdown', this.focus, this);
+        window.removeEventListener('resize', this.handleViewportChange);
+        window.removeEventListener('scroll', this.handleViewportChange, true);
         if (this.element) {
             this.element.onfocus = null;
             this.element.onblur = null;

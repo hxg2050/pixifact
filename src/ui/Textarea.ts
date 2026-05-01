@@ -30,6 +30,7 @@ export class Textarea extends Input {
     public resize(): void {
         this._isResize = false;
         this._isUpdateElementSize = true;
+        this._isUpdateTransform = true;
         this.valueLabel.x = this.paddingLeft;
         this.valueLabel.y = this.paddingTop;
         this._labelStyle.wordWrapWidth = this.contentWidth;

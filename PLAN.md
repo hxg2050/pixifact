@@ -67,9 +67,9 @@
 - [x] 消除 `Application -> core index` 的循环依赖 warning。
 - [x] 检查 `dist` 类型产物是否完整覆盖所有公开模块。
 
-## 6. UI 组件稳定
+## 6. UI 组件稳定（已完成）
 
-- 给 `Input` / `Textarea` 增加 canvas offset、窗口 resize、销毁后的交互测试。
-- 评估是否改用 PixiJS v8 `DOMContainer` 承载 DOM 输入元素。
-- 标记 `paddinRight` 为兼容旧拼写，后续版本移除。
-- 清理 UI 组件中依赖示例 CSS 的隐含假设。
+- [x] 给 `Input` / `Textarea` 增加 canvas offset、窗口 resize、销毁后的交互测试。
+- [x] 评估是否改用 PixiJS v8 `DOMContainer` 承载 DOM 输入元素：当前暂不迁移，因为 `DOMContainer` 在 PixiJS v8 仍为 experimental，库级组件先保留自维护 DOM overlay。
+- [x] 标记 `paddinRight` 为兼容旧拼写，后续版本移除。
+- [x] 清理 UI 组件中依赖示例 CSS 的隐含假设。
