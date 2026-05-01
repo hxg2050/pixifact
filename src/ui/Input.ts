@@ -1,4 +1,5 @@
-import { StrokeStyle, Graphics as PIXIGraphics } from "pixi.js";
+import { Matrix, StrokeStyle, Graphics as PIXIGraphics } from "pixi.js";
+import type { FederatedPointerEvent } from "pixi.js";
 import { GameObject, Graphics, Group, Label, LabelStyle } from "../core";
 
 export class Input extends Group {
@@ -26,6 +27,7 @@ export class Input extends Group {
     private _textColor = '#23272a';
     private _focusedBorderColor = 0x0000ff;
     private _blurredBorderColor = 0x828282;
+    private readonly _globalTransform = new Matrix();
     protected _isUpdateTransform = false;
 
     set width(val: number) {
@@ -106,7 +108,7 @@ export class Input extends Group {
      * 更新2d变换，位置，缩放，斜切，旋转
      */
     updateTransform() {
-        const { a, b, c, d, tx, ty } = this.display.worldTransform;
+        const { a, b, c, d, tx, ty } = this.display.getGlobalTransform(this._globalTransform);
         const offset = this.getCanvasOffset();
         this.element.style.transform = `matrix(${a}, ${b}, ${c}, ${d}, ${tx + offset.x}, ${ty + offset.y})`;
         this.element.style.transformOrigin = `${this.anchorX * 100}% ${this.anchorY * 100}%`;
@@ -194,6 +196,7 @@ export class Input extends Group {
 
 
         this.graphics.display.eventMode = 'static';
+        this.graphics.display.cursor = 'text';
         this.graphics.display.on('pointerdown', this.focus, this);
         this.display.once('destroyed', this.onDestroy, this);
         window.addEventListener('resize', this.handleViewportChange);
@@ -351,7 +354,11 @@ export class Input extends Group {
         this.borderSize = 2;
         this.emitter.emit('focus');
     }
-    public focus() {
+    public focus(event?: FederatedPointerEvent) {
+        if (event?.pointerType !== 'touch') {
+            event?.preventDefault();
+        }
+        event?.stopPropagation();
         if (this._isResize) {
             this.resize();
         }
@@ -363,11 +370,9 @@ export class Input extends Group {
         }
         this.updateTransform();
         this.element.style.display = 'block';
-        queueMicrotask(() => {
-            if (!this._destroyed && this.element.isConnected) {
-                this.element.focus();
-            }
-        });
+        if (!this._destroyed && this.element.isConnected) {
+            this.element.focus();
+        }
     }
 
     private onInput() {

@@ -1,5 +1,6 @@
+import { Container, Ticker } from 'pixi.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GameObject, Input, Textarea } from '../src';
+import { Application, GameObject, Group, Input, Textarea } from '../src';
 
 function setElementRect(element: Element, left: number, top: number) {
     vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({
@@ -18,6 +19,23 @@ function setElementRect(element: Element, left: number, top: number) {
 afterEach(() => {
     vi.restoreAllMocks();
 });
+
+function createTestApplication() {
+    const app = new Application();
+    const root = new Group();
+    const ticker = new Ticker();
+
+    Object.assign(app, {
+        root,
+        stage: root.display,
+        ticker,
+    });
+    root.display = new Container();
+    app.stage = root.display;
+    root.setApplication(app);
+
+    return app;
+}
 
 describe('Input', () => {
     it('syncs value between the DOM element and the visible label', () => {
@@ -80,17 +98,59 @@ describe('Input', () => {
         expect(document.body.contains(input.element)).toBe(false);
     });
 
+    it('focuses the DOM element synchronously when activated', () => {
+        const input = GameObject.instantiate(Input, undefined, {
+            width: 120,
+            height: 32,
+        });
+        const focus = vi.spyOn(input.element, 'focus');
+        const pointerEvent = {
+            pointerType: 'mouse',
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        };
+
+        input.focus(pointerEvent as never);
+
+        expect(input.element.style.display).toBe('block');
+        expect(focus).toHaveBeenCalledTimes(1);
+        expect(pointerEvent.preventDefault).toHaveBeenCalledTimes(1);
+        expect(pointerEvent.stopPropagation).toHaveBeenCalledTimes(1);
+
+        GameObject.destroy(input);
+    });
+
+    it('does not prevent default touch activation', () => {
+        const input = GameObject.instantiate(Input, undefined, {
+            width: 120,
+            height: 32,
+        });
+        const pointerEvent = {
+            pointerType: 'touch',
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        };
+
+        input.focus(pointerEvent as never);
+
+        expect(pointerEvent.preventDefault).not.toHaveBeenCalled();
+        expect(pointerEvent.stopPropagation).toHaveBeenCalledTimes(1);
+
+        GameObject.destroy(input);
+    });
+
     it('aligns the DOM element to the canvas offset', () => {
         const canvas = document.createElement('canvas');
         setElementRect(canvas, 30, 40);
         document.body.append(canvas);
 
         const input = GameObject.instantiate(Input, undefined, {
+            x: 12,
+            y: 16,
             width: 80,
             height: 24,
             canvas,
         });
-        input.display.worldTransform.set(1, 0, 0, 1, 12, 16);
 
         input.update();
 
@@ -108,11 +168,12 @@ describe('Input', () => {
         document.body.append(canvas);
 
         const input = GameObject.instantiate(Input, undefined, {
+            x: 5,
+            y: 6,
             width: 80,
             height: 24,
             canvas,
         });
-        input.display.worldTransform.set(1, 0, 0, 1, 5, 6);
         input.update();
         expect(input.element.style.transform).toBe('matrix(1, 0, 0, 1, 15, 26)');
 
@@ -156,6 +217,41 @@ describe('Input', () => {
         input.update();
         expect(input.element.style.transform).toBe('matrix(1, 0, 0, 1, 45, 56)');
 
+        canvas.remove();
+    });
+
+    it('uses the current global transform when updated by the application ticker', () => {
+        const app = createTestApplication();
+        const canvas = document.createElement('canvas');
+        setElementRect(canvas, 30, 40);
+        document.body.append(canvas);
+
+        const parent = GameObject.instantiate(Group, app.root, {
+            x: 100,
+            y: 50,
+        });
+        const input = GameObject.instantiate(Input, parent, {
+            x: 12,
+            y: 16,
+            width: 80,
+            height: 24,
+            canvas,
+        });
+
+        app.ticker.update(performance.now() + 16);
+
+        expect(input.element.style.transform).toBe('matrix(1, 0, 0, 1, 142, 106)');
+
+        input.focus();
+
+        parent.x = 120;
+        parent.y = 70;
+        app.ticker.update(performance.now() + 32);
+
+        expect(input.element.style.transform).toBe('matrix(1, 0, 0, 1, 162, 126)');
+
+        GameObject.destroy(app.root);
+        app.ticker.destroy();
         canvas.remove();
     });
 });

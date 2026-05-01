@@ -15,6 +15,11 @@
 - [x] 由 `Application` 维护活跃更新对象集合，通过单个 `app.ticker` 回调统一驱动对象树，避免每个对象直接注册 `Ticker.shared`。
 - [x] 对象挂载、移除、重挂载和销毁时同步活跃更新集合。
 
+### 2.1 回归记录
+
+- [x] `Input` 在本阶段后出现 PC 鼠标无法稳定选中输入框的问题，原因是 `focus()` 从 `Ticker.shared.addOnce` 改成 microtask 后，DOM 聚焦进入了原生 pointer/mouse 默认行为的同一轮事件时序；PC 端可能被 canvas 默认行为抢回焦点。修复时不回退到 `Ticker.shared`，而是在非 touch 指针激活时阻止默认行为，并保持同步聚焦。
+- [x] `Input` 的 DOM overlay 位置同步不能依赖 Pixi 缓存的 `worldTransform`，统一 `app.ticker` 在 render 前驱动 `update()` 后会读到旧矩阵；应使用 `getGlobalTransform()` 获取当前全局矩阵。
+
 ## 3. Layout 优化计划
 
 ### 3.1 语义和 API 收敛（已完成）
