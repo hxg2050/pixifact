@@ -33,6 +33,8 @@ describe('setProps', () => {
 describe('GameObject transform', () => {
     it('syncs transform properties to the Pixi display object', () => {
         const object = new TestObject();
+        const reposition = vi.fn();
+        object.emitter.on(GameObject.Event.REPOSITION, reposition);
 
         object.x = 12;
         object.y = 24;
@@ -49,6 +51,7 @@ describe('GameObject transform', () => {
         expect(object.display.rotation).toBe(0.5);
         expect(object.display.skew.x).toBe(0.25);
         expect(object.display.skew.y).toBe(0.75);
+        expect(reposition).toHaveBeenCalledTimes(2);
 
         object.display.destroy();
     });
@@ -139,8 +142,8 @@ describe('Component lifecycle', () => {
 
         expect(component.awake).toHaveBeenCalledTimes(1);
 
-        object.emitter.emit(GameObject.Event.TICKER_BEFORE, { deltaTime: 1 });
-        object.emitter.emit(GameObject.Event.TICKER_BEFORE, { deltaTime: 2 });
+        object.emitter.emit(GameObject.Event.TICKER_BEFORE, 1);
+        object.emitter.emit(GameObject.Event.TICKER_BEFORE, 2);
 
         expect(component.start).toHaveBeenCalledTimes(1);
         expect(component.update).toHaveBeenCalledTimes(2);
@@ -150,7 +153,7 @@ describe('Component lifecycle', () => {
         expect(removed).toBe(component);
         expect(component.onDestroy).toHaveBeenCalledTimes(1);
 
-        object.emitter.emit(GameObject.Event.TICKER_BEFORE, { deltaTime: 3 });
+        object.emitter.emit(GameObject.Event.TICKER_BEFORE, 3);
 
         expect(component.start).toHaveBeenCalledTimes(1);
         expect(component.update).toHaveBeenCalledTimes(2);

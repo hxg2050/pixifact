@@ -7,9 +7,57 @@ import { Component } from "./component/Component";
 import type { Group } from "./group";
 export type Constructor<T = unknown> = new (...args: any[]) => T;
 
-export type ValueOf<T extends {} = {}> = T[keyof T];
+export const GameObjectEvent = {
+    /**
+     * 当添加到显示舞台时
+     */
+    ADDED: 'added',
+    /**
+     * 当添加新的子节点时
+     */
+    CHILD_ADDED: 'childAdded',
 
-export type GameObjectEvent = ValueOf<typeof GameObject.Event>;
+    /**
+     * 移除时
+     */
+    REMOVED: 'removed',
+
+    /**
+     * 移除子元素时
+     */
+    CHILD_REMOVED: 'childRemoved',
+
+    /**
+     * 尺寸发生变化时
+     */
+    RESIZE: 'resize',
+    /**
+     * 位置发生变化
+     */
+    REPOSITION: 'reposition',
+
+    /**
+     * 帧刷新前
+     */
+    TICKER_BEFORE: 'tickerBefore',
+
+    /**
+     * 帧刷新后
+     */
+    TICKER_AFTER: 'tickerAfter'
+} as const;
+
+export interface GameObjectEventMap {
+    [event: string]: any[];
+    [GameObjectEvent.ADDED]: [parent: Group];
+    [GameObjectEvent.CHILD_ADDED]: [child: GameObject];
+    [GameObjectEvent.REMOVED]: [parent: Group];
+    [GameObjectEvent.CHILD_REMOVED]: [child: GameObject];
+    [GameObjectEvent.RESIZE]: [];
+    [GameObjectEvent.REPOSITION]: [];
+    [GameObjectEvent.TICKER_BEFORE]: [dt: number];
+    [GameObjectEvent.TICKER_AFTER]: [dt: number];
+}
 
 function hasChildren(go: GameObject): go is GameObject & { children: GameObject[] } {
     return 'children' in go && Array.isArray(go.children);
@@ -37,47 +85,9 @@ export abstract class BaseGameObject<T extends Container> {
 
 export abstract class GameObject<T extends Container = Container> extends BaseGameObject<T> {
 
-    static Event = {
-        /**
-         * 当添加到显示舞台时
-         */
-        ADDED: 'ADDED',
-        /**
-         * 当添加新的字节点时
-         */
-        CHILD_ADDED: 'CHILD_ADDED',
+    static Event = GameObjectEvent;
 
-        /**
-         * 移除时
-         */
-        REMOVED: 'REMOVED',
-
-        /**
-         * 移除子元素时
-         */
-        CHILD_REMOVED: 'CHILD_REMOVED',
-
-        /**
-         * 尺寸发生变化时
-         */
-        RESIZE: 'RESIZE',
-        /**
-         * 位置发生变化
-         */
-        REPOSITION: 'REPOSITION',
-
-        /**
-         * 帧刷新前
-         */
-        TICKER_BEFORE: 'TICKER_BEFORE',
-
-        /**
-         * 帧刷新后
-         */
-        TICKER_AFTER: 'TICKER_AFTER'
-    }
-
-    public emitter = new EventEmitter<GameObjectEvent>();
+    public emitter = new EventEmitter<GameObjectEventMap>();
 
     public display!: T;
 

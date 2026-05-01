@@ -17,24 +17,32 @@ export class Transform {
         return this._position;
     }
     set position(val: Vector2) {
-        this.x = val.x;
-        this.y = val.y;
+        this.setPosition(val.x, val.y);
     }
 
     get x() {
         return this.position.x;
     }
     set x(val: number) {
-        this.position.x = val;
-        this.gameObject.display.x = val;
+        this.setPosition(val, this.position.y);
     }
 
     get y() {
         return this.position.y;
     }
     set y(val: number) {
-        this.position.y = val;
-        this.gameObject.display.y = val;
+        this.setPosition(this.position.x, val);
+    }
+
+    private setPosition(x: number, y: number) {
+        if (this.position.x === x && this.position.y === y) {
+            return;
+        }
+
+        this.position.x = x;
+        this.position.y = y;
+        this.gameObject.display.position.set(x, y);
+        this.gameObject.emitter.emit(GameObject.Event.REPOSITION);
     }
 
     // private _size = new Vector2();
