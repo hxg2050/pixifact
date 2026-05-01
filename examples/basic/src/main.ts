@@ -103,11 +103,11 @@ const grid = GameObject.instantiate(Group, panel, {
     height: 190,
 });
 grid.addComponent(GridLayout, {
-    row: 2,
+    col: 2,
     gridWidth: 118,
     gridHeight: 76,
-    gapVertical: 18,
     gapHorizontal: 18,
+    gapVertical: 18,
 });
 
 const swatches = [

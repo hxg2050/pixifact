@@ -442,6 +442,122 @@ describe('Layout components', () => {
 
         grid.display.destroy();
     });
+
+    it('lays out grid children by column count with explicit gap directions', async () => {
+        const grid = new Group();
+        const layout = grid.addComponent(GridLayout, {
+            col: 2,
+            gridWidth: 20,
+            gridHeight: 10,
+            gapHorizontal: 5,
+            gapVertical: 7,
+        });
+        const first = GameObject.instantiate(Group, grid);
+        const second = GameObject.instantiate(Group, grid);
+        const third = GameObject.instantiate(Group, grid);
+
+        await Promise.resolve();
+
+        expect(first.x).toBe(0);
+        expect(first.y).toBe(0);
+        expect(second.x).toBe(25);
+        expect(second.y).toBe(0);
+        expect(third.x).toBe(0);
+        expect(third.y).toBe(17);
+        expect(first.width).toBe(20);
+        expect(first.height).toBe(10);
+
+        layout.gapHorizontal = 10;
+        layout.gapVertical = 12;
+        await Promise.resolve();
+
+        expect(second.x).toBe(30);
+        expect(third.y).toBe(22);
+
+        grid.display.destroy();
+    });
+
+    it('keeps deprecated row as an alias for column count', async () => {
+        const grid = new Group();
+        const layout = grid.addComponent(GridLayout, {
+            row: 3,
+            gridWidth: 10,
+            gridHeight: 10,
+        });
+        const first = GameObject.instantiate(Group, grid);
+        const second = GameObject.instantiate(Group, grid);
+        const third = GameObject.instantiate(Group, grid);
+        const fourth = GameObject.instantiate(Group, grid);
+
+        await Promise.resolve();
+
+        expect(layout.col).toBe(3);
+        expect(first.x).toBe(0);
+        expect(second.x).toBe(10);
+        expect(third.x).toBe(20);
+        expect(fourth.x).toBe(0);
+        expect(fourth.y).toBe(10);
+
+        grid.display.destroy();
+    });
+
+    it('normalizes invalid grid column counts', async () => {
+        const grid = new Group();
+        const layout = grid.addComponent(GridLayout, {
+            col: 0,
+            gridWidth: 10,
+            gridHeight: 10,
+        });
+        const first = GameObject.instantiate(Group, grid);
+        const second = GameObject.instantiate(Group, grid);
+
+        await Promise.resolve();
+
+        expect(layout.col).toBe(1);
+        expect(first.x).toBe(0);
+        expect(first.y).toBe(0);
+        expect(second.x).toBe(0);
+        expect(second.y).toBe(10);
+
+        layout.col = 2.8;
+        await Promise.resolve();
+
+        expect(layout.col).toBe(2);
+        expect(second.x).toBe(10);
+        expect(second.y).toBe(0);
+
+        grid.display.destroy();
+    });
+
+    it('refreshes grid layout after removing children without ticker work', async () => {
+        const baseTickerCount = Ticker.shared.count;
+        const grid = new Group();
+        grid.addComponent(GridLayout, {
+            col: 2,
+            gridWidth: 10,
+            gridHeight: 10,
+        });
+        const first = GameObject.instantiate(Group, grid);
+        const second = GameObject.instantiate(Group, grid);
+        const third = GameObject.instantiate(Group, grid);
+
+        await Promise.resolve();
+        expect(Ticker.shared.count).toBe(baseTickerCount);
+        expect(third.x).toBe(0);
+        expect(third.y).toBe(10);
+
+        grid.removeChild(first);
+        await Promise.resolve();
+
+        expect(second.x).toBe(0);
+        expect(second.y).toBe(0);
+        expect(third.x).toBe(10);
+        expect(third.y).toBe(0);
+        expect(Ticker.shared.count).toBe(baseTickerCount);
+
+        first.display.destroy();
+        grid.display.destroy();
+    });
 });
 
 describe('Component lifecycle', () => {

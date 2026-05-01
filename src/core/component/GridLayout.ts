@@ -1,102 +1,162 @@
 import { GameObject } from "../GameObject";
 import { Group } from "../group";
 import { Component } from "./Component";
+import { onlyOnceQueueMicrotask } from "../utils/onlyOnceQueueMicrotask";
 
 export class GridLayout extends Component<Group> {
+    private _active = false;
+    private _refresh = false;
 
     /**
-     * 行数
+     * 横向列数。
+     *
+     * @deprecated 旧命名保留用于兼容。新代码请使用 `col`。
      */
-    private _row = 1;
     get row() {
-        return this._row;
+        return this.col;
     }
     set row(val: number) {
-        if (this._row === val) {
+        this.col = val;
+    }
+
+    /**
+     * 横向列数。
+     */
+    private _col = 1;
+    get col() {
+        return this._col;
+    }
+    set col(val: number) {
+        const next = this.normalizeCount(val);
+        if (this._col === next) {
             return;
         }
-        this._row = val;
-        this._resize();
-
+        this._col = next;
+        this.markResize();
     }
-    /**
-     * 列数
-     */
-    col = 1;
 
     /**
-     * 宽度
+     * 单元格宽度。
      */
-    gridWidth = 1;
-    /**
-     * 高度
-     */
-    gridHeight = 1;
+    private _gridWidth = 1;
+    get gridWidth() {
+        return this._gridWidth;
+    }
+    set gridWidth(val: number) {
+        if (this._gridWidth === val) {
+            return;
+        }
+        this._gridWidth = val;
+        this.markResize();
+    }
 
     /**
-     * 行间距
+     * 单元格高度。
      */
-    gapVertical = 0;
-    /**
-     * 列间距
-     */
-    gapHorizontal = 0;
+    private _gridHeight = 1;
+    get gridHeight() {
+        return this._gridHeight;
+    }
+    set gridHeight(val: number) {
+        if (this._gridHeight === val) {
+            return;
+        }
+        this._gridHeight = val;
+        this.markResize();
+    }
 
-    private _refresh = true
+    /**
+     * 横向间距，作用于 x 轴。
+     */
+    private _gapHorizontal = 0;
+    get gapHorizontal() {
+        return this._gapHorizontal;
+    }
+    set gapHorizontal(val: number) {
+        if (this._gapHorizontal === val) {
+            return;
+        }
+        this._gapHorizontal = val;
+        this.markResize();
+    }
+
+    /**
+     * 纵向间距，作用于 y 轴。
+     */
+    private _gapVertical = 0;
+    get gapVertical() {
+        return this._gapVertical;
+    }
+    set gapVertical(val: number) {
+        if (this._gapVertical === val) {
+            return;
+        }
+        this._gapVertical = val;
+        this.markResize();
+    }
+
+    private resizeLater = onlyOnceQueueMicrotask(() => {
+        if (!this._active || !this._refresh) {
+            return;
+        }
+        this.resize();
+    });
 
     private handleChildAdded = () => {
-        this._resize();
+        this.markResize();
     }
 
     private handleChildRemoved = () => {
-        this._resize();
+        this.markResize();
     }
 
     awake(): void {
-        this.gameObject.emitter.on(GameObject.Event.CHILD_ADDED, this.handleChildAdded, this)
-        this.gameObject.emitter.on(GameObject.Event.CHILD_REMOVED, this.handleChildRemoved, this)
+        this._active = true;
+        this.gameObject.emitter.on(GameObject.Event.CHILD_ADDED, this.handleChildAdded, this);
+        this.gameObject.emitter.on(GameObject.Event.CHILD_REMOVED, this.handleChildRemoved, this);
+        this.resize();
     }
 
-    _resize() {
+    private normalizeCount(val: number) {
+        if (!Number.isFinite(val)) {
+            return 1;
+        }
+        return Math.max(1, Math.floor(val));
+    }
+
+    private markResize() {
         this._refresh = true;
+        if (this._active) {
+            this.resizeLater();
+        }
     }
 
     /**
      * 计算布局
      */
     resize() {
+        this._refresh = false;
         const children = this.gameObject.children;
+        const colCount = this.col;
 
         for (let i = 0; i < children.length; i++) {
             const child = children[i];
             child.width = this.gridWidth;
             child.height = this.gridHeight;
 
-            const row = i % this.row;
-            const col = Math.floor(i / this.row);
+            const col = i % colCount;
+            const row = Math.floor(i / colCount);
 
-            // const gv = row === 0 ? 0 : this.gapVertical;
-            // const gh = col === 0 ? 0 : this.gapHorizontal;
-
-            child.transform.x = row * (this.gridWidth + this.gapVertical);
-            child.transform.y = col * (this.gridHeight + this.gapHorizontal);
+            child.transform.setPosition(
+                col * (this.gridWidth + this.gapHorizontal),
+                row * (this.gridHeight + this.gapVertical),
+            );
         }
-        // if (this.gameObject.parent) {
-        //     (this.gameObject.parent as Group).resize();
-        //     console.log(this.gameObject.parent.width, this.gameObject.parent.height);
-        // }
-    }
-
-    update(): void {
-        if (!this._refresh) {
-            return;
-        }
-        this._refresh = false;
-        this.resize();
     }
 
     onDestroy(): void {
-        this.gameObject.emitter.off(GameObject.Event.CHILD_ADDED, this.handleChildAdded, this)
-        this.gameObject.emitter.off(GameObject.Event.CHILD_REMOVED, this.handleChildRemoved, this)
+        this._active = false;
+        this.gameObject.emitter.off(GameObject.Event.CHILD_ADDED, this.handleChildAdded, this);
+        this.gameObject.emitter.off(GameObject.Event.CHILD_REMOVED, this.handleChildRemoved, this);
     }
 }

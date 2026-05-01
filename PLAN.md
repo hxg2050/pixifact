@@ -56,9 +56,9 @@
 
 ## 4. 其他布局 API 整理
 
-- [ ] 整理 `GridLayout` 的 `row` / `col` / `gapVertical` / `gapHorizontal` 定义。
+- [x] 整理 `GridLayout` 的 `row` / `col` / `gapVertical` / `gapHorizontal` 定义。
 - [ ] 补齐 `FlexGroup` 对 child remove、child resize、`total = 0`、gap 计算的边界处理。
-- [ ] 增加布局组件的单元测试，覆盖网格和弹性布局。
+- [ ] 增加布局组件的单元测试，覆盖网格和弹性布局。（网格已覆盖，弹性布局待补）
 
 ## 5. 发布配置完善
 
