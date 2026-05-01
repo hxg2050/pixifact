@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import { Group } from './';
+import { Group } from './group';
 export class Application extends PIXI.Application {
     root!: Group;
 

@@ -60,12 +60,12 @@
 - [x] 补齐 `FlexGroup` 对 child remove、child resize、`total = 0`、gap 计算的边界处理。
 - [x] 增加布局组件的单元测试，覆盖网格和弹性布局。
 
-## 5. 发布配置完善
+## 5. 发布配置完善（已完成）
 
-- Rollup 显式 external：`pixi.js`、`@math.gl/core`、`eventemitter3`。
-- 在 `package.json` 顶层补充 `exports` 和 `types` 字段。
-- 消除 `Application -> core index` 的循环依赖 warning。
-- 检查 `dist` 类型产物是否完整覆盖所有公开模块。
+- [x] Rollup 显式 external：`pixi.js`、`@math.gl/core`、`eventemitter3`。
+- [x] 在 `package.json` 顶层补充 `exports` 和 `types` 字段。
+- [x] 消除 `Application -> core index` 的循环依赖 warning。
+- [x] 检查 `dist` 类型产物是否完整覆盖所有公开模块。
 
 ## 6. UI 组件稳定
 

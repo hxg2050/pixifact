@@ -1,5 +1,5 @@
 import { Vector2 } from '@math.gl/core'
-import { GameObject } from './GameObject';
+import type { GameObject } from './GameObject';
 export class Transform {
     // x: number;
     // y: number;
@@ -49,7 +49,7 @@ export class Transform {
         if (displayPosition) {
             displayPosition.set(x, y);
         }
-        this.gameObject.emitter.emit(GameObject.Event.REPOSITION);
+        this.gameObject.emitter.emit('reposition');
     }
 
     // private _size = new Vector2();
