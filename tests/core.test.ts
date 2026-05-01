@@ -1,6 +1,6 @@
 import { Container, Ticker } from 'pixi.js';
 import { describe, expect, it, vi } from 'vitest';
-import { Component, GameObject, Graphics, GridLayout, Group, Image, Label, Layout, NineSliceImage } from '../src/core';
+import { Component, Flex, FlexDirection, FlexGroup, GameObject, Graphics, GridLayout, Group, Image, Label, Layout, NineSliceImage } from '../src/core';
 import { setProps, sp } from '../src/core/utils/setProps';
 import { onlyOnceQueueMicrotask } from '../src/core/utils/onlyOnceQueueMicrotask';
 
@@ -557,6 +557,161 @@ describe('Layout components', () => {
 
         first.display.destroy();
         grid.display.destroy();
+    });
+});
+
+describe('Flex layout components', () => {
+    it('distributes row space by grow values with gaps between children only', async () => {
+        const group = new Group();
+        group.width = 300;
+        group.height = 80;
+        group.addComponent(FlexGroup, { gap: 10 });
+        const fixed = GameObject.instantiate(Group, group, {
+            width: 50,
+            height: 20,
+        });
+        const firstFlex = GameObject.instantiate(Group, group, {
+            height: 20,
+        });
+        firstFlex.addComponent(Flex, { grow: 1 });
+        const secondFlex = GameObject.instantiate(Group, group, {
+            height: 20,
+        });
+        secondFlex.addComponent(Flex, { grow: 2 });
+
+        await Promise.resolve();
+
+        expect(fixed.x).toBe(0);
+        expect(fixed.width).toBe(50);
+        expect(firstFlex.x).toBe(60);
+        expect(firstFlex.width).toBeCloseTo(76.6666666667);
+        expect(secondFlex.x).toBeCloseTo(146.6666666667);
+        expect(secondFlex.width).toBeCloseTo(153.3333333333);
+
+        group.display.destroy();
+    });
+
+    it('distributes column space and refreshes when direction or gap changes', async () => {
+        const group = new Group();
+        group.width = 300;
+        group.height = 200;
+        const layout = group.addComponent(FlexGroup, {
+            direction: FlexDirection.COLUMN,
+            gap: 10,
+        });
+        const first = GameObject.instantiate(Group, group, { width: 20 });
+        first.addComponent(Flex, { grow: 1 });
+        const second = GameObject.instantiate(Group, group, { width: 20 });
+        second.addComponent(Flex, { grow: 1 });
+
+        await Promise.resolve();
+
+        expect(first.y).toBe(0);
+        expect(first.height).toBe(95);
+        expect(second.y).toBe(105);
+        expect(second.height).toBe(95);
+
+        layout.gap = 20;
+        await Promise.resolve();
+
+        expect(first.height).toBe(90);
+        expect(second.y).toBe(110);
+
+        layout.direction = FlexDirection.ROW;
+        await Promise.resolve();
+
+        expect(first.x).toBe(0);
+        expect(first.width).toBe(140);
+        expect(second.x).toBe(160);
+        expect(second.width).toBe(140);
+
+        group.display.destroy();
+    });
+
+    it('handles zero grow totals without dividing by zero', async () => {
+        const group = new Group();
+        group.width = 200;
+        group.addComponent(FlexGroup, { gap: 10 });
+        const first = GameObject.instantiate(Group, group, {
+            width: 40,
+            height: 20,
+        });
+        first.addComponent(Flex, { grow: 0 });
+        const second = GameObject.instantiate(Group, group, {
+            width: 50,
+            height: 20,
+        });
+
+        await Promise.resolve();
+
+        expect(first.width).toBe(40);
+        expect(first.x).toBe(0);
+        expect(second.width).toBe(50);
+        expect(second.x).toBe(50);
+
+        group.display.destroy();
+    });
+
+    it('refreshes after child remove, child resize, and flex grow changes', async () => {
+        const group = new Group();
+        group.width = 240;
+        group.addComponent(FlexGroup, { gap: 10 });
+        const first = GameObject.instantiate(Group, group, { width: 40 });
+        const second = GameObject.instantiate(Group, group);
+        const secondFlex = second.addComponent(Flex, { grow: 1 });
+        const third = GameObject.instantiate(Group, group);
+        third.addComponent(Flex, { grow: 1 });
+
+        await Promise.resolve();
+
+        expect(second.x).toBe(50);
+        expect(second.width).toBe(90);
+        expect(third.x).toBe(150);
+        expect(third.width).toBe(90);
+
+        group.removeChild(first);
+        await Promise.resolve();
+
+        expect(second.x).toBe(0);
+        expect(second.width).toBe(115);
+        expect(third.x).toBe(125);
+        expect(third.width).toBe(115);
+
+        secondFlex.grow = 3;
+        await Promise.resolve();
+
+        expect(second.width).toBeCloseTo(172.5);
+        expect(third.x).toBeCloseTo(182.5);
+        expect(third.width).toBeCloseTo(57.5);
+
+        second.width = 100;
+        await Promise.resolve();
+
+        expect(second.width).toBeCloseTo(172.5);
+        expect(third.x).toBeCloseTo(182.5);
+
+        first.display.destroy();
+        group.display.destroy();
+    });
+
+    it('removes flex group listeners when components are removed', () => {
+        const group = new Group();
+        const child = GameObject.instantiate(Group, group);
+        const layout = group.addComponent(FlexGroup);
+
+        expect(group.emitter.listenerCount(GameObject.Event.RESIZE)).toBe(1);
+        expect(group.emitter.listenerCount(GameObject.Event.CHILD_ADDED)).toBe(1);
+        expect(group.emitter.listenerCount(GameObject.Event.CHILD_REMOVED)).toBe(1);
+        expect(child.emitter.listenerCount(GameObject.Event.RESIZE)).toBe(1);
+
+        group.removeComponent(layout);
+
+        expect(group.emitter.listenerCount(GameObject.Event.RESIZE)).toBe(0);
+        expect(group.emitter.listenerCount(GameObject.Event.CHILD_ADDED)).toBe(0);
+        expect(group.emitter.listenerCount(GameObject.Event.CHILD_REMOVED)).toBe(0);
+        expect(child.emitter.listenerCount(GameObject.Event.RESIZE)).toBe(0);
+
+        group.display.destroy();
     });
 });
 
