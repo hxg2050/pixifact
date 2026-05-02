@@ -4,61 +4,13 @@ import { Vector2 } from "@math.gl/core";
 import EventEmitter from "eventemitter3";
 import { setProps } from "./utils/setProps";
 import { Component } from "./component/Component";
+import { GameObjectEvent } from "./GameObjectEvent";
+import type { GameObjectEventMap } from "./GameObjectEvent";
 import type { Group } from "./group";
 import type { Application } from "./Application";
 export type Constructor<T = unknown> = new (...args: any[]) => T;
-
-export const GameObjectEvent = {
-    /**
-     * 当添加到显示舞台时
-     */
-    ADDED: 'added',
-    /**
-     * 当添加新的子节点时
-     */
-    CHILD_ADDED: 'childAdded',
-
-    /**
-     * 移除时
-     */
-    REMOVED: 'removed',
-
-    /**
-     * 移除子元素时
-     */
-    CHILD_REMOVED: 'childRemoved',
-
-    /**
-     * 尺寸发生变化时
-     */
-    RESIZE: 'resize',
-    /**
-     * 位置发生变化
-     */
-    REPOSITION: 'reposition',
-
-    /**
-     * 帧刷新前
-     */
-    TICKER_BEFORE: 'tickerBefore',
-
-    /**
-     * 帧刷新后
-     */
-    TICKER_AFTER: 'tickerAfter'
-} as const;
-
-export interface GameObjectEventMap {
-    [event: string]: any[];
-    [GameObjectEvent.ADDED]: [parent: Group];
-    [GameObjectEvent.CHILD_ADDED]: [child: GameObject];
-    [GameObjectEvent.REMOVED]: [parent: Group];
-    [GameObjectEvent.CHILD_REMOVED]: [child: GameObject];
-    [GameObjectEvent.RESIZE]: [];
-    [GameObjectEvent.REPOSITION]: [];
-    [GameObjectEvent.TICKER_BEFORE]: [dt: number];
-    [GameObjectEvent.TICKER_AFTER]: [dt: number];
-}
+export { GameObjectEvent } from "./GameObjectEvent";
+export type { GameObjectEventMap } from "./GameObjectEvent";
 
 function hasChildren(go: GameObject): go is GameObject & { children: GameObject[] } {
     return 'children' in go && Array.isArray(go.children);

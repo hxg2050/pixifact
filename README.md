@@ -97,7 +97,7 @@ GameObject.instantiate(Label, panel, {
 - 维护 Pixi display 对象。
 - 同步位置、缩放、旋转、透明度等常用属性。
 - 管理组件。
-- 派发添加、移除、尺寸变化、位置变化和 ticker 事件。
+- 派发添加、移除、尺寸变化、位置变化、变换变化和 ticker 事件。
 
 推荐通过 `GameObject.instantiate()` 创建对象：
 
@@ -241,7 +241,7 @@ input.value = 'pixif';
 
 - 输入组件需要与目标 canvas 对齐，默认使用页面中的第一个 `canvas`。
 - 如页面中存在多个 canvas，可通过 `canvas` 属性指定。
-- DOM 输入组件会监听窗口 resize 和 scroll 来刷新位置。
+- DOM 输入组件会跟随自身 transform 变化、`Layout` 重定位、窗口 resize 和 scroll 来刷新位置。
 - 当前实现保留自维护 DOM overlay，没有迁移到 PixiJS v8 experimental `DOMContainer`。
 
 ### ScrollView

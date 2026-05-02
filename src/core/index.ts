@@ -1,4 +1,5 @@
 export * from './GameObject'
+export * from './GameObjectEvent'
 export * from './group'
 export * from './image'
 export * from './label'

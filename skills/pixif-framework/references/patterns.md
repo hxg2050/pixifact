@@ -90,6 +90,7 @@ When a component subscribes to `GameObject.emitter`, Pixi events, DOM events, or
 When changing these components:
 
 - Keep support for explicit `canvas`.
+- Use `GameObject.Event.TRANSFORM_CHANGE` to observe transform changes instead of relying on subclass `x` / `y` / `scale` setters. Layout components may call `transform.setPosition()` directly.
 - Keep viewport resize and scroll synchronization.
 - Use `getGlobalTransform()` for current global matrix reads.
 - Preserve pointer focus behavior on desktop and touch devices.

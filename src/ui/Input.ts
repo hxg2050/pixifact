@@ -46,38 +46,6 @@ export class Input extends Group {
         return super.height
     }
 
-    set x(val: number) {
-        super.x = val;
-        this._isUpdateTransform = true;
-    }
-    get x() {
-        return super.x;
-    }
-
-    set y(val: number) {
-        super.y = val;
-        this._isUpdateTransform = true;
-    }
-    get y() {
-        return super.y
-    }
-
-    set scaleX(val: number) {
-        super.scaleX = val;
-        this._isUpdateTransform = true;
-    }
-    get scaleX() {
-        return super.scaleX
-    }
-
-    set scaleY(val: number) {
-        super.scaleY = val;
-        this._isUpdateTransform = true;
-    }
-    get scaleY() {
-        return super.scaleY
-    }
-    
     /**
      * 更新mask，条件：1、padding改变 2、宽高改变
      */
@@ -209,6 +177,7 @@ export class Input extends Group {
         this.display.cursor = 'text';
         this.display.on('pointerdown', this.focus, this);
         this.display.once('destroyed', this.onDestroy, this);
+        this.emitter.on(GameObject.Event.TRANSFORM_CHANGE, this.handleTransformChange, this);
         window.addEventListener('resize', this.handleViewportChange);
         window.addEventListener('scroll', this.handleViewportChange, true);
         this._isResize = true;
@@ -233,6 +202,10 @@ export class Input extends Group {
     }
 
     private handleViewportChange = () => {
+        this._isUpdateTransform = true;
+    };
+
+    private handleTransformChange = () => {
         this._isUpdateTransform = true;
     };
 
@@ -415,6 +388,7 @@ export class Input extends Group {
         }
         this._destroyed = true;
         this.display.off('pointerdown', this.focus, this);
+        this.emitter.off(GameObject.Event.TRANSFORM_CHANGE, this.handleTransformChange, this);
         window.removeEventListener('resize', this.handleViewportChange);
         window.removeEventListener('scroll', this.handleViewportChange, true);
         if (this.element) {

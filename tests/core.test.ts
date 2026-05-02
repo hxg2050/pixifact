@@ -78,7 +78,9 @@ describe('GameObject transform', () => {
     it('syncs transform properties to the Pixi display object', () => {
         const object = new TestObject();
         const reposition = vi.fn();
+        const transformChange = vi.fn();
         object.emitter.on(GameObject.Event.REPOSITION, reposition);
+        object.emitter.on(GameObject.Event.TRANSFORM_CHANGE, transformChange);
 
         object.x = 12;
         object.y = 24;
@@ -96,6 +98,7 @@ describe('GameObject transform', () => {
         expect(object.display.skew.x).toBe(0.25);
         expect(object.display.skew.y).toBe(0.75);
         expect(reposition).toHaveBeenCalledTimes(2);
+        expect(transformChange).toHaveBeenCalledTimes(7);
 
         object.display.destroy();
     });
@@ -113,6 +116,27 @@ describe('GameObject transform', () => {
         expect(object.display.x).toBe(40);
         expect(object.display.y).toBe(50);
         expect(reposition).toHaveBeenCalledTimes(1);
+
+        object.display.destroy();
+    });
+
+    it('does not emit transform events when values are unchanged', () => {
+        const object = new TestObject();
+        const reposition = vi.fn();
+        const transformChange = vi.fn();
+        object.emitter.on(GameObject.Event.REPOSITION, reposition);
+        object.emitter.on(GameObject.Event.TRANSFORM_CHANGE, transformChange);
+
+        object.x = 0;
+        object.y = 0;
+        object.scaleX = 1;
+        object.scaleY = 1;
+        object.rotation = 0;
+        object.skewX = 0;
+        object.skewY = 0;
+
+        expect(reposition).not.toHaveBeenCalled();
+        expect(transformChange).not.toHaveBeenCalled();
 
         object.display.destroy();
     });

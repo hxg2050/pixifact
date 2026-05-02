@@ -1,6 +1,6 @@
 import { Container, Ticker } from 'pixi.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Application, Button, GameObject, Group, Input, ScrollView, Textarea } from '../src';
+import { Application, Button, GameObject, Group, Input, Layout, ScrollView, Textarea } from '../src';
 
 function setElementRect(element: Element, left: number, top: number) {
     vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({
@@ -273,6 +273,64 @@ describe('Input', () => {
         app.ticker.update(performance.now() + 32);
 
         expect(input.element.style.transform).toBe('matrix(1, 0, 0, 1, 162, 126)');
+
+        GameObject.destroy(app.root);
+        app.ticker.destroy();
+        canvas.remove();
+    });
+
+    it('updates the DOM transform when Layout repositions it', () => {
+        const app = createTestApplication();
+        const canvas = document.createElement('canvas');
+        setElementRect(canvas, 30, 40);
+        document.body.append(canvas);
+
+        const parent = GameObject.instantiate(Group, app.root, {
+            width: 400,
+            height: 200,
+        });
+        const input = GameObject.instantiate(Input, parent, {
+            width: 80,
+            height: 24,
+            canvas,
+        });
+
+        app.ticker.update(performance.now() + 16);
+        expect(input.element.style.transform).toBe('matrix(1, 0, 0, 1, 30, 40)');
+
+        input.addComponent(Layout, { centerX: 0, centerY: 0 });
+        app.ticker.update(performance.now() + 32);
+
+        expect(input.x).toBe(160);
+        expect(input.y).toBe(88);
+        expect(input.element.style.transform).toBe('matrix(1, 0, 0, 1, 190, 128)');
+
+        GameObject.destroy(app.root);
+        app.ticker.destroy();
+        canvas.remove();
+    });
+
+    it('updates the DOM transform when its transform changes outside position setters', () => {
+        const app = createTestApplication();
+        const canvas = document.createElement('canvas');
+        setElementRect(canvas, 30, 40);
+        document.body.append(canvas);
+
+        const input = GameObject.instantiate(Input, app.root, {
+            x: 12,
+            y: 16,
+            width: 80,
+            height: 24,
+            canvas,
+        });
+
+        app.ticker.update(performance.now() + 16);
+        expect(input.element.style.transform).toBe('matrix(1, 0, 0, 1, 42, 56)');
+
+        input.transform.scaleX = 2;
+        app.ticker.update(performance.now() + 32);
+
+        expect(input.element.style.transform).toBe('matrix(2, 0, 0, 1, 42, 56)');
 
         GameObject.destroy(app.root);
         app.ticker.destroy();

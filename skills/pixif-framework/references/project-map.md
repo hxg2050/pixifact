@@ -10,6 +10,8 @@ pixif is a lightweight TypeScript wrapper around PixiJS v8. It keeps Pixi render
 - `src/core/index.ts` - core public exports.
 - `src/core/Application.ts` - Pixi application wrapper and root `Group` setup.
 - `src/core/GameObject.ts` - base object model, properties, events, components, update registration.
+- `src/core/GameObjectEvent.ts` - shared `GameObject` event constants and typed event map.
+- `src/core/Transform.ts` - transform state wrapper; emits transform and reposition events while syncing Pixi display transforms.
 - `src/core/group/index.ts` - `Group`, the only pixif container node.
 - `src/core/component/` - `Component`, `Layout`, `GridLayout`, `FlexGroup`, and `Flex`.
 - `src/core/graphics/`, `src/core/label/`, `src/core/image/` - render leaf wrappers.

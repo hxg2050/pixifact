@@ -19,6 +19,7 @@
 
 - [x] `Input` 在本阶段后出现 PC 鼠标无法稳定选中输入框的问题，原因是 `focus()` 从 `Ticker.shared.addOnce` 改成 microtask 后，DOM 聚焦进入了原生 pointer/mouse 默认行为的同一轮事件时序；PC 端可能被 canvas 默认行为抢回焦点。修复时不回退到 `Ticker.shared`，而是在非 touch 指针激活时阻止默认行为，并保持同步聚焦。
 - [x] `Input` 的 DOM overlay 位置同步不能依赖 Pixi 缓存的 `worldTransform`，统一 `app.ticker` 在 render 前驱动 `update()` 后会读到旧矩阵；应使用 `getGlobalTransform()` 获取当前全局矩阵。
+- [x] `Input` 的 DOM overlay 同步不能依赖覆写 `x/y/scale` setter；`Layout`、`GridLayout` 和直接调用 `transform` 都可能绕过这些 setter。统一监听 `TRANSFORM_CHANGE`，并保留 `REPOSITION` 作为位置变化事件。
 
 ## 3. Layout 优化计划
 
@@ -43,6 +44,7 @@
 - [x] 减少每个 `Layout` 常驻 ticker 的成本，改为 microtask 批量刷新。
 - [x] 保持属性 setter 只打 dirty 标记，由统一刷新入口批量执行 `resize()`。
 - [x] 避免一次布局中分别设置 `x` 和 `y` 触发两次 `REPOSITION`，给 `Transform` 增加公开 `setPosition(x, y)`。
+- [x] 将 `GameObjectEvent` 和事件类型提取到独立 `GameObjectEvent.ts`，供 `GameObject`、`Transform` 和外部 API 复用。
 - [x] 父节点 resize、自身 resize、added、removed 的监听继续集中在 `Layout` 内部管理。
 - [x] 销毁组件后确保父级和自身事件监听全部释放。
 

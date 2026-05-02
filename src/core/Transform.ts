@@ -1,4 +1,5 @@
 import { Vector2 } from '@math.gl/core'
+import { GameObjectEvent } from './GameObjectEvent';
 import type { GameObject } from './GameObject';
 export class Transform {
     // x: number;
@@ -49,7 +50,12 @@ export class Transform {
         if (displayPosition) {
             displayPosition.set(x, y);
         }
-        this.gameObject.emitter.emit('reposition');
+        this.emitTransformChange();
+        this.gameObject.emitter.emit(GameObjectEvent.REPOSITION);
+    }
+
+    private emitTransformChange() {
+        this.gameObject.emitter.emit(GameObjectEvent.TRANSFORM_CHANGE);
     }
 
     // private _size = new Vector2();
@@ -93,30 +99,46 @@ export class Transform {
         return this.scale.x;
     }
     set scaleX(val: number) {
+        if (this.scale.x === val && this.gameObject.display.scale.x === val) {
+            return;
+        }
         this.scale.x = val;
         this.gameObject.display.scale.x = this.scale.x;
+        this.emitTransformChange();
     }
 
     get scaleY() {
         return this.scale.y;
     }
     set scaleY(val: number) {
+        if (this.scale.y === val && this.gameObject.display.scale.y === val) {
+            return;
+        }
         this.scale.y = val;
         this.gameObject.display.scale.y = this.scale.y;
+        this.emitTransformChange();
     }
 
     get pivotX() {
         return this.gameObject.display.pivot.x;
     }
     set pivotX(val: number) {
+        if (this.gameObject.display.pivot.x === val) {
+            return;
+        }
         this.gameObject.display.pivot.x = val;
+        this.emitTransformChange();
     }
 
     get pivotY() {
         return this.gameObject.display.pivot.y;
     }
     set pivotY(val: number) {
+        if (this.gameObject.display.pivot.y === val) {
+            return;
+        }
         this.gameObject.display.pivot.y = val;
+        this.emitTransformChange();
     }
     // this.label.display.transform.pivot.set(-50, 0);
 
@@ -125,21 +147,33 @@ export class Transform {
         return this.gameObject.display.rotation;
     }
     set rotation(val: number) {
+        if (this.gameObject.display.rotation === val) {
+            return;
+        }
         this.gameObject.display.rotation = val;
+        this.emitTransformChange();
     }
 
     get skewX() {
         return this.gameObject.display.skew.x;
     }
     set skewX(val: number) {
+        if (this.gameObject.display.skew.x === val) {
+            return;
+        }
         this.gameObject.display.skew.x = val;
+        this.emitTransformChange();
     }
 
     get skewY() {
         return this.gameObject.display.skew.y;
     }
     set skewY(val: number) {
+        if (this.gameObject.display.skew.y === val) {
+            return;
+        }
         this.gameObject.display.skew.y = val;
+        this.emitTransformChange();
     }
 
     // worldPosition() {

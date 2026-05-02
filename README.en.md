@@ -97,7 +97,7 @@ Objects are updated only when they are mounted under `app.root` and either the o
 - The underlying Pixi display object.
 - Common transform properties such as position, scale, rotation, and alpha.
 - Component management.
-- Add, remove, resize, reposition, and ticker events.
+- Add, remove, resize, reposition, transform-change, and ticker events.
 
 Use `GameObject.instantiate()` to create objects:
 
@@ -241,7 +241,7 @@ Notes:
 
 - Input components align to a target canvas. By default they use the first `canvas` on the page.
 - If the page has multiple canvases, pass the `canvas` property explicitly.
-- DOM input components listen to window resize and scroll events to keep their position in sync.
+- DOM input components follow their own transform changes, `Layout` repositioning, window resize, and scroll events to keep their position in sync.
 - The current implementation keeps a self-managed DOM overlay and does not migrate to the experimental PixiJS v8 `DOMContainer`.
 
 ### ScrollView
