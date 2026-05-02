@@ -1,6 +1,7 @@
 import './styles.css';
 import {
     Application,
+    Button,
     Component,
     Flex,
     FlexDirection,
@@ -172,29 +173,15 @@ function makeCard(parent: Group, props: Partial<Group>, fill = 0xffffff) {
 }
 
 function makeButton(parent: Group, label: string, x: number, y: number, width: number, onTap: () => void) {
-    const button = GameObject.instantiate(Group, parent, { x, y, width, height: 42 });
-    const background = GameObject.instantiate(Graphics, button);
-    const caption = makeLabel(button, label, 0, 12, {
-        fill: 0xffffff,
-        fontSize: 14,
-        fontWeight: '700',
-        align: 'center',
+    const button = GameObject.instantiate(Button, parent, {
+        x,
+        y,
+        width,
+        height: 42,
+        value: label,
+        fontFamily: FONT,
     });
-
-    const draw = (color: number) => {
-        background.clear()
-            .roundRect(0, 0, width, 42, 10)
-            .fill(color)
-            .stroke({ width: 1, color: 0x1f2933, alpha: 0.12 });
-        caption.x = Math.round((width - caption.display.width) / 2);
-    };
-
-    draw(0x2563eb);
-    button.display.eventMode = 'static';
-    button.display.cursor = 'pointer';
-    button.display.on('pointerover', () => draw(0x1d4ed8));
-    button.display.on('pointerout', () => draw(0x2563eb));
-    button.display.on('pointertap', onTap);
+    button.emitter.on('tap', onTap);
     return button;
 }
 

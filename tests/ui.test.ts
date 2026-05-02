@@ -1,6 +1,6 @@
 import { Container, Ticker } from 'pixi.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Application, GameObject, Group, Input, ScrollView, Textarea } from '../src';
+import { Application, Button, GameObject, Group, Input, ScrollView, Textarea } from '../src';
 
 function setElementRect(element: Element, left: number, top: number) {
     vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({
@@ -274,6 +274,99 @@ describe('Textarea', () => {
         expect(textarea.valueLabel.style.wordWrapWidth).toBe(134);
 
         GameObject.destroy(textarea);
+    });
+});
+
+describe('Button', () => {
+    it('applies props before render and lays out its child nodes', () => {
+        const button = GameObject.instantiate(Button, undefined, {
+            width: 140,
+            height: 44,
+            value: 'Submit',
+        });
+
+        expect(button.width).toBe(140);
+        expect(button.height).toBe(44);
+        expect(button.background).toBeDefined();
+        expect(button.nineSliceImage).toBeDefined();
+        expect(button.label.value).toBe('Submit');
+        expect(button.content.x).toBe(70);
+        expect(button.content.y).toBe(22);
+        expect(button.content.display.pivot.x).toBe(70);
+        expect(button.content.display.pivot.y).toBe(22);
+        expect(button.nineSliceImage.width).toBe(140);
+        expect(button.nineSliceImage.height).toBe(44);
+        expect(button.display.eventMode).toBe('static');
+        expect(button.display.cursor).toBe('pointer');
+
+        GameObject.destroy(button);
+    });
+
+    it('emits press, release, and tap events from pointer interactions', () => {
+        const button = GameObject.instantiate(Button, undefined, {
+            width: 120,
+            height: 40,
+        });
+        const press = vi.fn();
+        const release = vi.fn();
+        const tap = vi.fn();
+        const event = {} as never;
+
+        button.emitter.on('press', press);
+        button.emitter.on('release', release);
+        button.emitter.on('tap', tap);
+
+        button.display.emit('pointerdown', event);
+        expect(button.scaleX).toBe(1);
+        expect(button.scaleY).toBe(1);
+        expect(button.content.scaleX).toBe(button.pressedScale);
+        expect(button.content.scaleY).toBe(button.pressedScale);
+        expect(press).toHaveBeenCalledWith(event);
+
+        button.display.emit('pointerup', event);
+        expect(button.content.scaleX).toBe(1);
+        expect(button.content.scaleY).toBe(1);
+        expect(release).toHaveBeenCalledWith(event);
+
+        button.display.emit('pointertap', event);
+        expect(tap).toHaveBeenCalledWith(event);
+
+        GameObject.destroy(button);
+    });
+
+    it('ignores pointer interactions while disabled', () => {
+        const button = GameObject.instantiate(Button, undefined, {
+            width: 120,
+            height: 40,
+            disabled: true,
+        });
+        const press = vi.fn();
+
+        button.emitter.on('press', press);
+        button.display.emit('pointerdown', {} as never);
+
+        expect(button.display.eventMode).toBe('none');
+        expect(button.display.cursor).toBe('default');
+        expect(button.scaleX).toBe(1);
+        expect(button.content.scaleX).toBe(1);
+        expect(press).not.toHaveBeenCalled();
+
+        GameObject.destroy(button);
+    });
+
+    it('removes Pixi event listeners on destroy', () => {
+        const button = GameObject.instantiate(Button, undefined, {
+            width: 120,
+            height: 40,
+        });
+
+        expect(button.display.listenerCount('pointerdown')).toBe(1);
+        expect(button.display.listenerCount('pointertap')).toBe(1);
+
+        GameObject.destroy(button);
+
+        expect(button.display.listenerCount('pointerdown')).toBe(0);
+        expect(button.display.listenerCount('pointertap')).toBe(0);
     });
 });
 
