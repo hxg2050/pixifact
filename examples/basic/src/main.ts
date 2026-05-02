@@ -1,11 +1,112 @@
 import './styles.css';
-import { Application, Component, GameObject, Graphics, GridLayout, Group, Input, Label, LabelStyle, Layout } from '../../../src';
+import {
+    Application,
+    Component,
+    Flex,
+    FlexDirection,
+    FlexGroup,
+    GameObject,
+    Graphics,
+    GridLayout,
+    Group,
+    Input,
+    Label,
+    LabelStyle,
+    Layout,
+    Textarea,
+} from '../../../src';
+
+const FONT = 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+
+type Stat = {
+    label: string;
+    value: string;
+    color: number;
+};
 
 class Spinner extends Component<Group> {
     speed = 0.018;
 
     update(dt: number) {
         this.gameObject.rotation += this.speed * dt;
+    }
+}
+
+class Pulse extends Component<Group> {
+    private elapsed = 0;
+    strength = 0.035;
+    speed = 0.08;
+
+    update(dt: number) {
+        this.elapsed += dt;
+        const scale = 1 + Math.sin(this.elapsed * this.speed) * this.strength;
+        this.gameObject.scaleX = scale;
+        this.gameObject.scaleY = scale;
+    }
+}
+
+class MeterAnimator extends Component<Group> {
+    private elapsed = 0;
+    fill!: Graphics;
+    label!: Label;
+
+    update(dt: number) {
+        this.elapsed += dt;
+        const progress = (Math.sin(this.elapsed * 0.045) + 1) / 2;
+        const width = 36 + progress * 244;
+        drawPanel(this.fill, width, 42, 12, 0x2563eb, 0x2563eb);
+        this.label.value = `${Math.round(progress * 100)}%`;
+    }
+}
+
+class ResponsiveBox extends Component<Group> {
+    graphic!: Graphics;
+    fill = 0xffffff;
+    radius = 12;
+    stroke = 0x0f172a;
+    strokeAlpha = 0.14;
+
+    awake() {
+        this.gameObject.emitter.on(GameObject.Event.RESIZE, this.redraw, this);
+        this.redraw();
+    }
+
+    private redraw() {
+        this.graphic.clear()
+            .roundRect(0, 0, this.gameObject.width, this.gameObject.height, this.radius)
+            .fill(this.fill)
+            .stroke({ width: 1, color: this.stroke, alpha: this.strokeAlpha });
+    }
+
+    onDestroy() {
+        this.gameObject.emitter.off(GameObject.Event.RESIZE, this.redraw, this);
+    }
+}
+
+class FitToViewport extends Component<Group> {
+    margin = 24;
+
+    awake() {
+        this.gameObject.parent?.emitter.on(GameObject.Event.RESIZE, this.resize, this);
+        this.resize();
+    }
+
+    private resize() {
+        const parent = this.gameObject.parent;
+        if (!parent) {
+            return;
+        }
+        const scale = Math.min(
+            1,
+            Math.max(0.1, (parent.width - this.margin * 2) / this.gameObject.width),
+            Math.max(0.1, (parent.height - this.margin * 2) / this.gameObject.height),
+        );
+        this.gameObject.scaleX = scale;
+        this.gameObject.scaleY = scale;
+    }
+
+    onDestroy() {
+        this.gameObject.parent?.emitter.off(GameObject.Event.RESIZE, this.resize, this);
     }
 }
 
@@ -19,7 +120,7 @@ const app = new Application();
 
 await app.init({
     resizeTo: viewport,
-    backgroundColor: 0xf4f0e6,
+    backgroundColor: 0xf3f4f6,
     antialias: true,
     autoDensity: true,
     resolution: Math.min(window.devicePixelRatio || 1, 2),
@@ -37,155 +138,256 @@ window.addEventListener('resize', () => requestAnimationFrame(syncRootSize));
 
 const stage = app.root;
 
-const panel = GameObject.instantiate(Group, stage, {
-    width: 720,
-    height: 460,
-    anchorX: 0.5,
-    anchorY: 0.5,
-});
-panel.addComponent(Layout, { centerX: 0, centerY: 0 });
-
-const panelBackground = GameObject.instantiate(Graphics, panel);
-panelBackground.roundRect(0, 0, panel.width, panel.height, 18).fill(0xffffff).stroke({ width: 2, color: 0x2f3437, alpha: 0.18 });
-
-GameObject.instantiate(Label, panel, {
-    value: 'pixif basic scene',
-    x: 32,
-    y: 28,
-    style: new LabelStyle({
-        fill: 0x23272a,
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: 30,
-        fontWeight: '700',
-    }),
-});
-
-GameObject.instantiate(Label, panel, {
-    value: 'GameObject, Component, Layout, GridLayout and DOM-backed Input working together.',
-    x: 34,
-    y: 72,
-    style: new LabelStyle({
-        fill: 0x586066,
-        fontFamily: 'Inter, Arial, sans-serif',
+function textStyle(options: Partial<ConstructorParameters<typeof LabelStyle>[0]> = {}) {
+    return new LabelStyle({
+        fill: 0x1f2933,
+        fontFamily: FONT,
         fontSize: 14,
-    }),
-});
-
-const rotatingBadge = GameObject.instantiate(Group, panel, {
-    x: 635,
-    y: 62,
-    width: 64,
-    height: 64,
-    anchorX: 0.5,
-    anchorY: 0.5,
-});
-rotatingBadge.addComponent(Spinner);
-
-const rotatingBadgeBackground = GameObject.instantiate(Graphics, rotatingBadge);
-rotatingBadgeBackground.roundRect(0, 0, rotatingBadge.width, rotatingBadge.height, 14).fill(0xffc857).stroke({ width: 2, color: 0x2f3437, alpha: 0.18 });
-
-GameObject.instantiate(Label, rotatingBadge, {
-    value: 'GO',
-    x: 16,
-    y: 20,
-    style: new LabelStyle({
-        fill: 0x23272a,
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: 18,
-        fontWeight: '700',
-    }),
-});
-
-const grid = GameObject.instantiate(Group, panel, {
-    x: 34,
-    y: 126,
-    width: 408,
-    height: 190,
-});
-grid.addComponent(GridLayout, {
-    col: 2,
-    gridWidth: 118,
-    gridHeight: 76,
-    gapHorizontal: 18,
-    gapVertical: 18,
-});
-
-const swatches = [
-    { label: 'Label', color: 0x3a86ff },
-    { label: 'Layout', color: 0x06d6a0 },
-    { label: 'Grid', color: 0xef476f },
-    { label: 'Ticker', color: 0xffc857 },
-    { label: 'Input', color: 0x8338ec },
-    { label: 'Events', color: 0x2f3437 },
-];
-
-for (const item of swatches) {
-    const tile = GameObject.instantiate(Group, grid);
-    const tileBackground = GameObject.instantiate(Graphics, tile);
-    tileBackground.roundRect(0, 0, 118, 76, 10).fill(item.color).stroke({ width: 1, color: 0x000000, alpha: 0.1 });
-
-    GameObject.instantiate(Label, tile, {
-        value: item.label,
-        x: 14,
-        y: 26,
-        style: new LabelStyle({
-            fill: 0xffffff,
-            fontFamily: 'Inter, Arial, sans-serif',
-            fontSize: 18,
-            fontWeight: '700',
-        }),
+        ...options,
     });
 }
 
-const formPanel = GameObject.instantiate(Group, panel, {
-    x: 474,
-    y: 126,
-    width: 210,
-    height: 190,
-});
+function makeLabel(parent: Group, value: string, x: number, y: number, options: Partial<ConstructorParameters<typeof LabelStyle>[0]> = {}) {
+    return GameObject.instantiate(Label, parent, {
+        value,
+        x,
+        y,
+        style: textStyle(options),
+    });
+}
 
-const formBackground = GameObject.instantiate(Graphics, formPanel);
-formBackground.roundRect(0, 0, formPanel.width, formPanel.height, 12).fill(0xf7f9fb).stroke({ width: 1, color: 0x2f3437, alpha: 0.14 });
+function drawPanel(target: Graphics, width: number, height: number, radius = 16, fill = 0xffffff, stroke = 0xd4dae2) {
+    target.clear()
+        .roundRect(0, 0, width, height, radius)
+        .fill(fill)
+        .stroke({ width: 1, color: stroke });
+}
 
-GameObject.instantiate(Label, formPanel, {
-    value: 'DOM input',
-    x: 18,
-    y: 18,
-    style: new LabelStyle({
-        fill: 0x23272a,
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: 18,
-        fontWeight: '700',
-    }),
-});
+function makeCard(parent: Group, props: Partial<Group>, fill = 0xffffff) {
+    const card = GameObject.instantiate(Group, parent, props);
+    const background = GameObject.instantiate(Graphics, card);
+    drawPanel(background, card.width, card.height, 14, fill);
+    return card;
+}
 
-GameObject.instantiate(Label, formPanel, {
-    value: 'Click the field and type.',
-    x: 18,
-    y: 50,
-    style: new LabelStyle({
-        fill: 0x69737a,
-        fontFamily: 'Inter, Arial, sans-serif',
-        fontSize: 13,
-    }),
-});
-
-const nameInput = GameObject.instantiate(Input, formPanel, {
-    x: 18,
-    y: 88,
-    width: 174,
-    height: 44,
-    fontSize: 16,
-});
-nameInput.backgroundColor = 0xffffff;
-
-GameObject.instantiate(Label, panel, {
-    value: 'Resize the window: the centered panel is managed by Layout.',
-    x: 34,
-    y: 394,
-    style: new LabelStyle({
-        fill: 0x586066,
-        fontFamily: 'Inter, Arial, sans-serif',
+function makeButton(parent: Group, label: string, x: number, y: number, width: number, onTap: () => void) {
+    const button = GameObject.instantiate(Group, parent, { x, y, width, height: 42 });
+    const background = GameObject.instantiate(Graphics, button);
+    const caption = makeLabel(button, label, 0, 12, {
+        fill: 0xffffff,
         fontSize: 14,
-    }),
+        fontWeight: '700',
+        align: 'center',
+    });
+
+    const draw = (color: number) => {
+        background.clear()
+            .roundRect(0, 0, width, 42, 10)
+            .fill(color)
+            .stroke({ width: 1, color: 0x1f2933, alpha: 0.12 });
+        caption.x = Math.round((width - caption.display.width) / 2);
+    };
+
+    draw(0x2563eb);
+    button.display.eventMode = 'static';
+    button.display.cursor = 'pointer';
+    button.display.on('pointerover', () => draw(0x1d4ed8));
+    button.display.on('pointerout', () => draw(0x2563eb));
+    button.display.on('pointertap', onTap);
+    return button;
+}
+
+function makeStatCard(parent: Group, stat: Stat) {
+    const card = makeCard(parent, { width: 170, height: 92 }, 0xf8fafc);
+    const accent = GameObject.instantiate(Graphics, card);
+    accent.roundRect(18, 18, 9, 40, 4).fill(stat.color);
+    makeLabel(card, stat.value, 42, 16, { fontSize: 24, fontWeight: '700', fill: 0x111827 });
+    makeLabel(card, stat.label, 42, 52, { fontSize: 12, fill: 0x64748b });
+    return card;
+}
+
+function makeTile(parent: Group, label: string, color: number, detail: string) {
+    const tile = GameObject.instantiate(Group, parent);
+    let restingY = 0;
+    const background = GameObject.instantiate(Graphics, tile);
+    background.roundRect(0, 0, 136, 82, 12).fill(color).stroke({ width: 1, color: 0x111827, alpha: 0.12 });
+    makeLabel(tile, label, 16, 18, { fill: 0xffffff, fontSize: 18, fontWeight: '700' });
+    makeLabel(tile, detail, 16, 48, { fill: 0xffffff, fontSize: 12 });
+    tile.display.eventMode = 'static';
+    tile.display.cursor = 'pointer';
+    tile.display.on('pointerover', () => {
+        restingY = tile.y;
+        tile.y = restingY - 4;
+        tile.alpha = 0.94;
+    });
+    tile.display.on('pointerout', () => {
+        tile.y = restingY;
+        tile.alpha = 1;
+    });
+    return tile;
+}
+
+const shell = GameObject.instantiate(Group, stage, {
+    width: 1120,
+    height: 700,
+    anchorX: 0.5,
+    anchorY: 0.5,
+});
+shell.addComponent(Layout, { centerX: 0, centerY: 0 });
+shell.addComponent(FitToViewport, { margin: 24 });
+
+const shellBackground = GameObject.instantiate(Graphics, shell);
+drawPanel(shellBackground, shell.width, shell.height, 22, 0xffffff, 0xcbd5e1);
+
+makeLabel(shell, 'pixif interactive showcase', 34, 28, {
+    fill: 0x0f172a,
+    fontSize: 32,
+    fontWeight: '800',
+});
+makeLabel(shell, 'A compact scene that combines GameObject, Component, Layout, GridLayout, FlexGroup, Pixi events, and DOM-backed form controls.', 36, 76, {
+    fill: 0x64748b,
+    fontSize: 14,
+});
+
+const badge = GameObject.instantiate(Group, shell, {
+    x: 1032,
+    y: 58,
+    width: 62,
+    height: 62,
+    anchorX: 0.5,
+    anchorY: 0.5,
+});
+badge.addComponent(Spinner);
+GameObject.instantiate(Graphics, badge)
+    .roundRect(0, 0, 62, 62, 16)
+    .fill(0xfacc15)
+    .stroke({ width: 2, color: 0x0f172a, alpha: 0.16 });
+makeLabel(badge, 'GO', 16, 20, { fill: 0x0f172a, fontSize: 18, fontWeight: '800' });
+
+const topGrid = GameObject.instantiate(Group, shell, {
+    x: 34,
+    y: 122,
+    width: 740,
+    height: 92,
+});
+topGrid.addComponent(GridLayout, {
+    col: 4,
+    gridWidth: 170,
+    gridHeight: 92,
+    gapHorizontal: 20,
+    gapVertical: 0,
+});
+
+[
+    { label: 'nodes in scene', value: '42', color: 0x2563eb },
+    { label: 'layout systems', value: '3', color: 0x10b981 },
+    { label: 'DOM inputs', value: '2', color: 0xf97316 },
+    { label: 'ticker workers', value: '2', color: 0x8b5cf6 },
+].forEach((stat) => makeStatCard(topGrid, stat));
+
+const gridCard = makeCard(shell, { x: 34, y: 244, width: 474, height: 260 }, 0xf8fafc);
+makeLabel(gridCard, 'GridLayout feature tiles', 20, 18, { fontSize: 20, fontWeight: '800', fill: 0x0f172a });
+makeLabel(gridCard, 'Hover each tile to see Pixi pointer events on pixif GameObjects.', 20, 50, { fill: 0x64748b, fontSize: 13 });
+
+const featureGrid = GameObject.instantiate(Group, gridCard, {
+    x: 20,
+    y: 86,
+    width: 428,
+    height: 158,
+});
+featureGrid.addComponent(GridLayout, {
+    col: 3,
+    gridWidth: 136,
+    gridHeight: 82,
+    gapHorizontal: 10,
+    gapVertical: 12,
+});
+
+[
+    ['Layout', 0x2563eb, 'center + stretch'],
+    ['Grid', 0x0f766e, 'cell placement'],
+    ['Flex', 0xdb2777, 'proportional'],
+    ['Ticker', 0x7c3aed, 'component update'],
+    ['Input', 0xea580c, 'DOM overlay'],
+    ['Events', 0x334155, 'pointer tap'],
+].forEach(([label, color, detail]) => makeTile(featureGrid, label as string, color as number, detail as string));
+
+const flexCard = makeCard(shell, { x: 532, y: 244, width: 554, height: 260 }, 0xffffff);
+makeLabel(flexCard, 'FlexGroup distribution', 20, 18, { fontSize: 20, fontWeight: '800', fill: 0x0f172a });
+makeLabel(flexCard, 'Child widths are assigned by Flex.grow inside one row container.', 20, 50, { fill: 0x64748b, fontSize: 13 });
+
+const flexRow = GameObject.instantiate(Group, flexCard, { x: 20, y: 86, width: 514, height: 68 });
+flexRow.addComponent(FlexGroup, { direction: FlexDirection.ROW, gap: 12 });
+
+[
+    ['grow 1', 1, 0x93c5fd],
+    ['grow 2', 2, 0x86efac],
+    ['fixed', 0, 0xfde68a],
+].forEach(([label, grow, color]) => {
+    const item = GameObject.instantiate(Group, flexRow, { width: grow ? 80 : 126, height: 68 });
+    if (grow) {
+        item.addComponent(Flex, { grow: grow as number });
+    }
+    const background = GameObject.instantiate(Graphics, item);
+    item.addComponent(ResponsiveBox, { graphic: background, fill: color as number });
+    makeLabel(item, label as string, 16, 24, { fill: 0x0f172a, fontSize: 15, fontWeight: '700' });
+});
+
+const meter = GameObject.instantiate(Group, flexCard, { x: 20, y: 184, width: 300, height: 42 });
+GameObject.instantiate(Graphics, meter)
+    .roundRect(0, 0, 300, 42, 12)
+    .fill(0xe2e8f0);
+const meterFill = GameObject.instantiate(Group, meter, { width: 160, height: 42 });
+const meterFillGraphic = GameObject.instantiate(Graphics, meterFill);
+drawPanel(meterFillGraphic, meterFill.width, meterFill.height, 12, 0x2563eb, 0x2563eb);
+const meterLabel = makeLabel(meter, '50%', 334, 11, { fill: 0x0f172a, fontSize: 16, fontWeight: '800' });
+meter.addComponent(MeterAnimator, { fill: meterFillGraphic, label: meterLabel });
+
+const pulseDot = GameObject.instantiate(Group, flexCard, { x: 464, y: 205, width: 42, height: 42, anchorX: 0.5, anchorY: 0.5 });
+pulseDot.addComponent(Pulse);
+GameObject.instantiate(Graphics, pulseDot).circle(21, 21, 21).fill(0x22c55e);
+makeLabel(flexCard, 'Component update', 378, 196, { fill: 0x64748b, fontSize: 13 });
+
+const formCard = makeCard(shell, { x: 34, y: 528, width: 474, height: 138 }, 0xffffff);
+makeLabel(formCard, 'DOM-backed form controls', 20, 18, { fontSize: 20, fontWeight: '800', fill: 0x0f172a });
+makeLabel(formCard, 'Input and Textarea remain aligned to the canvas through scroll/resize.', 20, 50, { fill: 0x64748b, fontSize: 13 });
+
+const nameInput = GameObject.instantiate(Input, formCard, {
+    x: 20,
+    y: 82,
+    width: 190,
+    height: 38,
+    fontSize: 15,
+});
+nameInput.value = 'pixif';
+nameInput.backgroundColor = 0xf8fafc;
+
+const notesInput = GameObject.instantiate(Textarea, formCard, {
+    x: 228,
+    y: 82,
+    width: 224,
+    height: 38,
+    fontSize: 14,
+});
+notesInput.value = 'Resize me with the window.';
+notesInput.backgroundColor = 0xf8fafc;
+notesInput.lineHeight = 16;
+
+const actionCard = makeCard(shell, { x: 532, y: 528, width: 554, height: 138 }, 0xf8fafc);
+makeLabel(actionCard, 'Interactive state', 20, 18, { fontSize: 20, fontWeight: '800', fill: 0x0f172a });
+const stateLabel = makeLabel(actionCard, 'Click a command to update this label.', 20, 54, { fill: 0x475569, fontSize: 15 });
+
+let actionCount = 0;
+makeButton(actionCard, 'Increment', 20, 82, 130, () => {
+    actionCount += 1;
+    stateLabel.value = `Button tapped ${actionCount} time${actionCount === 1 ? '' : 's'}.`;
+});
+makeButton(actionCard, 'Clear form', 168, 82, 130, () => {
+    nameInput.value = '';
+    notesInput.value = '';
+    stateLabel.value = 'Form values cleared through pixif objects.';
+});
+makeButton(actionCard, 'Focus input', 316, 82, 130, () => {
+    nameInput.focus();
+    stateLabel.value = 'Input focused from a Pixi event handler.';
 });
