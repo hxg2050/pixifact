@@ -13,6 +13,7 @@ import {
     Label,
     LabelStyle,
     Layout,
+    ScrollView,
     Textarea,
 } from '../../../src';
 
@@ -264,9 +265,18 @@ GameObject.instantiate(Graphics, badge)
     .stroke({ width: 2, color: 0x0f172a, alpha: 0.16 });
 makeLabel(badge, 'GO', 16, 20, { fill: 0x0f172a, fontSize: 18, fontWeight: '800' });
 
-const topGrid = GameObject.instantiate(Group, shell, {
+const scroll = GameObject.instantiate(ScrollView, shell, {
     x: 34,
     y: 122,
+    width: 1052,
+    height: 544,
+    contentHeight: 980,
+});
+const content = scroll.content;
+
+const topGrid = GameObject.instantiate(Group, content, {
+    x: 0,
+    y: 0,
     width: 740,
     height: 92,
 });
@@ -285,7 +295,11 @@ topGrid.addComponent(GridLayout, {
     { label: 'ticker workers', value: '2', color: 0x8b5cf6 },
 ].forEach((stat) => makeStatCard(topGrid, stat));
 
-const gridCard = makeCard(shell, { x: 34, y: 244, width: 474, height: 260 }, 0xf8fafc);
+const scrollCard = makeCard(content, { x: 792, y: 0, width: 260, height: 92 }, 0xfffbeb);
+makeLabel(scrollCard, 'ScrollView', 18, 16, { fontSize: 22, fontWeight: '800', fill: 0x92400e });
+makeLabel(scrollCard, 'Wheel or drag this page.', 18, 52, { fill: 0x92400e, fontSize: 13 });
+
+const gridCard = makeCard(content, { x: 0, y: 122, width: 474, height: 260 }, 0xf8fafc);
 makeLabel(gridCard, 'GridLayout feature tiles', 20, 18, { fontSize: 20, fontWeight: '800', fill: 0x0f172a });
 makeLabel(gridCard, 'Hover each tile to see Pixi pointer events on pixif GameObjects.', 20, 50, { fill: 0x64748b, fontSize: 13 });
 
@@ -312,7 +326,7 @@ featureGrid.addComponent(GridLayout, {
     ['Events', 0x334155, 'pointer tap'],
 ].forEach(([label, color, detail]) => makeTile(featureGrid, label as string, color as number, detail as string));
 
-const flexCard = makeCard(shell, { x: 532, y: 244, width: 554, height: 260 }, 0xffffff);
+const flexCard = makeCard(content, { x: 498, y: 122, width: 554, height: 260 }, 0xffffff);
 makeLabel(flexCard, 'FlexGroup distribution', 20, 18, { fontSize: 20, fontWeight: '800', fill: 0x0f172a });
 makeLabel(flexCard, 'Child widths are assigned by Flex.grow inside one row container.', 20, 50, { fill: 0x64748b, fontSize: 13 });
 
@@ -348,7 +362,7 @@ pulseDot.addComponent(Pulse);
 GameObject.instantiate(Graphics, pulseDot).circle(21, 21, 21).fill(0x22c55e);
 makeLabel(flexCard, 'Component update', 378, 196, { fill: 0x64748b, fontSize: 13 });
 
-const formCard = makeCard(shell, { x: 34, y: 528, width: 474, height: 138 }, 0xffffff);
+const formCard = makeCard(content, { x: 0, y: 406, width: 474, height: 138 }, 0xffffff);
 makeLabel(formCard, 'DOM-backed form controls', 20, 18, { fontSize: 20, fontWeight: '800', fill: 0x0f172a });
 makeLabel(formCard, 'Input and Textarea remain aligned to the canvas through scroll/resize.', 20, 50, { fill: 0x64748b, fontSize: 13 });
 
@@ -373,7 +387,7 @@ notesInput.value = 'Resize me with the window.';
 notesInput.backgroundColor = 0xf8fafc;
 notesInput.lineHeight = 16;
 
-const actionCard = makeCard(shell, { x: 532, y: 528, width: 554, height: 138 }, 0xf8fafc);
+const actionCard = makeCard(content, { x: 498, y: 406, width: 554, height: 138 }, 0xf8fafc);
 makeLabel(actionCard, 'Interactive state', 20, 18, { fontSize: 20, fontWeight: '800', fill: 0x0f172a });
 const stateLabel = makeLabel(actionCard, 'Click a command to update this label.', 20, 54, { fill: 0x475569, fontSize: 15 });
 
@@ -391,3 +405,50 @@ makeButton(actionCard, 'Focus input', 316, 82, 130, () => {
     nameInput.focus();
     stateLabel.value = 'Input focused from a Pixi event handler.';
 });
+
+const lifecycleCard = makeCard(content, { x: 0, y: 584, width: 330, height: 170 }, 0xf0fdfa);
+makeLabel(lifecycleCard, 'Composite structure', 20, 20, { fontSize: 20, fontWeight: '800', fill: 0x134e4a });
+makeLabel(lifecycleCard, 'ScrollView is a Group subclass that owns mask, content, event handling, and a scrollbar.', 20, 56, {
+    fill: 0x0f766e,
+    fontSize: 13,
+    wordWrap: true,
+    wordWrapWidth: 286,
+});
+makeLabel(lifecycleCard, 'Its content node accepts regular pixif children.', 20, 116, { fill: 0x115e59, fontSize: 13 });
+
+const resizeCard = makeCard(content, { x: 360, y: 584, width: 330, height: 170 }, 0xeff6ff);
+makeLabel(resizeCard, 'Viewport behavior', 20, 20, { fontSize: 20, fontWeight: '800', fill: 0x1e3a8a });
+makeLabel(resizeCard, 'The outer shell still uses Layout and FitToViewport, while the inner content can extend beyond the visible area.', 20, 56, {
+    fill: 0x1d4ed8,
+    fontSize: 13,
+    wordWrap: true,
+    wordWrapWidth: 286,
+});
+makeLabel(resizeCard, 'Resize the browser to keep the whole scene framed.', 20, 130, { fill: 0x1e40af, fontSize: 13 });
+
+const dataCard = makeCard(content, { x: 720, y: 584, width: 332, height: 170 }, 0xfdf2f8);
+makeLabel(dataCard, 'Long content area', 20, 20, { fontSize: 20, fontWeight: '800', fill: 0x831843 });
+[
+    'Wheel input is clamped.',
+    'Drag input maps to scroll offset.',
+    'The scrollbar tracks progress.',
+].forEach((value, index) => {
+    GameObject.instantiate(Graphics, dataCard)
+        .circle(28, 66 + index * 30, 4)
+        .fill(0xdb2777);
+    makeLabel(dataCard, value, 42, 56 + index * 30, { fill: 0x9d174d, fontSize: 13 });
+});
+
+const finalCard = makeCard(content, { x: 0, y: 792, width: 1052, height: 148 }, 0xffffff);
+makeLabel(finalCard, 'Scrollable content page', 24, 22, { fontSize: 24, fontWeight: '800', fill: 0x0f172a });
+makeLabel(finalCard, 'This section sits below the initial viewport and confirms that complex pixif UI can be composed as a scrollable page instead of a fixed showcase.', 24, 64, {
+    fill: 0x475569,
+    fontSize: 15,
+    wordWrap: true,
+    wordWrapWidth: 860,
+});
+makeButton(finalCard, 'Back to top', 878, 52, 130, () => {
+    scroll.scrollTo(0);
+});
+
+scroll.refreshContentHeight();

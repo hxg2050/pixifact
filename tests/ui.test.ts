@@ -1,6 +1,6 @@
 import { Container, Ticker } from 'pixi.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Application, GameObject, Group, Input, Textarea } from '../src';
+import { Application, GameObject, Group, Input, ScrollView, Textarea } from '../src';
 
 function setElementRect(element: Element, left: number, top: number) {
     vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({
@@ -274,5 +274,73 @@ describe('Textarea', () => {
         expect(textarea.valueLabel.style.wordWrapWidth).toBe(134);
 
         GameObject.destroy(textarea);
+    });
+});
+
+describe('ScrollView', () => {
+    it('clamps scrollY and moves content in the opposite direction', () => {
+        const scroll = GameObject.instantiate(ScrollView, undefined, {
+            width: 200,
+            height: 100,
+            contentHeight: 260,
+        });
+
+        scroll.scrollTo(80);
+        expect(scroll.scrollY).toBe(80);
+        expect(scroll.content.y).toBe(-80);
+
+        scroll.scrollBy(300);
+        expect(scroll.scrollY).toBe(160);
+        expect(scroll.content.y).toBe(-160);
+
+        scroll.scrollTo(-40);
+        expect(scroll.scrollY).toBe(0);
+        expect(scroll.content.y).toBe(0);
+
+        GameObject.destroy(scroll);
+    });
+
+    it('refreshes content height from children and reclamps after resize', () => {
+        const scroll = GameObject.instantiate(ScrollView, undefined, {
+            width: 200,
+            height: 100,
+        });
+        GameObject.instantiate(Group, scroll.content, {
+            y: 20,
+            width: 100,
+            height: 140,
+        });
+
+        scroll.refreshContentHeight();
+        expect(scroll.contentHeight).toBe(160);
+        expect(scroll.maxScrollY).toBe(60);
+
+        scroll.scrollTo(80);
+        expect(scroll.scrollY).toBe(60);
+
+        scroll.height = 140;
+        expect(scroll.maxScrollY).toBe(20);
+        expect(scroll.scrollY).toBe(20);
+        expect(scroll.content.y).toBe(-20);
+
+        GameObject.destroy(scroll);
+    });
+
+    it('removes Pixi event listeners on destroy', () => {
+        const scroll = GameObject.instantiate(ScrollView, undefined, {
+            width: 200,
+            height: 100,
+            contentHeight: 260,
+        });
+
+        expect(scroll.display.listenerCount('wheel')).toBe(1);
+        expect(scroll.display.listenerCount('pointerdown')).toBe(1);
+        expect(scroll.display.listenerCount('globalpointermove')).toBe(1);
+
+        GameObject.destroy(scroll);
+
+        expect(scroll.display.listenerCount('wheel')).toBe(0);
+        expect(scroll.display.listenerCount('pointerdown')).toBe(0);
+        expect(scroll.display.listenerCount('globalpointermove')).toBe(0);
     });
 });

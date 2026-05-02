@@ -79,3 +79,12 @@
 - [x] 评估是否改用 PixiJS v8 `DOMContainer` 承载 DOM 输入元素：当前暂不迁移，因为 `DOMContainer` 在 PixiJS v8 仍为 experimental，库级组件先保留自维护 DOM overlay。
 - [x] 标记 `paddinRight` 为兼容旧拼写，后续版本移除。
 - [x] 清理 UI 组件中依赖示例 CSS 的隐含假设。
+
+## 7. 复杂 UI 组件与滚动容器（已完成）
+
+- [x] 明确复杂 UI 使用 `Group` 子类表达，在 `render()` 中组装内部子树，不额外引入 prefab 或响应式系统。
+- [x] 调整 `GameObject.instantiate()` 时序：先应用 props，再调用 `render()`，最后挂载到 parent，使复合组件的内部结构可以读取初始化参数。
+- [x] 增加回归测试，覆盖 `Group` 子类在 `render()` 中读取 props 并创建内部节点。
+- [x] 新增 `ScrollView`，提供 `content` 挂载点、遮罩、滚动条、滚轮滚动、拖拽滚动、边界 clamp、内容高度刷新。
+- [x] 增加 `ScrollView` 单元测试，覆盖滚动位置、内容位移、resize 后重新 clamp 和事件清理。
+- [x] 将基础示例改为固定 header + `ScrollView` 内容页，验证复杂内容页滚动。

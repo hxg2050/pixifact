@@ -116,6 +116,27 @@ const group = GameObject.instantiate(Group, app.root, {
 
 `Graphics`、`Label`、`Image`、`NineSliceImage` 等是叶子节点，负责具体渲染，不提供子节点管理能力。
 
+复杂 UI 可以写成 `Group` 子类，并在 `render()` 中组装内部子树。`GameObject.instantiate()` 会先应用传入 props，再调用 `render()`，因此内部结构可以读取初始化参数：
+
+```ts
+class UserCard extends Group {
+    title = '';
+    titleLabel!: Label;
+
+    render() {
+        this.titleLabel = GameObject.instantiate(Label, this, {
+            value: this.title,
+        });
+    }
+}
+
+const card = GameObject.instantiate(UserCard, stage, {
+    title: 'pixif',
+    width: 240,
+    height: 80,
+});
+```
+
 ### Component
 
 组件可以挂载到 `GameObject` 上：
@@ -200,6 +221,25 @@ input.value = 'pixif';
 - 如页面中存在多个 canvas，可通过 `canvas` 属性指定。
 - DOM 输入组件会监听窗口 resize 和 scroll 来刷新位置。
 - 当前实现保留自维护 DOM overlay，没有迁移到 PixiJS v8 experimental `DOMContainer`。
+
+## ScrollView
+
+`ScrollView` 是一个可滚动容器，内部暴露 `content` 节点用于挂载内容：
+
+```ts
+const scroll = GameObject.instantiate(ScrollView, stage, {
+    width: 720,
+    height: 480,
+});
+
+GameObject.instantiate(Label, scroll.content, {
+    value: 'Scrollable content',
+});
+
+scroll.refreshContentHeight();
+```
+
+支持滚轮和拖拽滚动，并提供 `scrollY`、`maxScrollY`、`scrollTo()`、`scrollBy()`、`refreshContentHeight()`。
 
 ## 示例
 

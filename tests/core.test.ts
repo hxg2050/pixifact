@@ -19,8 +19,27 @@ class StartComponent extends Component<TestObject> {
     start = vi.fn();
 }
 
+class RemoveOnStartComponent extends Component<TestObject> {
+    start = vi.fn(() => {
+        this.gameObject.removeComponent(this);
+    });
+    update = vi.fn();
+    onDestroy = vi.fn();
+}
+
 class UpdateObject extends TestObject {
     update = vi.fn();
+}
+
+class CompositeObject extends Group {
+    title = '';
+    titleLabel?: Label;
+
+    render() {
+        this.titleLabel = GameObject.instantiate(Label, this, {
+            value: this.title,
+        });
+    }
 }
 
 function createTestApplication() {
@@ -126,6 +145,22 @@ describe('GameObject transform', () => {
 });
 
 describe('Group children', () => {
+    it('applies props before render for composite group objects', () => {
+        const stage = new Group();
+        const composite = GameObject.instantiate(CompositeObject, stage, {
+            width: 240,
+            height: 120,
+            title: 'Ready before render',
+        });
+
+        expect(composite.width).toBe(240);
+        expect(composite.height).toBe(120);
+        expect(composite.titleLabel?.value).toBe('Ready before render');
+        expect(composite.children).toEqual([composite.titleLabel]);
+
+        GameObject.destroy(stage);
+    });
+
     it('adds, removes, and reparents children with matching Pixi containers', () => {
         const firstParent = new Group();
         const secondParent = new Group();
@@ -733,14 +768,18 @@ describe('Flex layout components', () => {
 });
 
 describe('Component lifecycle', () => {
-    it('runs awake immediately, start once, update on each tick, and cleans up on removal', () => {
+    it('runs awake immediately, starts before the first update, and cleans up on removal', () => {
         const object = new TestObject();
         const component = object.addComponent(TestComponent);
 
         expect(component.awake).toHaveBeenCalledTimes(1);
-        expect(component.start).toHaveBeenCalledTimes(1);
+        expect(component.start).not.toHaveBeenCalled();
+        expect(component.update).not.toHaveBeenCalled();
 
         object.emitter.emit(GameObject.Event.TICKER_BEFORE, 1);
+        expect(component.start).toHaveBeenCalledTimes(1);
+        expect(component.update).toHaveBeenCalledTimes(1);
+
         object.emitter.emit(GameObject.Event.TICKER_BEFORE, 2);
 
         expect(component.start).toHaveBeenCalledTimes(1);
@@ -759,6 +798,20 @@ describe('Component lifecycle', () => {
         object.display.destroy();
     });
 
+    it('does not run update if start removes the component', () => {
+        const object = new TestObject();
+        const component = object.addComponent(RemoveOnStartComponent);
+
+        object.emitter.emit(GameObject.Event.TICKER_BEFORE, 1);
+
+        expect(component.start).toHaveBeenCalledTimes(1);
+        expect(component.update).not.toHaveBeenCalled();
+        expect(component.onDestroy).toHaveBeenCalledTimes(1);
+        expect(object.components).not.toContain(component);
+
+        object.display.destroy();
+    });
+
     it('passes app ticker deltaTime to mounted components', () => {
         const app = createTestApplication();
         const object = GameObject.instantiate(TestObject, app.root);
@@ -768,15 +821,21 @@ describe('Component lifecycle', () => {
 
         expect(component.update).toHaveBeenCalledWith(expect.any(Number));
         expect(typeof component.update.mock.calls[0][0]).toBe('number');
+        expect(component.start).toHaveBeenCalledTimes(1);
 
         GameObject.destroy(app.root);
         app.ticker.destroy();
     });
 
-    it('does not register the app ticker for a component that only uses start', () => {
+    it('runs a start-only component before the next ticker and then unregisters', () => {
         const app = createTestApplication();
         const object = GameObject.instantiate(TestObject, app.root);
         const component = object.addComponent(StartComponent);
+
+        expect(component.start).not.toHaveBeenCalled();
+        expect(app.ticker.count).toBe(1);
+
+        app.ticker.update(performance.now() + 16);
 
         expect(component.start).toHaveBeenCalledTimes(1);
         expect(app.ticker.count).toBe(0);

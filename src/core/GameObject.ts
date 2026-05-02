@@ -173,6 +173,7 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
     parent?: Group;
 
     public components: Component[] = [];
+    private componentTickerHandlers = new Map<Component, (dt: number) => void>();
     private _destroying = false;
 
     get visible() {
@@ -335,8 +336,28 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
         props && setProps(_component, props);
         _component.awake && _component.awake();
 
-        _component.start && _component.start();
-        _component.update && this.emitter.on(GameObject.Event.TICKER_BEFORE, _component.update, _component);
+        if (_component.update) {
+            let started = false;
+            const tickerHandler = (dt: number) => {
+                if (!started) {
+                    started = true;
+                    _component.start?.();
+                }
+                if (!this.components.includes(_component)) {
+                    return;
+                }
+                _component.update?.(dt);
+            };
+            this.componentTickerHandlers.set(_component, tickerHandler);
+            this.emitter.on(GameObject.Event.TICKER_BEFORE, tickerHandler, _component);
+        } else if (_component.start) {
+            const tickerHandler = () => {
+                this.componentTickerHandlers.delete(_component);
+                _component.start?.();
+            };
+            this.componentTickerHandlers.set(_component, tickerHandler);
+            this.emitter.once(GameObject.Event.TICKER_BEFORE, tickerHandler, _component);
+        }
         this.syncUpdateRegistration();
         
         return _component;
@@ -348,7 +369,11 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
             return;
         }
         this.components.splice(index, 1);
-        component.update && this.emitter.off(GameObject.Event.TICKER_BEFORE, component.update, component);
+        const tickerHandler = this.componentTickerHandlers.get(component);
+        if (tickerHandler) {
+            this.emitter.off(GameObject.Event.TICKER_BEFORE, tickerHandler, component);
+            this.componentTickerHandlers.delete(component);
+        }
         component.gameObject.display.off('destroyed', component.destroy, component);
         component.onDestroy && component.onDestroy();
         this.syncUpdateRegistration();
@@ -395,9 +420,9 @@ export abstract class GameObject<T extends Container = Container> extends BaseGa
 
     static instantiate<T extends GameObject = GameObject>(gameObject: Constructor<T>, parent?: Group, props?: Partial<T>): T {
         const go = new gameObject();
-        go.render?.();
         props && setProps(go, props);
         go.setDisplay(go.display);
+        go.render?.();
         parent?.addChild(go);
 
         return go;
