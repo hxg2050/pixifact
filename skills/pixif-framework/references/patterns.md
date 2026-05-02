@@ -21,6 +21,21 @@ const panel = GameObject.instantiate(Group, app.root, {
 
 Use `setProps`/constructor property assignment patterns already present in the repo. Keep parent types narrowed to container-capable objects.
 
+`GameObject.instantiate()` applies props before calling `render()`, then attaches the object to the parent. This lets compound `Group` subclasses read initialized fields while creating child nodes:
+
+```ts
+class StatusCard extends Group {
+    title = '';
+    titleLabel!: Label;
+
+    render() {
+        this.titleLabel = GameObject.instantiate(Label, this, {
+            value: this.title,
+        });
+    }
+}
+```
+
 ## Container Model
 
 `Group` owns `children`, `addChild`, `addChildAt`, `removeChild`, and `removeChildren`.
@@ -34,13 +49,25 @@ Render leaves render content and should stay leaf-like:
 
 Do not add new child-management APIs to leaves unless the architecture is intentionally being changed.
 
+## Compound UI Components
+
+Build reusable multi-node UI as `Group` subclasses with a `render()` method. Keep internal render leaves private or protected unless callers need to attach children or control them.
+
+- `Button` owns its background, optional nine-slice visual, label, pointer events, disabled state, and centered press-scale visual container.
+- `ScrollView` owns its mask, content group, scrollbar, wheel and drag handlers. Add scrollable children to `scrollView.content` and refresh content height when needed.
+- Do not hard-code project asset paths in reusable UI components. Accept textures or style props from callers and keep a graphics fallback when practical.
+- Avoid new package dependencies for small UI interactions unless they remove substantial complexity.
+
 ## Component Lifecycle
 
 Components receive their host `gameObject` in the constructor. Use:
 
 - `awake()` for setup after attachment.
+- `start()` for work that should run once immediately before the first update tick.
 - `update(dt)` for frame work.
 - `onDestroy()` for listener cleanup and teardown.
+
+If `start()` removes the component, its first `update()` must not run. Components that only define `start()` still wait for the next update tick and then unregister.
 
 When a component subscribes to `GameObject.emitter`, Pixi events, DOM events, or window events, unsubscribe in `onDestroy()`.
 
@@ -75,4 +102,5 @@ Add or update Vitest coverage when changing:
 - Component lifecycle.
 - Ticker registration.
 - Layout recomputation.
+- Compound UI components such as `Button` and `ScrollView`.
 - DOM input focus, sizing, or transform synchronization.

@@ -13,7 +13,7 @@ pixif 是一个基于 PixiJS v8 的轻量 TypeScript 封装，目标是为 Pixi 
 - 使用 `Group` 作为唯一容器节点，叶子节点不再承担子节点管理职责。
 - `Application` 统一驱动需要更新的对象和组件，避免每个对象直接注册全局 ticker。
 - 提供 `Layout`、`GridLayout`、`FlexGroup` 等布局能力。
-- 提供 `Input`、`Textarea` 这类 DOM-backed 输入组件，方便在 Pixi 场景中处理真实文本输入。
+- 提供 `Button`、`ScrollView`、`Input`、`Textarea` 等 UI 组件。
 - 提供 Rollup 构建、Vitest 测试和 Vite 示例。
 
 ## 安装
@@ -155,7 +155,7 @@ class Spinner extends Component<Group> {
 group.addComponent(Spinner);
 ```
 
-组件的 `update()` 会在对象挂载到 `Application.root` 后由 `app.ticker` 统一驱动。
+组件的 `start()` 会在首次 `update()` 前执行一次；`update()` 会在对象挂载到 `Application.root` 后由 `app.ticker` 统一驱动。
 
 ## 布局
 
@@ -199,7 +199,29 @@ grid.addComponent(GridLayout, {
 
 `FlexGroup` 用于弹性排列子节点，适合横向或纵向列表。
 
-## UI 输入组件
+## UI 组件
+
+### Button
+
+`Button` 是一个可交互按钮，支持文字、默认图形背景、可选九宫格纹理、禁用状态和按压缩放反馈：
+
+```ts
+const button = GameObject.instantiate(Button, panel, {
+    x: 24,
+    y: 150,
+    width: 130,
+    height: 42,
+    value: 'Confirm',
+});
+
+button.emitter.on('tap', () => {
+    console.log('clicked');
+});
+```
+
+按压缩放只作用于按钮内部视觉容器，按钮自身的布局尺寸和命中区域保持不变。
+
+### Input / Textarea
 
 `Input` 和 `Textarea` 使用真实 HTML 元素承载输入，再把 DOM 元素同步到 Pixi canvas 的位置上。
 
@@ -222,7 +244,7 @@ input.value = 'pixif';
 - DOM 输入组件会监听窗口 resize 和 scroll 来刷新位置。
 - 当前实现保留自维护 DOM overlay，没有迁移到 PixiJS v8 experimental `DOMContainer`。
 
-## ScrollView
+### ScrollView
 
 `ScrollView` 是一个可滚动容器，内部暴露 `content` 节点用于挂载内容：
 
@@ -331,7 +353,7 @@ pnpm example:build
 
 ```ts
 import { Application, GameObject, Group } from 'pixif';
-import { Input, Textarea } from 'pixif/ui';
+import { Button, Input, ScrollView, Textarea } from 'pixif/ui';
 import { Layout, GridLayout } from 'pixif/core';
 ```
 

@@ -1,6 +1,6 @@
 ---
 name: pixif-framework
-description: Build, maintain, and document projects that use this pixif TypeScript framework. Use when working in the pixif repository or when implementing pixif UI/game-object code involving Application, GameObject, Group, Component lifecycles, Layout, GridLayout, FlexGroup/Flex, Graphics, Label, Image, NineSliceImage, Input, Textarea, package exports, examples, tests, or PixiJS v8 integration patterns specific to pixif.
+description: Build, maintain, and document projects that use this pixif TypeScript framework. Use when working in the pixif repository or when implementing pixif UI/game-object code involving Application, GameObject, Group, Component lifecycles, Layout, GridLayout, FlexGroup/Flex, Graphics, Label, Image, NineSliceImage, Button, ScrollView, Input, Textarea, package exports, examples, tests, or PixiJS v8 integration patterns specific to pixif.
 ---
 
 # Pixif Framework
@@ -19,11 +19,13 @@ Start by identifying whether the work is inside this repository or in a consumer
 ## Core Rules
 
 - Create pixif nodes with `GameObject.instantiate(Type, parent, props?)` when a parent is available.
+- `GameObject.instantiate()` applies props before `render()`. Composite `Group` subclasses may read initial props while building their child tree.
 - Treat `Group` as the only container node. Render leaves such as `Graphics`, `Label`, `Image`, and `NineSliceImage` should not own child nodes.
 - Mount objects under `Application.root` for ticker-driven updates.
-- Put reusable behavior in `Component` subclasses. Use `awake`, `update`, and `onDestroy` consistently, and always clean up listeners in `onDestroy`.
+- Put reusable behavior in `Component` subclasses. Use `awake`, `start`, `update`, and `onDestroy` consistently; `start` runs once immediately before the component's first update tick. Always clean up listeners in `onDestroy`.
 - Prefer logical `width` and `height` for layout decisions instead of deriving layout from Pixi bounds unless the source code already does so intentionally.
 - Keep DOM-backed UI inputs aligned through the existing overlay model unless the user explicitly asks to migrate to PixiJS `DOMContainer`.
+- Build reusable compound UI such as `Button` and `ScrollView` as `Group` subclasses that own their internal nodes and expose only intentional public attachment points such as `scrollView.content`.
 
 ## Layout Guidance
 

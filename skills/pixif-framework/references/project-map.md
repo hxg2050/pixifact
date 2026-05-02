@@ -13,7 +13,7 @@ pixif is a lightweight TypeScript wrapper around PixiJS v8. It keeps Pixi render
 - `src/core/group/index.ts` - `Group`, the only pixif container node.
 - `src/core/component/` - `Component`, `Layout`, `GridLayout`, `FlexGroup`, and `Flex`.
 - `src/core/graphics/`, `src/core/label/`, `src/core/image/` - render leaf wrappers.
-- `src/ui/` - DOM-backed `Input`, `Textarea`, and UI components.
+- `src/ui/` - UI components including `Button`, `ScrollView`, and DOM-backed `Input` / `Textarea`.
 - `examples/basic/` - Vite example app.
 - `tests/` - Vitest coverage for core and UI behavior.
 - `PLAN.md` - architecture decisions and completed cleanup notes.

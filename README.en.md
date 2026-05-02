@@ -13,7 +13,7 @@ It keeps PixiJS rendering primitives while adding `GameObject`, `Group`, compone
 - `Group` as the only container node; render leaves do not manage children.
 - `Application` drives active objects and components through a single `app.ticker` callback.
 - Layout helpers including `Layout`, `GridLayout`, and `FlexGroup`.
-- DOM-backed `Input` and `Textarea` components for real text entry inside Pixi scenes.
+- UI components including `Button`, `ScrollView`, and DOM-backed `Input` / `Textarea`.
 - Rollup build, Vitest tests, and a Vite example.
 
 ## Installation
@@ -116,6 +116,27 @@ const group = GameObject.instantiate(Group, app.root, {
 
 `Graphics`, `Label`, `Image`, and `NineSliceImage` are render leaves. They render content but do not manage child nodes.
 
+Complex UI can be written as `Group` subclasses that build their internal child tree in `render()`. `GameObject.instantiate()` applies props before `render()`, so internal nodes can read initialization values:
+
+```ts
+class UserCard extends Group {
+    title = '';
+    titleLabel!: Label;
+
+    render() {
+        this.titleLabel = GameObject.instantiate(Label, this, {
+            value: this.title,
+        });
+    }
+}
+
+const card = GameObject.instantiate(UserCard, stage, {
+    title: 'pixif',
+    width: 240,
+    height: 80,
+});
+```
+
 ### Component
 
 Components can be attached to a `GameObject`:
@@ -134,7 +155,7 @@ class Spinner extends Component<Group> {
 group.addComponent(Spinner);
 ```
 
-Component `update()` methods are driven by `app.ticker` after the object is mounted under `Application.root`.
+Component `start()` runs once before the first `update()`. Component `update()` methods are driven by `app.ticker` after the object is mounted under `Application.root`.
 
 ## Layout
 
@@ -178,7 +199,29 @@ grid.addComponent(GridLayout, {
 
 `FlexGroup` arranges children in a flexible horizontal or vertical list.
 
-## UI Inputs
+## UI Components
+
+### Button
+
+`Button` is an interactive button with text, a default graphics background, optional nine-slice texture, disabled state, and pressed-scale feedback:
+
+```ts
+const button = GameObject.instantiate(Button, panel, {
+    x: 24,
+    y: 150,
+    width: 130,
+    height: 42,
+    value: 'Confirm',
+});
+
+button.emitter.on('tap', () => {
+    console.log('clicked');
+});
+```
+
+Pressed scaling is applied to the button's internal visual container, so the button's own layout size and hit area stay stable.
+
+### Input / Textarea
 
 `Input` and `Textarea` use real HTML elements for text entry, then synchronize the DOM element with the Pixi canvas position.
 
@@ -200,6 +243,25 @@ Notes:
 - If the page has multiple canvases, pass the `canvas` property explicitly.
 - DOM input components listen to window resize and scroll events to keep their position in sync.
 - The current implementation keeps a self-managed DOM overlay and does not migrate to the experimental PixiJS v8 `DOMContainer`.
+
+### ScrollView
+
+`ScrollView` is a scrollable container. Add scrollable children to its public `content` group:
+
+```ts
+const scroll = GameObject.instantiate(ScrollView, stage, {
+    width: 720,
+    height: 480,
+});
+
+GameObject.instantiate(Label, scroll.content, {
+    value: 'Scrollable content',
+});
+
+scroll.refreshContentHeight();
+```
+
+It supports wheel and drag scrolling and provides `scrollY`, `maxScrollY`, `scrollTo()`, `scrollBy()`, and `refreshContentHeight()`.
 
 ## Example
 
@@ -291,7 +353,7 @@ Install the repository-owned Codex skills from the source checkout.
 
 ```ts
 import { Application, GameObject, Group } from 'pixif';
-import { Input, Textarea } from 'pixif/ui';
+import { Button, Input, ScrollView, Textarea } from 'pixif/ui';
 import { Layout, GridLayout } from 'pixif/core';
 ```
 
