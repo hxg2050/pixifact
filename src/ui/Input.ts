@@ -1,4 +1,4 @@
-import { Matrix, StrokeStyle, Graphics as PIXIGraphics } from "pixi.js";
+import { Matrix, Rectangle, StrokeStyle, Graphics as PIXIGraphics } from "pixi.js";
 import type { FederatedPointerEvent } from "pixi.js";
 import { GameObject, Graphics, Group, Label, LabelStyle } from "../core";
 
@@ -100,8 +100,16 @@ export class Input extends Group {
         this.element.style.padding = this._padding.map((value) => value + 'px').join(' ');
         this.element.style.borderWidth = '0';
         this.element.style.fontSize = this.fontSize + 'px';
-        this.element.style.lineHeight = this.contentHeight + 'px';
+        this.updateElementLineHeight();
         this.updateMask();
+    }
+
+    protected updateElementLineHeight() {
+        this.element.style.lineHeight = this.contentHeight + 'px';
+    }
+
+    protected updateHitArea() {
+        this.display.hitArea = new Rectangle(0, 0, this.width, this.height);
     }
 
     /**
@@ -139,6 +147,7 @@ export class Input extends Group {
         this._isResize = false;
         this._isUpdateElementSize = true;
         this._isUpdateTransform = true;
+        this.updateHitArea();
         this.valueLabel.x = this.paddingLeft;
         this.valueLabel.y = this.paddingTop;
         this._labelStyle.lineHeight = this.contentHeight;
@@ -195,9 +204,10 @@ export class Input extends Group {
         this.value = this._value;
 
 
-        this.graphics.display.eventMode = 'static';
-        this.graphics.display.cursor = 'text';
-        this.graphics.display.on('pointerdown', this.focus, this);
+        this.display.eventMode = 'static';
+        this.display.interactiveChildren = false;
+        this.display.cursor = 'text';
+        this.display.on('pointerdown', this.focus, this);
         this.display.once('destroyed', this.onDestroy, this);
         window.addEventListener('resize', this.handleViewportChange);
         window.addEventListener('scroll', this.handleViewportChange, true);
@@ -404,7 +414,7 @@ export class Input extends Group {
             return;
         }
         this._destroyed = true;
-        this.graphics?.display.off('pointerdown', this.focus, this);
+        this.display.off('pointerdown', this.focus, this);
         window.removeEventListener('resize', this.handleViewportChange);
         window.removeEventListener('scroll', this.handleViewportChange, true);
         if (this.element) {

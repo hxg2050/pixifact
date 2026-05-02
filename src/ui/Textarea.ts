@@ -13,6 +13,10 @@ export class Textarea extends Input {
         return this._labelStyle.lineHeight;
     }
 
+    protected updateElementLineHeight(): void {
+        this.element.style.lineHeight = this._labelStyle.lineHeight + 'px';
+    }
+
     protected _padding = [6, 6, 6, 6];
     protected createElement(): void {
         this.element = document.createElement('textarea');
@@ -31,6 +35,7 @@ export class Textarea extends Input {
         this._isResize = false;
         this._isUpdateElementSize = true;
         this._isUpdateTransform = true;
+        this.updateHitArea();
         this.valueLabel.x = this.paddingLeft;
         this.valueLabel.y = this.paddingTop;
         this._labelStyle.wordWrapWidth = this.contentWidth;

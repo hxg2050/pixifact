@@ -120,6 +120,30 @@ describe('Input', () => {
         GameObject.destroy(input);
     });
 
+    it('focuses when the visible text area is clicked', () => {
+        const input = GameObject.instantiate(Input, undefined, {
+            width: 120,
+            height: 32,
+        });
+        const focus = vi.spyOn(input.element, 'focus');
+        const pointerEvent = {
+            pointerType: 'mouse',
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        };
+
+        input.value = 'pixif';
+        input.display.emit('pointerdown', pointerEvent);
+
+        expect(input.display.eventMode).toBe('static');
+        expect(input.display.interactiveChildren).toBe(false);
+        expect(input.display.cursor).toBe('text');
+        expect(input.element.style.display).toBe('block');
+        expect(focus).toHaveBeenCalledTimes(1);
+
+        GameObject.destroy(input);
+    });
+
     it('does not prevent default touch activation', () => {
         const input = GameObject.instantiate(Input, undefined, {
             width: 120,
@@ -272,6 +296,48 @@ describe('Textarea', () => {
         expect(textarea.valueLabel.style.wordWrap).toBe(true);
         expect(textarea.valueLabel.style.breakWords).toBe(true);
         expect(textarea.valueLabel.style.wordWrapWidth).toBe(134);
+
+        GameObject.destroy(textarea);
+    });
+
+    it('focuses when clicked after its custom resize refreshes the hit area', () => {
+        const textarea = GameObject.instantiate(Textarea, undefined, {
+            width: 160,
+            height: 80,
+        });
+        const focus = vi.spyOn(textarea.element, 'focus');
+
+        textarea.update();
+        textarea.display.emit('pointerdown', {
+            pointerType: 'mouse',
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        });
+
+        expect(textarea.display.hitArea).toBeDefined();
+        expect(textarea.element.style.display).toBe('block');
+        expect(focus).toHaveBeenCalledTimes(1);
+
+        GameObject.destroy(textarea);
+    });
+
+    it('preserves explicit DOM line height when sizing is refreshed', () => {
+        const textarea = GameObject.instantiate(Textarea, undefined, {
+            width: 160,
+            height: 80,
+            lineHeight: 18,
+        });
+
+        textarea.update();
+
+        expect(textarea.lineHeight).toBe(18);
+        expect(textarea.element.style.lineHeight).toBe('18px');
+
+        textarea.height = 100;
+        textarea.update();
+
+        expect(textarea.lineHeight).toBe(18);
+        expect(textarea.element.style.lineHeight).toBe('18px');
 
         GameObject.destroy(textarea);
     });
