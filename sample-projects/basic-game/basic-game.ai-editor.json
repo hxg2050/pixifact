@@ -1,0 +1,812 @@
+{
+  "version": 1,
+  "type": "pixif.aiEditorProject",
+  "prefab": {
+    "version": 1,
+    "type": "prefab",
+    "name": "基础游戏 HUD",
+    "root": {
+      "type": "Group",
+      "id": "root",
+      "key": "root",
+      "role": "game-root",
+      "name": "游戏画布",
+      "transform": {
+        "width": 960,
+        "height": 540
+      },
+      "components": [
+        {
+          "id": "bg",
+          "type": "ui.RoundedRectGraphic",
+          "props": {
+            "color": 988970,
+            "radius": 0
+          }
+        }
+      ],
+      "children": [
+        {
+          "type": "Group",
+          "id": "top-bar-node",
+          "key": "topBar",
+          "role": "hud-top-bar",
+          "name": "顶部状态栏",
+          "transform": {
+            "x": 24,
+            "y": 20,
+            "width": 912,
+            "height": 72
+          },
+          "components": [
+            {
+              "id": "bg",
+              "type": "ui.RoundedRectGraphic",
+              "props": {
+                "color": 1976635,
+                "fillAlpha": 0.94,
+                "radius": 14,
+                "strokeColor": 3359061,
+                "strokeWidth": 1
+              }
+            }
+          ],
+          "children": [
+            {
+              "type": "Group",
+              "id": "player-title-node",
+              "key": "playerTitle",
+              "role": "hud-label",
+              "name": "玩家名称",
+              "transform": {
+                "x": 24,
+                "y": 14,
+                "width": 260,
+                "height": 24
+              },
+              "components": [
+                {
+                  "id": "text",
+                  "type": "ui.TextGraphic",
+                  "props": {
+                    "text": "探索者 Lv.1",
+                    "color": 16317180,
+                    "fontSize": 18,
+                    "fontWeight": "700"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "Group",
+              "id": "player-subtitle-node",
+              "key": "playerSubtitle",
+              "role": "hud-label",
+              "name": "玩家状态",
+              "transform": {
+                "x": 24,
+                "y": 42,
+                "width": 300,
+                "height": 20
+              },
+              "components": [
+                {
+                  "id": "text",
+                  "type": "ui.TextGraphic",
+                  "props": {
+                    "text": "HP 100/100  |  MP 30/30",
+                    "color": 9741240,
+                    "fontSize": 13,
+                    "fontWeight": "600"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "Group",
+              "id": "coin-pill-node",
+              "key": "coinPill",
+              "role": "hud-counter",
+              "name": "金币统计",
+              "transform": {
+                "x": 704,
+                "y": 16,
+                "width": 184,
+                "height": 40
+              },
+              "components": [
+                {
+                  "id": "bg",
+                  "type": "ui.RoundedRectGraphic",
+                  "props": {
+                    "color": 132631,
+                    "fillAlpha": 0.78,
+                    "radius": 20,
+                    "strokeColor": 3359061,
+                    "strokeWidth": 1
+                  }
+                }
+              ],
+              "children": [
+                {
+                  "type": "Group",
+                  "id": "coin-text-node",
+                  "key": "coinText",
+                  "role": "hud-label",
+                  "name": "金币文字",
+                  "transform": {
+                    "width": 184,
+                    "height": 40
+                  },
+                  "components": [
+                    {
+                      "id": "text",
+                      "type": "ui.TextGraphic",
+                      "props": {
+                        "text": "金币  1,280",
+                        "color": 15381256,
+                        "fontSize": 15,
+                        "fontWeight": "700",
+                        "center": true
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Group",
+          "id": "quest-card-node",
+          "key": "questCard",
+          "role": "quest-card",
+          "name": "任务卡片",
+          "transform": {
+            "x": 24,
+            "y": 116,
+            "width": 304,
+            "height": 162
+          },
+          "components": [
+            {
+              "id": "bg",
+              "type": "ui.RoundedRectGraphic",
+              "props": {
+                "color": 1976635,
+                "fillAlpha": 0.92,
+                "radius": 12,
+                "strokeColor": 3359061,
+                "strokeWidth": 1
+              }
+            }
+          ],
+          "children": [
+            {
+              "type": "Group",
+              "id": "quest-title-node",
+              "key": "questTitle",
+              "role": "quest-title",
+              "name": "任务标题",
+              "transform": {
+                "x": 18,
+                "y": 16,
+                "width": 260,
+                "height": 28
+              },
+              "components": [
+                {
+                  "id": "text",
+                  "type": "ui.TextGraphic",
+                  "props": {
+                    "text": "当前任务",
+                    "color": 3718648,
+                    "fontSize": 18,
+                    "fontWeight": "700"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "Group",
+              "id": "quest-desc-node",
+              "key": "questDesc",
+              "role": "quest-description",
+              "name": "任务说明",
+              "transform": {
+                "x": 18,
+                "y": 52,
+                "width": 250,
+                "height": 24
+              },
+              "components": [
+                {
+                  "id": "text",
+                  "type": "ui.TextGraphic",
+                  "props": {
+                    "text": "清理森林入口的史莱姆",
+                    "color": 16317180,
+                    "fontSize": 14,
+                    "fontWeight": "600"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "Group",
+              "id": "quest-progress-bg-node",
+              "key": "questProgressBg",
+              "role": "progress-bg",
+              "name": "任务进度背景",
+              "transform": {
+                "x": 18,
+                "y": 94,
+                "width": 252,
+                "height": 12
+              },
+              "components": [
+                {
+                  "id": "bg",
+                  "type": "ui.RoundedRectGraphic",
+                  "props": {
+                    "color": 132631,
+                    "fillAlpha": 0.9,
+                    "radius": 6
+                  }
+                }
+              ]
+            },
+            {
+              "type": "Group",
+              "id": "quest-progress-fill-node",
+              "key": "questProgressFill",
+              "role": "progress-fill",
+              "name": "任务进度",
+              "transform": {
+                "x": 18,
+                "y": 94,
+                "width": 168,
+                "height": 12
+              },
+              "components": [
+                {
+                  "id": "bg",
+                  "type": "ui.RoundedRectGraphic",
+                  "props": {
+                    "color": 1483594,
+                    "radius": 6
+                  }
+                }
+              ]
+            },
+            {
+              "type": "Group",
+              "id": "quest-progress-text-node",
+              "key": "questProgressText",
+              "role": "progress-label",
+              "name": "任务进度文字",
+              "transform": {
+                "x": 18,
+                "y": 116,
+                "width": 252,
+                "height": 22
+              },
+              "components": [
+                {
+                  "id": "text",
+                  "type": "ui.TextGraphic",
+                  "props": {
+                    "text": "进度 2 / 3",
+                    "color": 9741240,
+                    "fontSize": 13,
+                    "fontWeight": "600"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Group",
+          "id": "start-button-node",
+          "key": "startBattleButton",
+          "role": "primary-action",
+          "name": "开始战斗按钮",
+          "transform": {
+            "x": 372,
+            "y": 334,
+            "width": 216,
+            "height": 56
+          },
+          "components": [
+            {
+              "id": "bg",
+              "type": "ui.RoundedRectGraphic",
+              "props": {
+                "color": 2450411,
+                "radius": 12,
+                "strokeColor": 1920728,
+                "strokeWidth": 1
+              }
+            },
+            {
+              "id": "button",
+              "type": "ui.Button",
+              "props": {
+                "onClick": "startBattle",
+                "interactable": true,
+                "targetGraphic": "bg",
+                "transition": "colorTint",
+                "normalColor": 2450411,
+                "highlightedColor": 3718648,
+                "pressedColor": 959977,
+                "pressedScale": 0.98
+              }
+            }
+          ],
+          "children": [
+            {
+              "type": "Group",
+              "id": "start-button-label-node",
+              "key": "startBattleLabel",
+              "role": "button-label",
+              "name": "开始战斗文字",
+              "transform": {
+                "width": 216,
+                "height": 56
+              },
+              "components": [
+                {
+                  "id": "text",
+                  "type": "ui.TextGraphic",
+                  "props": {
+                    "text": "开始战斗",
+                    "color": 16777215,
+                    "fontSize": 18,
+                    "fontWeight": "700",
+                    "center": true
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Group",
+          "id": "inventory-button-node",
+          "key": "inventoryButton",
+          "role": "secondary-action",
+          "name": "背包按钮",
+          "transform": {
+            "x": 612,
+            "y": 334,
+            "width": 144,
+            "height": 56
+          },
+          "components": [
+            {
+              "id": "bg",
+              "type": "ui.RoundedRectGraphic",
+              "props": {
+                "color": 3359061,
+                "radius": 12,
+                "strokeColor": 9741240,
+                "strokeWidth": 1
+              }
+            },
+            {
+              "id": "button",
+              "type": "ui.Button",
+              "props": {
+                "onClick": "openInventory",
+                "interactable": true,
+                "targetGraphic": "bg",
+                "transition": "colorTint",
+                "normalColor": 3359061,
+                "highlightedColor": 1976635,
+                "pressedColor": 132631,
+                "pressedScale": 0.98
+              }
+            }
+          ],
+          "children": [
+            {
+              "type": "Group",
+              "id": "inventory-button-label-node",
+              "key": "inventoryButtonLabel",
+              "role": "button-label",
+              "name": "背包按钮文字",
+              "transform": {
+                "width": 144,
+                "height": 56
+              },
+              "components": [
+                {
+                  "id": "text",
+                  "type": "ui.TextGraphic",
+                  "props": {
+                    "text": "背包",
+                    "color": 16317180,
+                    "fontSize": 17,
+                    "fontWeight": "700",
+                    "center": true
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "Group",
+          "id": "skill-bar-node",
+          "key": "skillBar",
+          "role": "skill-bar",
+          "name": "技能栏",
+          "transform": {
+            "x": 258,
+            "y": 438,
+            "width": 444,
+            "height": 72
+          },
+          "components": [
+            {
+              "id": "bg",
+              "type": "ui.RoundedRectGraphic",
+              "props": {
+                "color": 1976635,
+                "fillAlpha": 0.88,
+                "radius": 16,
+                "strokeColor": 3359061,
+                "strokeWidth": 1
+              }
+            }
+          ],
+          "children": [
+            {
+              "type": "Group",
+              "id": "skill-attack-node",
+              "key": "skillAttack",
+              "role": "skill-button",
+              "name": "普通攻击",
+              "transform": {
+                "x": 18,
+                "y": 12,
+                "width": 124,
+                "height": 48
+              },
+              "components": [
+                {
+                  "id": "bg",
+                  "type": "ui.RoundedRectGraphic",
+                  "props": {
+                    "color": 3359061,
+                    "radius": 10,
+                    "strokeColor": 9741240,
+                    "strokeWidth": 1
+                  }
+                },
+                {
+                  "id": "button",
+                  "type": "ui.Button",
+                  "props": {
+                    "onClick": "castSkill",
+                    "interactable": true,
+                    "targetGraphic": "bg",
+                    "transition": "scale",
+                    "pressedScale": 0.96
+                  }
+                }
+              ],
+              "children": [
+                {
+                  "type": "Group",
+                  "id": "skill-attack-label-node",
+                  "key": "skillAttackLabel",
+                  "role": "button-label",
+                  "name": "普通攻击文字",
+                  "transform": {
+                    "width": 124,
+                    "height": 48
+                  },
+                  "components": [
+                    {
+                      "id": "text",
+                      "type": "ui.TextGraphic",
+                      "props": {
+                        "text": "攻击",
+                        "color": 16317180,
+                        "fontSize": 15,
+                        "fontWeight": "700",
+                        "center": true
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "Group",
+              "id": "skill-guard-node",
+              "key": "skillGuard",
+              "role": "skill-button",
+              "name": "防御",
+              "transform": {
+                "x": 160,
+                "y": 12,
+                "width": 124,
+                "height": 48
+              },
+              "components": [
+                {
+                  "id": "bg",
+                  "type": "ui.RoundedRectGraphic",
+                  "props": {
+                    "color": 3359061,
+                    "radius": 10,
+                    "strokeColor": 9741240,
+                    "strokeWidth": 1
+                  }
+                },
+                {
+                  "id": "button",
+                  "type": "ui.Button",
+                  "props": {
+                    "onClick": "castSkill",
+                    "interactable": true,
+                    "targetGraphic": "bg",
+                    "transition": "scale",
+                    "pressedScale": 0.96
+                  }
+                }
+              ],
+              "children": [
+                {
+                  "type": "Group",
+                  "id": "skill-guard-label-node",
+                  "key": "skillGuardLabel",
+                  "role": "button-label",
+                  "name": "防御文字",
+                  "transform": {
+                    "width": 124,
+                    "height": 48
+                  },
+                  "components": [
+                    {
+                      "id": "text",
+                      "type": "ui.TextGraphic",
+                      "props": {
+                        "text": "防御",
+                        "color": 16317180,
+                        "fontSize": 15,
+                        "fontWeight": "700",
+                        "center": true
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "Group",
+              "id": "skill-potion-node",
+              "key": "skillPotion",
+              "role": "skill-button",
+              "name": "治疗药水",
+              "transform": {
+                "x": 302,
+                "y": 12,
+                "width": 124,
+                "height": 48
+              },
+              "components": [
+                {
+                  "id": "bg",
+                  "type": "ui.RoundedRectGraphic",
+                  "props": {
+                    "color": 3359061,
+                    "radius": 10,
+                    "strokeColor": 9741240,
+                    "strokeWidth": 1
+                  }
+                },
+                {
+                  "id": "button",
+                  "type": "ui.Button",
+                  "props": {
+                    "onClick": "castSkill",
+                    "interactable": true,
+                    "targetGraphic": "bg",
+                    "transition": "scale",
+                    "pressedScale": 0.96
+                  }
+                }
+              ],
+              "children": [
+                {
+                  "type": "Group",
+                  "id": "skill-potion-label-node",
+                  "key": "skillPotionLabel",
+                  "role": "button-label",
+                  "name": "治疗药水文字",
+                  "transform": {
+                    "width": 124,
+                    "height": 48
+                  },
+                  "components": [
+                    {
+                      "id": "text",
+                      "type": "ui.TextGraphic",
+                      "props": {
+                        "text": "治疗",
+                        "color": 16317180,
+                        "fontSize": 15,
+                        "fontWeight": "700",
+                        "center": true
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "selection": {
+    "type": "node",
+    "node": "startBattleButton"
+  },
+  "designTokens": {
+    "colors": {
+      "bg": 988970,
+      "panel": 1976635,
+      "panelStrong": 132631,
+      "primary": 2450411,
+      "success": 1483594,
+      "text": 16317180,
+      "muted": 9741240,
+      "gold": 15381256
+    },
+    "spacing": {
+      "xs": 6,
+      "sm": 12,
+      "md": 18,
+      "lg": 24
+    },
+    "radius": {
+      "sm": 8,
+      "md": 12,
+      "lg": 16
+    },
+    "typography": {
+      "label": {
+        "fontFamily": "Arial",
+        "fontSize": 14,
+        "fontWeight": "600"
+      },
+      "title": {
+        "fontFamily": "Arial",
+        "fontSize": 18,
+        "fontWeight": "700"
+      }
+    }
+  },
+  "actions": [
+    {
+      "key": "startBattle",
+      "label": "开始战斗",
+      "description": "进入战斗状态。",
+      "source": "code"
+    },
+    {
+      "key": "openInventory",
+      "label": "打开背包",
+      "description": "打开玩家背包界面。",
+      "source": "code"
+    },
+    {
+      "key": "castSkill",
+      "label": "释放技能",
+      "description": "使用当前选择的技能。",
+      "source": "code"
+    }
+  ],
+  "logicGraph": {
+    "version": 1,
+    "type": "pixif.logicGraph",
+    "flows": [
+      {
+        "id": "flow-startBattle",
+        "action": "startBattle",
+        "name": "Start Battle",
+        "description": "进入战斗并隐藏开始按钮。",
+        "steps": [
+          {
+            "id": "markBattleStarted",
+            "type": "setState",
+            "path": "battle.started",
+            "value": {
+              "kind": "const",
+              "value": true
+            }
+          },
+          {
+            "id": "hideStartButton",
+            "type": "setNodeVisible",
+            "node": "startBattleButton",
+            "visible": false
+          },
+          {
+            "id": "notifyBattleStarted",
+            "type": "comment",
+            "text": "Game code should spawn enemies and start the battle loop."
+          }
+        ]
+      },
+      {
+        "id": "flow-openInventory",
+        "action": "openInventory",
+        "name": "Open Inventory",
+        "description": "标记背包打开状态。",
+        "steps": [
+          {
+            "id": "markInventoryOpen",
+            "type": "setState",
+            "path": "inventory.open",
+            "value": {
+              "kind": "const",
+              "value": true
+            }
+          },
+          {
+            "id": "showInventoryHint",
+            "type": "comment",
+            "text": "The next editor step can generate an inventory panel bound to this action."
+          }
+        ]
+      },
+      {
+        "id": "flow-castSkill",
+        "action": "castSkill",
+        "name": "Cast Skill",
+        "description": "释放技能动作入口。",
+        "steps": [
+          {
+            "id": "rememberSkill",
+            "type": "setState",
+            "path": "skill.lastCastAt",
+            "value": {
+              "kind": "const",
+              "value": "runtime-now"
+            }
+          },
+          {
+            "id": "emitSkillComment",
+            "type": "comment",
+            "text": "Use payload.skill in game code when the runtime action dispatch includes a skill name."
+          }
+        ]
+      }
+    ]
+  },
+  "locks": [],
+  "overrides": [],
+  "memory": [
+    {
+      "id": "memory-basic-game-style",
+      "context": "basic-game-hud-style",
+      "pattern": "Prefer compact dark HUD panels with clear action buttons.",
+      "after": {
+        "panelColor": 1976635,
+        "primaryColor": 2450411,
+        "radius": 12
+      },
+      "reason": "基础项目默认视觉风格。",
+      "confidence": 0.8,
+      "enabled": true,
+      "source": "manual"
+    }
+  ],
+  "proposalHistory": []
+}

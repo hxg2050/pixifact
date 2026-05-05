@@ -21,6 +21,18 @@
   "license": "MIT",
   "scripts": {
     "build": "rollup -c",
+    "bun:build": "bunx rollup -c",
+    "bun:editor": "VITE_PIXIF_PROJECT_ROOT=$PWD bunx vite apps/editor",
+    "bun:editor:ai": "bun run bun:build && bun apps/editor/src/mock/mock-ai-server.mjs",
+    "bun:editor:gateway": "bun apps/editor/src/gateway/ai-gateway-adapter.mjs",
+    "bun:editor:build": "VITE_PIXIF_PROJECT_ROOT=$PWD bunx vite build apps/editor",
+    "bun:editor:e2e": "bunx playwright test",
+    "bun:test": "bunx vitest run",
+    "editor": "VITE_PIXIF_PROJECT_ROOT=$PWD vite apps/editor",
+    "editor:ai": "pnpm build && node apps/editor/src/mock/mock-ai-server.mjs",
+    "editor:gateway": "node apps/editor/src/gateway/ai-gateway-adapter.mjs",
+    "editor:build": "VITE_PIXIF_PROJECT_ROOT=$PWD vite build apps/editor",
+    "editor:e2e": "playwright test",
     "example": "vite examples/basic",
     "example:build": "vite build examples/basic",
     "skills:install": "node scripts/install-skills.mjs --replace",
@@ -48,7 +60,10 @@
     }
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@rollup/plugin-typescript": "^11.1.6",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "happy-dom": "^20.9.0",
     "pixi.js": "8.18.1",
     "rollup": "^4.9.4",
@@ -59,7 +74,12 @@
   },
   "dependencies": {
     "@math.gl/core": "^4.0.1",
-    "eventemitter3": "^5.0.1"
+    "@xyflow/react": "^12.10.2",
+    "eventemitter3": "^5.0.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.12"
   },
   "peerDependencies": {
     "pixi.js": ">=8.3.0"

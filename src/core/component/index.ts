@@ -1,4 +1,6 @@
 export * from './Component'
+export * from './ComponentRegistry'
+export * from './decorators'
 export * from './Layout'
 export * from './GridLayout'
 export * from './FlexGroup'

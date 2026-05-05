@@ -1,0 +1,10 @@
+{
+  "gatewayToken": "local-test",
+  "upstreamUrl": "https://model.example.test/v1/chat/completions",
+  "upstreamToken": "replace-with-upstream-token",
+  "upstreamModel": "model-name",
+  "upstreamTimeoutMs": 30000,
+  "upstreamAuthHeader": "authorization",
+  "upstreamAuthPrefix": "Bearer",
+  "upstreamTemperature": 0.2
+}
