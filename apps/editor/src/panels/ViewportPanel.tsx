@@ -1,19 +1,23 @@
 import type { EditorDocument } from '../../../../src';
 import { PixifViewport } from '../preview/PixifViewport';
+import { useDocumentRevision } from './common';
 
 export function ViewportPanel({ document, revision }: { document: EditorDocument; revision: number }) {
+    const liveRevision = useDocumentRevision();
+
     return (
-        <main className="viewportPanel" aria-label="视口">
+        <main className="viewportSurface" aria-label="视口">
             <div className="viewportToolbar">
-                <span>运行时视口</span>
+                <span>{document.prefab.name}.prefab</span>
                 <div className="viewportActions">
-                    <span>16:9</span>
-                    <span>实时预览</span>
+                    <button type="button">100%</button>
+                    <button type="button">适配</button>
+                    <button type="button">网格</button>
                 </div>
             </div>
-            <section className="viewportStage" aria-label="运行时画布" data-testid="viewport-stage">
+            <section className="canvasWrap" aria-label="运行时画布" data-testid="viewport-stage">
                 <div className="stageFrame">
-                    <PixifViewport document={document} revision={revision} />
+                    <PixifViewport document={document} revision={Math.max(revision, liveRevision)} />
                 </div>
             </section>
         </main>

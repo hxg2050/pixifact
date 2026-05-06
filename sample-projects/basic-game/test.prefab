@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "type": "prefab",
+  "name": "test",
+  "root": {
+    "type": "Group",
+    "name": "test",
+    "key": "testRoot",
+    "transform": {
+      "width": 320,
+      "height": 180,
+      "x": 200
+    },
+    "children": []
+  }
+}

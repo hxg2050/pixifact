@@ -8,6 +8,10 @@ export function textGraphic(props: Record<string, unknown> = {}, id?: string) {
     return component('ui.TextGraphic', props, id);
 }
 
+export function imageGraphic(props: Record<string, unknown> = {}, id?: string) {
+    return component('ui.ImageGraphic', props, id);
+}
+
 export function button(props: Record<string, unknown> = {}, id?: string) {
     return component('ui.Button', props, id);
 }

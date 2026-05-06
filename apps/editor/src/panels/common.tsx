@@ -1,4 +1,9 @@
+import { useSyncExternalStore } from 'react';
 import type { EditorDocument, NodeSpec } from '../../../../src';
+import {
+    getEditorDocumentRevision,
+    subscribeEditorDocument,
+} from '../document/editorDocumentController';
 
 export interface HierarchyItem {
     node: NodeSpec;
@@ -28,6 +33,14 @@ export function selectedNodeId(document: EditorDocument) {
     return document.selection.type === 'node' || document.selection.type === 'component'
         ? document.selection.node
         : undefined;
+}
+
+export function useDocumentRevision() {
+    return useSyncExternalStore(
+        subscribeEditorDocument,
+        getEditorDocumentRevision,
+        getEditorDocumentRevision,
+    );
 }
 
 export function formatValue(value: unknown) {

@@ -1,8 +1,9 @@
-import type { ButtonHTMLAttributes } from 'react';
-import { Icon } from './IconButton';
+import type { ButtonProps as AriaButtonProps } from 'react-aria-components';
+import { Button } from './system';
 import type { IconName } from './IconButton';
 
-interface ActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ActionButtonProps extends Omit<AriaButtonProps, 'className' | 'children'> {
+    className?: string;
     icon: IconName;
     label: string;
     variant?: 'default' | 'primary';
@@ -14,7 +15,6 @@ export function ActionButton({
     variant = 'default',
     className,
     title,
-    type = 'button',
     ...props
 }: ActionButtonProps) {
     const classes = ['actionButton', variant === 'primary' ? 'primaryButton' : '', className ?? '']
@@ -22,14 +22,14 @@ export function ActionButton({
         .join(' ');
 
     return (
-        <button
+        <Button
             className={classes}
+            icon={icon}
             title={title ?? label}
-            type={type}
+            variant={variant}
             {...props}
         >
-            <Icon name={icon} />
-            <span>{label}</span>
-        </button>
+            {label}
+        </Button>
     );
 }

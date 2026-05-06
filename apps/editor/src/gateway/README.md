@@ -33,20 +33,6 @@ authorization: Bearer <optional-token>
         memory,
         memorySummary,
     },
-    model?: {
-        api?: 'chatCompletions' | 'responses',
-        endpoint?: string,
-        token?: string,
-        envKey?: string,
-        model?: string,
-        timeoutMs?: number,
-        authHeader?: string,
-        authPrefix?: string,
-        temperature?: number,
-        reasoningEffort?: string,
-        serviceTier?: string,
-        store?: boolean,
-    },
 }
 ```
 
@@ -69,9 +55,9 @@ Gateway 返回：
 
 ## 鉴权
 
-- 本地 editor 的 Remote 配置支持 gateway 和 model 两组 endpoint / auth / timeout。
-- Token 只存在 Zustand UI state，不写入 `.ai-editor.json`，也不写入 localStorage。
-- Endpoint、timeout、auth header、model name 和 temperature 会保存在浏览器 localStorage；token 不持久化。
+- 本地 editor 的 AI 服务配置只保留 gateway endpoint / timeout。
+- 模型 API key 放在 gateway 的本地配置文件或环境变量里，不进入浏览器。
+- Endpoint、timeout、auth header 会保存在浏览器 localStorage；token 不持久化。
 - 样例 adapter 使用 `PIXIF_AI_GATEWAY_TOKEN` 校验 `Authorization: Bearer <token>`。
 - 如果 gateway 放在公网，应在外层再加 HTTPS、rate limit 和日志脱敏。
 
@@ -105,69 +91,69 @@ Gateway 错误响应统一返回：
 
 ## 本地运行
 
+默认启动：
+
 ```bash
-PIXIF_AI_GATEWAY_TOKEN=local-test node apps/editor/src/gateway/ai-gateway-adapter.mjs
+pnpm editor:gateway
 ```
 
 也可以用 Bun：
 
 ```bash
-PIXIF_AI_GATEWAY_TOKEN=local-test bun apps/editor/src/gateway/ai-gateway-adapter.mjs
+bun run bun:editor:gateway
 ```
 
 Editor 中切到 `Remote`：
 
 - Endpoint: `http://localhost:8788/proposal`
 - Timeout: `300000`
-- Auth header: `Authorization`
-- Auth token: `Bearer local-test`
 
-如果没有配置 Model endpoint，adapter 会返回空 command 的示例 proposal，方便验证 editor 到 gateway 的通路。
+如果没有配置上游模型，adapter 会返回空 command 的示例 proposal，方便验证 editor 到 gateway 的通路。
 
 ## 接真实模型
 
-`modelAdapter.mjs` 支持 OpenAI-compatible `Responses` 和 `Chat Completions` 风格的 HTTP 上游。先启动本地 gateway：
+`modelAdapter.mjs` 支持 OpenAI-compatible `Responses` 和 `Chat Completions` 风格的 HTTP 上游。推荐把真实 key 放在本机私有配置文件：
 
 ```bash
-pnpm editor:gateway
+cp apps/editor/ai-gateway.config.example.json apps/editor/ai-gateway.config.local.json
 ```
 
-或：
+然后编辑 `apps/editor/ai-gateway.config.local.json`：
+
+```json
+{
+  "gatewayToken": "local-test",
+  "upstreamApi": "responses",
+  "upstreamUrl": "https://code.ylsagi.com/codex/v1/responses",
+  "upstreamToken": "replace-with-api-key",
+  "upstreamModel": "gpt-5.5",
+  "upstreamTimeoutMs": 300000,
+  "upstreamAuthHeader": "authorization",
+  "upstreamAuthPrefix": "Bearer",
+  "upstreamReasoningEffort": "medium",
+  "upstreamServiceTier": "fast",
+  "upstreamStore": false
+}
+```
+
+`*.local` 已被 `.gitignore` 忽略，不会提交到仓库。
+
+也可以使用环境变量，环境变量优先于配置文件：
 
 ```bash
-bun run bun:editor:gateway
+OPENAI_API_KEY=your-key pnpm editor:gateway
 ```
 
-然后在 editor 的 `AI` tab 切到 `Remote`，在 `Model` 区域填写：
+支持的主要配置项：
 
-- API：`Responses` 或 `Chat Completions`。
-- Model endpoint：例如 `https://code.ylsagi.com/codex/v1/responses`。
-- Model：真实模型名。
-- Model token：真实模型 token。
-- Model timeout：默认 `300000`。
-- Auth header：默认 `authorization`。
-- Auth prefix：默认 `Bearer`；留空可直接发送 token。
-- Reasoning：Responses API 的 reasoning effort，默认 `medium`；`xhigh` 更慢。
-- Service tier：例如 `fast`。
-- Store：是否允许上游保存 response，默认 `false`。
-- Temperature：Chat Completions 默认 `1`；Responses 模式下不主动发送 temperature，以兼容 `ylscode`。
-
-Model token 只保存在当前页面状态，不会写入 localStorage 或 `.ai-editor.json`。Gateway 转发给模型的 prompt 会移除 `request.model`，避免把 token 放进模型上下文。
-
-如果启动 gateway 的终端里已经有 `OPENAI_API_KEY`，可以不填 `Model token`；editor 会随请求传 `envKey: OPENAI_API_KEY`，gateway 会从自己的环境变量读取 token。
-
-当前 editor 默认预设为：
-
-```txt
-API: Responses
-Model endpoint: https://code.ylsagi.com/codex/v1/responses
-Model: gpt-5.5
-Reasoning: medium
-Service tier: fast
-Store: false
-Auth header: authorization
-Auth prefix: Bearer
-```
+- `upstreamApi`：`responses` 或 `chatCompletions`。
+- `upstreamUrl`：上游模型地址。
+- `upstreamToken`：真实模型 token；也可以用 `OPENAI_API_KEY`。
+- `upstreamModel`：真实模型名。
+- `upstreamTimeoutMs`：默认建议 `300000`。
+- `upstreamAuthHeader` / `upstreamAuthPrefix`：默认 `authorization` / `Bearer`。
+- `upstreamReasoningEffort`、`upstreamServiceTier`、`upstreamStore`：Responses API 相关配置。
+- `upstreamTemperature`：Chat Completions 使用；Responses 模式下不主动发送 temperature。
 
 上游响应可以是：
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     EditorDocument,
     MockAiProposalProvider,
+    ImageGraphic,
     ProgressBar,
     RemoteAiProposalProvider,
     ScrollRect,
@@ -19,6 +20,7 @@ import {
     dryRunCommands,
     getAiComponentSchemas,
     group,
+    imageGraphic,
     instantiate,
     inputField,
     listPaletteComponents,
@@ -879,6 +881,7 @@ describe('EditorDocument', () => {
                     progressBar({ fillNode: 'root', value: 0.5 }, 'progress'),
                     scrollRect({ contentHeight: 200 }, 'scroll'),
                     inputField({ placeholder: 'Name' }, 'input'),
+                    imageGraphic({}, 'image'),
                 ],
             }),
         );
@@ -888,5 +891,6 @@ describe('EditorDocument', () => {
         expect(runtime.components.get('progress')).toBeInstanceOf(ProgressBar);
         expect(runtime.components.get('scroll')).toBeInstanceOf(ScrollRect);
         expect(runtime.components.get('input')).toBeDefined();
+        expect(runtime.components.get('image')).toBeInstanceOf(ImageGraphic);
     });
 });

@@ -1,10 +1,10 @@
 import { createServer } from 'node:http';
+import { loadGatewayConfig, modelEnvFromGatewayConfig } from './config.mjs';
 import { createGatewayResponse } from './gatewayCore.mjs';
 import { generateProposalWithModel } from './modelAdapter.mjs';
 
-const port = Number(process.env.PORT ?? 8788);
-const host = process.env.HOST ?? '127.0.0.1';
-const gatewayToken = process.env.PIXIF_AI_GATEWAY_TOKEN;
+const config = loadGatewayConfig();
+const modelEnv = modelEnvFromGatewayConfig(config);
 
 function send(res, status, headers, body) {
     res.writeHead(status, {
@@ -44,8 +44,13 @@ const server = createServer(async (req, res) => {
     try {
         const response = await createGatewayResponse(await readJson(req), {
             headers: req.headers,
-            gatewayToken,
-            generateProposal: (request) => generateProposalWithModel(request),
+            gatewayToken: config.gatewayToken,
+            generateProposal: (request) => generateProposalWithModel(request, {
+                env: {
+                    ...process.env,
+                    ...modelEnv,
+                },
+            }),
         });
         send(res, response.status, response.headers, response.body);
     } catch (error) {
@@ -58,8 +63,8 @@ const server = createServer(async (req, res) => {
     }
 });
 
-server.listen(port, host, () => {
-    console.log(`Pixif AI gateway adapter listening on http://${host}:${port}/proposal`);
+server.listen(config.port, config.host, () => {
+    console.log(`Pixif AI gateway adapter listening on http://${config.host}:${config.port}/proposal`);
 });
 
 function shutdown() {

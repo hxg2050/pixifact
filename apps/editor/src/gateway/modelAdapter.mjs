@@ -63,7 +63,7 @@ export function normalizeModelResponse(payload) {
 export function createSampleProposal(request) {
     return {
         prompt: request.prompt,
-        explanation: 'Gateway adapter sample response. Configure Model endpoint in the editor Remote panel to call a real model.',
+        explanation: 'Gateway adapter sample response. Configure apps/editor/ai-gateway.config.local.json or PIXIF_AI_UPSTREAM_URL to call a real model.',
         commands: [],
         annotations: [{
             message: 'Sample adapter returned an empty proposal.',
@@ -206,7 +206,7 @@ function validateAsciiHeader(label, value) {
     const text = String(value);
     for (let index = 0; index < text.length; index += 1) {
         if (text.charCodeAt(index) > 255) {
-            throw new Error(`${label} contains non-ASCII text. Check the Remote Model auth fields; token should be an API key, not an error message or Chinese text.`);
+            throw new Error(`${label} contains non-ASCII text. Check the gateway model auth config; token should be an API key, not an error message or Chinese text.`);
         }
     }
 }

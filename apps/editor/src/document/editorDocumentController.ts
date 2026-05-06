@@ -35,3 +35,9 @@ export function subscribeEditorDocument(listener: () => void) {
 export function refreshEditorDocument() {
     emitDocumentUpdate();
 }
+
+export function resetEditorDocument() {
+    const nextDocument = createInitialDocument();
+    document.loadState(nextDocument.getState());
+    document.dirty = false;
+}

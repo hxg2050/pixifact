@@ -127,6 +127,62 @@ User Prompt
 - AI 直接改源码文件。
 - 把代码 diff 当成主要 UI。
 
+### 0.7 最终 UI 技术基座
+
+编辑器 UI 直接面向最终 IDE / Game Editor 形态设计，不采用临时低成本组件路线。
+
+最终基座固定为：
+
+```txt
+Dockview
+  负责 IDE 面板布局、tab、dock、resize。
+
+React Aria Components
+  负责可访问交互语义、键盘焦点、选择、菜单、弹窗、Tree、DnD、表单行为。
+
+lucide-react
+  负责工具图标。
+
+Pixif Editor Design System
+  负责视觉风格、密度、颜色、尺寸、中文文案和 editor 交互一致性。
+```
+
+硬性规则：
+
+- 业务面板不要直接 import `react-aria-components`。
+- 业务面板只能从 `apps/editor/src/components/system/` 使用 Pixif 包装组件。
+- `components/system/` 是 React Aria / lucide 的唯一封装边界。
+- 不引入 AntD、MUI、Chakra、Mantine 这类完整视觉体系。
+- 不使用 shadcn/ui 作为组件源码来源；可参考交互结构，但不引入 Tailwind 依赖。
+- Radix 不作为主 UI 基座；最终 Tree、DnD、Menu、Dialog、Tooltip、Field 统一看齐 React Aria。
+
+system 组件规划：
+
+```txt
+components/system/Button.tsx
+components/system/IconButton.tsx
+components/system/TextField.tsx
+components/system/Menu.tsx
+components/system/Dialog.tsx
+components/system/Tooltip.tsx
+components/system/TreeView.tsx
+components/system/Toolbar.tsx
+components/system/NumberField.tsx
+components/system/Select.tsx
+components/system/Checkbox.tsx
+components/system/Disclosure.tsx
+```
+
+迁移顺序：
+
+1. 建立 `components/system/`，先封装 Button、IconButton、TextField、Menu、Dialog、Tooltip。
+2. 用 `lucide-react` 替换手写 SVG。
+3. 文件系统操作区迁移到 system Button / TextField。
+4. 文件树和预制体节点树迁移到 React Aria Tree / collection 模型。
+5. 基础组件、Prefab、Component 拖拽迁移到 React Aria DnD。
+6. Inspector 字段迁移到 system Field 组件。
+7. 补齐键盘操作：方向键浏览、Enter 打开、F2 重命名、Delete 删除、Context Menu。
+
 ## 1. 产品定位
 
 产品名称：

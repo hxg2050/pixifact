@@ -120,7 +120,7 @@ export function getAiCommandSummary() {
     return [
         'Use only these EditorCommand ops: batch, createNode, setComponentProp, setTransform, setNodeProp, addComponent, removeComponent, deleteNode, reparentNode, reorderNode.',
         'All created nodes must be NodeSpec objects with type: "Group".',
-        'Components must use registered component types from componentSchemas, for example ui.RoundedRectGraphic, ui.TextGraphic, ui.Button.',
+        'Components must use registered component types from componentSchemas, for example ui.RoundedRectGraphic, ui.TextGraphic, ui.ImageGraphic, ui.Button.',
         'Button onClick is an event prop and must reference a declared action key such as useInventoryItem.',
         'To create complex UI, prefer one batch command containing createNode commands or nested children inside one createNode.',
         'Example inventory panel command: {"op":"createNode","parent":"submitButton","node":{"type":"Group","id":"inventoryPanel","key":"inventoryPanel","role":"inventory-panel","name":"背包面板","transform":{"x":80,"y":48,"width":512,"height":480},"components":[{"id":"panelBg","type":"ui.RoundedRectGraphic","props":{"color":16316668,"radius":12}}],"children":[{"type":"Group","id":"inventoryTitle","key":"inventoryTitle","role":"panel-title","name":"标题","transform":{"x":24,"y":18,"width":360,"height":30},"components":[{"id":"text","type":"ui.TextGraphic","props":{"text":"背包","fontSize":22,"color":1515571}}]}]}}',

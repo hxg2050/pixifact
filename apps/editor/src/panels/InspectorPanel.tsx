@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import {
+    createComponentSpecFromSchema,
     isLocked,
+    listPaletteComponents,
     validateDesignTokenValue,
 } from '../../../../src';
 import type {
@@ -9,11 +11,20 @@ import type {
     InspectorComponentModel,
     InspectorFieldModel,
     InspectorNodeModel,
+    PaletteComponentItem,
     RectTransformSpec,
 } from '../../../../src';
 import { IconButton } from '../components/IconButton';
+import {
+    Checkbox,
+    DropZone,
+    NumberField,
+    Select,
+    TextField,
+} from '../components/system';
 import { refreshEditorDocument } from '../document/editorDocumentController';
-import { FieldRow, parseTextValue, selectedNodeId } from './common';
+import { editorDragDataTypes } from '../services/dragPayload';
+import { FieldRow, parseTextValue, selectedNodeId, useDocumentRevision } from './common';
 
 const nodePropLabels: Record<'id' | 'key' | 'role' | 'name', string> = {
     id: 'ID',
@@ -96,10 +107,6 @@ function componentLocator(component: InspectorComponentModel) {
     return component.id ?? component.type;
 }
 
-function fieldInputType(field: InspectorFieldModel) {
-    return field.type === 'color' ? 'color' : field.type === 'number' ? 'number' : 'text';
-}
-
 interface EditableFieldRowProps {
     label: string;
     field: InspectorFieldModel;
@@ -139,61 +146,82 @@ function EditableFieldRow({
     let control;
     if (field.type === 'boolean') {
         control = (
-            <input
-                checked={Boolean(value)}
+            <Checkbox
+                aria-label={label}
                 disabled={locked}
-                onChange={(event) => onCommit(event.target.checked)}
-                type="checkbox"
+                isSelected={Boolean(value)}
+                onChange={onCommit}
             />
         );
     } else if (field.type === 'enum' && field.schema?.options) {
         control = (
-            <select
+            <Select
+                aria-label={label}
                 disabled={locked}
-                onChange={(event) => onCommit(event.target.value)}
-                value={value === undefined ? '' : String(value)}
-            >
-                <option value="">未设置</option>
-                {field.schema.options.map((option) => (
-                    <option key={String(option)} value={String(option)}>
-                        {String(option)}
-                    </option>
-                ))}
-            </select>
+                onSelectionChange={(nextValue) => onCommit(parseTextValue(nextValue))}
+                options={[
+                    { label: '未设置', value: '' },
+                    ...field.schema.options.map((option) => ({
+                        label: String(option),
+                        value: String(option),
+                    })),
+                ]}
+                selectedKey={value === undefined ? '' : String(value)}
+            />
         );
     } else if (field.type === 'event') {
         control = (
-            <select
+            <Select
+                aria-label={label}
                 disabled={locked}
-                onChange={(event) => onCommit(parseTextValue(event.target.value))}
-                value={value === undefined ? '' : String(value)}
-            >
-                <option value="">未绑定</option>
-                {actions.map((action) => (
-                    <option key={action.key} value={action.key}>
-                        {action.label ? `${action.label} (${action.key})` : action.key}
-                    </option>
-                ))}
-            </select>
+                onSelectionChange={(nextValue) => onCommit(parseTextValue(nextValue))}
+                options={[
+                    { label: '未绑定', value: '' },
+                    ...actions.map((action) => ({
+                        label: action.label ? `${action.label} (${action.key})` : action.key,
+                        value: action.key,
+                    })),
+                ]}
+                selectedKey={value === undefined ? '' : String(value)}
+            />
+        );
+    } else if (field.type === 'number') {
+        control = (
+            <NumberField
+                aria-label={label}
+                disabled={locked}
+                inputProps={{
+                    onBlur: commitDraft,
+                    onKeyDown: (event) => {
+                        if (event.key === 'Enter') {
+                            event.currentTarget.blur();
+                        }
+                    },
+                }}
+                onChange={(nextValue) => setDraft(Number.isNaN(nextValue) ? '' : String(nextValue))}
+                value={draft.trim() === '' ? undefined : Number(draft)}
+            />
         );
     } else {
         control = (
-            <input
+            <TextField
+                aria-label={label}
                 disabled={locked}
-                inputMode={field.type === 'number' ? 'decimal' : undefined}
+                inputProps={{
+                    type: field.type === 'color' ? 'color' : 'text',
+                    onKeyDown: (event) => {
+                        if (event.key === 'Enter') {
+                            event.currentTarget.blur();
+                        }
+                    },
+                }}
                 onBlur={commitDraft}
-                onChange={(event) => {
-                    setDraft(event.target.value);
+                onChange={(nextValue) => {
+                    setDraft(nextValue);
                     if (field.type === 'color') {
-                        onCommit(parseFieldValue(field.type, event.target.value));
+                        onCommit(parseFieldValue(field.type, nextValue));
                     }
                 }}
-                onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                        event.currentTarget.blur();
-                    }
-                }}
-                type={fieldInputType(field)}
                 value={draft}
             />
         );
@@ -232,12 +260,23 @@ function designWarning(document: EditorDocument, target: string, prop: string, v
     return validateDesignTokenValue(document.designTokens, target, prop, value)?.message;
 }
 
+function paletteDisabledReason(item: PaletteComponentItem, selected: string) {
+    return item.disabledReason
+        ? item.disabledReason.replace('already exists on this node.', '已在当前节点上存在。')
+        : undefined;
+}
+
 export function InspectorPanel({ document, model }: { document: EditorDocument; model?: InspectorNodeModel }) {
+    useDocumentRevision();
     const selected = selectedNodeId(document);
     const [error, setError] = useState<string>();
+    const [componentPickerOpen, setComponentPickerOpen] = useState(false);
+    const [actionText, setActionText] = useState('可点击添加 Component，或从文件面板拖动 Component 到 Inspector 空白区域。');
 
     useEffect(() => {
         setError(undefined);
+        setComponentPickerOpen(false);
+        setActionText('可点击添加 Component，或从文件面板拖动 Component 到 Inspector 空白区域。');
     }, [selected]);
 
     if (!model) {
@@ -259,6 +298,7 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
             return;
         }
         setError(undefined);
+        refreshEditorDocument();
     };
 
     const commitNodeProp = (prop: 'id' | 'key' | 'role' | 'name', value: unknown) => {
@@ -300,6 +340,43 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
         refreshEditorDocument();
     };
 
+    const addComponent = (item: PaletteComponentItem) => {
+        const disabledReason = paletteDisabledReason(item, selected);
+        if (disabledReason) {
+            setActionText(disabledReason);
+            return;
+        }
+
+        const result = document.apply({
+            op: 'addComponent',
+            node: selected,
+            component: createComponentSpecFromSchema(item.schema),
+        }, 'manual');
+
+        if (!result.ok) {
+            setError(result.error);
+            setActionText(result.error);
+            return;
+        }
+
+        setError(undefined);
+        setComponentPickerOpen(false);
+        setActionText(`已添加 ${item.displayName} 到当前节点。`);
+        refreshEditorDocument();
+    };
+
+    const addComponentByType = (type: string) => {
+        const item = listPaletteComponents({
+            prefab: document.prefab,
+            node: selected,
+        }).find((candidate) => candidate.type === type);
+        if (!item) {
+            setActionText('拖入的文件不是可挂载 Component。');
+            return;
+        }
+        addComponent(item);
+    };
+
     const toggleComponentLock = (component: InspectorComponentModel, field: InspectorFieldModel) => {
         const lock = {
             target: 'component' as const,
@@ -323,57 +400,108 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
     ];
 
     return (
-        <div className="panelBody">
+        <div className="panelSurface inspectorSurface">
             {error ? <div className="errorBox">{error}</div> : null}
-            <section className="inspectorSection">
-                <h3>{model.name ?? model.key ?? model.id}</h3>
-                {nodeFields.map((field) => (
-                    <EditableFieldRow
-                        field={field}
-                        key={field.key}
-                        label={field.label}
-                        onCommit={(value) => commitNodeProp(field.key as 'id' | 'key' | 'role' | 'name', value)}
-                    />
-                ))}
+            <section className="identity">
+                <span>选中节点</span>
+                <strong>{model.name ?? model.key ?? model.id}</strong>
+                <small>{model.id ?? model.key ?? selected}</small>
             </section>
             <section className="inspectorSection">
-                <h3>变换</h3>
-                {model.transform.map((field) => (
-                    <EditableFieldRow
-                        field={field}
-                        key={field.key}
-                        label={displayFieldLabel(field)}
-                        locked={isLocked(document.locks, { target: 'transform', node: selected, prop: field.key })}
-                        onCommit={(value) => commitTransform(field, value)}
-                        onToggleLock={() => toggleTransformLock(field)}
-                        warning={designWarning(document, `${selected}.transform.${field.key}`, field.key, field.value)}
-                    />
-                ))}
+                <h3>Identity</h3>
+                <div className="fieldStack">
+                    {nodeFields.map((field) => (
+                        <EditableFieldRow
+                            field={field}
+                            key={field.key}
+                            label={field.label}
+                            onCommit={(value) => commitNodeProp(field.key as 'id' | 'key' | 'role' | 'name', value)}
+                        />
+                    ))}
+                </div>
+            </section>
+            <section className="inspectorSection">
+                <h3>Transform</h3>
+                <div className="fieldGrid four">
+                    {model.transform.map((field) => (
+                        <EditableFieldRow
+                            field={field}
+                            key={field.key}
+                            label={displayFieldLabel(field)}
+                            locked={isLocked(document.locks, { target: 'transform', node: selected, prop: field.key })}
+                            onCommit={(value) => commitTransform(field, value)}
+                            onToggleLock={() => toggleTransformLock(field)}
+                            warning={designWarning(document, `${selected}.transform.${field.key}`, field.key, field.value)}
+                        />
+                    ))}
+                </div>
             </section>
             {model.components.map((component) => (
                 <section className="inspectorSection" key={`${component.id ?? component.type}`}>
                     <h3>{component.displayName}</h3>
-                    <FieldRow label="Type" value={component.type} />
-                    <FieldRow label="组件 ID" value={component.id} />
-                    {component.fields.map((field) => (
-                        <EditableFieldRow
-                            actions={document.actions}
-                            field={field}
-                            key={field.key}
-                            label={displayFieldLabel(field)}
-                            locked={isLocked(document.locks, {
-                                target: 'component',
-                                node: selected,
-                                component: componentLocator(component),
-                                prop: field.key,
-                            })}
-                            onCommit={(value) => commitComponentProp(component, field, value)}
-                            onToggleLock={() => toggleComponentLock(component, field)}
-                            warning={designWarning(document, `${selected}.${componentLocator(component)}.${field.key}`, field.key, field.value)}
-                        />
-                    ))}
+                    <div className="fieldStack">
+                        <FieldRow label="Type" value={component.type} />
+                        <FieldRow label="组件 ID" value={component.id} />
+                        {component.fields.map((field) => (
+                            <EditableFieldRow
+                                actions={document.actions}
+                                field={field}
+                                key={field.key}
+                                label={displayFieldLabel(field)}
+                                locked={isLocked(document.locks, {
+                                    target: 'component',
+                                    node: selected,
+                                    component: componentLocator(component),
+                                    prop: field.key,
+                                })}
+                                onCommit={(value) => commitComponentProp(component, field, value)}
+                                onToggleLock={() => toggleComponentLock(component, field)}
+                                warning={designWarning(document, `${selected}.${componentLocator(component)}.${field.key}`, field.key, field.value)}
+                            />
+                        ))}
+                    </div>
                 </section>
             ))}
+            <section className="inspectorSection addComponentSection">
+                <div className="sectionHeader">
+                    <h3>Components</h3>
+                    <button onClick={() => setComponentPickerOpen((open) => !open)} type="button">
+                        添加
+                    </button>
+                </div>
+                {componentPickerOpen ? (
+                    <div className="componentPicker">
+                        {listPaletteComponents({
+                            prefab: document.prefab,
+                            node: selected,
+                        }).map((item) => {
+                            const disabledReason = paletteDisabledReason(item, selected);
+                            return (
+                                <button
+                                    disabled={!!disabledReason}
+                                    key={item.type}
+                                    onClick={() => addComponent(item)}
+                                    title={disabledReason ?? item.description ?? item.type}
+                                    type="button"
+                                >
+                                    <strong>{item.displayName}</strong>
+                                    <span>{item.type}</span>
+                                    <small>{disabledReason ?? item.description ?? item.category}</small>
+                                </button>
+                            );
+                        })}
+                    </div>
+                ) : null}
+                <DropZone
+                    acceptedTypes={[editorDragDataTypes.component]}
+                    aria-label="挂载 Component"
+                    className="componentDropZone"
+                    onPayloadDrop={(payload) => addComponentByType(payload.data)}
+                >
+                    从文件面板拖动 Component 到这里，或点击添加从项目 Component 列表选择。
+                </DropZone>
+                <div className="inspectorAction">{actionText}</div>
+            </section>
         </div>
     );
 }

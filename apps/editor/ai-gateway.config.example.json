@@ -1,10 +1,13 @@
 {
   "gatewayToken": "local-test",
-  "upstreamUrl": "https://model.example.test/v1/chat/completions",
-  "upstreamToken": "replace-with-upstream-token",
-  "upstreamModel": "model-name",
-  "upstreamTimeoutMs": 30000,
+  "upstreamApi": "responses",
+  "upstreamUrl": "https://code.ylsagi.com/codex/v1/responses",
+  "upstreamToken": "replace-with-api-key",
+  "upstreamModel": "gpt-5.5",
+  "upstreamTimeoutMs": 300000,
   "upstreamAuthHeader": "authorization",
   "upstreamAuthPrefix": "Bearer",
-  "upstreamTemperature": 0.2
+  "upstreamReasoningEffort": "medium",
+  "upstreamServiceTier": "fast",
+  "upstreamStore": false
 }

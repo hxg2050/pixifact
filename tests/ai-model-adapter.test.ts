@@ -27,7 +27,7 @@ describe('AI gateway model adapter', () => {
         });
 
         expect(proposal.commands).toEqual([]);
-        expect(proposal.explanation).toContain('Model endpoint');
+        expect(proposal.explanation).toContain('ai-gateway.config.local.json');
     });
 
     it('creates OpenAI-compatible upstream request bodies', () => {

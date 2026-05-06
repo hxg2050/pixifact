@@ -1,5 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const localNoProxy = ['127.0.0.1', 'localhost'];
+process.env.NO_PROXY = [...localNoProxy, process.env.NO_PROXY].filter(Boolean).join(',');
+process.env.no_proxy = [...localNoProxy, process.env.no_proxy].filter(Boolean).join(',');
+
 export default defineConfig({
     testDir: './tests/e2e',
     timeout: 60_000,
@@ -7,13 +11,13 @@ export default defineConfig({
         timeout: 10_000,
     },
     use: {
-        baseURL: 'http://127.0.0.1:5176',
+        baseURL: 'http://127.0.0.1:5196',
         trace: 'on-first-retry',
     },
     webServer: {
-        command: 'VITE_PIXIF_PROJECT_ROOT=$PWD pnpm exec vite apps/editor --host 127.0.0.1 --port 5176',
-        url: 'http://127.0.0.1:5176',
-        reuseExistingServer: !process.env.CI,
+        command: 'VITE_PIXIF_PROJECT_ROOT=$PWD pnpm exec vite apps/editor --host 127.0.0.1 --port 5196 --strictPort',
+        url: 'http://127.0.0.1:5196',
+        reuseExistingServer: false,
         timeout: 60_000,
     },
     projects: [
