@@ -19,8 +19,8 @@ import { formatValue, selectedNodeId } from './common';
 
 const proposalStatusLabels: Record<string, string> = {
     generated: '已生成',
-    dryRunPassed: '预演通过',
-    dryRunFailed: '预演失败',
+    dryRunPassed: '校验通过',
+    dryRunFailed: '校验失败',
     applied: '已应用',
     rejected: '已拒绝',
 };
@@ -227,11 +227,6 @@ export function AiPanel({ document }: { document: EditorDocument }) {
     const [run, setRun] = useState<ProposalRunResult>();
     const [error, setError] = useState<string>();
     const [loading, setLoading] = useState(false);
-    const activeHistory = proposal
-        ? document.proposalHistory.find((entry) => entry.id === proposal.id)
-        : undefined;
-    const canApply = !!run?.ok && activeHistory?.status !== 'applied' && activeHistory?.status !== 'rejected';
-    const canReject = !!proposal && activeHistory?.status !== 'applied' && activeHistory?.status !== 'rejected';
 
     const context = () => ({
         prefab: document.prefab,
@@ -243,7 +238,7 @@ export function AiPanel({ document }: { document: EditorDocument }) {
         memory: document.memory,
     });
 
-    const generateProposal = async () => {
+    const sendPrompt = async () => {
         setLoading(true);
         setError(undefined);
 
@@ -269,60 +264,39 @@ export function AiPanel({ document }: { document: EditorDocument }) {
                 })
                 : new MockAiProposalProvider();
             const nextProposal = await provider.generate(prompt, context());
+            const result = dryRunProposal(document.prefab, nextProposal, {
+                locks: document.locks,
+                designTokens: document.designTokens,
+                actions: document.actions,
+            });
 
             document.recordProposal(nextProposal);
+            document.recordProposalRun(result);
             setProposal(nextProposal);
-            setRun(undefined);
+            setRun(result);
+
+            if (!result.ok) {
+                setError(result.error ?? '命令校验失败，后续会接入 AI 自动修正循环。');
+                refreshEditorDocument();
+                return;
+            }
+
+            for (const command of nextProposal.commands) {
+                const applyResult = document.apply(command, 'ai');
+                if (!applyResult.ok) {
+                    setError(applyResult.error);
+                    refreshEditorDocument();
+                    return;
+                }
+            }
+
+            document.markProposalApplied(nextProposal);
             refreshEditorDocument();
         } catch (err) {
-            setError(err instanceof Error ? err.message : '生成提案失败');
+            setError(err instanceof Error ? err.message : '发送失败');
         } finally {
             setLoading(false);
         }
-    };
-
-    const dryRun = () => {
-        if (!proposal) {
-            return;
-        }
-
-        const result = dryRunProposal(document.prefab, proposal, {
-            locks: document.locks,
-            designTokens: document.designTokens,
-            actions: document.actions,
-        });
-        document.recordProposalRun(result);
-        setRun(result);
-        setError(result.ok ? undefined : result.error);
-        refreshEditorDocument();
-    };
-
-    const applyProposal = () => {
-        if (!proposal || !canApply) {
-            return;
-        }
-
-        for (const command of proposal.commands) {
-            const result = document.apply(command, 'ai');
-            if (!result.ok) {
-                setError(result.error);
-                return;
-            }
-        }
-
-        document.markProposalApplied(proposal);
-        setError(undefined);
-        refreshEditorDocument();
-    };
-
-    const rejectProposal = () => {
-        if (!proposal || !canReject) {
-            return;
-        }
-
-        document.markProposalRejected(proposal);
-        setError(undefined);
-        refreshEditorDocument();
     };
 
     const selectHistory = (entry: ProposalHistoryEntry) => {
@@ -542,13 +516,13 @@ export function AiPanel({ document }: { document: EditorDocument }) {
                         <div className="helpText">Gateway 和 model 的 endpoint/header/model 会保存在本地浏览器；token 不保存，也不写入项目资产。</div>
                     </div>
                 ) : null}
-                <button className="primaryButton" data-testid="ai-generate" disabled={loading || prompt.trim() === ''} onClick={() => void generateProposal()} type="button">
-                    {loading ? '生成中...' : '生成'}
+                <button className="primaryButton" data-testid="ai-generate" disabled={loading || prompt.trim() === ''} onClick={() => void sendPrompt()} type="button">
+                    {loading ? '发送中...' : '发送'}
                 </button>
             </section>
             {proposal ? (
                 <section className="inspectorSection">
-                    <h3>提案</h3>
+                    <h3>{run?.ok ? '执行结果' : '待修正命令'}</h3>
                     <p className="proposalText">{proposal.explanation}</p>
                     {proposal.risks?.length ? (
                         <div className="riskList">
@@ -575,22 +549,11 @@ export function AiPanel({ document }: { document: EditorDocument }) {
                             </div>
                         ))}
                     </div>
-                    <div className="buttonRow">
-                        <button type="button" data-testid="ai-dry-run" onClick={dryRun}>
-                            预演
-                        </button>
-                        <button type="button" data-testid="ai-apply" onClick={applyProposal} disabled={!canApply}>
-                            应用
-                        </button>
-                        <button type="button" onClick={rejectProposal} disabled={!canReject}>
-                            拒绝
-                        </button>
-                    </div>
                 </section>
             ) : null}
             {run ? (
                 <section className="inspectorSection" data-testid="ai-run-result">
-                    <h3>{run.ok ? '预演通过' : '预演失败'}</h3>
+                    <h3>{run.ok ? '校验通过并已应用' : '校验失败'}</h3>
                     <DiffList diffs={run.diffs} />
                     <WarningList warnings={run.warnings} />
                 </section>

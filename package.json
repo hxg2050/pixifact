@@ -32,6 +32,7 @@
     "editor:ai": "pnpm build && node apps/editor/src/mock/mock-ai-server.mjs",
     "editor:gateway": "node apps/editor/src/gateway/ai-gateway-adapter.mjs",
     "editor:build": "VITE_PIXIF_PROJECT_ROOT=$PWD vite build apps/editor",
+    "editor:dockview": "vite apps/editor-dockview-prototype",
     "editor:e2e": "playwright test",
     "example": "vite examples/basic",
     "example:build": "vite build examples/basic",
@@ -75,6 +76,7 @@
   "dependencies": {
     "@math.gl/core": "^4.0.1",
     "@xyflow/react": "^12.10.2",
+    "dockview": "^6.0.1",
     "eventemitter3": "^5.0.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",

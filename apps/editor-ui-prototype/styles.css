@@ -1,0 +1,726 @@
+:root {
+    --app-bg: #dfe5ec;
+    --panel: #fbfcfe;
+    --panel-muted: #f3f6fa;
+    --panel-strong: #eef3f8;
+    --line: #d3dbe7;
+    --line-strong: #aeb9c8;
+    --text: #172033;
+    --muted: #667487;
+    --soft: #98a4b4;
+    --blue: #2563eb;
+    --blue-soft: #e7f0ff;
+    --green: #15803d;
+    --amber: #a16207;
+    --code: #0f172a;
+    --shadow: 0 12px 30px rgba(23, 32, 51, 0.16);
+    color: var(--text);
+    background: var(--app-bg);
+    font-family: Inter, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    overflow: hidden;
+}
+
+body.draggingWindow {
+    user-select: none;
+}
+
+button,
+input,
+textarea {
+    font: inherit;
+}
+
+button {
+    min-height: 30px;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    background: linear-gradient(#fff, #f4f7fb);
+    color: var(--text);
+    cursor: default;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+input,
+textarea {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text);
+}
+
+.app {
+    display: grid;
+    width: 100vw;
+    height: 100vh;
+    min-width: 1200px;
+    grid-template-rows: 54px minmax(0, 1fr);
+    background: var(--app-bg);
+}
+
+.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line-strong);
+    background: #f8fafc;
+    padding: 8px 12px;
+    box-shadow: 0 1px 2px rgba(23, 32, 51, 0.08);
+    z-index: 4;
+}
+
+.brand {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 10px;
+}
+
+.brand .mark {
+    display: flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: var(--blue);
+    color: #fff;
+    font-weight: 850;
+}
+
+.brand div {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+}
+
+.brand strong {
+    font-size: 14px;
+}
+
+.brand small,
+.status span,
+.crumbs span,
+.aiHeader small,
+.identity small {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.topnav,
+.status,
+.iconGroup,
+.canvasTools,
+.aiMode {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.topnav .tool,
+.iconButton {
+    display: inline-flex;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.topnav svg,
+.iconButton svg,
+.searchBox svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+}
+
+.topnav .active,
+.segmented .active,
+.aiMode .active {
+    border-color: var(--blue);
+    background: var(--blue-soft);
+    color: var(--blue);
+}
+
+.topnav .primary,
+.promptBox .primary {
+    border-color: #1d4ed8;
+    background: linear-gradient(#397cff, #245fd9);
+    color: #fff;
+}
+
+.divider {
+    width: 1px;
+    height: 24px;
+    background: var(--line);
+}
+
+.status span {
+    display: inline-flex;
+    min-height: 24px;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    padding: 0 8px;
+    font-weight: 700;
+}
+
+.workspace {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: 248px 276px minmax(520px, 1fr) 340px;
+}
+
+.panel {
+    min-height: 0;
+    background: var(--panel);
+}
+
+[data-window] {
+    min-width: 220px;
+}
+
+[data-window].floating {
+    position: fixed;
+    z-index: 30;
+    min-height: 180px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+[data-window].dragging {
+    z-index: 40;
+    box-shadow: 0 18px 42px rgba(23, 32, 51, 0.22);
+}
+
+[data-drag-handle] {
+    cursor: grab;
+}
+
+[data-window].dragging [data-drag-handle] {
+    cursor: grabbing;
+}
+
+.filesystem,
+.nodePanel {
+    border-right: 1px solid var(--line-strong);
+}
+
+.inspector {
+    border-left: 1px solid var(--line-strong);
+}
+
+.panelHeader {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    background: #f7f9fc;
+    padding: 8px 10px;
+}
+
+.panelHeader h2,
+.aiHeader h2 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 850;
+    letter-spacing: 0;
+}
+
+.searchBox {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: center;
+    gap: 6px;
+    margin: 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fff;
+    padding: 0 8px;
+}
+
+.searchBox input {
+    width: 100%;
+    height: 30px;
+    min-width: 0;
+    border: 0;
+    padding: 0;
+}
+
+.treeBlock,
+.nodeTree {
+    overflow: auto;
+}
+
+.treeBlock {
+    height: calc(100% - 96px);
+    padding: 0 8px 8px;
+}
+
+.treeTitle {
+    padding: 8px 4px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 850;
+}
+
+.fileTree,
+.nodeTree,
+.fieldStack,
+.noteList {
+    display: grid;
+    gap: 4px;
+}
+
+.fileRow,
+.nodeRow {
+    display: grid;
+    width: 100%;
+    min-height: 32px;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    padding: 4px 6px;
+    text-align: left;
+}
+
+.fileRow {
+    grid-template-columns: 14px 16px minmax(0, 1fr) auto;
+}
+
+.fileRow:not(.folder) {
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+}
+
+.fileRow.selected,
+.nodeRow.selected {
+    border-color: #9fc0f8;
+    background: var(--blue-soft);
+}
+
+.fileRow strong,
+.nodeRow strong {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fileRow small,
+.nodeRow small,
+.resourceMeta small {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.indent1 {
+    margin-left: 18px;
+    width: calc(100% - 18px);
+}
+
+.folderIcon,
+.fileIcon {
+    display: inline-flex;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+}
+
+.folderIcon {
+    background: #f59e0b;
+}
+
+.fileIcon.ts {
+    background: #2563eb;
+}
+
+.fileIcon.image {
+    background: #16a34a;
+}
+
+.fileIcon.prefab {
+    background: #7c3aed;
+}
+
+.fileIcon.doc {
+    background: #64748b;
+}
+
+.segmented {
+    display: flex;
+    gap: 4px;
+}
+
+.segmented button,
+.aiMode button {
+    min-height: 26px;
+    padding: 0 8px;
+    font-size: 11px;
+}
+
+.resourceMeta,
+.identity {
+    display: grid;
+    gap: 3px;
+    border-bottom: 1px solid var(--line);
+    padding: 10px;
+}
+
+.resourceMeta span,
+.identity span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 750;
+}
+
+.resourceMeta strong,
+.identity strong {
+    font-size: 13px;
+}
+
+.nodeTree {
+    height: calc(100% - 105px);
+    padding: 8px;
+}
+
+.nodeRow {
+    grid-template-columns: 14px minmax(0, 1fr) auto;
+}
+
+.nodeRow.depth1 {
+    padding-left: 20px;
+}
+
+.nodeRow.depth2 {
+    padding-left: 38px;
+}
+
+.stageArea {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    grid-template-rows: 44px minmax(300px, 1fr) 238px;
+}
+
+.stageToolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line-strong);
+    background: rgba(248, 250, 252, 0.92);
+    padding: 7px 10px;
+}
+
+.crumbs {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+}
+
+.crumbs strong {
+    font-size: 12px;
+}
+
+.canvasWrap {
+    display: flex;
+    min-height: 0;
+    align-items: center;
+    justify-content: center;
+    background:
+        linear-gradient(90deg, rgba(100, 116, 139, 0.12) 1px, transparent 1px),
+        linear-gradient(rgba(100, 116, 139, 0.12) 1px, transparent 1px),
+        #e8edf4;
+    background-size: 24px 24px;
+    padding: 24px;
+}
+
+.canvas {
+    position: relative;
+    width: min(100%, 900px);
+    aspect-ratio: 16 / 9;
+    border: 1px solid #8fa0b5;
+    border-radius: 8px;
+    background: #0f172a;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.hud,
+.questCard,
+.skillBar {
+    position: absolute;
+    border: 1px solid rgba(148, 163, 184, 0.3);
+    border-radius: 14px;
+    background: rgba(30, 41, 59, 0.94);
+    color: #f8fafc;
+}
+
+.topHud {
+    display: flex;
+    left: 3%;
+    right: 3%;
+    top: 4%;
+    height: 13%;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+}
+
+.topHud div:first-child {
+    display: grid;
+    gap: 6px;
+}
+
+.topHud strong {
+    font-size: 18px;
+}
+
+.topHud span,
+.questCard p,
+.questCard small {
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.coins {
+    border-radius: 999px;
+    background: #020617;
+    padding: 10px 22px;
+    color: #eab308;
+    font-weight: 800;
+}
+
+.questCard {
+    left: 3%;
+    top: 22%;
+    width: 32%;
+    height: 30%;
+    padding: 18px;
+}
+
+.questCard strong {
+    color: #38bdf8;
+    font-size: 18px;
+}
+
+.progress {
+    height: 12px;
+    border-radius: 999px;
+    background: #020617;
+    overflow: hidden;
+}
+
+.progress span {
+    display: block;
+    width: 66%;
+    height: 100%;
+    border-radius: inherit;
+    background: #16a34a;
+}
+
+.gameButton {
+    position: absolute;
+    left: 39%;
+    top: 62%;
+    width: 22%;
+    height: 10%;
+    border: 1px solid #1d4ed8;
+    border-radius: 12px;
+    background: #2563eb;
+    color: #fff;
+    font-size: 18px;
+}
+
+.secondaryButton {
+    left: 64%;
+    width: 15%;
+    border-color: #94a3b8;
+    background: #334155;
+}
+
+.selectedOverlay {
+    outline: 2px solid #38bdf8;
+    outline-offset: 4px;
+}
+
+.skillBar {
+    display: flex;
+    left: 27%;
+    bottom: 6%;
+    width: 46%;
+    height: 13%;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+}
+
+.skillBar button {
+    width: 28%;
+    height: 62%;
+    border-color: #64748b;
+    background: #334155;
+    color: #f8fafc;
+}
+
+.aiDock {
+    min-height: 0;
+    border-top: 1px solid var(--line-strong);
+}
+
+.aiHeader {
+    display: flex;
+    min-height: 52px;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    padding: 8px 12px;
+}
+
+.aiHeader div:first-child {
+    display: grid;
+    gap: 3px;
+}
+
+.messages {
+    display: grid;
+    height: 104px;
+    overflow: auto;
+    gap: 6px;
+    padding: 10px 12px;
+}
+
+.message {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 8px;
+}
+
+.message span {
+    color: var(--blue);
+    font-size: 11px;
+    font-weight: 850;
+}
+
+.message p {
+    margin: 0;
+    color: var(--text);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.promptBox {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 96px;
+    gap: 8px;
+    border-top: 1px solid var(--line);
+    padding: 10px 12px;
+}
+
+.promptBox textarea {
+    width: 100%;
+    min-height: 48px;
+    resize: none;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+.inspector {
+    overflow: auto;
+}
+
+.inspectorSection {
+    border-bottom: 1px solid var(--line);
+    padding: 12px;
+}
+
+.inspectorSection h3 {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 850;
+}
+
+.fieldGrid {
+    display: grid;
+    gap: 6px;
+}
+
+.fieldGrid.four {
+    grid-template-columns: 1fr 1fr;
+}
+
+.fieldStack label,
+.fieldGrid label {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: 76px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+}
+
+.fieldGrid.four label {
+    grid-template-columns: 22px minmax(0, 1fr);
+}
+
+label span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 750;
+}
+
+label input {
+    width: 100%;
+    min-width: 0;
+    height: 30px;
+    padding: 0 8px;
+    font-size: 12px;
+}
+
+.noteList div {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--panel-muted);
+    padding: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+@media (max-width: 1360px) {
+    .workspace {
+        grid-template-columns: 224px 248px minmax(460px, 1fr) 316px;
+    }
+}

@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pixif Editor UI Prototype</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="mark">P</span>
+          <div>
+            <strong>Pixif Editor</strong>
+            <small>/Users/youxia/work/github/pixif/sample-projects/basic-game</small>
+          </div>
+        </div>
+        <nav class="topnav" aria-label="主工具栏">
+          <button class="tool active" type="button" title="选择">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 10 16 1.6-7.1L22 10z" /></svg>
+          </button>
+          <button class="tool" type="button" title="移动">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M2 12h20M5 9l-3 3 3 3M19 9l3 3-3 3M9 5l3-3 3 3M9 19l3 3 3-3" /></svg>
+          </button>
+          <button class="tool" type="button" title="缩放">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6M4 4v6M20 4h-6M20 4v6M4 20h6M4 20v-6M20 20h-6M20 20v-6" /></svg>
+          </button>
+          <span class="divider"></span>
+          <button type="button">保存</button>
+          <button type="button">预览</button>
+          <button class="primary" type="button">运行</button>
+        </nav>
+        <div class="status">
+          <span>本地项目</span>
+          <span>AI Ready</span>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="filesystem panel" aria-label="文件系统" data-window>
+          <header class="panelHeader" data-drag-handle>
+            <h2>文件系统</h2>
+            <div class="iconGroup">
+              <button class="iconButton" type="button" title="新建文件">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+              </button>
+              <button class="iconButton" type="button" title="刷新">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v6h-6" /></svg>
+              </button>
+            </div>
+          </header>
+          <div class="searchBox">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.4-4.4M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z" /></svg>
+            <input value="basic-game" aria-label="搜索文件" readonly />
+          </div>
+          <section class="treeBlock">
+            <div class="treeTitle">basic-game</div>
+            <div class="fileTree">
+              <div class="fileRow folder open"><span class="chevron">⌄</span><span class="folderIcon"></span><strong>assets</strong></div>
+              <div class="fileRow indent1"><span class="fileIcon image"></span><strong>icons</strong><small>目录</small></div>
+              <div class="fileRow indent1"><span class="fileIcon image"></span><strong>ui-atlas.png</strong><small>纹理</small></div>
+              <div class="fileRow folder open"><span class="chevron">⌄</span><span class="folderIcon"></span><strong>scripts</strong></div>
+              <div class="fileRow indent1 selected"><span class="fileIcon ts"></span><strong>logic-handlers.ts</strong><small>TS</small></div>
+              <div class="fileRow indent1"><span class="fileIcon ts"></span><strong>player-actions.ts</strong><small>TS</small></div>
+              <div class="fileRow"><span class="fileIcon prefab"></span><strong>basic-game.ai-editor.json</strong><small>Prefab</small></div>
+              <div class="fileRow"><span class="fileIcon doc"></span><strong>README.md</strong><small>文档</small></div>
+            </div>
+          </section>
+        </aside>
+
+        <aside class="nodePanel panel" aria-label="UI 资源编辑" data-window>
+          <header class="panelHeader" data-drag-handle>
+            <h2>UI 资源</h2>
+            <div class="segmented">
+              <button class="active" type="button">节点</button>
+              <button type="button">资源</button>
+            </div>
+          </header>
+          <section class="resourceMeta">
+            <span>当前 Prefab</span>
+            <strong>基础游戏 HUD</strong>
+            <small>960 × 540 · 21 nodes</small>
+          </section>
+          <div class="nodeTree">
+            <button class="nodeRow depth0 open" type="button"><span>⌄</span><strong>游戏画布</strong><small>root</small></button>
+            <button class="nodeRow depth1 open" type="button"><span>⌄</span><strong>顶部状态栏</strong><small>topBar</small></button>
+            <button class="nodeRow depth2" type="button"><span></span><strong>玩家名称</strong><small>Text</small></button>
+            <button class="nodeRow depth2" type="button"><span></span><strong>金币统计</strong><small>Group</small></button>
+            <button class="nodeRow depth1 open" type="button"><span>⌄</span><strong>任务卡片</strong><small>questCard</small></button>
+            <button class="nodeRow depth2" type="button"><span></span><strong>任务标题</strong><small>Text</small></button>
+            <button class="nodeRow depth2" type="button"><span></span><strong>任务进度</strong><small>Rect</small></button>
+            <button class="nodeRow depth1 selected" type="button"><span></span><strong>开始战斗按钮</strong><small>Button</small></button>
+            <button class="nodeRow depth1" type="button"><span></span><strong>背包按钮</strong><small>Button</small></button>
+            <button class="nodeRow depth1 open" type="button"><span>⌄</span><strong>技能栏</strong><small>skillBar</small></button>
+            <button class="nodeRow depth2" type="button"><span></span><strong>普通攻击</strong><small>Button</small></button>
+            <button class="nodeRow depth2" type="button"><span></span><strong>防御</strong><small>Button</small></button>
+            <button class="nodeRow depth2" type="button"><span></span><strong>治疗</strong><small>Button</small></button>
+          </div>
+        </aside>
+
+        <section class="stageArea">
+          <header class="stageToolbar">
+            <div class="crumbs">
+              <span>basic-game.ai-editor.json</span>
+              <strong>开始战斗按钮</strong>
+            </div>
+            <div class="canvasTools">
+              <button type="button">100%</button>
+              <button type="button">适配</button>
+              <button type="button">网格</button>
+            </div>
+          </header>
+
+          <div class="canvasWrap">
+            <div class="canvas">
+              <div class="hud topHud">
+                <div>
+                  <strong>探索者 Lv.1</strong>
+                  <span>HP 100/100 · MP 30/30</span>
+                </div>
+                <div class="coins">金币 1,280</div>
+              </div>
+              <div class="questCard">
+                <strong>当前任务</strong>
+                <p>清理森林入口的史莱姆</p>
+                <div class="progress"><span></span></div>
+                <small>进度 2 / 3</small>
+              </div>
+              <button class="gameButton selectedOverlay" type="button">开始战斗</button>
+              <button class="gameButton secondaryButton" type="button">背包</button>
+              <div class="skillBar">
+                <button type="button">攻击</button>
+                <button type="button">防御</button>
+                <button type="button">治疗</button>
+              </div>
+            </div>
+          </div>
+
+          <section class="aiDock panel" aria-label="AI 对话框" data-window>
+            <header class="aiHeader" data-drag-handle>
+              <div>
+                <h2>AI 对话</h2>
+                <small>生成 proposal，先预演再应用</small>
+              </div>
+              <div class="aiMode">
+                <button class="active" type="button">Chat</button>
+                <button type="button">Plan</button>
+              </div>
+            </header>
+            <div class="messages">
+              <div class="message assistant">
+                <span>AI</span>
+                <p>我可以基于当前节点树创建背包、战斗 HUD 或调整按钮样式。你可以直接描述目标。</p>
+              </div>
+              <div class="message user">
+                <span>你</span>
+                <p>把开始战斗按钮做得更醒目，并新增战斗倒计时区域。</p>
+              </div>
+            </div>
+            <div class="promptBox">
+              <textarea aria-label="AI prompt" readonly>基于当前 HUD，新增一个战斗倒计时区域，保持紧凑、可读，不破坏技能栏。</textarea>
+              <button class="primary" type="button">生成提案</button>
+            </div>
+          </section>
+        </section>
+
+        <aside class="inspector panel" aria-label="Inspector" data-window>
+          <header class="panelHeader" data-drag-handle>
+            <h2>Inspector</h2>
+            <div class="iconGroup">
+              <button class="iconButton" type="button" title="锁定">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6z" /></svg>
+              </button>
+            </div>
+          </header>
+          <section class="inspectorSection identity">
+            <span>选中节点</span>
+            <strong>开始战斗按钮</strong>
+            <small>startBattleButton · ui.Button</small>
+          </section>
+          <section class="inspectorSection">
+            <h3>Transform</h3>
+            <div class="fieldGrid four">
+              <label><span>X</span><input value="372" readonly /></label>
+              <label><span>Y</span><input value="334" readonly /></label>
+              <label><span>W</span><input value="216" readonly /></label>
+              <label><span>H</span><input value="56" readonly /></label>
+            </div>
+          </section>
+          <section class="inspectorSection">
+            <h3>Rounded Rect</h3>
+            <div class="fieldStack">
+              <label><span>Color</span><input value="#2563eb" readonly /></label>
+              <label><span>Radius</span><input value="12" readonly /></label>
+              <label><span>Stroke</span><input value="#1d4ed8 / 1" readonly /></label>
+            </div>
+          </section>
+          <section class="inspectorSection">
+            <h3>Button</h3>
+            <div class="fieldStack">
+              <label><span>onClick</span><input value="startBattle" readonly /></label>
+              <label><span>Transition</span><input value="colorTint" readonly /></label>
+              <label><span>Interactable</span><input value="true" readonly /></label>
+            </div>
+          </section>
+          <section class="inspectorSection">
+            <h3>AI Notes</h3>
+            <div class="noteList">
+              <div>该按钮是主流程入口，AI 修改前需要保留 onClick。</div>
+              <div>尺寸和位置已锁定在当前 HUD 布局中。</div>
+            </div>
+          </section>
+        </aside>
+      </main>
+    </div>
+    <script src="./window-drag.js"></script>
+  </body>
+</html>

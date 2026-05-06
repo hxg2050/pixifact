@@ -255,12 +255,59 @@ textarea {
     white-space: nowrap;
 }
 
-.editorShell {
-    display: grid;
+.editorDockHost {
     min-height: 0;
     flex: 1;
-    grid-template-columns: 268px minmax(460px, 1fr) 384px;
     background: var(--bg-shell);
+}
+
+.dockview-theme-light {
+    --dv-tabs-and-actions-container-height: 34px;
+    --dv-tabs-and-actions-container-font-size: 12px;
+    --dv-tab-font-size: 12px;
+    --dv-activegroup-visiblepanel-tab-background-color: #ffffff;
+    --dv-activegroup-hiddenpanel-tab-background-color: #eef3f8;
+    --dv-activegroup-visiblepanel-tab-color: var(--text-main);
+    --dv-activegroup-hiddenpanel-tab-color: var(--text-muted);
+    --dv-tabs-and-actions-container-background-color: #eef3f8;
+    --dv-group-view-background-color: var(--bg-panel);
+    --dv-separator-border: var(--border-strong);
+}
+
+.dockPanelSurface {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--bg-panel);
+}
+
+.prefabMeta {
+    display: grid;
+    gap: 3px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: #ffffff;
+    padding: 10px;
+}
+
+.prefabMeta span {
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 760;
+}
+
+.prefabMeta strong {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--text-main);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.prefabMeta small {
+    color: var(--text-muted);
+    font-size: 11px;
 }
 
 .panel {
@@ -323,7 +370,7 @@ textarea {
 .treeList,
 .panelBody,
 .resourceExplorer {
-    height: calc(100% - 44px);
+    height: 100%;
     overflow: auto;
 }
 
@@ -570,6 +617,7 @@ textarea {
 
 .viewportPanel {
     display: flex;
+    height: 100%;
     min-height: 0;
     flex-direction: column;
     background:
@@ -1277,10 +1325,6 @@ textarea {
 @media (max-width: 1120px) {
     .editorApp {
         min-width: 0;
-    }
-
-    .editorShell {
-        grid-template-columns: 224px minmax(360px, 1fr) 326px;
     }
 
     .headerActions {

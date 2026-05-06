@@ -249,7 +249,7 @@ function ExplorerIcon({ type }: { type: ExplorerFileItem['type'] }) {
     );
 }
 
-function ResourceExplorer({ document }: { document: EditorDocument }) {
+export function ResourceExplorer({ document }: { document: EditorDocument }) {
     const sections = createExplorerSections(document);
     const projectPath = editorProjectPath();
 

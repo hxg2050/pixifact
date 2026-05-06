@@ -7,10 +7,125 @@
 - 编辑器是产品级应用，目录固定为 `apps/editor`。
 - `examples` 只放框架示例，不承载编辑器产品。
 - AI-first 是第一原则，自然语言是主要创作入口。
-- AI 不直接修改项目，只提交可审查的 proposal。
-- 开发者通过 Diff、Dry Run、Lock、Inspector、Undo、Memory 控制最终结果。
+- AI 对用户表现为“发送即执行”，不暴露手动预演和应用按钮。
+- AI 内部必须走结构化 command、validation、错误反馈、自动修正循环，直到命令合法后才写入项目。
+- 开发者通过属性级 Lock、Inspector、Undo、Memory 和项目结构约束控制最终结果。
 - 不内嵌代码编辑器，不使用 Monaco，不把 JSON textarea 作为主要交互。
 - Pixif 原生组件树、Command、EditorDocument、PrefabSpec 是真正的 source of truth。
+- 当前最终 UI 原型在 `apps/editor-dockview-prototype/`，后续产品实现应以该原型确定的交互为准。
+
+## 0. 最终方案快照
+
+本节是当前对话确认后的最终产品方向。后续如果旧章节仍出现 `Dry Run`、`Apply`、单独 `Component Palette` 等历史设计，以本节为准。
+
+### 0.1 主界面
+
+编辑器采用类似 VS Code 的可拖拽面板布局，使用 Dockview 类 dock layout。
+
+首屏核心面板：
+
+- 文件系统：项目目录、脚本、资源、Component 文件、Prefab 文件。
+- 预制体：只展示当前打开 Prefab 的节点树，不单独罗列 Prefab 列表。
+- Viewport：预览和选择当前 Prefab 节点。
+- Inspector：查看和编辑选中节点属性。
+- AI 对话：自然语言入口。
+
+资源模型只保留 `Prefab` 一种 UI 资源模型：
+
+- 不引入 Scene 资源。
+- 不把 Component 当成独立 UI 资源类型。
+- Component 是脚本能力，可以挂载到节点上。
+
+### 0.2 文件系统面板
+
+文件面板是项目入口，类似 VS Code 左侧 Explorer。
+
+交互规则：
+
+- 文件树只显示文件名，不在文件名后展示类型说明。
+- 面板中展示当前项目路径和选中文件路径。
+- 单击文件只选中并显示详情。
+- 单击图片资源时，在编辑器内预览图片。
+- 双击图片资源时，调用系统图片查看器打开。
+- 双击代码文件时，跳转 VS Code 打开；编辑器不内嵌代码编辑器，也不直接修改代码。
+- 双击 Prefab 文件时，在编辑器内打开并编辑该 Prefab。
+- Component 文件可以从文件面板拖到 Inspector 底部的空白区域，挂载到当前节点。
+
+### 0.3 Prefab / 节点树
+
+节点树面板只负责当前 Prefab 的节点结构：
+
+- 显示当前打开的 Prefab 名称和节点统计。
+- 显示当前 Prefab 的节点树。
+- 单击节点后同步 Viewport 和 Inspector selection。
+- Prefab 列表只存在于文件系统面板，不在节点树顶部重复展示。
+
+### 0.4 Inspector
+
+Inspector 是属性和 Component 挂载入口：
+
+- Transform 和 Component 字段都以属性行展示。
+- 每个属性行右侧都有锁按钮。
+- 锁定是属性级别，不是节点级别。
+- 被锁属性的输入框禁用，AI 和人工命令都不能覆盖该字段。
+- 添加 Component 的入口放在 Inspector 底部。
+- 添加 Component 有两种方式：
+  - 点击底部 `添加`，列出项目中所有 Component，点击某项添加。
+  - 从文件系统面板拖动 Component 文件到 Inspector 底部空白区域添加。
+- 重复添加同一个不允许重复的 Component 时必须提示并拒绝。
+
+### 0.5 AI 对话
+
+AI 面板像对话框，而不是 proposal 审核器。
+
+用户交互：
+
+- 输入需求。
+- 点击 `发送`。
+- 不显示 `生成`、`预演`、`应用` 按钮。
+- AI 完成后直接把合法结果应用到模拟项目或真实项目。
+
+内部执行：
+
+```txt
+User Prompt
+  -> buildAiContext(EditorDocument)
+  -> AI 生成 EditorCommand[]
+  -> validateCommand
+  -> 如果失败，把错误反馈给 AI
+  -> AI 修正 EditorCommand[]
+  -> 重复直到合法或达到最大修正次数
+  -> EditorDocument.apply(command)
+  -> Viewport / Inspector / 节点树刷新
+  -> 记录可回滚历史和失败修正轨迹
+```
+
+典型修正反馈：
+
+- 目标节点不存在。
+- 要修改的属性已锁定。
+- 引用的 Action 不存在。
+- Component 不允许重复添加。
+- Command schema 不合法。
+
+用户不需要手动参与每轮修正，但可以看到最终执行结果和关键修正轨迹。
+
+### 0.6 代码边界
+
+编辑器不能直接修改代码。
+
+允许：
+
+- 只读展示脚本摘要。
+- 双击代码文件跳转 VS Code。
+- 通过结构化 Component / Action / LogicGraph 连接行为。
+
+不允许：
+
+- 内嵌 Monaco。
+- 在编辑器里写 TypeScript。
+- AI 直接改源码文件。
+- 把代码 diff 当成主要 UI。
 
 ## 1. 产品定位
 
@@ -33,14 +148,16 @@ Pixif AI-first Game Editor
 它的主创作方式是：
 
 ```txt
-Prompt -> AI Proposal -> Dry Run -> Diff Review -> Apply -> Manual Refine -> Memory
+Prompt -> Send -> Command validation -> AI repair loop -> Auto apply -> Manual refine -> Memory
 ```
 
 编辑器本质上是 AI 的受控沙箱：
 
 - AI 可以理解当前项目结构、组件 schema、设计 token、事件、逻辑图和偏好记忆。
-- AI 的输出必须被转成结构化 command proposal。
-- 所有 proposal 都可以预演、比较、拒绝、应用和回滚。
+- AI 的输出必须被转成结构化 command。
+- 所有 command 都必须通过 validation 和属性级 Lock 约束。
+- 失败 command 会把错误反馈给 AI 自动修正，直到合法后才应用。
+- 已应用 command 可以回滚，并保留关键执行轨迹。
 - 人工修改会被记录为 override，并可沉淀为可启用/禁用的 memory。
 
 ## 2. 目标用户
@@ -85,7 +202,7 @@ Prompt -> AI Proposal -> Dry Run -> Diff Review -> Apply -> Manual Refine -> Mem
 价值：
 
 - AI gateway 可替换成本地或云端实现。
-- proposal / command / memory 全部结构化。
+- command / repair trace / memory 全部结构化。
 - 可做审计日志、权限、团队策略和企业部署。
 
 ## 3. 产品原则
@@ -104,8 +221,8 @@ Prompt -> AI Proposal -> Dry Run -> Diff Review -> Apply -> Manual Refine -> Mem
 
 - 可编辑的 Pixif 原生组件树。
 - 可解释的布局和样式说明。
-- 可审查的 command list。
-- 可 dry-run 的 diff。
+- 已通过校验的 command 执行结果。
+- 必要时展示关键修正轨迹。
 - 可绑定到 ActionRegistry 的行为入口。
 
 ### 3.2 Developer-controlled
@@ -114,13 +231,12 @@ AI 的每一次修改都必须可控。
 
 必须具备：
 
-- Dry Run：应用前预演。
-- Diff：展示新增、删除、修改。
-- Risk：展示潜在风险。
-- Lock：人工锁定属性，AI 不得覆盖。
+- Validate：所有 command 应用前必须校验。
+- Repair loop：非法 command 必须反馈给 AI 自动修正。
+- Repair limit：超过最大修正次数后停止并展示失败原因。
+- Property Lock：人工锁定属性，AI 不得覆盖。
 - Undo / Redo：所有已应用 command 可回滚。
-- Reject：proposal 可拒绝且不产生副作用。
-- History：proposal 的生命周期可追踪。
+- History：AI 执行、失败修正和人工修改都可追踪。
 
 ### 3.3 Native-first
 
@@ -237,7 +353,8 @@ pnpm build
 pnpm editor:e2e
 ```
 
-以上命令已通过；E2E 覆盖 prompt -> dry-run -> apply -> manual refine -> memory -> export -> import 的 Alpha 核心流程。
+以上命令已通过；E2E 覆盖的是旧 Alpha 的 prompt -> dry-run -> apply -> manual refine -> memory -> export -> import 流程。
+最终产品交互已在 `apps/editor-dockview-prototype/` 中重新收敛，后续正式实现应迁移到发送即执行和 repair loop。
 
 ### 4.2 已有核心底座
 
@@ -393,7 +510,7 @@ EditorDocument
 
 - `EditorDocument.apply(command)`。
 - `EditorDocument` 已提供的项目 API。
-- `ProposalRunner` 的 dry-run / apply 工作流。
+- AI command repair runner 的 validate / repair / apply 工作流。
 
 不得绕过 command 直接改 runtime tree。
 
@@ -450,7 +567,7 @@ Zod
 用于校验：
 
 - `.ai-editor.json` import。
-- AI proposal response。
+- AI command response。
 - Remote provider response。
 - Memory import。
 - LogicGraph import。
@@ -473,7 +590,7 @@ HTTP JSON protocol
 协议名：
 
 ```txt
-pixif.aiProposal.v1
+pixif.aiCommand.v1
 ```
 
 AI provider 形态：
@@ -485,10 +602,10 @@ AI provider 形态：
 
 原则：
 
-- provider 只返回 proposal。
+- provider 只返回结构化 command 和解释信息。
 - provider 不直接访问 runtime。
 - provider 不直接写文件。
-- editor 负责验证、dry-run、diff 和 apply。
+- editor 负责验证、错误反馈、自动修正循环和 apply。
 
 ### 5.8 Desktop Packaging
 
@@ -523,9 +640,9 @@ Playwright
 
 测试层级：
 
-- Core unit tests：commands、document、proposal、logic graph、memory。
+- Core unit tests：commands、document、AI repair loop、logic graph、memory。
 - Editor shell tests：panel interaction、store、provider controller。
-- E2E tests：prompt -> dry-run -> apply -> export -> import。
+- E2E tests：prompt -> send -> repair loop -> auto apply -> export -> import。
 
 ## 6. 目标目录结构
 
@@ -543,12 +660,11 @@ apps/editor/
       createInitialDocument.ts
       editorDocumentController.ts
     panels/
-      ExplorerPanel.tsx
-      HierarchyPanel.tsx
+      FileSystemPanel.tsx
+      PrefabTreePanel.tsx
       InspectorPanel.tsx
       ViewportPanel.tsx
       AiPanel.tsx
-      ComponentPalettePanel.tsx
       ActionRegistryPanel.tsx
       LogicGraphPanel.tsx
       MemoryPanel.tsx
@@ -576,7 +692,7 @@ src/
 
 原则：
 
-- `src/` 提供框架、文档模型、command、proposal、runtime preview。
+- `src/` 提供框架、文档模型、command、AI repair loop、runtime preview。
 - `apps/editor/` 提供产品 UI。
 - `apps/editor/` 可以依赖 `src/`。
 - `src/` 不依赖 `apps/editor/`。
@@ -588,7 +704,7 @@ src/
 目标：
 
 ```txt
-自然语言生成 Pixif 原生组件树和可审查 command proposal。
+自然语言生成 Pixif 原生组件树，并自动修正到合法 command 后应用。
 ```
 
 输入：
@@ -605,20 +721,18 @@ src/
 
 输出：
 
-- `AiProposal`。
+- `EditorCommand[]`。
 - explanation。
-- commands。
-- annotations。
-- risks。
-- suggested locks / memory later。
+- validation / repair trace。
+- applied result。
+- suggested memory later。
 
 关键交互：
 
-- Generate。
-- Dry Run。
-- Review Diff。
-- Apply。
-- Reject。
+- 发送。
+- 查看执行结果。
+- 查看关键修正轨迹。
+- Undo / Redo。
 - View History。
 
 ### 7.2 Viewport
@@ -671,22 +785,25 @@ schema-driven 属性编辑。
 - Lock / unlock 单个字段。
 - DesignToken warning。
 - 事件字段只允许选择已声明 Action。
+- 底部提供 Add Component 入口。
+- 底部接收从文件面板拖入的 Component 文件。
 
 所有修改必须转换为 command。
 
-### 7.5 Component Palette
+### 7.5 Component 添加
 
 目标：
 
 ```txt
-基于 ComponentRegistry 添加能力组件。
+在 Inspector 底部基于项目 Component 列表添加能力组件。
 ```
 
 能力：
 
-- 列出可用 component。
+- 点击 `添加` 后列出项目中所有 Component。
 - 显示分类、描述、默认值。
-- 添加 component。
+- 点击 Component 添加到当前节点。
+- 从文件系统面板拖动 Component 文件到 Inspector 底部空白区添加。
 - 禁止重复添加 `disallowMultiple` component。
 - later 支持依赖提示和自动补齐。
 
@@ -704,7 +821,7 @@ schema-driven 属性编辑。
 - 删除 action。
 - 为 action 添加描述和 payload schema later。
 - Inspector event prop 只能绑定已声明 action。
-- AI proposal 引用 action 时必须通过 validation。
+- AI command 引用 action 时必须通过 validation。
 
 ### 7.7 Logic Weaver
 
@@ -789,7 +906,7 @@ schema-driven 属性编辑。
 - logic flow count。
 - memory count。
 - lock count。
-- proposal history count。
+- AI execution history count。
 
 ### 7.11 Interface Design System
 
@@ -807,14 +924,14 @@ schema-driven 属性编辑。
 
 适合中文化：
 
-- 用户动作：生成、预演、应用、拒绝、导入、导出、校验。
+- 用户动作：发送、保存、运行、预览、导入、导出、校验。
 - 状态和空态：未选择节点、暂无动作、项目校验通过、导入失败。
-- 面板标题：层级、检查器、组件、动作、逻辑、记忆、项目。
+- 面板标题：文件系统、预制体、Inspector、Viewport、AI 对话、动作、逻辑、记忆、项目。
 - 面向用户和验证流程的错误提示。
 
 保留英文或中英混用：
 
-- 产品和行业术语：AI-first、Prompt、Dry Run、Diff、Memory、Mock、Remote。
+- 产品和行业术语：AI-first、Prompt、Command、Repair、Memory、Mock、Remote。
 - 工程概念：ID、Key、Type、Prefab、Command、EditorDocument、ActionRegistry、LogicGraph。
 - 文件和语言名：JSON、TypeScript、TS。
 - 组件 schema 的原始 display name 和 type，例如 `Button`、`Rounded Rect`、`ui.Button`。
@@ -835,10 +952,7 @@ schema-driven 属性编辑。
 
 保留文字：
 
-- 生成。
-- 预演。
-- 应用。
-- 拒绝。
+- 发送。
 - 保存动作。
 
 当前实现：
@@ -857,15 +971,13 @@ schema-driven 属性编辑。
 ```txt
 User Prompt
   -> buildAiContext(EditorDocument)
-  -> AiProposalProvider.generate(context, prompt)
-  -> validate AiProposal
-  -> document.recordProposal(generated)
-  -> ProposalRunner.dryRun(proposal)
-  -> Diff / Risk / Warning
-  -> User Apply / Reject
-  -> document.apply(command)
+  -> AiCommandProvider.generate(context, prompt)
+  -> validateCommand(commands)
+  -> invalid commands become AI repair feedback
+  -> repeat generate / validate until valid or repair limit reached
+  -> document.apply(command, 'ai')
   -> RuntimePreview rebuild
-  -> OverrideJournal / ProposalHistory update
+  -> CommandStack / OverrideJournal / History update
 ```
 
 ### 8.2 人工编辑流程
@@ -916,13 +1028,13 @@ AI provider 请求应包含：
 AI provider 响应只能包含：
 
 - protocol。
-- proposal id。
+- request id。
 - title。
 - summary。
 - explanation。
 - commands。
-- annotations。
-- risks。
+- repair hints。
+- warnings。
 
 AI provider 不能：
 
@@ -936,11 +1048,12 @@ AI provider 不能：
 当前执行状态：
 
 ```txt
-Phase 0 - Phase 12 已完成，并已通过单元测试、编辑器构建、库构建和 Playwright E2E。
-Phase 13 是当前下一步。
+Phase 0 - Phase 13 是旧 Alpha 实现记录，保留为历史背景。
+当前产品方向已由 `apps/editor-dockview-prototype/` 重新收敛。
+Phase 14 是当前下一步。
 ```
 
-以下 Phase 0 - Phase 12 保留为已执行计划和验收依据。
+以下 Phase 0 - Phase 13 保留为已执行计划和历史验收依据；其中出现的 proposal / Dry Run / Apply 流程不再代表最终产品交互。
 
 ### Phase 0: Repository Baseline
 
@@ -1351,32 +1464,33 @@ Phase 13 是当前下一步。
 - 提高 Inventory Panel 复杂 UI 生成的稳定性，减少无效命令和字段别名。
 - 为真实模型典型输出补充更细的 E2E / fixture 测试。
 
-## 11. Alpha 核心使用场景
+## 11. 核心使用场景
 
-Alpha 必须完整跑通：
+第一版正式产品必须完整跑通：
 
 ```txt
-1. 用户打开 apps/editor。
-2. 输入：“创建一个背包界面，四列三行，每个格子有图标、数量和 Use 按钮。”
-3. AI 生成 Inventory Panel proposal。
-4. 用户 Dry Run，看到 diff、风险和 command rows。
-5. 用户 Apply。
-6. Viewport 出现可编辑 Inventory Panel。
-7. 用户创建或确认 useInventoryItem action。
-8. 用户添加默认 Use Item LogicGraph。
-9. 用户手动调整按钮位置或样式。
-10. 系统生成 memory suggestion。
-11. 用户接受 memory。
-12. 用户导出 `.ai-editor.json`。
-13. 用户重新导入项目。
-14. UI、actions、logicGraph、memory、locks 全部恢复。
+1. 用户打开编辑器并选择项目路径。
+2. 文件系统面板展示项目目录、脚本、资源、Component 文件和 Prefab 文件。
+3. 用户双击 `InventoryPanel.prefab`，预制体节点树、Viewport 和 Inspector 同步切换。
+4. 用户在 Viewport 或节点树中选择某个节点。
+5. 用户在 Inspector 修改属性，并可锁定单个属性。
+6. 用户点击 Inspector 底部 `添加`，从项目 Component 列表挂载 Component。
+7. 用户也可以从文件系统拖动 Component 文件到 Inspector 底部空白区域添加。
+8. 用户单击图片资源在文件面板预览，双击图片用系统图片查看器打开。
+9. 用户双击代码文件跳转 VS Code，编辑器本身不修改代码。
+10. 用户在 AI 对话框输入需求并点击 `发送`。
+11. AI 生成 EditorCommand，编辑器自动校验；若非法，反馈错误给 AI 修正。
+12. 修正到合法后自动应用，Viewport、节点树和 Inspector 刷新。
+13. 用户可以查看执行结果和关键修正轨迹。
+14. 用户可以 undo / redo，并导出 / 导入项目资产。
 ```
 
 成功标准：
 
 - 从自然语言到可预览 Inventory UI 小于 10 分钟。
-- AI 修改全部可 dry-run。
-- AI 修改全部可 reject。
+- AI 修改全部经过 command validation。
+- 非法 AI command 会自动修正，不要求用户手动预演或手动应用。
+- 属性级 lock 强约束，AI 和人工命令都不能覆盖。
 - 人工修改全部可 undo。
 - 项目可 export / import。
 - AI context 包含 schema、actions、logicGraph、locks、memory。
@@ -1455,11 +1569,12 @@ Alpha 必须完整跑通：
 
 应对：
 
-- AI 只返回 proposal。
+- AI 只能返回结构化 command，不能直接写文件或 runtime。
 - validation 必须在 apply 前运行。
-- dry-run 必须可见。
-- lock 必须强约束。
-- reject 必须无副作用。
+- validation 失败必须反馈给 AI 自动修正。
+- 自动修正有最大轮数，超过后展示失败原因，不写入项目。
+- 属性级 lock 必须强约束。
+- 所有已应用 command 必须可 undo。
 
 ### 13.2 React state 和项目状态分裂
 
@@ -1483,8 +1598,9 @@ Alpha 必须完整跑通：
 
 - JSON 只做资产格式。
 - ProjectPanel 只做导入、导出、校验和摘要。
-- ExplorerPanel 是左侧资源管理器入口，类似 VSCode 的目录区；第一版展示层级、Prefab、脚本动作、逻辑流、资源引用和组件类型，但不内嵌代码编辑器，也不直接写磁盘文件。
-- 所有日常编辑都通过面板、viewport、AI proposal 完成。
+- 文件系统面板是左侧资源管理器入口，类似 VS Code 的目录区；第一版展示项目路径、Prefab、脚本、Component 文件和图片资源。
+- 代码文件双击跳转 VS Code，编辑器不内嵌代码编辑器，也不直接写磁盘代码文件。
+- 所有日常 UI 编辑都通过文件系统、节点树、Viewport、Inspector 和 AI 对话完成。
 
 ### 13.5 范围过大
 
@@ -1500,15 +1616,15 @@ Alpha 必须完整跑通：
 从当前仓库状态看，下一步应执行：
 
 ```txt
-Phase 14: Real AI Gateway / 真实 AI 网关接入
+Phase 14: Dockview 原型固化 / 最终产品 UI 落地
 ```
 
 具体顺序：
 
 ```txt
-1. 继续收集真实 `ylscode` / `gpt-5.5` 输出失败样本。
-2. 将常见错误沉淀为 proposal repair、prompt 约束或单元测试 fixture。
-3. 优先提升 Inventory Panel 生成稳定性：createNode 结构、Button onClick、TextGraphic / RoundedRectGraphic props。
-4. 保持 gateway/model token 不写入 localStorage 或 `.ai-editor.json`。
-5. 保持 AI 只返回 proposal，仍由 editor 负责 validation、Dry Run、Diff 和 Apply。
+1. 以 `apps/editor-dockview-prototype/` 为交互基准，整理正式 `apps/editor` 的面板结构。
+2. 将文件系统、Prefab 节点树、Viewport、Inspector、AI 对话拆成正式面板组件。
+3. 将 AI 从 proposal 审核流改为“发送 -> command validation -> repair loop -> auto apply”。
+4. 将 Inspector 的属性级锁、底部 Add Component、Component 文件拖拽添加接入正式 `EditorDocument` command。
+5. 将文件面板接入真实项目路径：图片预览、图片系统打开、代码跳转 VS Code、Prefab 双击编辑。
 ```
