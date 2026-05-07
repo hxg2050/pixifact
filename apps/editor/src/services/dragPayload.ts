@@ -1,7 +1,7 @@
 export const editorDragDataTypes = {
-    basicComponent: 'application/x-pixif-basic-component',
-    component: 'application/x-pixif-component',
-    prefab: 'application/x-pixif-prefab',
+    basicComponent: 'application/x-pixifact-basic-component',
+    component: 'application/x-pixifact-component',
+    prefab: 'application/x-pixifact-prefab',
 } as const;
 
 export type EditorDragDataType = typeof editorDragDataTypes[keyof typeof editorDragDataTypes];

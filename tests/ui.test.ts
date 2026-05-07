@@ -55,12 +55,12 @@ describe('Input', () => {
         input.element.onfocus?.(new FocusEvent('focus'));
         expect(input.valueLabel.visible).toBe(false);
 
-        input.element.value = 'pixif';
+        input.element.value = 'pixifact';
         input.element.oninput?.(new Event('input'));
         input.blur();
 
-        expect(input.value).toBe('pixif');
-        expect(input.valueLabel.value).toBe('pixif');
+        expect(input.value).toBe('pixifact');
+        expect(input.valueLabel.value).toBe('pixifact');
         expect(input.element.style.display).toBe('none');
         expect(input.valueLabel.visible).toBe(true);
 
@@ -80,7 +80,6 @@ describe('Input', () => {
         input.update();
 
         expect(input.paddingRight).toBe(10);
-        expect(input.paddinRight).toBe(10);
         expect(input.element.style.boxSizing).toBe('border-box');
         expect(input.element.style.position).toBe('fixed');
         expect(input.element.style.left).toBe('0px');
@@ -132,7 +131,7 @@ describe('Input', () => {
             stopPropagation: vi.fn(),
         };
 
-        input.value = 'pixif';
+        input.value = 'pixifact';
         input.display.emit('pointerdown', pointerEvent);
 
         expect(input.display.eventMode).toBe('static');

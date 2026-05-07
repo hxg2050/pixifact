@@ -30,32 +30,32 @@ describe('AI gateway model adapter', () => {
         expect(proposal.explanation).toContain('ai-gateway.config.local.json');
     });
 
-    it('creates OpenAI-compatible upstream request bodies', () => {
+    it('creates OpenAI-style upstream request bodies', () => {
         const body = createUpstreamRequestBody(createModelRequest(), {
-            PIXIF_AI_UPSTREAM_MODEL: 'test-model',
-            PIXIF_AI_UPSTREAM_TEMPERATURE: '0.1',
+            PIXIFACT_AI_UPSTREAM_MODEL: 'test-model',
+            PIXIFACT_AI_UPSTREAM_TEMPERATURE: '0.1',
         });
 
         expect(body.model).toBe('test-model');
         expect(body.temperature).toBe(0.1);
         expect(body.response_format.type).toBe('json_object');
         expect(body.messages[0].role).toBe('system');
-        expect(body.messages[1].content).toContain('pixif.aiProposal.v1');
+        expect(body.messages[1].content).toContain('pixifact.aiProposal.v1');
     });
 
     it('creates OpenAI Responses API request bodies', () => {
         const body = createUpstreamRequestBody(createModelRequest(), {
-            PIXIF_AI_UPSTREAM_API: 'responses',
-            PIXIF_AI_UPSTREAM_MODEL: 'gpt-5.5',
-            PIXIF_AI_UPSTREAM_REASONING_EFFORT: 'xhigh',
-            PIXIF_AI_UPSTREAM_SERVICE_TIER: 'fast',
-            PIXIF_AI_UPSTREAM_STORE: 'false',
-            PIXIF_AI_UPSTREAM_TEMPERATURE: '0.2',
+            PIXIFACT_AI_UPSTREAM_API: 'responses',
+            PIXIFACT_AI_UPSTREAM_MODEL: 'gpt-5.5',
+            PIXIFACT_AI_UPSTREAM_REASONING_EFFORT: 'xhigh',
+            PIXIFACT_AI_UPSTREAM_SERVICE_TIER: 'fast',
+            PIXIFACT_AI_UPSTREAM_STORE: 'false',
+            PIXIFACT_AI_UPSTREAM_TEMPERATURE: '0.2',
         });
 
         expect(body.model).toBe('gpt-5.5');
-        expect(body.input).toContain('You generate Pixif AI-first editor proposals.');
-        expect(body.input).toContain('pixif.aiProposal.v1');
+        expect(body.input).toContain('You generate Pixifact AI-first editor proposals.');
+        expect(body.input).toContain('pixifact.aiProposal.v1');
         expect(body.input).toContain('commandSummary');
         expect(body.input).toContain('createNode');
         expect(body.input).toContain('Do not claim command specs are missing');
@@ -68,16 +68,16 @@ describe('AI gateway model adapter', () => {
 
     it('normalizes Responses base URLs to the responses endpoint', () => {
         expect(normalizeUpstreamUrl('https://code.ylsagi.com/codex', {
-            PIXIF_AI_UPSTREAM_API: 'responses',
+            PIXIFACT_AI_UPSTREAM_API: 'responses',
         })).toBe('https://code.ylsagi.com/codex/v1/responses');
         expect(normalizeUpstreamUrl('https://code.ylsagi.com/codex/', {
-            PIXIF_AI_UPSTREAM_API: 'responses',
+            PIXIFACT_AI_UPSTREAM_API: 'responses',
         })).toBe('https://code.ylsagi.com/codex/v1/responses');
         expect(normalizeUpstreamUrl('https://code.ylsagi.com/codex/v1/responses', {
-            PIXIF_AI_UPSTREAM_API: 'responses',
+            PIXIFACT_AI_UPSTREAM_API: 'responses',
         })).toBe('https://code.ylsagi.com/codex/v1/responses');
         expect(normalizeUpstreamUrl('https://model.example.test/chat/completions', {
-            PIXIF_AI_UPSTREAM_API: 'chatCompletions',
+            PIXIFACT_AI_UPSTREAM_API: 'chatCompletions',
         })).toBe('https://model.example.test/chat/completions');
     });
 
@@ -110,7 +110,7 @@ describe('AI gateway model adapter', () => {
         expect(calls[0]).toBe('https://code.ylsagi.com/codex/v1/responses');
     });
 
-    it('normalizes OpenAI-compatible JSON message content', () => {
+    it('normalizes OpenAI-style JSON message content', () => {
         const proposal = normalizeModelResponse({
             choices: [{
                 message: {
@@ -154,9 +154,9 @@ describe('AI gateway model adapter', () => {
         const calls: Array<{ url: string; init?: RequestInit }> = [];
         const result = await callUpstreamModel(createModelRequest(), {
             env: {
-                PIXIF_AI_UPSTREAM_URL: 'https://model.example.test/chat/completions',
-                PIXIF_AI_UPSTREAM_TOKEN: 'secret',
-                PIXIF_AI_UPSTREAM_MODEL: 'model-x',
+                PIXIFACT_AI_UPSTREAM_URL: 'https://model.example.test/chat/completions',
+                PIXIFACT_AI_UPSTREAM_TOKEN: 'secret',
+                PIXIFACT_AI_UPSTREAM_MODEL: 'model-x',
             },
             fetch: async (url, init) => {
                 calls.push({ url: String(url), init });
@@ -204,9 +204,9 @@ describe('AI gateway model adapter', () => {
 
         await callUpstreamModel(request, {
             env: {
-                PIXIF_AI_UPSTREAM_URL: 'https://model.example.test/from-env',
-                PIXIF_AI_UPSTREAM_TOKEN: 'env-secret',
-                PIXIF_AI_UPSTREAM_MODEL: 'env-model',
+                PIXIFACT_AI_UPSTREAM_URL: 'https://model.example.test/from-env',
+                PIXIFACT_AI_UPSTREAM_TOKEN: 'env-secret',
+                PIXIFACT_AI_UPSTREAM_MODEL: 'env-model',
             },
             fetch: async (url, init) => {
                 calls.push({ url: String(url), init });
@@ -337,7 +337,7 @@ describe('AI gateway model adapter', () => {
     it('reports upstream model errors', async () => {
         await expect(callUpstreamModel(createModelRequest(), {
             env: {
-                PIXIF_AI_UPSTREAM_URL: 'https://model.example.test/chat/completions',
+                PIXIFACT_AI_UPSTREAM_URL: 'https://model.example.test/chat/completions',
             },
             fetch: async () => new Response('bad upstream', { status: 502 }),
         })).rejects.toThrow('Upstream model failed with 502');
@@ -346,8 +346,8 @@ describe('AI gateway model adapter', () => {
     it('times out upstream model calls', async () => {
         await expect(callUpstreamModel(createModelRequest(), {
             env: {
-                PIXIF_AI_UPSTREAM_URL: 'https://model.example.test/chat/completions',
-                PIXIF_AI_UPSTREAM_TIMEOUT_MS: '1',
+                PIXIFACT_AI_UPSTREAM_URL: 'https://model.example.test/chat/completions',
+                PIXIFACT_AI_UPSTREAM_TIMEOUT_MS: '1',
             },
             fetch: (_url, init) => new Promise<Response>((_resolve, reject) => {
                 init?.signal?.addEventListener('abort', () => {

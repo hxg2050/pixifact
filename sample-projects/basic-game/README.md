@@ -1,13 +1,13 @@
-# Pixif Basic Game Sample
+# Pixifact Basic Game Sample
 
-这是一个给 Pixif AI-first 游戏编辑器使用的基础项目样例。
+这是一个给 Pixifact AI-first 游戏编辑器使用的基础项目样例。
 
 ## 打开方式
 
 1. 启动编辑器：
 
 ```bash
-pnpm editor
+bun run editor
 ```
 
 2. 在编辑器右侧打开 `项目`。

@@ -15,7 +15,7 @@ import type {
 } from '../../../../src';
 import { selectionBoundsForNode } from './selectionBounds';
 
-interface PixifViewportProps {
+interface PixifactViewportProps {
     document: EditorDocument;
     revision: number;
 }
@@ -82,7 +82,7 @@ function drawSelectionBounds(document: EditorDocument, preview: RuntimePreview |
         .stroke({ width: 2, color: 0x16a34a, alpha: 1 });
 }
 
-export function PixifViewport({ document, revision }: PixifViewportProps) {
+export function PixifactViewport({ document, revision }: PixifactViewportProps) {
     const hostRef = useRef<HTMLDivElement | null>(null);
     const appRef = useRef<Application | undefined>(undefined);
     const outlineRef = useRef<PixiGraphics | undefined>(undefined);
@@ -129,7 +129,7 @@ export function PixifViewport({ document, revision }: PixifViewportProps) {
                     return;
                 }
 
-                app.canvas.className = 'pixifCanvas';
+                app.canvas.className = 'pixifactCanvas';
                 hostElement.appendChild(app.canvas);
                 app.root.width = 960;
                 app.root.height = 540;
@@ -189,7 +189,7 @@ export function PixifViewport({ document, revision }: PixifViewportProps) {
     }, [document, revision]);
 
     return (
-        <div className="pixifViewportHost" ref={hostRef}>
+        <div className="pixifactViewportHost" ref={hostRef}>
             {status ? <div className="runtimeStatus">{status}</div> : null}
         </div>
     );

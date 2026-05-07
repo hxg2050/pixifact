@@ -278,28 +278,6 @@ describe('Layout components', () => {
         GameObject.destroy(stage);
     });
 
-    it('keeps deprecated vertical and horizontal aliases compatible', () => {
-        const stage = new Group();
-        stage.width = 400;
-        stage.height = 300;
-
-        const panel = GameObject.instantiate(Group, stage, {
-            width: 100,
-            height: 60,
-            anchorX: 0.5,
-            anchorY: 0.5,
-        });
-
-        const layout = panel.addComponent(Layout, { vertical: 10, horizontal: -20 });
-
-        expect(layout.centerX).toBe(10);
-        expect(layout.centerY).toBe(-20);
-        expect(panel.x).toBe(210);
-        expect(panel.y).toBe(130);
-
-        GameObject.destroy(stage);
-    });
-
     it('recomputes when center constraints are cleared', async () => {
         const stage = new Group();
         stage.width = 400;
@@ -549,30 +527,6 @@ describe('Layout components', () => {
 
         expect(second.x).toBe(30);
         expect(third.y).toBe(22);
-
-        grid.display.destroy();
-    });
-
-    it('keeps deprecated row as an alias for column count', async () => {
-        const grid = new Group();
-        const layout = grid.addComponent(GridLayout, {
-            row: 3,
-            gridWidth: 10,
-            gridHeight: 10,
-        });
-        const first = GameObject.instantiate(Group, grid);
-        const second = GameObject.instantiate(Group, grid);
-        const third = GameObject.instantiate(Group, grid);
-        const fourth = GameObject.instantiate(Group, grid);
-
-        await Promise.resolve();
-
-        expect(layout.col).toBe(3);
-        expect(first.x).toBe(0);
-        expect(second.x).toBe(10);
-        expect(third.x).toBe(20);
-        expect(fourth.x).toBe(0);
-        expect(fourth.y).toBe(10);
 
         grid.display.destroy();
     });

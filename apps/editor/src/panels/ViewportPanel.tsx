@@ -1,5 +1,5 @@
 import type { EditorDocument } from '../../../../src';
-import { PixifViewport } from '../preview/PixifViewport';
+import { PixifactViewport } from '../preview/PixifactViewport';
 import { useDocumentRevision } from './common';
 
 export function ViewportPanel({ document, revision }: { document: EditorDocument; revision: number }) {
@@ -17,7 +17,7 @@ export function ViewportPanel({ document, revision }: { document: EditorDocument
             </div>
             <section className="canvasWrap" aria-label="运行时画布" data-testid="viewport-stage">
                 <div className="stageFrame">
-                    <PixifViewport document={document} revision={Math.max(revision, liveRevision)} />
+                    <PixifactViewport document={document} revision={Math.max(revision, liveRevision)} />
                 </div>
             </section>
         </main>

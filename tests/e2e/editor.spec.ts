@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-const remoteConfigStorageKey = 'pixif.editor.remoteConfig.v1';
+const remoteConfigStorageKey = 'pixifact.editor.remoteConfig.v1';
 
 test('editor restores dockview prototype layout and auto-applies AI commands', async ({ page }) => {
     await page.goto('/');
 
     const dockTab = (title: string) => page.locator('.dv-default-tab-content').filter({ hasText: new RegExp(`^${title}$`) });
 
-    await expect(page.getByText('Pixif Editor')).toBeVisible();
+    await expect(page.getByText('Pixifact Editor')).toBeVisible();
     await expect(dockTab('文件系统')).toBeVisible();
     await expect(dockTab('预制体')).toBeVisible();
     await expect(dockTab('Viewport')).toBeVisible();

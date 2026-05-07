@@ -7,16 +7,20 @@
 在处理本项目任何代码相关任务前，必须先读取并遵守 `CODEX.md` 中的行为规范，并与本文件规则合并执行。
 
 -   非必须不编写主动兜底、静默默认值或主动抛错逻辑；让错误在运行或测试时自然暴露，以便定位并修复真实调用问题。
+-   当前项目处于开发阶段，永远不用考虑向下兼容；不要为了旧 API、旧路径、旧协议或旧数据格式新增兼容层、别名、fallback、deprecation shim。相关改动应直接迁移调用方并删除旧入口。
 
 ## 项目概览
 
-`pixif` 是基于 PixiJS v8 的轻量 TypeScript 框架，提供更接近 UI / GameObject 的开发模型。
+Pixifact 是以 `apps/editor/` 为核心的 AI-first 游戏 UI / 轻量玩法编辑器。`pixifact` runtime 是编辑器预览、Prefab 实例化和导出代码的底座，不再是本仓库的主目标。
 
 当前仓库同时包含：
 
-- `src/`：pixif framework core、UI 组件、Prefab、Command、EditorDocument、AI proposal 等核心能力。
-- `apps/editor/`：Pixif AI-first Game Editor 产品应用。
-- `examples/`：框架示例，不承载 editor 产品。
+- `apps/editor/`：Pixifact AI-first Game Editor 产品应用，是项目中心。
+- `apps/editor-dockview-prototype/`：最终 IDE / dock layout 交互原型。
+- `src/`：编辑器领域模型、runtime foundation、UI 组件、Prefab、Command、EditorDocument、AI proposal 等底层能力。
+- `src/editor/`、`src/commands/`、`src/prefab/`：editor-first 领域能力的一等目录。
+- `src/ui/`：runtime UI 组件。
+- `examples/`：runtime 示例，不承载 editor 产品。
 - `tests/`：单元测试和编辑器相关测试。
 - `tests/e2e/`：Playwright Alpha 主流程测试。
 
@@ -25,14 +29,14 @@
 - `EditorDocument` 是 editor 项目的唯一 source of truth。
 - Zustand 只保存 UI 状态，不保存 PrefabSpec / EditorDocument 的副本。
 - 所有真实项目修改必须走 `EditorDocument` API 或 command。
-- AI 不直接修改项目，只生成可审查的 proposal。
-- Proposal 必须能 dry-run、review diff、apply、reject。
+- AI 不直接修改项目，只生成结构化 command / proposal。
+- 当前 Alpha proposal 必须能 dry-run、review diff、apply、reject；后续产品方向是发送即执行和 repair loop。
 - JSON 只是资产格式，不作为主要编辑入口。
 - 不引入 Monaco，不做内嵌代码编辑器。
 
-## Pixif 框架规则
+## Runtime Foundation 规则
 
-- 使用 `GameObject.instantiate(Type, parent, props?)` 创建 pixif 节点。
+- 使用 `GameObject.instantiate(Type, parent, props?)` 创建 runtime 节点。
 - `Group` 是唯一容器节点。
 - `Graphics`、`Label`、`Image`、`NineSliceImage` 等渲染叶子不应拥有子节点。
 - 挂载到 `Application.root` 后才参与 ticker-driven update。
@@ -41,6 +45,7 @@
 - 组件清理必须在 `onDestroy` 中释放事件监听。
 - 布局优先使用 `Layout`、`GridLayout`、`FlexGroup` / `Flex`。
 - 尽量使用逻辑 `width` / `height` 做布局判断，不随意依赖 Pixi bounds。
+- 新增 runtime 能力时，优先服务 editor workflow、Prefab 实例化、Viewport 预览、Command 应用和导出，不为了通用框架扩展而扩展。
 
 ## Editor UI 设计原则
 
@@ -128,40 +133,40 @@ apps/editor/src/components/
 优先运行最小相关验证。
 
 ```bash
-pnpm test
+bun run test
 ```
 
 编辑器相关改动常用：
 
 ```bash
-pnpm exec tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
-pnpm editor:build
-pnpm editor:e2e
+bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
+bun run editor:build
+bun run editor:e2e
 ```
 
-框架或导出 API 改动常用：
+runtime 或导出 API 改动常用：
 
 ```bash
-pnpm build
-pnpm example:build
+bun run build
+bun run example:build
 ```
 
 本地启动 editor：
 
 ```bash
-pnpm editor
+bun run editor
 ```
 
 本地启动 mock AI server：
 
 ```bash
-pnpm editor:ai
+bun run editor:ai
 ```
 
 本地启动真实 gateway adapter 样例：
 
 ```bash
-pnpm editor:gateway
+bun run editor:gateway
 ```
 
 ## 工作方式

@@ -1,6 +1,6 @@
-# Pixif AI-first Game Editor
+# Pixifact AI-first Game Editor
 
-`apps/editor` 是 Pixif 的产品级 AI-first 编辑器。它用于使用和验证：
+`apps/editor` 是 Pixifact 的核心产品应用。它用于使用和验证：
 
 ```txt
 Prompt -> AI Proposal -> Dry Run -> Diff Review -> Apply -> Manual Refine -> Memory -> Export / Import
@@ -11,15 +11,8 @@ Prompt -> AI Proposal -> Dry Run -> Diff Review -> Apply -> Manual Refine -> Mem
 在仓库根目录运行：
 
 ```bash
-pnpm install
-pnpm editor
-```
-
-也可以使用 Bun：
-
-```bash
 bun install
-bun run bun:editor
+bun run editor
 ```
 
 Vite 会输出本地访问地址，通常是：
@@ -45,9 +38,9 @@ http://localhost:5173/
 
 Mock provider 适合离线使用和本地测试。
 
-## Pixif Prefab
+## Prefab
 
-Editor 使用 Pixif Prefab 作为可复用 UI / GameObject 树资产。格式、命名规则和当前支持范围见：
+Editor 使用 Prefab 作为可复用 UI / GameObject 树资产。格式、命名规则和当前支持范围见：
 
 ```txt
 apps/editor/PREFAB.md
@@ -58,13 +51,13 @@ apps/editor/PREFAB.md
 先启动 AI gateway：
 
 ```bash
-pnpm editor:gateway
+bun run editor:gateway
 ```
 
 再启动 editor：
 
 ```bash
-pnpm editor
+bun run editor
 ```
 
 在 editor 的 `AI` tab 中切换到 `Remote`，endpoint 默认指向：
@@ -73,7 +66,7 @@ pnpm editor
 http://localhost:8788/proposal
 ```
 
-Remote 路径用于验证 `pixif.aiProposal.v1` 协议，但仍然不会让 AI 直接修改项目。AI 只返回 proposal，editor 仍然负责校验并应用合法 command。
+Remote 路径用于验证 `pixifact.aiProposal.v1` 协议，但仍然不会让 AI 直接修改项目。AI 只返回 proposal，editor 仍然负责校验并应用合法 command。
 
 ## Gateway Adapter 样例
 
@@ -94,19 +87,13 @@ cp apps/editor/ai-gateway.config.example.json apps/editor/ai-gateway.config.loca
 也可以只用环境变量：
 
 ```bash
-OPENAI_API_KEY=your-key pnpm editor:gateway
+OPENAI_API_KEY=your-key bun run editor:gateway
 ```
 
 启动 adapter：
 
 ```bash
-pnpm editor:gateway
-```
-
-使用 Bun 启动 adapter：
-
-```bash
-bun run bun:editor:gateway
+bun run editor:gateway
 ```
 
 在 editor 的 `AI` tab 中切换到 `Remote`：
@@ -128,7 +115,7 @@ Auth header: authorization
 Auth prefix: Bearer
 ```
 
-Responses 模式下 gateway 不主动发送 temperature，以兼容当前 `ylscode` 上游。
+Responses 模式下 gateway 不主动发送 temperature，适配当前 `ylscode` 上游。
 
 Remote 的 provider mode、gateway endpoint、timeout 和 auth header 会保存在浏览器 localStorage，方便下次打开 editor 继续使用。真实模型 API key 放在 gateway 本地配置或环境变量里，不会写入浏览器 localStorage，也不会写入 `.ai-editor.json`。
 
@@ -162,7 +149,7 @@ Editor 会通过浏览器下载文件：
 
 - `.ai-editor.json`：完整项目资产。
 - `logic-handlers.ts`：LogicGraph 生成的 TypeScript handler 摘要。
-- `pixif-memory.json`：偏好记忆文件。
+- `pixifact-memory.json`：偏好记忆文件。
 
 这些是用户下载产物，不属于仓库源码。不要把它们提交到 repo。
 
@@ -171,22 +158,15 @@ Editor 会通过浏览器下载文件：
 编辑器相关改动至少运行：
 
 ```bash
-pnpm exec tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
-pnpm test
-pnpm editor:build
-```
-
-Bun 路径可运行：
-
-```bash
-bun run bun:test
-bun run bun:editor:build
+bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
+bun run test
+bun run editor:build
 ```
 
 Alpha 核心流程改动运行：
 
 ```bash
-pnpm editor:e2e
+bun run editor:e2e
 ```
 
 Playwright 配置会启动：
@@ -195,7 +175,7 @@ Playwright 配置会启动：
 http://127.0.0.1:5176
 ```
 
-如果本地沙箱或系统策略阻止绑定端口，`editor:e2e` 可能会在 web server 启动阶段失败。这种情况不是 UI 断言失败；可先用 `pnpm editor` 手动跑通 Alpha 核心使用流程，再在允许本地端口绑定的环境复跑 E2E。
+如果本地沙箱或系统策略阻止绑定端口，`editor:e2e` 可能会在 web server 启动阶段失败。这种情况不是 UI 断言失败；可先用 `bun run editor` 手动跑通 Alpha 核心使用流程，再在允许本地端口绑定的环境复跑 E2E。
 
 ## UI 文案和按钮原则
 

@@ -1,5 +1,5 @@
-import { ComponentRegistry } from "../../core";
-import type { ComponentSchema, PropSchema } from "../../core";
+import { ComponentRegistry } from "../core";
+import type { ComponentSchema, PropSchema } from "../core";
 import type { ComponentSpec, PrefabSpec } from "../prefab";
 import type { EditorCommand } from "./Command";
 import { findComponent, findNode, hasDuplicateComponentId, hasDuplicateNodeId, isDescendant } from "./utils";

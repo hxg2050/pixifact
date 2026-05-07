@@ -1,92 +1,114 @@
-# pixif 后续计划
+# Pixifact Editor-first Plan
 
-## 1. 核心模型收敛（已完成）
+本文档记录项目重新定位后的执行计划。历史上 `PLAN.md` 主要跟踪 pixifact runtime 的框架收敛；从现在开始，本项目以编辑器产品为核心。
 
-- [x] 区分容器节点和叶子节点，避免 `Graphics`、`Label` 这类叶子节点被当作 parent 使用。
-- [x] 收窄 `GameObject.instantiate` 的 parent 类型，只允许可挂载子节点的容器类型。
-- [x] 梳理 `GameObject.children` 的归属，只保留在 `Group` 中。
-- [x] 收敛容器模型，不引入额外 `ContainerGameObject` 抽象。
-- [x] 将 `Image`、`NineSliceImage` 调整为叶子节点，不再继承容器能力。
+完整产品设计和阶段计划见：
 
-## 2. Ticker 生命周期优化（已完成）
+```txt
+AI_FIRST_GAME_EDITOR_PLAN.md
+```
 
-- [x] 只有对象自身或组件需要 `update` 时才注册 ticker。
-- [x] 销毁对象时确保 ticker、事件监听和组件生命周期全部释放。
-- [x] 由 `Application` 维护活跃更新对象集合，通过单个 `app.ticker` 回调统一驱动对象树，避免每个对象直接注册 `Ticker.shared`。
-- [x] 对象挂载、移除、重挂载和销毁时同步活跃更新集合。
+## 1. 当前项目定义
 
-### 2.1 回归记录
+Pixifact 是 AI-first 游戏 UI / 轻量玩法编辑器。
 
-- [x] `Input` 在本阶段后出现 PC 鼠标无法稳定选中输入框的问题，原因是 `focus()` 从 `Ticker.shared.addOnce` 改成 microtask 后，DOM 聚焦进入了原生 pointer/mouse 默认行为的同一轮事件时序；PC 端可能被 canvas 默认行为抢回焦点。修复时不回退到 `Ticker.shared`，而是在非 touch 指针激活时阻止默认行为，并保持同步聚焦。
-- [x] `Input` 的 DOM overlay 位置同步不能依赖 Pixi 缓存的 `worldTransform`，统一 `app.ticker` 在 render 前驱动 `update()` 后会读到旧矩阵；应使用 `getGlobalTransform()` 获取当前全局矩阵。
-- [x] `Input` 的 DOM overlay 同步不能依赖覆写 `x/y/scale` setter；`Layout`、`GridLayout` 和直接调用 `transform` 都可能绕过这些 setter。统一监听 `TRANSFORM_CHANGE`，并保留 `REPOSITION` 作为位置变化事件。
+项目中心：
 
-## 3. Layout 优化计划
+```txt
+apps/editor/
+```
 
-### 3.1 语义和 API 收敛（已完成）
+底层能力：
 
-- [x] 将 `Layout.vertical` / `Layout.horizontal` 增加更清晰的别名：`centerX` / `centerY`。
-- [x] 保留 `vertical` / `horizontal` 兼容旧代码，但在注释中标记为旧命名。
-- [x] 修复 `centerX` / `centerY` 设置为 `undefined` 时不触发布局刷新的问题。
-- [x] 明确优先级：`centerX` 覆盖 `left/right`，`centerY` 覆盖 `top/bottom`。
-- [x] 更新注释示例，使用当前真实 API：`GameObject.instantiate`、`anchorX`、`anchorY`。
+```txt
+src/
+```
 
-### 3.2 尺寸模型整理（已完成）
+`src/` 中的 runtime、Prefab、Command、EditorDocument、AI proposal、LogicGraph、ActionRegistry 等能力都应服务编辑器闭环：
 
-- [x] 统一 `width` / `height` 的语义，明确它们是逻辑布局尺寸，不直接等同于 Pixi `getBounds()`。
-- [x] 将 `oldWidth` / `oldHeight` 改名为 `preferredWidth` / `preferredHeight`，表达右贴边和底贴边时使用的基准尺寸。
-- [x] 定义手动修改组件宽高后的行为：手动改宽高会同步更新 `preferredWidth` / `preferredHeight`。
-- [x] 对拉伸结果做下限保护，避免 `parent.width - left - right` 得到负尺寸。
-- [x] 增加 `minWidth` / `minHeight` 预留设计，当前版本已实现。
+```txt
+Prompt -> Command / Proposal -> Validate -> Repair -> Apply -> Preview -> Export / Import
+```
 
-### 3.3 刷新机制优化（已完成）
+当前结构边界：
 
-- [x] 减少每个 `Layout` 常驻 ticker 的成本，改为 microtask 批量刷新。
-- [x] 保持属性 setter 只打 dirty 标记，由统一刷新入口批量执行 `resize()`。
-- [x] 避免一次布局中分别设置 `x` 和 `y` 触发两次 `REPOSITION`，给 `Transform` 增加公开 `setPosition(x, y)`。
-- [x] 将 `GameObjectEvent` 和事件类型提取到独立 `GameObjectEvent.ts`，供 `GameObject`、`Transform` 和外部 API 复用。
-- [x] 父节点 resize、自身 resize、added、removed 的监听继续集中在 `Layout` 内部管理。
-- [x] 销毁组件后确保父级和自身事件监听全部释放。
+```txt
+src/editor/    EditorDocument、AI context、diff、memory、logic 等编辑器领域模型
+src/commands/  EditorCommand validate / apply / undo
+src/prefab/    PrefabSpec、DSL、模板和 runtime instantiate
+src/core/      PixiJS runtime foundation
+src/ui/        runtime UI 组件
+```
 
-### 3.4 边界场景覆盖（已完成）
+## 2. 已完成的底座
 
-- [x] 覆盖居中：`centerX`、`centerY`、带 anchor 的居中。
-- [x] 覆盖贴边：`left/top`、`right/bottom`、混合方向。
-- [x] 覆盖拉伸：`left + right`、`top + bottom`、父级尺寸变化后的重算。
-- [x] 覆盖解除约束：从居中切回普通贴边，从拉伸切回固定尺寸。
-- [x] 覆盖重挂载：从一个 parent 移动到另一个 parent 后监听和布局都正确。
+- [x] PixiJS v8 runtime foundation：`Application`、`GameObject`、`Group`、渲染叶子、组件生命周期。
+- [x] 布局能力：`Layout`、`GridLayout`、`FlexGroup` / `Flex`。
+- [x] UI runtime 组件：`Button`、`ScrollView`、`Input`、`Textarea` 等。
+- [x] PrefabSpec / NodeSpec / ComponentSpec。
+- [x] Command validate / apply / diff。
+- [x] EditorDocument 作为项目 source of truth。
+- [x] Runtime preview 从 PrefabSpec 实例化真实 runtime tree。
+- [x] Alpha editor shell、Inspector、Hierarchy、AI proposal、Project import/export。
+- [x] Mock AI server 和真实 gateway adapter 样例。
+- [x] Playwright Alpha 主流程测试。
+- [x] 包管理器统一迁移到 Bun。
 
-### 3.5 示例同步（已完成）
+## 3. 新优先级
 
-- [x] 简化 `examples/basic/src/main.ts` 中和 Layout 相关的手动兜底逻辑。
-- [x] 示例中只展示稳定 API，优先使用 `centerX` / `centerY`。
-- [x] 示例 resize 后应能自动保持居中，无需调用 `layout.resize()`。
+### 3.1 Editor Product First
 
-## 4. 其他布局 API 整理
+- [ ] `apps/editor/` 的正式 UI 以 `apps/editor-dockview-prototype/` 为交互基准。
+- [ ] 文件系统、Prefab 节点树、Viewport、Inspector、AI 对话是首屏核心。
+- [ ] 不再把 examples 或 runtime showcase 当作项目主入口。
+- [ ] 文档、技能和 agent 规则默认围绕 editor 工作流组织。
 
-- [x] 整理 `GridLayout` 的 `row` / `col` / `gapVertical` / `gapHorizontal` 定义。
-- [x] 补齐 `FlexGroup` 对 child remove、child resize、`total = 0`、gap 计算的边界处理。
-- [x] 增加布局组件的单元测试，覆盖网格和弹性布局。
+### 3.2 AI Send-and-Execute
 
-## 5. 发布配置完善（已完成）
+- [ ] AI 面板从 proposal 审核器收敛为对话式发送入口。
+- [ ] 用户不再手动点击“生成 / 预演 / 应用”完成主流程。
+- [ ] 内部保留 command validation、repair loop、错误轨迹和 undo。
+- [ ] 错误反馈给 AI 自动修正，达到上限后再向用户解释失败原因。
 
-- [x] Rollup 显式 external：`pixi.js`、`@math.gl/core`、`eventemitter3`。
-- [x] 在 `package.json` 顶层补充 `exports` 和 `types` 字段。
-- [x] 消除 `Application -> core index` 的循环依赖 warning。
-- [x] 检查 `dist` 类型产物是否完整覆盖所有公开模块。
+### 3.3 Project File Workflow
 
-## 6. UI 组件稳定（已完成）
+- [ ] 文件系统面板成为项目入口。
+- [ ] 双击 Prefab 在编辑器内打开。
+- [ ] 双击图片使用系统图片查看器。
+- [ ] 双击代码跳转 VS Code。
+- [ ] Component 文件可拖到 Inspector 挂载。
+- [ ] 编辑器不直接修改 TypeScript 源码文件。
 
-- [x] 给 `Input` / `Textarea` 增加 canvas offset、窗口 resize、销毁后的交互测试。
-- [x] 评估是否改用 PixiJS v8 `DOMContainer` 承载 DOM 输入元素：当前暂不迁移，因为 `DOMContainer` 在 PixiJS v8 仍为 experimental，库级组件先保留自维护 DOM overlay。
-- [x] 标记 `paddinRight` 为兼容旧拼写，后续版本移除。
-- [x] 清理 UI 组件中依赖示例 CSS 的隐含假设。
+### 3.4 Runtime As Infrastructure
 
-## 7. 复杂 UI 组件与滚动容器（已完成）
+- [x] `pixifact/editor`、`pixifact/commands`、`pixifact/prefab` 作为 editor-first 领域入口。
+- [ ] 新 runtime API 必须服务 editor、Prefab、preview、command 或 export。
+- [ ] 避免为了“通用框架完整性”新增不被 editor 使用的抽象。
+- [ ] Runtime 示例只用于验证底层能力，不定义产品方向。
 
-- [x] 明确复杂 UI 使用 `Group` 子类表达，在 `render()` 中组装内部子树，不额外引入 prefab 或响应式系统。
-- [x] 调整 `GameObject.instantiate()` 时序：先应用 props，再调用 `render()`，最后挂载到 parent，使复合组件的内部结构可以读取初始化参数。
-- [x] 增加回归测试，覆盖 `Group` 子类在 `render()` 中读取 props 并创建内部节点。
-- [x] 新增 `ScrollView`，提供 `content` 挂载点、遮罩、滚动条、滚轮滚动、拖拽滚动、边界 clamp、内容高度刷新。
-- [x] 增加 `ScrollView` 单元测试，覆盖滚动位置、内容位移、resize 后重新 clamp 和事件清理。
-- [x] 将基础示例改为固定 header + `ScrollView` 内容页，验证复杂内容页滚动。
+## 4. 验证策略
+
+编辑器相关改动优先：
+
+```bash
+bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
+bun run test
+bun run editor:build
+```
+
+Alpha 主流程改动：
+
+```bash
+bun run editor:e2e
+```
+
+Runtime / package-entry 改动：
+
+```bash
+bun run build
+bun run example:build
+```
+
+## 5. 历史说明
+
+旧版框架计划中的核心模型、ticker 生命周期、布局、ScrollView、发布配置和 UI 组件稳定性已经完成，作为 editor runtime foundation 继续保留。后续不再用这些条目定义项目目标。

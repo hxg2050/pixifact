@@ -4,7 +4,7 @@ import type { EditorCommand } from "../commands/Command";
 import type { CommandResult } from "../commands/applyCommand";
 import { findNode } from "../commands/utils";
 import type { InstantiateContext, PrefabSpec } from "../prefab";
-import type { Group } from "../../core";
+import type { Group } from "../core";
 import { emptySelection } from "./EditorSelection";
 import type { EditorSelection } from "./EditorSelection";
 import { buildInspectorModel } from "./InspectorModel";
@@ -350,7 +350,7 @@ export class EditorDocument {
     getState(): EditorProjectState {
         return {
             version: 1,
-            type: 'pixif.aiEditorProject',
+            type: 'pixifact.aiEditorProject',
             prefab: clonePrefab(this.prefab),
             selection: this.selection,
             designTokens: this.designTokens ? structuredClone(this.designTokens) : undefined,

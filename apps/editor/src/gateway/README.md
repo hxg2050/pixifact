@@ -1,6 +1,6 @@
 # AI Gateway Adapter
 
-本目录放真实 AI gateway 接入样例。Gateway 只负责把 `pixif.aiProposal.v1` 请求转给模型，并返回 `AiProposal`；它不访问 editor runtime，不写文件，也不直接修改 `EditorDocument`。
+本目录放真实 AI gateway 接入样例。Gateway 只负责把 `pixifact.aiProposal.v1` 请求转给模型，并返回 `AiProposal`；它不访问 editor runtime，不写文件，也不直接修改 `EditorDocument`。
 
 ## 协议
 
@@ -16,7 +16,7 @@ authorization: Bearer <optional-token>
 
 ```ts
 {
-    protocol: 'pixif.aiProposal.v1',
+    protocol: 'pixifact.aiProposal.v1',
     prompt: string,
     context: {
         prefab,
@@ -58,7 +58,7 @@ Gateway 返回：
 - 本地 editor 的 AI 服务配置只保留 gateway endpoint / timeout。
 - 模型 API key 放在 gateway 的本地配置文件或环境变量里，不进入浏览器。
 - Endpoint、timeout、auth header 会保存在浏览器 localStorage；token 不持久化。
-- 样例 adapter 使用 `PIXIF_AI_GATEWAY_TOKEN` 校验 `Authorization: Bearer <token>`。
+- 样例 adapter 使用 `PIXIFACT_AI_GATEWAY_TOKEN` 校验 `Authorization: Bearer <token>`。
 - 如果 gateway 放在公网，应在外层再加 HTTPS、rate limit 和日志脱敏。
 
 ## 错误码
@@ -77,7 +77,7 @@ Gateway 错误响应统一返回：
 
 推荐错误码：
 
-- `invalid_request`：请求体不是 `pixif.aiProposal.v1`。
+- `invalid_request`：请求体不是 `pixifact.aiProposal.v1`。
 - `unauthorized`：鉴权失败。
 - `gateway_misconfigured`：gateway adapter 没有配置模型调用。
 - `upstream_failed`：模型或上游服务失败。
@@ -94,13 +94,7 @@ Gateway 错误响应统一返回：
 默认启动：
 
 ```bash
-pnpm editor:gateway
-```
-
-也可以用 Bun：
-
-```bash
-bun run bun:editor:gateway
+bun run editor:gateway
 ```
 
 Editor 中切到 `Remote`：
@@ -112,7 +106,7 @@ Editor 中切到 `Remote`：
 
 ## 接真实模型
 
-`modelAdapter.mjs` 支持 OpenAI-compatible `Responses` 和 `Chat Completions` 风格的 HTTP 上游。推荐把真实 key 放在本机私有配置文件：
+`modelAdapter.mjs` 支持 OpenAI-style `Responses` 和 `Chat Completions` 风格的 HTTP 上游。推荐把真实 key 放在本机私有配置文件：
 
 ```bash
 cp apps/editor/ai-gateway.config.example.json apps/editor/ai-gateway.config.local.json
@@ -141,7 +135,7 @@ cp apps/editor/ai-gateway.config.example.json apps/editor/ai-gateway.config.loca
 也可以使用环境变量，环境变量优先于配置文件：
 
 ```bash
-OPENAI_API_KEY=your-key pnpm editor:gateway
+OPENAI_API_KEY=your-key bun run editor:gateway
 ```
 
 支持的主要配置项：
@@ -159,6 +153,6 @@ OPENAI_API_KEY=your-key pnpm editor:gateway
 
 - `AiProposal`。
 - `{ proposal: AiProposal }`。
-- OpenAI-compatible `{ choices: [{ message: { content: "<json>" } }] }`，其中 content 必须是 JSON。
+- OpenAI-style `{ choices: [{ message: { content: "<json>" } }] }`，其中 content 必须是 JSON。
 
 模型必须只返回 proposal JSON，不要返回 markdown。即使接了真实模型，editor 仍然负责 validation、Dry Run、Diff Review 和 Apply。

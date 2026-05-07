@@ -1,6 +1,6 @@
-# Pixif Editor UI Prototype
+# Pixifact Editor UI Prototype
 
-这是一个独立的静态 UI 原型，用来重新确认 Pixif AI-first 编辑器的信息架构和视觉方向。
+这是一个独立的静态 UI 原型，用来重新确认 Pixifact AI-first 编辑器的信息架构和视觉方向。
 
 它不实现任何业务逻辑，不读取真实项目，也不复用当前 `apps/editor` 的 React 代码。
 

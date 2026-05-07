@@ -4,7 +4,7 @@ import { loadGatewayConfig, modelEnvFromGatewayConfig } from '../apps/editor/src
 describe('AI gateway config', () => {
     it('loads local defaults and resolves upstream token from env', () => {
         const config = loadGatewayConfig({
-            PIXIF_AI_GATEWAY_CONFIG: 'apps/editor/does-not-exist.local.json',
+            PIXIFACT_AI_GATEWAY_CONFIG: 'apps/editor/does-not-exist.local.json',
             OPENAI_API_KEY: 'env-key',
         });
 
@@ -26,14 +26,14 @@ describe('AI gateway config', () => {
         });
 
         expect(env).toMatchObject({
-            PIXIF_AI_UPSTREAM_API: 'responses',
-            PIXIF_AI_UPSTREAM_URL: 'https://model.example.test',
-            PIXIF_AI_UPSTREAM_TOKEN: 'secret',
-            PIXIF_AI_UPSTREAM_MODEL: 'gpt-5.5',
-            PIXIF_AI_UPSTREAM_TIMEOUT_MS: 300000,
-            PIXIF_AI_UPSTREAM_REASONING_EFFORT: 'medium',
-            PIXIF_AI_UPSTREAM_SERVICE_TIER: 'fast',
-            PIXIF_AI_UPSTREAM_STORE: false,
+            PIXIFACT_AI_UPSTREAM_API: 'responses',
+            PIXIFACT_AI_UPSTREAM_URL: 'https://model.example.test',
+            PIXIFACT_AI_UPSTREAM_TOKEN: 'secret',
+            PIXIFACT_AI_UPSTREAM_MODEL: 'gpt-5.5',
+            PIXIFACT_AI_UPSTREAM_TIMEOUT_MS: 300000,
+            PIXIFACT_AI_UPSTREAM_REASONING_EFFORT: 'medium',
+            PIXIFACT_AI_UPSTREAM_SERVICE_TIER: 'fast',
+            PIXIFACT_AI_UPSTREAM_STORE: false,
         });
     });
 });

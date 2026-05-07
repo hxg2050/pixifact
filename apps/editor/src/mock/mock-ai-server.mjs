@@ -48,7 +48,7 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(port, host, () => {
-    console.log(`Pixif mock AI server listening on http://${host}:${port}/proposal`);
+    console.log(`Pixifact mock AI server listening on http://${host}:${port}/proposal`);
 });
 
 function shutdown() {

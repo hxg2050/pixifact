@@ -63,7 +63,7 @@ export function normalizeModelResponse(payload) {
 export function createSampleProposal(request) {
     return {
         prompt: request.prompt,
-        explanation: 'Gateway adapter sample response. Configure apps/editor/ai-gateway.config.local.json or PIXIF_AI_UPSTREAM_URL to call a real model.',
+        explanation: 'Gateway adapter sample response. Configure apps/editor/ai-gateway.config.local.json or PIXIFACT_AI_UPSTREAM_URL to call a real model.',
         commands: [],
         annotations: [{
             message: 'Sample adapter returned an empty proposal.',
@@ -76,11 +76,11 @@ export function createSampleProposal(request) {
 
 function systemPrompt() {
     return [
-        'You generate Pixif AI-first editor proposals.',
+        'You generate Pixifact AI-first editor proposals.',
         'Return JSON only. Do not use markdown.',
         'The JSON must be an AiProposal object or { "proposal": AiProposal }.',
         'AiProposal fields: id?, prompt?, explanation?, commands, annotations?, risks?.',
-        'commands must contain only valid Pixif EditorCommand objects.',
+        'commands must contain only valid Pixifact EditorCommand objects.',
         'The request context includes commandSchemas and commandSummary. Treat them as the allowed EditorCommand protocol.',
         'Do not claim command specs are missing when commandSummary is present.',
         'Use createNode with NodeSpec objects to create UI, and setComponentProp/setTransform to edit existing UI.',
@@ -96,17 +96,17 @@ function modelEnvFromConfig(config) {
     }
 
     return {
-        PIXIF_AI_UPSTREAM_URL: config.endpoint,
-        PIXIF_AI_UPSTREAM_TOKEN: config.token,
-        PIXIF_AI_UPSTREAM_MODEL: config.model,
-        PIXIF_AI_UPSTREAM_TIMEOUT_MS: config.timeoutMs,
-        PIXIF_AI_UPSTREAM_AUTH_HEADER: config.authHeader,
-        PIXIF_AI_UPSTREAM_AUTH_PREFIX: config.authPrefix,
-        PIXIF_AI_UPSTREAM_TEMPERATURE: config.temperature,
-        PIXIF_AI_UPSTREAM_API: config.api,
-        PIXIF_AI_UPSTREAM_REASONING_EFFORT: config.reasoningEffort,
-        PIXIF_AI_UPSTREAM_SERVICE_TIER: config.serviceTier,
-        PIXIF_AI_UPSTREAM_STORE: config.store,
+        PIXIFACT_AI_UPSTREAM_URL: config.endpoint,
+        PIXIFACT_AI_UPSTREAM_TOKEN: config.token,
+        PIXIFACT_AI_UPSTREAM_MODEL: config.model,
+        PIXIFACT_AI_UPSTREAM_TIMEOUT_MS: config.timeoutMs,
+        PIXIFACT_AI_UPSTREAM_AUTH_HEADER: config.authHeader,
+        PIXIFACT_AI_UPSTREAM_AUTH_PREFIX: config.authPrefix,
+        PIXIFACT_AI_UPSTREAM_TEMPERATURE: config.temperature,
+        PIXIFACT_AI_UPSTREAM_API: config.api,
+        PIXIFACT_AI_UPSTREAM_REASONING_EFFORT: config.reasoningEffort,
+        PIXIFACT_AI_UPSTREAM_SERVICE_TIER: config.serviceTier,
+        PIXIFACT_AI_UPSTREAM_STORE: config.store,
     };
 }
 
@@ -121,7 +121,7 @@ function effectiveEnv(request, env) {
     return {
         ...env,
         ...modelEnv,
-        PIXIF_AI_UPSTREAM_TOKEN: modelEnv.PIXIF_AI_UPSTREAM_TOKEN || envToken || env.PIXIF_AI_UPSTREAM_TOKEN,
+        PIXIFACT_AI_UPSTREAM_TOKEN: modelEnv.PIXIFACT_AI_UPSTREAM_TOKEN || envToken || env.PIXIFACT_AI_UPSTREAM_TOKEN,
     };
 }
 
@@ -131,25 +131,25 @@ function requestForModel(request) {
 }
 
 function promptSuffix(env) {
-    return env.PIXIF_AI_UPSTREAM_PROMPT_SUFFIX
-        ? `\n\nAdditional instruction:\n${env.PIXIF_AI_UPSTREAM_PROMPT_SUFFIX}`
+    return env.PIXIFACT_AI_UPSTREAM_PROMPT_SUFFIX
+        ? `\n\nAdditional instruction:\n${env.PIXIFACT_AI_UPSTREAM_PROMPT_SUFFIX}`
         : '';
 }
 
 export function createUpstreamRequestBody(request, env = process.env) {
-    const model = env.PIXIF_AI_UPSTREAM_MODEL ?? 'pixif-ai-editor';
-    const temperature = Number(env.PIXIF_AI_UPSTREAM_TEMPERATURE ?? 0.2);
+    const model = env.PIXIFACT_AI_UPSTREAM_MODEL ?? 'pixifact-ai-editor';
+    const temperature = Number(env.PIXIFACT_AI_UPSTREAM_TEMPERATURE ?? 0.2);
     const safeRequest = requestForModel(request);
 
-    if (env.PIXIF_AI_UPSTREAM_API === 'responses') {
+    if (env.PIXIFACT_AI_UPSTREAM_API === 'responses') {
         return {
             model,
             input: `${systemPrompt()}${promptSuffix(env)}\n\nRequest JSON:\n${JSON.stringify(safeRequest)}`,
-            reasoning: env.PIXIF_AI_UPSTREAM_REASONING_EFFORT
-                ? { effort: env.PIXIF_AI_UPSTREAM_REASONING_EFFORT }
+            reasoning: env.PIXIFACT_AI_UPSTREAM_REASONING_EFFORT
+                ? { effort: env.PIXIFACT_AI_UPSTREAM_REASONING_EFFORT }
                 : undefined,
-            service_tier: env.PIXIF_AI_UPSTREAM_SERVICE_TIER || undefined,
-            store: String(env.PIXIF_AI_UPSTREAM_STORE) === 'true',
+            service_tier: env.PIXIFACT_AI_UPSTREAM_SERVICE_TIER || undefined,
+            store: String(env.PIXIFACT_AI_UPSTREAM_STORE) === 'true',
             text: {
                 format: {
                     type: 'json_object',
@@ -189,10 +189,10 @@ function createHeaders(env) {
         'content-type': 'application/json',
     };
 
-    const token = env.PIXIF_AI_UPSTREAM_TOKEN;
+    const token = env.PIXIFACT_AI_UPSTREAM_TOKEN;
     if (token) {
-        const header = env.PIXIF_AI_UPSTREAM_AUTH_HEADER ?? 'authorization';
-        const prefix = env.PIXIF_AI_UPSTREAM_AUTH_PREFIX ?? 'Bearer';
+        const header = env.PIXIFACT_AI_UPSTREAM_AUTH_HEADER ?? 'authorization';
+        const prefix = env.PIXIFACT_AI_UPSTREAM_AUTH_PREFIX ?? 'Bearer';
         const value = prefix ? `${prefix} ${token}` : token;
         validateAsciiHeader('Model auth header', header);
         validateAsciiHeader('Model auth token', value);
@@ -212,7 +212,7 @@ function validateAsciiHeader(label, value) {
 }
 
 export function normalizeUpstreamUrl(url, env = process.env) {
-    if (!url || env.PIXIF_AI_UPSTREAM_API !== 'responses') {
+    if (!url || env.PIXIFACT_AI_UPSTREAM_API !== 'responses') {
         return url;
     }
 
@@ -222,7 +222,7 @@ export function normalizeUpstreamUrl(url, env = process.env) {
 
 export async function callUpstreamModel(request, options = {}) {
     const env = effectiveEnv(request, options.env ?? process.env);
-    const url = normalizeUpstreamUrl(env.PIXIF_AI_UPSTREAM_URL, env);
+    const url = normalizeUpstreamUrl(env.PIXIFACT_AI_UPSTREAM_URL, env);
     if (!url) {
         return createSampleProposal(request);
     }
@@ -232,7 +232,7 @@ export async function callUpstreamModel(request, options = {}) {
         throw new Error('Gateway model adapter requires fetch.');
     }
 
-    const timeoutMs = Number(env.PIXIF_AI_UPSTREAM_TIMEOUT_MS ?? defaultTimeoutMs);
+    const timeoutMs = Number(env.PIXIFACT_AI_UPSTREAM_TIMEOUT_MS ?? defaultTimeoutMs);
     const controller = timeoutMs > 0 ? new AbortController() : undefined;
     const timeout = controller
         ? setTimeout(() => controller.abort(), timeoutMs)
@@ -268,7 +268,7 @@ export async function callUpstreamModel(request, options = {}) {
             ...options,
             env: {
                 ...env,
-                PIXIF_AI_UPSTREAM_PROMPT_SUFFIX: [
+                PIXIFACT_AI_UPSTREAM_PROMPT_SUFFIX: [
                     'You previously claimed command specs were missing, but they are present in context.commandSchemas and context.commandSummary.',
                     'Generate a valid AiProposal now. Use createNode, batch, setComponentProp, and setTransform as needed.',
                     'For an inventory panel, create Group nodes and use ui.RoundedRectGraphic, ui.TextGraphic, and ui.Button. Use ui.Button.onClick = "useInventoryItem" only if that action exists.',

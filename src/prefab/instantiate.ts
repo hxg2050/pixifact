@@ -1,6 +1,6 @@
-import { GameObject, Group } from "../../core";
-import { ComponentRegistry } from "../../core/component/ComponentRegistry";
-import type { Component } from "../../core";
+import { GameObject, Group } from "../core";
+import { ComponentRegistry } from "../core/component/ComponentRegistry";
+import type { Component } from "../core";
 import type { ComponentSpec, InstantiateContext, InstantiateResult, NodeSpec, PrefabSpec } from "./spec";
 
 type PendingPropAssignment = {

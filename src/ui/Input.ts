@@ -291,12 +291,6 @@ export class Input extends Group {
     get paddingRight() {
         return this._padding[1];
     }
-    /**
-     * @deprecated 使用 `paddingRight`。该拼写错误保留用于兼容旧代码。
-     */
-    get paddinRight() {
-        return this.paddingRight;
-    }
 
     set paddingTop(val: number) {
         this._padding[0] = val;

@@ -1,17 +1,23 @@
-# Pixif AI-first Game Editor Plan
+# Pixifact AI-first Game Editor Plan
 
-本文档是 Pixif AI-first 游戏编辑器的产品、架构和执行计划。
+本文档是 Pixifact AI-first 游戏编辑器的产品、架构和执行计划。
+
+项目重新定义：
+
+- Pixifact 是 editor-first 项目，核心产品是 `apps/editor/`。
+- `src/` 下的 runtime、Prefab、Command、EditorDocument、AI proposal 等能力是编辑器基础设施。
+- 后续路线不再以通用 PixiJS framework 为中心，新增底层能力必须服务编辑器工作流、Prefab 实例化、Viewport 预览、Command 应用或导出。
 
 核心结论：
 
 - 编辑器是产品级应用，目录固定为 `apps/editor`。
-- `examples` 只放框架示例，不承载编辑器产品。
+- `examples` 只放 runtime 示例，不承载编辑器产品。
 - AI-first 是第一原则，自然语言是主要创作入口。
 - AI 对用户表现为“发送即执行”，不暴露手动预演和应用按钮。
 - AI 内部必须走结构化 command、validation、错误反馈、自动修正循环，直到命令合法后才写入项目。
 - 开发者通过属性级 Lock、Inspector、Undo、Memory 和项目结构约束控制最终结果。
 - 不内嵌代码编辑器，不使用 Monaco，不把 JSON textarea 作为主要交互。
-- Pixif 原生组件树、Command、EditorDocument、PrefabSpec 是真正的 source of truth。
+- EditorDocument、PrefabSpec、Command 和 runtime preview 是真正的编辑闭环。
 - 当前最终 UI 原型在 `apps/editor-dockview-prototype/`，后续产品实现应以该原型确定的交互为准。
 
 ## 0. 最终方案快照
@@ -143,14 +149,14 @@ React Aria Components
 lucide-react
   负责工具图标。
 
-Pixif Editor Design System
+Pixifact Editor Design System
   负责视觉风格、密度、颜色、尺寸、中文文案和 editor 交互一致性。
 ```
 
 硬性规则：
 
 - 业务面板不要直接 import `react-aria-components`。
-- 业务面板只能从 `apps/editor/src/components/system/` 使用 Pixif 包装组件。
+- 业务面板只能从 `apps/editor/src/components/system/` 使用 Pixifact 包装组件。
 - `components/system/` 是 React Aria / lucide 的唯一封装边界。
 - 不引入 AntD、MUI、Chakra、Mantine 这类完整视觉体系。
 - 不使用 shadcn/ui 作为组件源码来源；可参考交互结构，但不引入 Tailwind 依赖。
@@ -188,14 +194,14 @@ components/system/Disclosure.tsx
 产品名称：
 
 ```txt
-Pixif AI-first Game Editor
+Pixifact AI-first Game Editor
 ```
 
 一句话定位：
 
 ```txt
 一个面向游戏 UI、交互和轻量玩法逻辑的 AI-first 编辑器。
-设计师用自然语言描述目标，AI 生成可编辑的 Pixif 原生组件树；
+设计师用自然语言描述目标，AI 生成可编辑的 Prefab / runtime 组件树；
 开发者通过可视化审查、属性锁定、命令回放和项目记忆保持工程控制权。
 ```
 
@@ -275,7 +281,7 @@ Prompt -> Send -> Command validation -> AI repair loop -> Auto apply -> Manual r
 
 系统输出：
 
-- 可编辑的 Pixif 原生组件树。
+- 可编辑的 Prefab / runtime 组件树。
 - 可解释的布局和样式说明。
 - 已通过校验的 command 执行结果。
 - 必要时展示关键修正轨迹。
@@ -296,7 +302,7 @@ AI 的每一次修改都必须可控。
 
 ### 3.3 Native-first
 
-AI 生成的是 Pixif 原生结构，不是中间页面、HTML mock 或无法维护的 JSON 文本。
+AI 生成的是编辑器可维护的 Prefab / Component / Command 结构，不是中间页面、HTML mock 或无法维护的 JSON 文本。
 
 真实资产模型：
 
@@ -403,10 +409,10 @@ apps/editor/src/
 当前验证状态：
 
 ```txt
-pnpm test
-pnpm editor:build
-pnpm build
-pnpm editor:e2e
+bun run test
+bun run editor:build
+bun run build
+bun run editor:e2e
 ```
 
 以上命令已通过；E2E 覆盖的是旧 Alpha 的 prompt -> dry-run -> apply -> manual refine -> memory -> export -> import 流程。
@@ -433,21 +439,21 @@ src/ui/graphics/
   RoundedRectGraphic.ts
   TextGraphic.ts
 
-src/ui/prefab/
+src/prefab/
   spec.ts
   dsl.ts
   uiDsl.ts
   instantiate.ts
   templates.ts
 
-src/ui/commands/
+src/commands/
   Command.ts
   CommandStack.ts
   applyCommand.ts
   validateCommand.ts
   utils.ts
 
-src/ui/editor/
+src/editor/
   EditorDocument.ts
   EditorProjectState.ts
   EditorSelection.ts
@@ -476,7 +482,7 @@ src/ui/editor/
 - `Group` 作为唯一层级容器。
 - `Component` 表达能力。
 - `Graphic` 表达显示。
-- `instantiate(PrefabSpec)` 生成真实 Pixif runtime tree。
+- `instantiate(PrefabSpec)` 生成真实 runtime tree。
 - Command 协议和 `CommandStack`。
 - Command validation。
 - Undo / redo。
@@ -492,7 +498,7 @@ src/ui/editor/
 - ActionRegistry。
 - LogicGraph MVP。
 - PreferenceMemory。
-- Remote AI proposal protocol：`pixif.aiProposal.v1`。
+- Remote AI proposal protocol：`pixifact.aiProposal.v1`。
 - Mock AI proposal provider。
 
 ### 4.3 当前不应恢复的旧方向
@@ -575,13 +581,13 @@ EditorDocument
 采用：
 
 ```txt
-Pixif / PixiJS canvas
+Pixifact runtime / PixiJS canvas
 ```
 
 渲染路径：
 
 ```txt
-PrefabSpec -> instantiate() -> RuntimePreview -> Pixif runtime tree -> canvas
+PrefabSpec -> instantiate() -> RuntimePreview -> runtime tree -> canvas
 ```
 
 Runtime tree 只用于：
@@ -633,7 +639,7 @@ Zod
 
 - AI 和用户导入数据不可信。
 - TypeScript 只能保证编译期。
-- Alpha 可用性需要清晰的错误报告和兼容策略。
+- Alpha 可用性需要清晰的错误报告和修复策略。
 
 ### 5.7 AI Gateway
 
@@ -646,7 +652,7 @@ HTTP JSON protocol
 协议名：
 
 ```txt
-pixif.aiCommand.v1
+pixifact.aiCommand.v1
 ```
 
 AI provider 形态：
@@ -726,7 +732,7 @@ apps/editor/
       MemoryPanel.tsx
       ProjectPanel.tsx
     preview/
-      PixifViewport.tsx
+      PixifactViewport.tsx
       selectionBounds.ts
       hitTestRuntimeNode.ts
     services/
@@ -738,7 +744,7 @@ apps/editor/
       mockAiServerCore.mjs
 ```
 
-### 6.2 Framework Core
+### 6.2 Runtime Foundation
 
 继续保留在：
 
@@ -748,7 +754,7 @@ src/
 
 原则：
 
-- `src/` 提供框架、文档模型、command、AI repair loop、runtime preview。
+- `src/` 提供 runtime foundation、文档模型、command、AI repair loop、runtime preview。
 - `apps/editor/` 提供产品 UI。
 - `apps/editor/` 可以依赖 `src/`。
 - `src/` 不依赖 `apps/editor/`。
@@ -760,7 +766,7 @@ src/
 目标：
 
 ```txt
-自然语言生成 Pixif 原生组件树，并自动修正到合法 command 后应用。
+自然语言生成 Prefab / runtime 组件树，并自动修正到合法 command 后应用。
 ```
 
 输入：
@@ -796,7 +802,7 @@ src/
 目标：
 
 ```txt
-让用户看到真实 Pixif runtime，而不是 HTML mock。
+让用户看到真实 runtime preview，而不是 HTML mock。
 ```
 
 能力：
@@ -812,7 +818,7 @@ src/
 目标：
 
 ```txt
-展示和管理 Pixif 原生节点树。
+展示和管理 Prefab 节点树。
 ```
 
 能力：
@@ -1125,13 +1131,13 @@ Phase 14 是当前下一步。
 
 - 确认 `apps/editor` 为空。
 - 确认 `package.json` 暂无 stale editor scripts。
-- 跑 `pnpm test`。
-- 跑 `pnpm build`。
+- 跑 `bun run test`。
+- 跑 `bun run build`。
 
 验收：
 
-- `pnpm test` 通过。
-- `pnpm build` 通过。
+- `bun run test` 通过。
+- `bun run build` 通过。
 
 ### Phase 1: React App Scaffold
 
@@ -1160,8 +1166,8 @@ Phase 14 是当前下一步。
 
 验收：
 
-- `pnpm editor` 可启动。
-- `pnpm editor:build` 通过。
+- `bun run editor` 可启动。
+- `bun run editor:build` 通过。
 - 页面不是空白。
 - 能显示基础 editor shell。
 
@@ -1172,13 +1178,13 @@ Phase 14 是当前下一步。
 目标：
 
 ```txt
-在 editor shell 中显示真实 Pixif runtime preview。
+在 editor shell 中显示真实 runtime preview preview。
 ```
 
 任务：
 
-- 实现 `PixifViewport.tsx`。
-- 创建 Pixif `Application`。
+- 实现 `PixifactViewport.tsx`。
+- 创建 runtime `Application`。
 - 使用 `EditorDocument.rebuildPreview()`。
 - 将 preview 挂载到 canvas。
 - 监听 document change 后刷新。
@@ -1410,15 +1416,15 @@ Phase 14 是当前下一步。
 
 - 添加 mock server。
 - 恢复 package script：
-  - `editor:ai`: `node apps/editor/src/mock/mock-ai-server.mjs`
+  - `editor:ai`: `bun apps/editor/src/mock/mock-ai-server.mjs`
 - Remote provider 支持请求本地 mock server。
 - 增加 mock server 测试。
 
 验收：
 
-- `pnpm editor:ai` 可启动。
+- `bun run editor:ai` 可启动。
 - editor 切换 Remote 后可生成 proposal。
-- `pnpm test` 覆盖 mock server core。
+- `bun run test` 覆盖 mock server core。
 
 ### Phase 12: E2E Alpha Scenario
 
@@ -1459,7 +1465,7 @@ Phase 14 是当前下一步。
 - 已建立工具动作图标按钮体系，决策动作保留文字按钮。
 - 已检查并修正空态、错误态、按钮禁用态和导入失败状态。
 - 已给拆分后的 `apps/editor/src/panels/` 添加维护说明，明确每个面板的职责边界。
-- 已整理本地使用流程：`pnpm editor`、`pnpm editor:ai`、`pnpm editor:e2e`。
+- 已整理本地使用流程：`bun run editor`、`bun run editor:ai`、`bun run editor:e2e`。
 - 已检查 Alpha E2E 覆盖核心使用路径和关键失败路径。
 - 已复查构建产物和测试报告；`apps/editor/dist`、`dist`、`test-results` 为本地验证产物，按 `.gitignore` 规则避免误提交。
 
@@ -1469,7 +1475,7 @@ Phase 14 是当前下一步。
 - 使用者能按文档跑通 Mock / Remote 两种 AI proposal 路径。
 - UI 主要用户动作、错误提示、空态为中文；工程术语保持英文或中英混用。
 - 工具动作按钮支持 SVG 图标或图标 + 文本，且纯图标按钮具备 `aria-label` 和 `title`。
-- `pnpm test`、`pnpm editor:build`、`pnpm editor:e2e`、`pnpm build` 通过。
+- `bun run test`、`bun run editor:build`、`bun run editor:e2e`、`bun run build` 通过。
 
 ### Phase 14: Real AI Gateway / 真实 AI 网关接入
 
@@ -1497,21 +1503,21 @@ Phase 14 是当前下一步。
 - 已将 Remote endpoint、timeout、auth header 持久化到浏览器 localStorage。
 - 已将 Remote gateway/model 的非敏感配置持久化到浏览器 localStorage。
 - 已明确 gateway token 和 model token 不持久化，不写入 `.ai-editor.json`。
-- 已实现 `apps/editor/src/gateway/modelAdapter.mjs`，支持 OpenAI-compatible HTTP 上游。
-- 已支持从 editor UI 随 `pixif.aiProposal.v1` 请求传入 model API、endpoint、token、model、timeout、auth header、auth prefix、reasoning effort、service tier、store 和 temperature。
-- 已支持 OpenAI-compatible `Responses` 和 `Chat Completions` 两种上游请求体。
+- 已实现 `apps/editor/src/gateway/modelAdapter.mjs`，支持 OpenAI-style HTTP 上游。
+- 已支持从 editor UI 随 `pixifact.aiProposal.v1` 请求传入 model API、endpoint、token、model、timeout、auth header、auth prefix、reasoning effort、service tier、store 和 temperature。
+- 已支持 OpenAI-style `Responses` 和 `Chat Completions` 两种上游请求体。
 - 已将默认 Model 预设为 `ylscode`：`Responses`、`https://code.ylsagi.com/codex/v1/responses`、`gpt-5.5`、`medium`、`fast`、`store=false`。
-- 已保持环境变量作为 gateway adapter 的开发/CI fallback，但真实模型联调优先走界面配置。
+- 已保留环境变量作为 gateway adapter 的开发/CI 配置入口，但真实模型联调优先走界面配置。
 - 已在转发给模型的 prompt 中移除 `request.model`，避免把模型 token 放进模型上下文。
-- 已支持上游返回 `AiProposal`、`{ proposal }` 或 OpenAI-compatible `choices[].message.content` JSON。
-- 已补充 model adapter 单元测试，覆盖 sample fallback、请求体、鉴权 header、上游错误和 timeout。
+- 已支持上游返回 `AiProposal`、`{ proposal }` 或 OpenAI-style `choices[].message.content` JSON。
+- 已补充 model adapter 单元测试，覆盖 sample response、请求体、鉴权 header、上游错误和 timeout。
 - 已补充 UI 模型配置测试，覆盖请求体传递、非敏感配置持久化和 token 不持久化。
 - 已完成真实 `ylscode` / `gpt-5.5` / Responses API 手动联调：`Editor -> Gateway -> ylsagi Responses -> AiProposal -> Dry Run / Apply`。
 - 已支持 Responses base URL 自动规范化：`https://code.ylsagi.com/codex` 会转为 `/v1/responses`。
 - 已将 Remote 和 Model timeout 默认提升到 `300000ms`，并将默认 reasoning effort 调整为 `medium`，避免交互路径长时间卡在 `xhigh`。
 - 已补充 `commandSchemas` 和 `commandSummary` 到 AI context，明确可用 EditorCommand 协议。
 - 已在 gateway system prompt 中明确要求模型使用 `context.commandSchemas` / `context.commandSummary`，不再声明缺少命令规范。
-- 已增加真实模型输出修复：兼容 `type -> op`、`nodeId -> node`、`componentId -> component`、`parentId -> parent`。
+- 已收紧真实模型输出要求：command 必须使用当前 `EditorCommand` 字段。
 - 已增加“模型误称缺少命令规范”时的 gateway 自动纠偏重试。
 
 剩余任务：
@@ -1561,7 +1567,7 @@ Phase 14 是当前下一步。
 
 保留开源：
 
-- Pixif runtime。
+- Runtime preview。
 - Component model。
 - PrefabSpec。
 - Command protocol。

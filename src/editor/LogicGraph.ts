@@ -33,7 +33,7 @@ export interface LogicFlowSpec {
 
 export interface LogicGraphSpec {
     version: 1;
-    type: 'pixif.logicGraph';
+    type: 'pixifact.logicGraph';
     flows: LogicFlowSpec[];
 }
 
@@ -50,7 +50,7 @@ export interface LogicValidationResult {
 export function createLogicGraph(flows: LogicFlowSpec[] = []): LogicGraphSpec {
     return {
         version: 1,
-        type: 'pixif.logicGraph',
+        type: 'pixifact.logicGraph',
         flows,
     };
 }
@@ -134,8 +134,8 @@ function validateStep(step: LogicStepSpec, flow: LogicFlowSpec, context: LogicVa
 export function validateLogicGraph(graph: LogicGraphSpec, context: LogicValidationContext = {}): LogicValidationResult {
     const errors: string[] = [];
 
-    if (graph.type !== 'pixif.logicGraph') {
-        errors.push('Logic graph type must be "pixif.logicGraph".');
+    if (graph.type !== 'pixifact.logicGraph') {
+        errors.push('Logic graph type must be "pixifact.logicGraph".');
     }
 
     const flowIds = new Set<string>();

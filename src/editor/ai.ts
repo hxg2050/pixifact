@@ -1,4 +1,4 @@
-import { ComponentRegistry } from "../../core";
+import { ComponentRegistry } from "../core";
 import { applyCommand } from "../commands";
 import type { CommandResult, EditorCommand } from "../commands";
 import type { ComponentSpec, NodeSpec } from "../prefab";

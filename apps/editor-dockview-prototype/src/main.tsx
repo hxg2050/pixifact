@@ -469,7 +469,7 @@ function FileSystemPanel({ params }: IDockviewPanelProps<PanelParams>) {
                                 if (!component) {
                                     return;
                                 }
-                                event.dataTransfer.setData('application/x-pixif-component', component.id);
+                                event.dataTransfer.setData('application/x-pixifact-component', component.id);
                                 event.dataTransfer.effectAllowed = 'copy';
                             }}
                             type="button"
@@ -699,7 +699,7 @@ function InspectorPanel({ params }: IDockviewPanelProps<PanelParams>) {
 
     const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
         event.preventDefault();
-        const componentId = event.dataTransfer.getData('application/x-pixif-component');
+        const componentId = event.dataTransfer.getData('application/x-pixifact-component');
         if (componentId) {
             addComponent(componentId);
             return;
@@ -871,7 +871,7 @@ function App() {
                 <div className="brand">
                     <span className="mark">P</span>
                     <div>
-                        <strong>Pixif Editor</strong>
+                        <strong>Pixifact Editor</strong>
                         <small>Dockview prototype · 只保留预制体资源模型</small>
                     </div>
                 </div>

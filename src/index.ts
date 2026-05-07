@@ -1,3 +1,6 @@
 export * from './core'
 export * from './ui'
+export * from './prefab'
+export * from './editor'
+export * from './commands'
 export * from 'eventemitter3'

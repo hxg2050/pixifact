@@ -45,31 +45,6 @@ function isAuthorized(headers, gatewayToken) {
     return authorization === `Bearer ${gatewayToken}`;
 }
 
-function normalizeCommand(command) {
-    if (!command || typeof command !== 'object') {
-        return command;
-    }
-
-    const normalized = {
-        ...command,
-        op: command.op ?? command.type,
-        node: command.node ?? command.nodeId,
-        component: command.component ?? command.componentId,
-        parent: command.parent ?? command.parentId,
-    };
-
-    if (Array.isArray(command.commands)) {
-        normalized.commands = command.commands.map(normalizeCommand);
-    }
-
-    delete normalized.type;
-    delete normalized.nodeId;
-    delete normalized.componentId;
-    delete normalized.parentId;
-
-    return normalized;
-}
-
 export function validateGatewayPayload(payload) {
     const errors = [];
 
@@ -77,8 +52,8 @@ export function validateGatewayPayload(payload) {
         return ['请求体必须是 JSON 对象。'];
     }
 
-    if (payload.protocol !== 'pixif.aiProposal.v1') {
-        errors.push('protocol 必须是 pixif.aiProposal.v1。');
+    if (payload.protocol !== 'pixifact.aiProposal.v1') {
+        errors.push('protocol 必须是 pixifact.aiProposal.v1。');
     }
 
     if (typeof payload.prompt !== 'string') {
@@ -111,7 +86,7 @@ function normalizeProposal(prompt, value) {
         id: candidate.id ?? `proposal-${Date.now()}`,
         prompt: candidate.prompt ?? prompt,
         explanation: candidate.explanation ?? '',
-        commands: candidate.commands.map(normalizeCommand),
+        commands: candidate.commands,
         annotations: Array.isArray(candidate.annotations) ? candidate.annotations : [],
         risks: Array.isArray(candidate.risks) ? candidate.risks : [],
     };
@@ -134,7 +109,7 @@ export async function createGatewayResponse(payload, options = {}) {
 
     const validationErrors = validateGatewayPayload(payload);
     if (validationErrors.length > 0) {
-        return error(400, gatewayErrorCodes.invalidRequest, '请求不符合 pixif.aiProposal.v1。', validationErrors);
+        return error(400, gatewayErrorCodes.invalidRequest, '请求不符合 pixifact.aiProposal.v1。', validationErrors);
     }
 
     try {

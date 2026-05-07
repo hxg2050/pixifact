@@ -17,8 +17,8 @@ export function createMockAiResponse(payload, createMockAiProposal) {
         return json(400, { error: '请求体必须是 JSON 对象。' });
     }
 
-    if (payload.protocol !== 'pixif.aiProposal.v1') {
-        return json(400, { error: 'protocol 必须是 pixif.aiProposal.v1。' });
+    if (payload.protocol !== 'pixifact.aiProposal.v1') {
+        return json(400, { error: 'protocol 必须是 pixifact.aiProposal.v1。' });
     }
 
     if (typeof payload.prompt !== 'string') {

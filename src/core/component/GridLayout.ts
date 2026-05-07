@@ -9,18 +9,6 @@ export class GridLayout extends Component<Group> {
 
     /**
      * 横向列数。
-     *
-     * @deprecated 旧命名保留用于兼容。新代码请使用 `col`。
-     */
-    get row() {
-        return this.col;
-    }
-    set row(val: number) {
-        this.col = val;
-    }
-
-    /**
-     * 横向列数。
      */
     private _col = 1;
     get col() {

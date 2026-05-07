@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,11 +8,11 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const sourceRoot = path.join(repoRoot, 'skills');
 
 function usage() {
-    console.log(`Install pixif Codex skills.
+    console.log(`Install pixifact Codex skills.
 
 Usage:
-  pixif-skills [--target <skills-dir>] [--replace] [--dry-run]
-  node scripts/install-skills.mjs [--target <skills-dir>] [--replace] [--dry-run]
+  pixifact-skills [--target <skills-dir>] [--replace] [--dry-run]
+  bun scripts/install-skills.mjs [--target <skills-dir>] [--replace] [--dry-run]
 
 Options:
   --target <skills-dir>  Destination skills directory.
@@ -91,7 +91,7 @@ try {
 
     const skills = listSkills();
     if (skills.length === 0) {
-        throw new Error(`No installable pixif skills found under ${sourceRoot}`);
+        throw new Error(`No installable pixifact skills found under ${sourceRoot}`);
     }
 
     for (const skill of skills) {

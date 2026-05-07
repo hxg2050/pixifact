@@ -97,7 +97,7 @@ class MockDirectoryHandle {
 }
 
 describe('project file tree service', () => {
-    it('normalizes Pixif prefab asset names', () => {
+    it('normalizes Pixifact prefab asset names', () => {
         expect(prefabAssetName('inventory panel')).toBe('InventoryPanel');
         expect(prefabAssetName('InventoryPanel.prefab')).toBe('InventoryPanel');
         expect(prefabAssetName('test')).toBe('Test');

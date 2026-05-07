@@ -148,7 +148,7 @@ export function EditorApp() {
                 <div className="brand">
                     <span className="mark" aria-hidden="true">P</span>
                     <div>
-                        <strong>Pixif Editor</strong>
+                        <strong>Pixifact Editor</strong>
                         <small>Dockview prototype · 只保留 Prefab 资源模型</small>
                     </div>
                 </div>

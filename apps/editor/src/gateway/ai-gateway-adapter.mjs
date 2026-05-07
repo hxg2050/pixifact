@@ -64,7 +64,7 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(config.port, config.host, () => {
-    console.log(`Pixif AI gateway adapter listening on http://${config.host}:${config.port}/proposal`);
+    console.log(`Pixifact AI gateway adapter listening on http://${config.host}:${config.port}/proposal`);
 });
 
 function shutdown() {

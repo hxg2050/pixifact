@@ -9,7 +9,7 @@ import type { LogicGraphSpec } from "./LogicGraph";
 
 export interface EditorProjectState {
     version: 1;
-    type: 'pixif.aiEditorProject';
+    type: 'pixifact.aiEditorProject';
     prefab: PrefabSpec;
     selection?: EditorSelection;
     designTokens?: DesignTokenSpec;
@@ -24,7 +24,7 @@ export interface EditorProjectState {
 export function isEditorProjectState(value: unknown): value is EditorProjectState {
     return typeof value === 'object'
         && value !== null
-        && (value as { type?: unknown }).type === 'pixif.aiEditorProject'
+        && (value as { type?: unknown }).type === 'pixifact.aiEditorProject'
         && (value as { version?: unknown }).version === 1
         && typeof (value as { prefab?: unknown }).prefab === 'object'
         && (value as { prefab?: { type?: unknown } }).prefab?.type === 'prefab';

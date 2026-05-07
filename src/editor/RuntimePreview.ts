@@ -1,5 +1,5 @@
-import { GameObject, Group } from "../../core";
-import type { Component } from "../../core";
+import { GameObject, Group } from "../core";
+import type { Component } from "../core";
 import { instantiate } from "../prefab";
 import type { InstantiateContext, PrefabSpec } from "../prefab";
 

@@ -762,7 +762,7 @@ describe('EditorDocument', () => {
         expect(calls[0].init?.method).toBe('POST');
 
         const body = JSON.parse(String(calls[0].init?.body)) as ReturnType<typeof createAiProposalRequest>;
-        expect(body.protocol).toBe('pixif.aiProposal.v1');
+        expect(body.protocol).toBe('pixifact.aiProposal.v1');
         expect(body.prompt).toBe('make it remote');
         expect(body.model).toMatchObject({
             endpoint: 'https://model.example.test/v1/chat/completions',

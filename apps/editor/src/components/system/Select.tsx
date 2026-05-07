@@ -15,7 +15,7 @@ import type {
     SelectProps as AriaSelectProps,
 } from 'react-aria-components';
 
-const emptySelectionKey = '__pixif_empty_selection__';
+const emptySelectionKey = '__pixifact_empty_selection__';
 
 export interface SystemSelectOption {
     disabled?: boolean;

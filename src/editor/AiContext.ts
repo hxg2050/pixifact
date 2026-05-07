@@ -128,7 +128,7 @@ export function getAiCommandSummary() {
 }
 
 export interface AiProposalRequest {
-    protocol: 'pixif.aiProposal.v1';
+    protocol: 'pixifact.aiProposal.v1';
     prompt: string;
     context: AiAuthoringContext;
     model?: AiModelConfig;
@@ -173,7 +173,7 @@ export function createAiProposalRequest(
     options: AiProposalRequestOptions = {},
 ): AiProposalRequest {
     const request: AiProposalRequest = {
-        protocol: 'pixif.aiProposal.v1',
+        protocol: 'pixifact.aiProposal.v1',
         prompt,
         context: buildAiAuthoringContext(context),
     };

@@ -117,16 +117,6 @@ export class Layout extends Component {
         this.markResize();
     }
 
-    /**
-     * @deprecated 使用 `centerX`。旧命名保留用于兼容。
-     */
-    get vertical() {
-        return this.centerX;
-    }
-    set vertical(val: number | undefined) {
-        this.centerX = val;
-    }
-
     private _centerY?: number;
 
     /**
@@ -144,16 +134,6 @@ export class Layout extends Component {
     set centerY(val: number | undefined) {
         this._centerY = val;
         this.markResize();
-    }
-
-    /**
-     * @deprecated 使用 `centerY`。旧命名保留用于兼容。
-     */
-    get horizontal() {
-        return this.centerY;
-    }
-    set horizontal(val: number | undefined) {
-        this.centerY = val;
     }
 
     private _minWidth = 0;

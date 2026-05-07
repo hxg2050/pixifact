@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "type": "pixif.aiEditorProject",
+  "type": "pixifact.aiEditorProject",
   "prefab": {
     "version": 1,
     "type": "prefab",
@@ -714,7 +714,7 @@
   ],
   "logicGraph": {
     "version": 1,
-    "type": "pixif.logicGraph",
+    "type": "pixifact.logicGraph",
     "flows": [
       {
         "id": "flow-startBattle",

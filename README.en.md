@@ -1,367 +1,149 @@
-# pixif
+# Pixifact AI-first Game Editor
 
-pixif is a lightweight TypeScript wrapper around PixiJS v8. It adds a UI- and game-object-oriented layer on top of Pixi's rendering model.
+Pixifact is an editor-first AI game UI and lightweight gameplay authoring tool.
 
-It keeps PixiJS rendering primitives while adding `GameObject`, `Group`, component lifecycles, layout components, and DOM-backed input controls. It is suitable for interactive 2D scenes, tool UIs, and lightweight canvas-based interfaces.
+This repository is no longer defined by the standalone `pixifact` framework. The editor product is the center of gravity. The `pixifact` runtime, prefab model, commands, `EditorDocument`, and related code under `src/` are the foundation that makes the editor possible.
 
 [中文](./README.md)
 
-## Features
+## Product Positioning
 
-- Built on PixiJS v8 and compatible with the Pixi ecosystem.
-- `GameObject.instantiate()` for object creation and parenting.
-- `Group` as the only container node; render leaves do not manage children.
-- `Application` drives active objects and components through a single `app.ticker` callback.
-- Layout helpers including `Layout`, `GridLayout`, and `FlexGroup`.
-- UI components including `Button`, `ScrollView`, and DOM-backed `Input` / `Textarea`.
-- Rollup build, Vitest tests, and a Vite example.
+Pixifact's primary authoring loop is:
 
-## Installation
+```txt
+Prompt -> EditorCommand -> Validate / Repair -> EditorDocument -> Runtime Preview -> Export / Import
+```
+
+The current Alpha still exposes a `Proposal -> Dry Run -> Diff -> Apply` review flow so command validation, diffing, undo, export, and import can be verified. The product direction is send-and-execute: the user describes the goal, AI returns structured commands, the editor validates and repairs them, then applies legal changes to `EditorDocument`.
+
+## Boundaries
+
+- `apps/editor/` is the product surface.
+- `EditorDocument` is the only source of truth for project data.
+- Zustand stores UI state only, not copies of PrefabSpec or EditorDocument.
+- AI cannot directly mutate projects; it can only produce structured commands / proposals.
+- Real project changes must go through `EditorDocument` APIs or commands.
+- JSON is an asset format, not the primary editing surface.
+- No Monaco and no embedded TypeScript editor.
+- The runtime is the preview and prefab-instantiation foundation, not the repository's main product goal.
+
+## Repository Layout
+
+```txt
+apps/editor/                  AI-first editor product
+apps/editor-dockview-prototype/  IDE-style dock layout interaction prototype
+src/                          editor domain model, commands, prefab, and runtime foundation
+src/editor/                   EditorDocument, AI context, diff, memory, logic, and editor-domain models
+src/commands/                 EditorCommand validation / apply / undo foundation
+src/prefab/                   PrefabSpec, DSL, templates, and runtime instantiation
+examples/                     runtime examples, not editor product surfaces
+tests/                        unit tests and editor-domain tests
+tests/e2e/                    Playwright Alpha workflow tests
+sample-projects/              projects importable by the editor
+skills/                       repository-owned Codex skills
+```
+
+## Run The Editor
 
 ```bash
-pnpm add pixif pixi.js
+bun install
+bun run editor
 ```
 
-For local development in this repository:
+Vite prints the local URL, usually:
+
+```txt
+http://localhost:5173/
+```
+
+## AI Gateway
+
+Start the local gateway adapter:
 
 ```bash
-pnpm install
+bun run editor:gateway
 ```
 
-## Quick Start
-
-```ts
-import {
-    Application,
-    GameObject,
-    Graphics,
-    Group,
-    Label,
-    LabelStyle,
-    Layout,
-} from 'pixif';
-
-const app = new Application();
-
-await app.init({
-    resizeTo: window,
-    backgroundColor: 0xf4f0e6,
-    antialias: true,
-});
-
-document.body.append(app.canvas);
-
-const stage = app.root;
-
-const panel = GameObject.instantiate(Group, stage, {
-    width: 360,
-    height: 220,
-    anchorX: 0.5,
-    anchorY: 0.5,
-});
-
-panel.addComponent(Layout, {
-    centerX: 0,
-    centerY: 0,
-});
-
-GameObject.instantiate(Graphics, panel)
-    .roundRect(0, 0, panel.width, panel.height, 12)
-    .fill(0xffffff)
-    .stroke({ width: 1, color: 0x2f3437, alpha: 0.18 });
-
-GameObject.instantiate(Label, panel, {
-    value: 'Hello pixif',
-    x: 24,
-    y: 24,
-    style: new LabelStyle({
-        fill: 0x23272a,
-        fontSize: 24,
-        fontWeight: '700',
-    }),
-});
-```
-
-## Core Concepts
-
-### Application
-
-`Application` extends PixiJS `Application`. After initialization, it creates `app.root` as the root pixif `Group`.
-
-Objects are updated only when they are mounted under `app.root` and either the object itself or one of its components has update work.
-
-### GameObject
-
-`GameObject` is the base object model in pixif. It handles:
-
-- The underlying Pixi display object.
-- Common transform properties such as position, scale, rotation, and alpha.
-- Component management.
-- Add, remove, resize, reposition, transform-change, and ticker events.
-
-Use `GameObject.instantiate()` to create objects:
-
-```ts
-const group = GameObject.instantiate(Group, app.root, {
-    x: 100,
-    y: 80,
-    width: 200,
-    height: 120,
-});
-```
-
-### Group and Leaves
-
-`Group` is the only container node in the current model.
-
-`Graphics`, `Label`, `Image`, and `NineSliceImage` are render leaves. They render content but do not manage child nodes.
-
-Complex UI can be written as `Group` subclasses that build their internal child tree in `render()`. `GameObject.instantiate()` applies props before `render()`, so internal nodes can read initialization values:
-
-```ts
-class UserCard extends Group {
-    title = '';
-    titleLabel!: Label;
-
-    render() {
-        this.titleLabel = GameObject.instantiate(Label, this, {
-            value: this.title,
-        });
-    }
-}
-
-const card = GameObject.instantiate(UserCard, stage, {
-    title: 'pixif',
-    width: 240,
-    height: 80,
-});
-```
-
-### Component
-
-Components can be attached to a `GameObject`:
-
-```ts
-import { Component, Group } from 'pixif';
-
-class Spinner extends Component<Group> {
-    speed = 0.02;
-
-    update(dt: number) {
-        this.gameObject.rotation += this.speed * dt;
-    }
-}
-
-group.addComponent(Spinner);
-```
-
-Component `start()` runs once before the first `update()`. Component `update()` methods are driven by `app.ticker` after the object is mounted under `Application.root`.
-
-## Layout
-
-### Layout
-
-`Layout` positions an object relative to its parent. It supports centering, edge constraints, and stretching:
-
-```ts
-panel.addComponent(Layout, {
-    centerX: 0,
-    centerY: 0,
-});
-```
-
-```ts
-child.addComponent(Layout, {
-    left: 20,
-    right: 20,
-    top: 10,
-    bottom: 10,
-    minWidth: 80,
-    minHeight: 40,
-});
-```
-
-### GridLayout
-
-`GridLayout` arranges child nodes in a grid:
-
-```ts
-grid.addComponent(GridLayout, {
-    col: 3,
-    gridWidth: 120,
-    gridHeight: 80,
-    gapHorizontal: 16,
-    gapVertical: 16,
-});
-```
-
-### FlexGroup
-
-`FlexGroup` arranges children in a flexible horizontal or vertical list.
-
-## UI Components
-
-### Button
-
-`Button` is an interactive button with text, a default graphics background, optional nine-slice texture, disabled state, and pressed-scale feedback:
-
-```ts
-const button = GameObject.instantiate(Button, panel, {
-    x: 24,
-    y: 150,
-    width: 130,
-    height: 42,
-    value: 'Confirm',
-});
-
-button.emitter.on('tap', () => {
-    console.log('clicked');
-});
-```
-
-Pressed scaling is applied to the button's internal visual container, so the button's own layout size and hit area stay stable.
-
-### Input / Textarea
-
-`Input` and `Textarea` use real HTML elements for text entry, then synchronize the DOM element with the Pixi canvas position.
-
-```ts
-const input = GameObject.instantiate(Input, form, {
-    x: 18,
-    y: 88,
-    width: 174,
-    height: 44,
-    fontSize: 16,
-});
-
-input.value = 'pixif';
-```
-
-Notes:
-
-- Input components align to a target canvas. By default they use the first `canvas` on the page.
-- If the page has multiple canvases, pass the `canvas` property explicitly.
-- DOM input components follow their own transform changes, `Layout` repositioning, window resize, and scroll events to keep their position in sync.
-- The current implementation keeps a self-managed DOM overlay and does not migrate to the experimental PixiJS v8 `DOMContainer`.
-
-### ScrollView
-
-`ScrollView` is a scrollable container. Add scrollable children to its public `content` group:
-
-```ts
-const scroll = GameObject.instantiate(ScrollView, stage, {
-    width: 720,
-    height: 480,
-});
-
-GameObject.instantiate(Label, scroll.content, {
-    value: 'Scrollable content',
-});
-
-scroll.refreshContentHeight();
-```
-
-It supports wheel and drag scrolling and provides `scrollY`, `maxScrollY`, `scrollTo()`, `scrollBy()`, and `refreshContentHeight()`.
-
-## Example
-
-Run the basic example:
+Or pass a model key through the environment:
 
 ```bash
-pnpm example
+OPENAI_API_KEY=your-key bun run editor:gateway
 ```
 
-Build the basic example:
+Default Remote endpoint:
+
+```txt
+http://localhost:8788/proposal
+```
+
+The gateway only returns structured proposals. It does not mutate `EditorDocument` and does not write project files.
+
+## Verification
+
+Run the smallest relevant check first.
+
+Editor changes:
 
 ```bash
-pnpm example:build
+bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
+bun run test
+bun run editor:build
 ```
 
-Example source:
-
-```text
-examples/basic/src/main.ts
-```
-
-## Codex Skills
-
-The pixif npm package ships a project-specific Codex skill:
-
-```text
-skills/pixif-framework
-```
-
-Install from npm without cloning the repository:
+Alpha workflow changes:
 
 ```bash
-npm exec --package pixif -- pixif-skills --replace
+bun run editor:e2e
 ```
 
-If pixif is already installed as a dependency in the current project:
+Runtime / package-entry changes:
 
 ```bash
-pnpm exec pixif-skills --replace
+bun run build
+bun run example:build
 ```
-
-When developing inside the pixif source repository:
-
-```bash
-pnpm skills:install
-```
-
-The default target is `${CODEX_HOME:-$HOME/.codex}/skills`. To install elsewhere:
-
-```bash
-node scripts/install-skills.mjs --target /path/to/skills --replace
-```
-
-After installation, use `$pixif-framework` in Codex for pixif-specific components, layout, examples, tests, and package-entry conventions.
-
-## Development Scripts
-
-```bash
-pnpm test
-```
-
-Run Vitest tests.
-
-```bash
-pnpm build
-```
-
-Build `dist` with Rollup.
-
-```bash
-pnpm example
-```
-
-Start the Vite example.
-
-```bash
-pnpm example:build
-```
-
-Build the example project.
-
-```bash
-pnpm skills:install
-```
-
-Install the repository-owned Codex skills from the source checkout.
 
 ## Package Entry Points
 
+The npm package name is `pixifact`. Public entry points expose runtime and editor-domain APIs directly:
+
 ```ts
-import { Application, GameObject, Group } from 'pixif';
-import { Button, Input, ScrollView, Textarea } from 'pixif/ui';
-import { Layout, GridLayout } from 'pixif/core';
+import { Application, GameObject, Group } from 'pixifact';
+import { Button, Input, ScrollView, Textarea } from 'pixifact/ui';
+import { Layout, GridLayout } from 'pixifact/core';
 ```
 
-Available entry points:
+Editor-first domain entry points:
 
-- `pixif`
-- `pixif/core`
-- `pixif/ui`
+```ts
+import { EditorDocument } from 'pixifact/editor';
+import { applyCommand } from 'pixifact/commands';
+import { instantiate } from 'pixifact/prefab';
+```
+
+These APIs are the editor runtime foundation. New runtime work should serve editor workflows, prefab instantiation, viewport preview, command application, and export instead of growing into an independent general-purpose framework.
+
+## Codex Skills
+
+The repository-owned Codex skill lives at:
+
+```txt
+skills/pixifact-editor
+```
+
+The skill covers Pixifact editor work and the underlying runtime conventions.
+
+Install from the source checkout:
+
+```bash
+bun run skills:install
+```
+
+Install from the published package:
+
+```bash
+bunx --package pixifact pixifact-skills --replace
+```
 
 ## License
 

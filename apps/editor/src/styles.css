@@ -913,13 +913,13 @@ textarea {
     overflow: hidden;
 }
 
-.pixifViewportHost {
+.pixifactViewportHost {
     position: relative;
     width: 100%;
     height: 100%;
 }
 
-.pixifCanvas {
+.pixifactCanvas {
     display: block;
     width: 100%;
     height: 100%;

@@ -39,7 +39,7 @@ interface ImportMetaWithEnv extends ImportMeta {
 
 function editorProjectPath() {
     const env = (import.meta as ImportMetaWithEnv).env;
-    const path = env?.VITE_PIXIF_PROJECT_ROOT;
+    const path = env?.VITE_PIXIFACT_PROJECT_ROOT;
     return typeof path === 'string' && path.trim() ? path.trim() : '未打开项目文件夹';
 }
 

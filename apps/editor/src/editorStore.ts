@@ -8,7 +8,7 @@ import {
 import type { ProjectFileTreeNode } from './services/projectFileTree';
 
 export type AiProviderMode = 'mock' | 'remote';
-export const editorRemoteConfigStorageKey = 'pixif.editor.remoteConfig.v1';
+export const editorRemoteConfigStorageKey = 'pixifact.editor.remoteConfig.v1';
 const defaultRemoteEndpoint = 'http://localhost:8788/proposal';
 const defaultRemoteAuthHeader = 'Authorization';
 const defaultRemoteAuthToken = 'Bearer local-test';

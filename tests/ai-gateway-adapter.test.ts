@@ -13,7 +13,7 @@ function createGatewayPrefab() {
 }
 
 describe('AI gateway adapter core', () => {
-    it('creates protocol-compatible proposal responses', async () => {
+    it('creates proposal responses for the protocol', async () => {
         const request = createAiProposalRequest('rename root', {
             prefab: createGatewayPrefab(),
             selection: 'root',
@@ -37,37 +37,6 @@ describe('AI gateway adapter core', () => {
         expect(response.status).toBe(200);
         expect(body.proposal?.commands).toHaveLength(1);
     });
-
-    it('repairs common model command field aliases', async () => {
-        const request = createAiProposalRequest('rename root', {
-            prefab: createGatewayPrefab(),
-            selection: 'root',
-        });
-
-        const response = await createGatewayResponse(request, {
-            generateProposal: async () => ({
-                explanation: 'Gateway proposal.',
-                commands: [{
-                    type: 'setComponentProp',
-                    nodeId: 'submitButtonLabel',
-                    componentId: 'text',
-                    prop: 'text',
-                    value: 'Start Game',
-                }],
-            }),
-        });
-        const body = JSON.parse(response.body) as { proposal?: { commands: Array<Record<string, unknown>> } };
-
-        expect(response.status).toBe(200);
-        expect(body.proposal?.commands[0]).toMatchObject({
-            op: 'setComponentProp',
-            node: 'submitButtonLabel',
-            component: 'text',
-            prop: 'text',
-        });
-        expect(body.proposal?.commands[0].type).toBeUndefined();
-    });
-
 
     it('rejects unauthorized requests', async () => {
         const response = await createGatewayResponse(createAiProposalRequest('test', {

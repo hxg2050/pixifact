@@ -24,7 +24,7 @@ function createMockPrefab() {
 }
 
 describe('mock AI server core', () => {
-    it('creates remote-compatible proposal responses', () => {
+    it('creates remote proposal responses', () => {
         const request = createAiProposalRequest('开始游戏并居中', {
             prefab: createMockPrefab(),
             selection: 'root',

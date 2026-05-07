@@ -1,5 +1,5 @@
-import { ComponentRegistry } from "../../core";
-import type { ComponentSchema } from "../../core";
+import { ComponentRegistry } from "../core";
+import type { ComponentSchema } from "../core";
 import type { ComponentSpec, PrefabSpec } from "../prefab";
 import { findNode } from "../commands/utils";
 

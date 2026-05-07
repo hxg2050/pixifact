@@ -227,7 +227,7 @@ shell.addComponent(FitToViewport, { margin: 24 });
 const shellBackground = GameObject.instantiate(Graphics, shell);
 drawPanel(shellBackground, shell.width, shell.height, 22, 0xffffff, 0xcbd5e1);
 
-makeLabel(shell, 'pixif interactive showcase', 34, 28, {
+makeLabel(shell, 'pixifact interactive showcase', 34, 28, {
     fill: 0x0f172a,
     fontSize: 32,
     fontWeight: '800',
@@ -288,7 +288,7 @@ makeLabel(scrollCard, 'Wheel or drag this page.', 18, 52, { fill: 0x92400e, font
 
 const gridCard = makeCard(content, { x: 0, y: 122, width: 474, height: 260 }, 0xf8fafc);
 makeLabel(gridCard, 'GridLayout feature tiles', 20, 18, { fontSize: 20, fontWeight: '800', fill: 0x0f172a });
-makeLabel(gridCard, 'Hover each tile to see Pixi pointer events on pixif GameObjects.', 20, 50, { fill: 0x64748b, fontSize: 13 });
+makeLabel(gridCard, 'Hover each tile to see Pixi pointer events on pixifact GameObjects.', 20, 50, { fill: 0x64748b, fontSize: 13 });
 
 const featureGrid = GameObject.instantiate(Group, gridCard, {
     x: 20,
@@ -360,7 +360,7 @@ const nameInput = GameObject.instantiate(Input, formCard, {
     height: 38,
     fontSize: 15,
 });
-nameInput.value = 'pixif';
+nameInput.value = 'pixifact';
 nameInput.backgroundColor = 0xf8fafc;
 
 const notesInput = GameObject.instantiate(Textarea, formCard, {
@@ -386,7 +386,7 @@ makeButton(actionCard, 'Increment', 20, 82, 130, () => {
 makeButton(actionCard, 'Clear form', 168, 82, 130, () => {
     nameInput.value = '';
     notesInput.value = '';
-    stateLabel.value = 'Form values cleared through pixif objects.';
+    stateLabel.value = 'Form values cleared through pixifact objects.';
 });
 makeButton(actionCard, 'Focus input', 316, 82, 130, () => {
     nameInput.focus();
@@ -401,7 +401,7 @@ makeLabel(lifecycleCard, 'ScrollView is a Group subclass that owns mask, content
     wordWrap: true,
     wordWrapWidth: 286,
 });
-makeLabel(lifecycleCard, 'Its content node accepts regular pixif children.', 20, 116, { fill: 0x115e59, fontSize: 13 });
+makeLabel(lifecycleCard, 'Its content node accepts regular pixifact children.', 20, 116, { fill: 0x115e59, fontSize: 13 });
 
 const resizeCard = makeCard(content, { x: 360, y: 584, width: 330, height: 170 }, 0xeff6ff);
 makeLabel(resizeCard, 'Viewport behavior', 20, 20, { fontSize: 20, fontWeight: '800', fill: 0x1e3a8a });
@@ -428,7 +428,7 @@ makeLabel(dataCard, 'Long content area', 20, 20, { fontSize: 20, fontWeight: '80
 
 const finalCard = makeCard(content, { x: 0, y: 792, width: 1052, height: 148 }, 0xffffff);
 makeLabel(finalCard, 'Scrollable content page', 24, 22, { fontSize: 24, fontWeight: '800', fill: 0x0f172a });
-makeLabel(finalCard, 'This section sits below the initial viewport and confirms that complex pixif UI can be composed as a scrollable page instead of a fixed showcase.', 24, 64, {
+makeLabel(finalCard, 'This section sits below the initial viewport and confirms that complex pixifact UI can be composed as a scrollable page instead of a fixed showcase.', 24, 64, {
     fill: 0x475569,
     fontSize: 15,
     wordWrap: true,

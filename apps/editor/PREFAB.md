@@ -1,6 +1,6 @@
-# Pixif Prefab
+# Pixifact Prefab
 
-Pixif Prefab 是 Pixif editor 的可复用 UI / GameObject 树资产。它借用 Unity 的 Prefab 心智模型，但不是 Unity Prefab 的兼容格式。
+Pixifact Prefab 是 Pixifact editor 的可复用 UI / GameObject 树资产。它借用 Unity 的 Prefab 心智模型，但不是 Unity Prefab 格式。
 
 一个 `.prefab` 文件保存一个 `PrefabSpec` JSON。当前版本固定为：
 
@@ -50,17 +50,17 @@ Prefab 文件名、资产名和 root key 必须保持一致的派生关系：
 
 ## 范围
 
-当前 Pixif Prefab 支持：
+当前 Pixifact Prefab 支持：
 
 - 打开 `.prefab` 文件。
 - 新建 `.prefab` 文件。
 - 在 Inspector / AI 对话中修改当前 Prefab。
 - 保存当前 Prefab 回原文件。
-- 运行时实例化为 Pixif `Group` 树。
+- 运行时实例化为 runtime `Group` 树。
 
 当前不承诺：
 
-- Unity Prefab 格式兼容。
+- Unity Prefab 格式。
 - Nested Prefab。
 - Prefab Variant。
 - Scene 实例和 Prefab asset 的完整 override 同步。

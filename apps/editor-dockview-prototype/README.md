@@ -1,13 +1,13 @@
-# Pixif Dockview Editor Prototype
+# Pixifact Dockview Editor Prototype
 
-这是使用 `dockview` 实现的 Pixif 编辑器 Docking UI 原型。
+这是使用 `dockview` 实现的 Pixifact 编辑器 Docking UI 原型。
 
 和 `apps/editor-ui-prototype` 不同，这个原型不是纯静态布局，而是使用 Dockview 提供真实的面板拖动、停靠、合并成 tab、拆分和浮动能力。
 
 ## 启动
 
 ```bash
-pnpm editor:dockview
+bun run editor:dockview
 ```
 
 打开 Vite 输出的地址。

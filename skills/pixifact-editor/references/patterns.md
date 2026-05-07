@@ -1,8 +1,10 @@
-# pixif Implementation Patterns
+# Pixifact Runtime Implementation Patterns
+
+These patterns describe the runtime foundation used by the Pixifact editor. Keep runtime changes aligned with editor workflows, Prefab instantiation, viewport preview, command application, and export.
 
 ## Application And Updates
 
-`Application` extends PixiJS `Application`. After `await app.init(...)`, it creates `app.root` as a pixif `Group` backed by the Pixi stage.
+`Application` extends PixiJS `Application`. After `await app.init(...)`, it creates `app.root` as a runtime `Group` backed by the Pixi stage.
 
 Objects and components are updated only when mounted under `app.root` and when they have update work. The application owns a single ticker callback and tracks active targets internally.
 
