@@ -1,23 +1,22 @@
 import { useState } from 'react';
 import {
-    dryRunProposal,
+    executeAiPrompt,
     MockAiProposalProvider,
     RemoteAiProposalProvider,
 } from '../../../../src';
 import type {
-    AiProposal,
+    AiExecutionResult,
     EditorCommand,
     EditorDocument,
-    ProposalRunResult,
 } from '../../../../src';
 import { refreshEditorDocument } from '../document/editorDocumentController';
 import { useEditorStore } from '../editorStore';
-import { formatValue, selectedNodeId, useDocumentRevision } from './common';
+import { formatValue, useDocumentRevision } from './common';
 
 type AiMessage =
     | { role: 'assistant'; text: string }
     | { role: 'user'; text: string }
-    | { role: 'result'; proposal: AiProposal; run: ProposalRunResult; applied: boolean };
+    | { role: 'result'; execution: AiExecutionResult };
 
 function formatCommand(command: EditorCommand): string {
     switch (command.op) {
@@ -51,22 +50,28 @@ function remoteHeaders(header: string, token: string) {
 }
 
 function ResultMessage({ message }: { message: Extract<AiMessage, { role: 'result' }> }) {
-    const { proposal, run, applied } = message;
-    const failed = !run.ok || !applied;
+    const { execution } = message;
+    const { proposal, run, attempts } = execution;
+    const failed = !execution.ok;
+    const lastAttempt = attempts[attempts.length - 1];
 
     return (
         <div className={failed ? 'resultBox failed' : 'resultBox'} data-testid="ai-run-result">
-            <strong>{failed ? '自动校验失败' : '自动校验完成'}</strong>
+            <strong>{failed ? '自动执行失败' : '自动校验完成'}</strong>
             <p>{proposal.explanation || 'AI 已返回结构化 EditorCommand。'}</p>
             <div className="repairTrace">
-                <div className={run.ok ? 'traceRow accepted' : 'traceRow rejected'}>
-                    <span>校验</span>
-                    <small>{run.ok ? '通过：命令合法，允许写入项目。' : run.error ?? '命令校验失败。'}</small>
-                </div>
-                <div className={applied ? 'traceRow accepted' : 'traceRow rejected'}>
-                    <span>应用</span>
-                    <small>{applied ? '通过：合法命令已应用到项目。' : '未写入：等待后续 repair loop 生成合法命令。'}</small>
-                </div>
+                {attempts.map((attempt) => (
+                    <div className={attempt.run.ok && attempt.applied ? 'traceRow accepted' : 'traceRow rejected'} key={attempt.proposal.id}>
+                        <span>第 {attempt.attempt} 轮</span>
+                        <small>
+                            {attempt.run.ok
+                                ? attempt.applied
+                                    ? '通过：合法命令已应用到项目。'
+                                    : attempt.applyError ?? '应用失败。'
+                                : attempt.run.error ?? '命令校验失败。'}
+                        </small>
+                    </div>
+                ))}
             </div>
             <div className="resultGrid">
                 {proposal.commands.slice(0, 6).map((command, index) => (
@@ -76,8 +81,10 @@ function ResultMessage({ message }: { message: Extract<AiMessage, { role: 'resul
             {run.warnings.length > 0 ? (
                 <div className="inspectorAction">{run.warnings.map((warning) => warning.message).join('；')}</div>
             ) : null}
-            <div className={applied ? 'successLine' : 'fileRule'}>
-                {applied ? '合法命令已应用到项目。' : '后续会接入 AI 自动修正循环。'}
+            <div className={execution.ok ? 'successLine' : 'fileRule'}>
+                {execution.ok
+                    ? `合法命令已应用到项目。${attempts.length > 1 ? `已自动修正 ${attempts.length - 1} 次。` : ''}`
+                    : lastAttempt.applyError ?? execution.error}
             </div>
         </div>
     );
@@ -113,16 +120,6 @@ export function AiPanel({ document }: { document: EditorDocument }) {
         },
     ]);
 
-    const context = () => ({
-        prefab: document.prefab,
-        selection: selectedNodeId(document),
-        designTokens: document.designTokens,
-        actions: document.actions,
-        logicGraph: document.logicGraph,
-        locks: document.locks,
-        memory: document.memory,
-    });
-
     const sendPrompt = async () => {
         const text = prompt.trim();
         if (!text) {
@@ -140,32 +137,11 @@ export function AiPanel({ document }: { document: EditorDocument }) {
                     timeoutMs: remoteTimeoutMs,
                 })
                 : new MockAiProposalProvider();
-            const proposal = await provider.generate(text, context());
-            const run = dryRunProposal(document.prefab, proposal, {
-                locks: document.locks,
-                designTokens: document.designTokens,
-                actions: document.actions,
+            const execution = await executeAiPrompt(document, provider, text, {
+                maxAttempts: 3,
             });
-            let applied = false;
 
-            document.recordProposal(proposal);
-            document.recordProposalRun(run);
-
-            if (run.ok) {
-                applied = true;
-                for (const command of proposal.commands) {
-                    const result = document.apply(command, 'ai');
-                    if (!result.ok) {
-                        applied = false;
-                        break;
-                    }
-                }
-                if (applied) {
-                    document.markProposalApplied(proposal);
-                }
-            }
-
-            setMessages((previous) => [...previous, { role: 'result', proposal, run, applied }]);
+            setMessages((previous) => [...previous, { role: 'result', execution }]);
             refreshEditorDocument();
         } catch (err) {
             const text = err instanceof Error ? err.message : '发送失败';

@@ -10,6 +10,7 @@ import {
     compileLogicGraphToTypescript,
     createAiProposalRequest,
     createComponentSpecFromSchema,
+    executeAiPrompt,
     createLogicGraph,
     createRuntimeActions,
     createUseInventoryItemFlow,
@@ -544,6 +545,81 @@ describe('EditorDocument', () => {
 
         doc.markProposalApplied(proposal);
         expect(doc.proposalHistory[0].status).toBe('applied');
+    });
+
+    it('repairs invalid AI commands before applying the proposal', async () => {
+        const doc = new EditorDocument(createButtonPrefab());
+        const prompts: string[] = [];
+        const provider = {
+            async generate(prompt: string) {
+                prompts.push(prompt);
+                return createAiProposal({
+                    id: `repair-${prompts.length}`,
+                    prompt,
+                    commands: prompts.length === 1
+                        ? [{
+                            op: 'setComponentProp',
+                            node: 'missingNode',
+                            component: 'text',
+                            prop: 'text',
+                            value: 'Broken',
+                        }]
+                        : [{
+                            op: 'setComponentProp',
+                            node: 'submitButtonLabel',
+                            component: 'text',
+                            prop: 'text',
+                            value: 'Fixed',
+                        }],
+                });
+            },
+        };
+
+        const result = await executeAiPrompt(doc, provider, 'rename label', {
+            maxAttempts: 2,
+        });
+
+        expect(result.ok).toBe(true);
+        expect(result.attempts).toHaveLength(2);
+        expect(prompts[1]).toContain('未通过 Pixifact 校验');
+        expect(prompts[1]).toContain('Node "missingNode" was not found.');
+        expect(doc.prefab.root.children?.[0].components?.[0].props?.text).toBe('Fixed');
+        expect(doc.overrides.at(-1)).toMatchObject({
+            source: 'ai',
+            target: 'submitButtonLabel.text.text',
+            after: 'Fixed',
+        });
+        expect(doc.proposalHistory.map((entry) => entry.status)).toEqual(['dryRunFailed', 'applied']);
+    });
+
+    it('returns a failed AI execution result when repair attempts are exhausted', async () => {
+        const doc = new EditorDocument(createButtonPrefab());
+        const provider = {
+            async generate(prompt: string) {
+                return createAiProposal({
+                    id: `failed-${prompt.length}`,
+                    prompt,
+                    commands: [{
+                        op: 'setComponentProp',
+                        node: 'submitButtonLabel',
+                        component: 'text',
+                        prop: 'missing',
+                        value: 'Broken',
+                    }],
+                });
+            },
+        };
+
+        const result = await executeAiPrompt(doc, provider, 'bad edit', {
+            maxAttempts: 2,
+        });
+
+        expect(result.ok).toBe(false);
+        expect(result.applied).toBe(false);
+        expect(result.attempts).toHaveLength(2);
+        expect(result.error).toContain('does not exist');
+        expect(doc.prefab.root.children?.[0].components?.[0].props?.text).toBe('Submit');
+        expect(doc.proposalHistory.at(-1)?.status).toBe('rejected');
     });
 
     it('builds AI authoring context with schemas, locks, design tokens and memory', () => {
