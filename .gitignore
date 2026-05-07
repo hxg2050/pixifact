@@ -19,6 +19,8 @@ dist-ssr
 coverage
 coverage.lcov
 test-results/
+src-tauri/gen/
+src-tauri/target/
 *.local
 *.local.*
 

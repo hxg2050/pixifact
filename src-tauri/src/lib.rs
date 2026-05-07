@@ -23,7 +23,7 @@ fn pick_project_folder() -> Result<Option<ProjectFileTreeNode>, String> {
     let Some(path) = rfd::FileDialog::new().pick_folder() else {
         return Ok(None);
     };
-    read_project_file_tree(path_to_string(&path))
+    read_project_file_tree(path_to_string(&path)).map(Some)
 }
 
 #[tauri::command]
