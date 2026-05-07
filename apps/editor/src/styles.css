@@ -180,6 +180,7 @@ textarea {
 
 .topActions {
     display: flex;
+    align-items: center;
     gap: 8px;
 }
 
@@ -188,6 +189,27 @@ textarea {
     border-color: #1d4ed8;
     background: linear-gradient(#397cff, #245fd9);
     color: #fff;
+}
+
+.languageSelect .systemSelectButton {
+    display: inline-flex;
+    min-width: 118px;
+    height: 30px;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    background: linear-gradient(#fff, #f4f7fb);
+    color: var(--text);
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 760;
+}
+
+.languageSelect .systemSelectButton::after {
+    color: var(--muted);
+    content: "⌄";
+    font-size: 12px;
 }
 
 .systemButton {

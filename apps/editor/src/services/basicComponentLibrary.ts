@@ -1,4 +1,5 @@
 import type { EditorDocument, NodeSpec } from '../../../../src';
+import type { I18nKey } from '../i18n';
 import { editorDragDataTypes } from './dragPayload';
 
 export const basicComponentDragDataType = editorDragDataTypes.basicComponent;
@@ -9,13 +10,15 @@ export interface BasicComponentItem {
     kind: BasicComponentKind;
     name: string;
     detail: string;
+    nameKey: I18nKey;
+    detailKey: I18nKey;
 }
 
 export const basicComponentLibrary: BasicComponentItem[] = [
-    { kind: 'group', name: '节点', detail: '空 Group 容器' },
-    { kind: 'button', name: '按钮', detail: '背景 + Button + 文字' },
-    { kind: 'text', name: '文字', detail: 'TextGraphic 文本' },
-    { kind: 'image', name: '图片', detail: 'ImageGraphic 图片' },
+    { kind: 'group', name: '节点', detail: '空 Group 容器', nameKey: 'basicGroupName', detailKey: 'basicGroupDetail' },
+    { kind: 'button', name: '按钮', detail: '背景 + Button + 文字', nameKey: 'basicButtonName', detailKey: 'basicButtonDetail' },
+    { kind: 'text', name: '文字', detail: 'TextGraphic 文本', nameKey: 'basicTextName', detailKey: 'basicTextDetail' },
+    { kind: 'image', name: '图片', detail: 'ImageGraphic 图片', nameKey: 'basicImageName', detailKey: 'basicImageDetail' },
 ];
 
 function nodeKeyBase(kind: BasicComponentKind) {

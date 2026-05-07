@@ -6,15 +6,18 @@ import {
     nearestExistingPath,
 } from './services/projectFileTree';
 import type { ProjectFileTreeNode } from './services/projectFileTree';
+import type { EditorLanguage } from './i18n';
 
 export type AiProviderMode = 'mock' | 'remote';
 export const editorRemoteConfigStorageKey = 'pixifact.editor.remoteConfig.v1';
+export const defaultEditorLanguage: EditorLanguage = 'zh-CN';
 const defaultRemoteEndpoint = 'http://localhost:8788/proposal';
 const defaultRemoteAuthHeader = 'Authorization';
 const defaultRemoteAuthToken = 'Bearer local-test';
 const defaultRemoteTimeoutMs = 300000;
 
 export interface EditorUiState {
+    language: EditorLanguage;
     projectName: string;
     projectTree?: ProjectFileTreeNode;
     selectedProjectFilePath?: string;
@@ -26,6 +29,7 @@ export interface EditorUiState {
     remoteAuthHeader: string;
     remoteAuthToken: string;
     prompt: string;
+    setLanguage(language: EditorLanguage): void;
     setProject(tree: ProjectFileTreeNode): void;
     refreshProject(tree: ProjectFileTreeNode, options?: { selectPath?: string; expandPaths?: string[] }): void;
     setSelectedProjectFile(path: string): void;
@@ -40,6 +44,7 @@ export interface EditorUiState {
 export const useEditorStore = create<EditorUiState>()(
     persist(
         (set) => ({
+            language: defaultEditorLanguage,
             projectName: '模拟项目',
             projectTree: undefined,
             selectedProjectFilePath: undefined,
@@ -51,6 +56,7 @@ export const useEditorStore = create<EditorUiState>()(
             remoteAuthHeader: defaultRemoteAuthHeader,
             remoteAuthToken: defaultRemoteAuthToken,
             prompt: '创建一个背包界面，四列三行，每个格子有图标、数量和 Use 按钮。',
+            setLanguage: (language) => set({ language }),
             setProject: (projectTree) => set({
                 projectName: projectTree.name,
                 projectTree,
@@ -91,6 +97,7 @@ export const useEditorStore = create<EditorUiState>()(
 
                 return {
                     ...current,
+                    language: saved.language ?? current.language,
                     providerMode: saved.providerMode ?? current.providerMode,
                     remoteEndpoint: saved.remoteEndpoint === 'http://localhost:8787/proposal'
                         ? defaultRemoteEndpoint
@@ -104,6 +111,7 @@ export const useEditorStore = create<EditorUiState>()(
             },
             partialize: (state) => ({
                 providerMode: state.providerMode,
+                language: state.language,
                 remoteEndpoint: state.remoteEndpoint,
                 remoteTimeoutMs: state.remoteTimeoutMs,
                 remoteAuthHeader: state.remoteAuthHeader,

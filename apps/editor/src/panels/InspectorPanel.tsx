@@ -23,64 +23,75 @@ import {
     TextField,
 } from '../components/system';
 import { refreshEditorDocument } from '../document/editorDocumentController';
+import { useI18n } from '../i18n';
+import type { I18nKey } from '../i18n';
 import { editorDragDataTypes } from '../services/dragPayload';
 import { FieldRow, parseTextValue, selectedNodeId, useDocumentRevision } from './common';
 
-const nodePropLabels: Record<'id' | 'key' | 'role' | 'name', string> = {
-    id: 'ID',
-    key: 'Key',
-    role: '角色',
-    name: '名称',
+const nodePropLabelKeys: Record<'id' | 'key' | 'role' | 'name', I18nKey | undefined> = {
+    id: undefined,
+    key: undefined,
+    role: 'role',
+    name: 'name',
 };
 
-const fieldLabels: Record<string, string> = {
-    x: 'X',
-    y: 'Y',
-    width: '宽度',
-    height: '高度',
-    anchorX: '锚点 X',
-    anchorY: '锚点 Y',
-    scaleX: '缩放 X',
-    scaleY: '缩放 Y',
-    rotation: '旋转',
-    raycastTarget: '接收点击',
-    color: '颜色',
-    fillAlpha: '填充透明度',
-    radius: '圆角',
-    strokeColor: '描边颜色',
-    strokeWidth: '描边宽度',
-    strokeAlpha: '描边透明度',
-    text: '文本',
-    fontSize: '字号',
-    fontFamily: '字体',
-    fontWeight: '字重',
-    center: '居中',
-    onClick: '点击动作',
-    interactable: '可交互',
-    targetGraphic: '目标图形',
-    transition: '过渡',
-    normalColor: '默认颜色',
-    highlightedColor: '悬停颜色',
-    pressedColor: '按下颜色',
-    disabledColor: '禁用颜色',
-    pressedScale: '按下缩放',
-    value: '值',
-    min: '最小值',
-    max: '最大值',
-    fillNode: '填充节点',
-    fillGraphic: '填充图形',
-    placeholder: '占位文本',
-    multiline: '多行',
-    textGraphic: '文本图形',
-    viewport: '视口节点',
-    content: '内容节点',
-    contentHeight: '内容高度',
-    wheelSensitivity: '滚轮灵敏度',
-    dragEnabled: '允许拖拽',
+const fieldLabelKeys: Record<string, I18nKey> = {
+    width: 'width',
+    height: 'height',
+    anchorX: 'anchorX',
+    anchorY: 'anchorY',
+    scaleX: 'scaleX',
+    scaleY: 'scaleY',
+    rotation: 'rotation',
+    raycastTarget: 'raycastTarget',
+    color: 'color',
+    fillAlpha: 'fillAlpha',
+    radius: 'radius',
+    strokeColor: 'strokeColor',
+    strokeWidth: 'strokeWidth',
+    strokeAlpha: 'strokeAlpha',
+    text: 'text',
+    fontSize: 'fontSize',
+    fontFamily: 'fontFamily',
+    fontWeight: 'fontWeight',
+    center: 'center',
+    onClick: 'onClick',
+    interactable: 'interactable',
+    targetGraphic: 'targetGraphic',
+    transition: 'transition',
+    normalColor: 'normalColor',
+    highlightedColor: 'highlightedColor',
+    pressedColor: 'pressedColor',
+    disabledColor: 'disabledColor',
+    pressedScale: 'pressedScale',
+    value: 'value',
+    min: 'min',
+    max: 'max',
+    fillNode: 'fillNode',
+    fillGraphic: 'fillGraphic',
+    placeholder: 'placeholder',
+    multiline: 'multiline',
+    textGraphic: 'textGraphic',
+    viewport: 'viewport',
+    content: 'content',
+    contentHeight: 'contentHeight',
+    wheelSensitivity: 'wheelSensitivity',
+    dragEnabled: 'dragEnabled',
 };
 
-function displayFieldLabel(field: InspectorFieldModel) {
-    return fieldLabels[field.key] ?? field.label;
+type Translate = (key: I18nKey, values?: Record<string, string | number>) => string;
+
+function nodePropLabel(key: 'id' | 'key' | 'role' | 'name', t: Translate) {
+    const labelKey = nodePropLabelKeys[key];
+    return labelKey ? t(labelKey) : key.toUpperCase();
+}
+
+function displayFieldLabel(field: InspectorFieldModel, t: Translate) {
+    if (field.key === 'x' || field.key === 'y') {
+        return field.key.toUpperCase();
+    }
+    const labelKey = fieldLabelKeys[field.key];
+    return labelKey ? t(labelKey) : field.label;
 }
 
 function colorToInput(value: unknown) {
@@ -126,6 +137,7 @@ function EditableFieldRow({
     onCommit,
     onToggleLock,
 }: EditableFieldRowProps) {
+    const t = useI18n();
     const value = field.value;
     const [draft, setDraft] = useState(() => field.type === 'color' ? colorToInput(value) : value === undefined ? '' : String(value));
 
@@ -160,7 +172,7 @@ function EditableFieldRow({
                 disabled={locked}
                 onSelectionChange={(nextValue) => onCommit(parseTextValue(nextValue))}
                 options={[
-                    { label: '未设置', value: '' },
+                    { label: t('unset'), value: '' },
                     ...field.schema.options.map((option) => ({
                         label: String(option),
                         value: String(option),
@@ -176,7 +188,7 @@ function EditableFieldRow({
                 disabled={locked}
                 onSelectionChange={(nextValue) => onCommit(parseTextValue(nextValue))}
                 options={[
-                    { label: '未绑定', value: '' },
+                    { label: t('unbound'), value: '' },
                     ...actions.map((action) => ({
                         label: action.label ? `${action.label} (${action.key})` : action.key,
                         value: action.key,
@@ -238,7 +250,7 @@ function EditableFieldRow({
                     active={locked}
                     className="lockButton"
                     icon={locked ? 'lock' : 'unlock'}
-                    label={locked ? '解锁字段' : '锁定字段'}
+                    label={locked ? t('unlockField') : t('lockField')}
                     onClick={onToggleLock}
                 />
             ) : null}
@@ -247,10 +259,10 @@ function EditableFieldRow({
     );
 }
 
-function nodePropField(key: 'id' | 'key' | 'role' | 'name', value: unknown): InspectorFieldModel {
+function nodePropField(key: 'id' | 'key' | 'role' | 'name', value: unknown, t: Translate): InspectorFieldModel {
     return {
         key,
-        label: nodePropLabels[key],
+        label: nodePropLabel(key, t),
         type: 'string',
         value,
     };
@@ -260,29 +272,30 @@ function designWarning(document: EditorDocument, target: string, prop: string, v
     return validateDesignTokenValue(document.designTokens, target, prop, value)?.message;
 }
 
-function paletteDisabledReason(item: PaletteComponentItem, selected: string) {
+function paletteDisabledReason(item: PaletteComponentItem, selected: string, t: Translate) {
     return item.disabledReason
-        ? item.disabledReason.replace('already exists on this node.', '已在当前节点上存在。')
+        ? item.disabledReason.replace('already exists on this node.', t('componentAlreadyExists'))
         : undefined;
 }
 
 export function InspectorPanel({ document, model }: { document: EditorDocument; model?: InspectorNodeModel }) {
     useDocumentRevision();
+    const t = useI18n();
     const selected = selectedNodeId(document);
     const [error, setError] = useState<string>();
     const [componentPickerOpen, setComponentPickerOpen] = useState(false);
-    const [actionText, setActionText] = useState('可点击添加 Component，或从文件面板拖动 Component 到 Inspector 空白区域。');
+    const [actionText, setActionText] = useState(() => t('inspectorDefaultAction'));
 
     useEffect(() => {
         setError(undefined);
         setComponentPickerOpen(false);
-        setActionText('可点击添加 Component，或从文件面板拖动 Component 到 Inspector 空白区域。');
-    }, [selected]);
+        setActionText(t('inspectorDefaultAction'));
+    }, [selected, t]);
 
     if (!model) {
         return (
             <div className="panelBody emptyState">
-                未选择节点
+                {t('noNodeSelected')}
             </div>
         );
     }
@@ -341,7 +354,7 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
     };
 
     const addComponent = (item: PaletteComponentItem) => {
-        const disabledReason = paletteDisabledReason(item, selected);
+        const disabledReason = paletteDisabledReason(item, selected, t);
         if (disabledReason) {
             setActionText(disabledReason);
             return;
@@ -361,7 +374,7 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
 
         setError(undefined);
         setComponentPickerOpen(false);
-        setActionText(`已添加 ${item.displayName} 到当前节点。`);
+        setActionText(t('componentAdded', { name: item.displayName }));
         refreshEditorDocument();
     };
 
@@ -371,7 +384,7 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
             node: selected,
         }).find((candidate) => candidate.type === type);
         if (!item) {
-            setActionText('拖入的文件不是可挂载 Component。');
+            setActionText(t('droppedFileNotComponent'));
             return;
         }
         addComponent(item);
@@ -393,17 +406,17 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
     };
 
     const nodeFields = [
-        nodePropField('name', model.name),
-        nodePropField('id', model.id),
-        nodePropField('key', model.key),
-        nodePropField('role', model.role),
+        nodePropField('name', model.name, t),
+        nodePropField('id', model.id, t),
+        nodePropField('key', model.key, t),
+        nodePropField('role', model.role, t),
     ];
 
     return (
         <div className="panelSurface inspectorSurface">
             {error ? <div className="errorBox">{error}</div> : null}
             <section className="identity">
-                <span>选中节点</span>
+                <span>{t('selectedNode')}</span>
                 <strong>{model.name ?? model.key ?? model.id}</strong>
                 <small>{model.id ?? model.key ?? selected}</small>
             </section>
@@ -427,7 +440,7 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
                         <EditableFieldRow
                             field={field}
                             key={field.key}
-                            label={displayFieldLabel(field)}
+                            label={displayFieldLabel(field, t)}
                             locked={isLocked(document.locks, { target: 'transform', node: selected, prop: field.key })}
                             onCommit={(value) => commitTransform(field, value)}
                             onToggleLock={() => toggleTransformLock(field)}
@@ -441,13 +454,13 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
                     <h3>{component.displayName}</h3>
                     <div className="fieldStack">
                         <FieldRow label="Type" value={component.type} />
-                        <FieldRow label="组件 ID" value={component.id} />
+                        <FieldRow label={t('componentId')} value={component.id} />
                         {component.fields.map((field) => (
                             <EditableFieldRow
                                 actions={document.actions}
                                 field={field}
                                 key={field.key}
-                                label={displayFieldLabel(field)}
+                                label={displayFieldLabel(field, t)}
                                 locked={isLocked(document.locks, {
                                     target: 'component',
                                     node: selected,
@@ -466,7 +479,7 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
                 <div className="sectionHeader">
                     <h3>Components</h3>
                     <button onClick={() => setComponentPickerOpen((open) => !open)} type="button">
-                        添加
+                        {t('add')}
                     </button>
                 </div>
                 {componentPickerOpen ? (
@@ -475,7 +488,7 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
                             prefab: document.prefab,
                             node: selected,
                         }).map((item) => {
-                            const disabledReason = paletteDisabledReason(item, selected);
+                            const disabledReason = paletteDisabledReason(item, selected, t);
                             return (
                                 <button
                                     disabled={!!disabledReason}
@@ -494,11 +507,11 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
                 ) : null}
                 <DropZone
                     acceptedTypes={[editorDragDataTypes.component]}
-                    aria-label="挂载 Component"
+                    aria-label={t('mountComponentLabel')}
                     className="componentDropZone"
                     onPayloadDrop={(payload) => addComponentByType(payload.data)}
                 >
-                    从文件面板拖动 Component 到这里，或点击添加从项目 Component 列表选择。
+                    {t('componentDropHint')}
                 </DropZone>
                 <div className="inspectorAction">{actionText}</div>
             </section>

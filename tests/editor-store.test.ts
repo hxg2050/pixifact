@@ -14,6 +14,7 @@ describe('editor UI store', () => {
             remoteAuthHeader: 'Authorization',
             remoteAuthToken: 'Bearer local-test',
             prompt: '创建一个背包界面，四列三行，每个格子有图标、数量和 Use 按钮。',
+            language: 'zh-CN',
         });
     });
 
@@ -21,6 +22,7 @@ describe('editor UI store', () => {
         useEditorStore.getState().setProviderMode('remote');
         useEditorStore.getState().setRemoteEndpoint('https://gateway.example.test/proposal');
         useEditorStore.getState().setRemoteTimeoutMs(9000);
+        useEditorStore.getState().setLanguage('en-US');
         useEditorStore.getState().setPrompt('do not persist prompt');
 
         const raw = localStorage.getItem(editorRemoteConfigStorageKey);
@@ -28,6 +30,7 @@ describe('editor UI store', () => {
         expect(raw).toContain('https://gateway.example.test/proposal');
         expect(raw).toContain('remote');
         expect(raw).toContain('9000');
+        expect(raw).toContain('en-US');
         expect(raw).toContain('Authorization');
         expect(raw).not.toContain('Bearer local-test');
         expect(raw).not.toContain('do not persist prompt');

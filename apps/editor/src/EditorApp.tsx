@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DockviewReact } from 'dockview';
-import type { DockviewReadyEvent, IDockviewPanelProps } from 'dockview';
+import type { DockviewApi, DockviewReadyEvent, IDockviewPanelProps } from 'dockview';
 import type { EditorDocument } from '../../../src';
 import {
     getEditorDocument,
@@ -8,7 +8,10 @@ import {
     resetEditorDocument,
 } from './document/editorDocumentController';
 import { IconButton } from './components/IconButton';
+import { Select } from './components/system';
 import { useEditorStore } from './editorStore';
+import type { EditorLanguage } from './i18n';
+import { editorLanguageNames, translate, useI18n } from './i18n';
 import { ResourceExplorer } from './panels/ExplorerPanel';
 import { HierarchyTree } from './panels/HierarchyPanel';
 import { AiPanel } from './panels/AiPanel';
@@ -22,6 +25,25 @@ import 'dockview/dist/styles/dockview.css';
 interface EditorPanelParams {
     document: EditorDocument;
     revision: number;
+}
+
+function dockPanelTitles(language: EditorLanguage) {
+    return {
+        fileSystem: translate(language, 'panelFileSystem'),
+        prefabTree: translate(language, 'panelPrefab'),
+        viewport: translate(language, 'viewportLabel'),
+        inspector: 'Inspector',
+        ai: translate(language, 'panelAi'),
+    };
+}
+
+function setDockPanelTitles(api: DockviewApi, language: EditorLanguage) {
+    const titles = dockPanelTitles(language);
+    api.getPanel('filesystem')?.api.setTitle(titles.fileSystem);
+    api.getPanel('prefab')?.api.setTitle(titles.prefabTree);
+    api.getPanel('viewport')?.api.setTitle(titles.viewport);
+    api.getPanel('inspector')?.api.setTitle(titles.inspector);
+    api.getPanel('ai')?.api.setTitle(titles.ai);
 }
 
 function createDockComponents(document: EditorDocument, revision: number) {
@@ -54,47 +76,49 @@ function createDockComponents(document: EditorDocument, revision: number) {
 
 function PrefabTreePanel({ document }: { document: EditorDocument }) {
     useDocumentRevision();
+    const t = useI18n();
 
     return (
         <div className="dockPanelSurface">
             <section className="resourceMeta">
-                <span>预制体</span>
+                <span>{t('panelPrefab')}</span>
                 <strong>{document.prefab.name}</strong>
-                <small>{document.prefab.root.children?.length ?? 0} root children</small>
+                <small>{t('rootChildren', { count: document.prefab.root.children?.length ?? 0 })}</small>
             </section>
             <HierarchyTree document={document} />
         </div>
     );
 }
 
-function addInitialPanels(event: DockviewReadyEvent) {
+function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
+    const titles = dockPanelTitles(language);
     const fileSystem = event.api.addPanel({
         id: 'filesystem',
         component: 'fileSystem',
-        title: '文件系统',
+        title: titles.fileSystem,
     });
     const prefabTree = event.api.addPanel({
         id: 'prefab',
         component: 'prefabTree',
-        title: '预制体',
+        title: titles.prefabTree,
         position: { referencePanel: fileSystem, direction: 'right' },
     });
     const viewport = event.api.addPanel({
         id: 'viewport',
         component: 'viewport',
-        title: 'Viewport',
+        title: titles.viewport,
         position: { referencePanel: prefabTree, direction: 'right' },
     });
     event.api.addPanel({
         id: 'inspector',
         component: 'inspector',
-        title: 'Inspector',
+        title: titles.inspector,
         position: { referencePanel: viewport, direction: 'right' },
     });
     event.api.addPanel({
         id: 'ai',
         component: 'ai',
-        title: 'AI 对话',
+        title: titles.ai,
         position: { referencePanel: viewport, direction: 'below' },
     });
 }
@@ -102,11 +126,35 @@ function addInitialPanels(event: DockviewReadyEvent) {
 export function EditorApp() {
     const revision = useDocumentRevision();
     const document = getEditorDocument();
+    const t = useI18n();
+    const language = useEditorStore((state) => state.language);
+    const setLanguage = useEditorStore((state) => state.setLanguage);
     const setProject = useEditorStore((state) => state.setProject);
     const projectTree = useEditorStore((state) => state.projectTree);
     const openedPrefabPath = useEditorStore((state) => state.openedPrefabPath);
-    const [saveStatus, setSaveStatus] = useState('未打开项目文件夹');
+    const dockApiRef = useRef<DockviewApi | undefined>(undefined);
+    const [saveStatusKey, setSaveStatusKey] = useState<'closed' | 'treeLoaded' | 'noPrefab' | 'savedFile'>('closed');
+    const [savedFileName, setSavedFileName] = useState('');
     const components = useMemo(() => createDockComponents(document, revision), [document, revision]);
+    const saveStatus = useMemo(() => {
+        switch (saveStatusKey) {
+            case 'treeLoaded':
+                return t('saveStatusTreeLoaded');
+            case 'noPrefab':
+                return t('saveStatusNoPrefab');
+            case 'savedFile':
+                return t('saveStatusSavedFile', { file: savedFileName });
+            case 'closed':
+                return t('saveStatusClosed');
+        }
+    }, [saveStatusKey, savedFileName, t]);
+
+    useEffect(() => {
+        if (dockApiRef.current) {
+            setDockPanelTitles(dockApiRef.current, language);
+        }
+    }, [language]);
+
     const resetDocument = useCallback(() => {
         resetEditorDocument();
     }, []);
@@ -122,25 +170,31 @@ export function EditorApp() {
         const tree = await openProjectFolder();
         if (tree) {
             setProject(tree);
-            setSaveStatus('项目文件树已读取');
+            setSaveStatusKey('treeLoaded');
         }
     }, [setProject]);
     const savePrefab = useCallback(async () => {
         if (!projectTree) {
-            setSaveStatus('未打开项目文件夹');
+            setSaveStatusKey('closed');
             return;
         }
         if (!openedPrefabPath) {
-            setSaveStatus('未打开 Prefab');
+            setSaveStatusKey('noPrefab');
             return;
         }
 
         const saved = await savePrefabFile(projectTree, openedPrefabPath, document);
         if (saved) {
-            setSaveStatus(`已保存 ${openedPrefabPath.split('/').pop()}`);
+            setSavedFileName(openedPrefabPath.split('/').pop() ?? openedPrefabPath);
+            setSaveStatusKey('savedFile');
             refreshEditorDocument();
         }
     }, [document, openedPrefabPath, projectTree]);
+
+    const handleDockReady = useCallback((event: DockviewReadyEvent) => {
+        dockApiRef.current = event.api;
+        addInitialPanels(event, language);
+    }, [language]);
 
     return (
         <div className="app">
@@ -149,28 +203,38 @@ export function EditorApp() {
                     <span className="mark" aria-hidden="true">P</span>
                     <div>
                         <strong>Pixifact Editor</strong>
-                        <small>Dockview prototype · 只保留 Prefab 资源模型</small>
+                        <small>{t('appTagline')}</small>
                     </div>
                 </div>
                 <div className="statusBar">
                     <span>{document.prefab.name}.prefab</span>
-                    <span>{document.dirty ? '有未保存修改' : '已保存'}</span>
+                    <span>{document.dirty ? t('dirtyUnsaved') : t('saved')}</span>
                     <span data-testid="save-status">{saveStatus}</span>
                     <span>AI Ready</span>
                     <SummaryBar document={document} />
                 </div>
-                <div className="topActions" aria-label="编辑器操作">
-                    <IconButton icon="undo" label="撤销" onClick={undo} disabled={!document.canUndo} />
-                    <IconButton icon="redo" label="重做" onClick={redo} disabled={!document.canRedo} />
-                    <button onClick={() => void openFolder()} type="button">打开文件夹</button>
-                    <button onClick={resetDocument} type="button">重置模拟</button>
-                    <button onClick={() => void savePrefab()} type="button">保存</button>
-                    <button type="button">预览</button>
-                    <button className="primary" type="button">运行</button>
+                <div className="topActions" aria-label={t('topActionsLabel')}>
+                    <IconButton icon="undo" label={t('undo')} onClick={undo} disabled={!document.canUndo} />
+                    <IconButton icon="redo" label={t('redo')} onClick={redo} disabled={!document.canRedo} />
+                    <button onClick={() => void openFolder()} type="button">{t('openFolder')}</button>
+                    <button onClick={resetDocument} type="button">{t('resetMock')}</button>
+                    <button onClick={() => void savePrefab()} type="button">{t('save')}</button>
+                    <button type="button">{t('preview')}</button>
+                    <button className="primary" type="button">{t('run')}</button>
+                    <Select
+                        aria-label={t('language')}
+                        className="languageSelect"
+                        onSelectionChange={(key) => setLanguage(key as EditorLanguage)}
+                        options={(Object.keys(editorLanguageNames) as EditorLanguage[]).map((key) => ({
+                            label: editorLanguageNames[key],
+                            value: key,
+                        }))}
+                        selectedKey={language}
+                    />
                 </div>
             </header>
             <main className="dockHost dockview-theme-light">
-                <DockviewReact components={components} onReady={addInitialPanels} />
+                <DockviewReact components={components} onReady={handleDockReady} />
             </main>
         </div>
     );

@@ -4,6 +4,10 @@ import {
     getEditorDocumentRevision,
     subscribeEditorDocument,
 } from '../document/editorDocumentController';
+import { useI18n } from '../i18n';
+import type { I18nKey } from '../i18n';
+
+type Translate = (key: I18nKey, values?: Record<string, string | number>) => string;
 
 export interface HierarchyItem {
     node: NodeSpec;
@@ -43,15 +47,18 @@ export function useDocumentRevision() {
     );
 }
 
-export function formatValue(value: unknown) {
+export function formatValue(value: unknown, t?: Translate) {
     if (value === undefined) {
-        return '未设置';
+        return t ? t('unset') : '未设置';
     }
     if (typeof value === 'number') {
         return Number.isInteger(value) ? String(value) : value.toFixed(2);
     }
     if (typeof value === 'boolean') {
-        return value ? '是' : '否';
+        if (!t) {
+            return value ? '是' : '否';
+        }
+        return value ? t('yes') : t('no');
     }
     if (typeof value === 'string') {
         return value;
@@ -64,10 +71,11 @@ export function parseTextValue(value: string) {
 }
 
 export function FieldRow({ label, value }: { label: string; value: unknown }) {
+    const t = useI18n();
     return (
         <div className="fieldRow">
             <span>{label}</span>
-            <strong>{formatValue(value)}</strong>
+            <strong>{formatValue(value, t)}</strong>
         </div>
     );
 }

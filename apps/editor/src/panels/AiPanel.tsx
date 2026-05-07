@@ -12,6 +12,8 @@ import type {
 } from '../../../../src';
 import { refreshEditorDocument } from '../document/editorDocumentController';
 import { useEditorStore } from '../editorStore';
+import { useI18n } from '../i18n';
+import type { I18nKey } from '../i18n';
 import { formatValue, useDocumentRevision } from './common';
 
 type AiMessage =
@@ -19,28 +21,33 @@ type AiMessage =
     | { role: 'user'; text: string }
     | { role: 'result'; execution: AiExecutionResult };
 
-function formatCommand(command: EditorCommand): string {
+type Translate = (key: I18nKey, values?: Record<string, string | number>) => string;
+
+function formatCommand(command: EditorCommand, t: Translate): string {
     switch (command.op) {
         case 'setNodeProp':
-            return `${command.node}.${command.prop} = ${formatValue(command.value)}`;
+            return `${command.node}.${command.prop} = ${formatValue(command.value, t)}`;
         case 'setTransform':
             return `${command.node}.transform ${Object.keys(command.values).join(', ')}`;
         case 'setComponentProp':
-            return `${command.node}.${command.component}.${command.prop} = ${formatValue(command.value)}`;
+            return `${command.node}.${command.component}.${command.prop} = ${formatValue(command.value, t)}`;
         case 'addComponent':
-            return `${command.node} 添加 ${command.component.type}`;
+            return t('commandAddComponent', { node: command.node, component: command.component.type });
         case 'removeComponent':
-            return `${command.node} 移除 ${command.component}`;
+            return t('commandRemoveComponent', { node: command.node, component: command.component });
         case 'createNode':
-            return `${command.parent ?? 'root'} 创建 ${command.node.name ?? command.node.key ?? command.node.id ?? 'node'}`;
+            return t('commandCreateNode', {
+                parent: command.parent ?? 'root',
+                node: command.node.name ?? command.node.key ?? command.node.id ?? 'node',
+            });
         case 'deleteNode':
-            return `删除 ${command.node}`;
+            return t('commandDeleteNode', { node: command.node });
         case 'reparentNode':
-            return `${command.node} 移动到 ${command.parent ?? 'root'}`;
+            return t('commandReparentNode', { node: command.node, parent: command.parent ?? 'root' });
         case 'reorderNode':
-            return `${command.node} 排序 ${command.index}`;
+            return t('commandReorderNode', { node: command.node, index: command.index });
         case 'batch':
-            return `批量命令 ${command.commands.length}`;
+            return t('commandBatch', { count: command.commands.length });
     }
 }
 
@@ -55,22 +62,24 @@ function formatJson(value: unknown) {
 }
 
 function AttemptDetails({ attempt }: { attempt: AiExecutionAttempt }) {
+    const t = useI18n();
+
     return (
         <section className="attemptDetail">
             <header>
-                <strong>第 {attempt.attempt} 轮</strong>
-                <span>{attempt.run.ok ? attempt.applied ? '已应用' : '应用失败' : '校验失败'}</span>
+                <strong>{t('attemptTitle', { attempt: attempt.attempt })}</strong>
+                <span>{attempt.run.ok ? attempt.applied ? t('attemptApplied') : t('attemptApplyFailed') : t('attemptValidationFailed')}</span>
             </header>
             {attempt.proposal.explanation ? <p>{attempt.proposal.explanation}</p> : null}
             {attempt.run.error ? (
                 <div className="detailNotice">
-                    <span>校验错误</span>
+                    <span>{t('validationError')}</span>
                     <small>{attempt.run.error}</small>
                 </div>
             ) : null}
             {attempt.applyError ? (
                 <div className="detailNotice">
-                    <span>应用错误</span>
+                    <span>{t('applyError')}</span>
                     <small>{attempt.applyError}</small>
                 </div>
             ) : null}
@@ -80,7 +89,7 @@ function AttemptDetails({ attempt }: { attempt: AiExecutionAttempt }) {
                     <div>
                         {attempt.run.diffs.map((diff, index) => (
                             <small key={`${diff.target}-${index}`}>
-                                {diff.target}: {formatValue(diff.before)} {'->'} {formatValue(diff.after)}
+                                {diff.target}: {formatValue(diff.before, t)} {'->'} {formatValue(diff.after, t)}
                             </small>
                         ))}
                     </div>
@@ -105,6 +114,7 @@ function AttemptDetails({ attempt }: { attempt: AiExecutionAttempt }) {
 }
 
 function ResultMessage({ message }: { message: Extract<AiMessage, { role: 'result' }> }) {
+    const t = useI18n();
     const { execution } = message;
     const { proposal, run, attempts } = execution;
     const failed = !execution.ok;
@@ -112,18 +122,18 @@ function ResultMessage({ message }: { message: Extract<AiMessage, { role: 'resul
 
     return (
         <div className={failed ? 'resultBox failed' : 'resultBox'} data-testid="ai-run-result">
-            <strong>{failed ? '自动执行失败' : '自动校验完成'}</strong>
-            <p>{proposal.explanation || 'AI 已返回结构化 EditorCommand。'}</p>
+            <strong>{failed ? t('aiRunFailed') : t('aiRunValidated')}</strong>
+            <p>{proposal.explanation || t('aiReturnedCommand')}</p>
             <div className="repairTrace">
                 {attempts.map((attempt) => (
                     <div className={attempt.run.ok && attempt.applied ? 'traceRow accepted' : 'traceRow rejected'} key={attempt.proposal.id}>
-                        <span>第 {attempt.attempt} 轮</span>
+                        <span>{t('attemptTitle', { attempt: attempt.attempt })}</span>
                         <small>
                             {attempt.run.ok
                                 ? attempt.applied
-                                    ? '通过：合法命令已应用到项目。'
-                                    : attempt.applyError ?? '应用失败。'
-                                : attempt.run.error ?? '命令校验失败。'}
+                                    ? t('validCommandApplied')
+                                    : attempt.applyError ?? t('attemptApplyFailed')
+                                : attempt.run.error ?? t('commandValidationFailed')}
                         </small>
                     </div>
                 ))}
@@ -138,11 +148,13 @@ function ResultMessage({ message }: { message: Extract<AiMessage, { role: 'resul
             ) : null}
             <div className={execution.ok ? 'successLine' : 'fileRule'}>
                 {execution.ok
-                    ? `合法命令已应用到项目。${attempts.length > 1 ? `已自动修正 ${attempts.length - 1} 次。` : ''}`
+                    ? t('validCommandAppliedSummary', {
+                        repair: attempts.length > 1 ? t('autoRepaired', { count: attempts.length - 1 }) : '',
+                    })
                     : lastAttempt.applyError ?? execution.error}
             </div>
             <details className="executionDetails">
-                <summary>执行详情</summary>
+                <summary>{t('executionDetails')}</summary>
                 <div className="executionDetailStack">
                     {attempts.map((attempt) => (
                         <AttemptDetails attempt={attempt} key={attempt.proposal.id} />
@@ -154,16 +166,19 @@ function ResultMessage({ message }: { message: Extract<AiMessage, { role: 'resul
 }
 
 function FragmentRow({ command, index }: { command: EditorCommand; index: number }) {
+    const t = useI18n();
+
     return (
         <>
             <span>{index + 1}. {command.op}</span>
-            <small>{formatCommand(command)}</small>
+            <small>{formatCommand(command, t)}</small>
         </>
     );
 }
 
 export function AiPanel({ document }: { document: EditorDocument }) {
     useDocumentRevision();
+    const t = useI18n();
     const prompt = useEditorStore((state) => state.prompt);
     const providerMode = useEditorStore((state) => state.providerMode);
     const remoteEndpoint = useEditorStore((state) => state.remoteEndpoint);
@@ -179,7 +194,7 @@ export function AiPanel({ document }: { document: EditorDocument }) {
     const [messages, setMessages] = useState<AiMessage[]>([
         {
             role: 'assistant',
-            text: '输入需求后点击发送。我会生成结构化 EditorCommand，先校验，再把合法命令自动写入当前 Prefab。',
+            text: t('aiIntro'),
         },
     ]);
 
@@ -207,7 +222,7 @@ export function AiPanel({ document }: { document: EditorDocument }) {
             setMessages((previous) => [...previous, { role: 'result', execution }]);
             refreshEditorDocument();
         } catch (err) {
-            const text = err instanceof Error ? err.message : '发送失败';
+            const text = err instanceof Error ? err.message : t('sendFailed');
             setMessages((previous) => [...previous, { role: 'assistant', text }]);
         } finally {
             setLoading(false);
@@ -223,7 +238,7 @@ export function AiPanel({ document }: { document: EditorDocument }) {
                     }
                     return (
                         <div className={`message ${message.role}`} key={`${message.role}-${index}`}>
-                            <span>{message.role === 'assistant' ? 'AI' : '你'}</span>
+                            <span>{message.role === 'assistant' ? 'AI' : t('userRole')}</span>
                             <p>{message.text}</p>
                         </div>
                     );
@@ -233,13 +248,13 @@ export function AiPanel({ document }: { document: EditorDocument }) {
                 {configOpen ? (
                     <section className="remoteConfig">
                         <div className="segmented">
-                            <button className={providerMode === 'mock' ? 'active' : ''} onClick={() => setProviderMode('mock')} type="button">本地 Mock</button>
-                            <button className={providerMode === 'remote' ? 'active' : ''} onClick={() => setProviderMode('remote')} type="button">AI 服务</button>
+                            <button className={providerMode === 'mock' ? 'active' : ''} onClick={() => setProviderMode('mock')} type="button">{t('localMock')}</button>
+                            <button className={providerMode === 'remote' ? 'active' : ''} onClick={() => setProviderMode('remote')} type="button">{t('aiService')}</button>
                         </div>
                         {providerMode === 'remote' ? (
                             <>
                                 <label className="remoteSimpleField">
-                                    <span>服务地址</span>
+                                    <span>{t('serviceEndpoint')}</span>
                                     <input
                                         className="endpointInput"
                                         data-testid="ai-remote-endpoint"
@@ -249,13 +264,13 @@ export function AiPanel({ document }: { document: EditorDocument }) {
                                     />
                                 </label>
                                 <details className="advancedConfig">
-                                    <summary>高级</summary>
+                                    <summary>{t('advanced')}</summary>
                                     <label>
                                         <span>Timeout</span>
                                         <input data-testid="ai-remote-timeout" min={1000} onChange={(event) => setRemoteTimeoutMs(Number(event.target.value))} step={1000} type="number" value={remoteTimeoutMs} />
                                     </label>
                                 </details>
-                                <div className="helpText">API key 放在本地 gateway 配置或环境变量里；这里不用每次填写 key。</div>
+                                <div className="helpText">{t('apiKeyLocalHint')}</div>
                             </>
                         ) : null}
                     </section>
@@ -264,15 +279,15 @@ export function AiPanel({ document }: { document: EditorDocument }) {
                     <textarea
                         data-testid="ai-prompt"
                         onChange={(event) => setPrompt(event.target.value)}
-                        placeholder="描述你想创建或调整的游戏 UI。"
+                        placeholder={t('aiPromptPlaceholder')}
                         value={prompt}
                     />
                     <div className="composerActions">
                         <button className="configButton" data-testid="ai-config-toggle" onClick={() => setConfigOpen((open) => !open)} type="button">
-                            {providerMode === 'remote' ? 'AI 服务' : '本地 Mock'}
+                            {providerMode === 'remote' ? t('aiService') : t('localMock')}
                         </button>
                         <button data-testid="ai-generate" disabled={loading || prompt.trim() === ''} onClick={() => void sendPrompt()} type="button">
-                            {loading ? '发送中...' : '发送'}
+                            {loading ? t('sending') : t('send')}
                         </button>
                     </div>
                 </div>

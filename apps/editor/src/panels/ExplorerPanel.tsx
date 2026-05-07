@@ -13,6 +13,8 @@ import {
 import type { TreeViewItem } from '../components/system';
 import { refreshEditorDocument } from '../document/editorDocumentController';
 import { useEditorStore } from '../editorStore';
+import { useI18n } from '../i18n';
+import type { I18nKey } from '../i18n';
 import { basicComponentLibrary } from '../services/basicComponentLibrary';
 import {
     basicComponentDragPayload,
@@ -45,7 +47,7 @@ interface ImportMetaWithEnv extends ImportMeta {
 function editorProjectPath() {
     const env = (import.meta as ImportMetaWithEnv).env;
     const path = env?.VITE_PIXIFACT_PROJECT_ROOT;
-    return typeof path === 'string' && path.trim() ? path.trim() : '未打开项目文件夹';
+    return typeof path === 'string' && path.trim() ? path.trim() : undefined;
 }
 
 function folderName(path: string) {
@@ -53,30 +55,32 @@ function folderName(path: string) {
     return normalized.split(/[\\/]/).pop() || path;
 }
 
-function fileAction(file: ProjectFileTreeNode, mode: 'select' | 'open') {
+type Translate = (key: I18nKey, values?: Record<string, string | number>) => string;
+
+function fileAction(file: ProjectFileTreeNode, mode: 'select' | 'open', t: Translate) {
     if (file.kind === 'asset') {
         return mode === 'open'
-            ? `已请求系统默认程序打开 ${file.name}。`
-            : '图片资源可预览；桌面版双击会调用本机默认程序打开。';
+            ? t('assetOpened', { name: file.name })
+            : t('assetSelected');
     }
     if (file.kind === 'component') {
-        return `${file.name} 是可挂载 Component；拖到 Inspector 空白区域即可添加，也可以在 VS Code 打开。`;
+        return t('componentSelected', { name: file.name });
     }
     if (file.kind === 'script') {
-        return '代码文件只读；桌面版双击会跳转 VS Code 查看源码。';
+        return t('scriptSelected');
     }
     if (file.kind === 'doc') {
-        return '文档文件只读；桌面版可调用本机默认程序查看。';
+        return t('docSelected');
     }
     if (file.kind === 'prefab') {
         return mode === 'open'
-            ? `已打开 ${file.name} 进行预制体编辑。`
-            : '预制体已选中；双击会进入预制体编辑。';
+            ? t('prefabOpened', { name: file.name })
+            : t('prefabSelected');
     }
     if (file.kind === 'folder') {
-        return '目录只用于浏览项目结构。';
+        return t('folderSelected');
     }
-    return '当前文件只读浏览。';
+    return t('readonlySelected');
 }
 
 function fileTreeItem(file: ProjectFileTreeNode): TreeViewItem<ProjectFileTreeNode> {
@@ -145,12 +149,14 @@ async function loadPrefabFile(document: EditorDocument, file: ProjectFileTreeNod
 }
 
 function EmptyProjectState() {
+    const t = useI18n();
+
     return (
         <section className="filePreview">
-            <span>项目</span>
-            <strong>未打开文件夹</strong>
-            <small>点击顶部“打开文件夹”读取完整项目文件树。</small>
-            <div className="fileRule">桌面版会打开本机文件夹；浏览器预览需要支持 File System Access API。</div>
+            <span>{t('project')}</span>
+            <strong>{t('projectNotOpened')}</strong>
+            <small>{t('projectOpenHint')}</small>
+            <div className="fileRule">{t('projectOpenRule')}</div>
         </section>
     );
 }
@@ -159,6 +165,7 @@ type ExplorerAccordionSection = 'project' | 'library';
 
 export function ResourceExplorer({ document }: { document: EditorDocument; revision?: number }) {
     useDocumentRevision();
+    const t = useI18n();
     const projectTree = useEditorStore((state) => state.projectTree);
     const selectedPath = useEditorStore((state) => state.selectedProjectFilePath);
     const expandedProjectFolders = useEditorStore((state) => state.expandedProjectFolders);
@@ -173,7 +180,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
     const [renameTargetPath, setRenameTargetPath] = useState<string>();
     const [inlineRenameDraft, setInlineRenameDraft] = useState('');
     const [imagePreviewUrl, setImagePreviewUrl] = useState<string>();
-    const [actionText, setActionText] = useState('点击“打开文件夹”读取项目文件树。');
+    const [actionText, setActionText] = useState(() => t('openFolderActionHint'));
     const [openSection, setOpenSection] = useState<ExplorerAccordionSection>('project');
     const expandedFolders = useMemo(() => new Set(expandedProjectFolders), [expandedProjectFolders]);
 
@@ -185,7 +192,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
     }, [projectTree]);
     const selectedFile = projectTree && selectedPath ? findFileInTree(projectTree, selectedPath) ?? projectTree : projectTree;
     const devProjectRootPath = editorProjectPath();
-    const projectPath = projectTree?.systemPath ?? projectTree?.path ?? devProjectRootPath;
+    const projectPath = projectTree?.systemPath ?? projectTree?.path ?? devProjectRootPath ?? t('saveStatusClosed');
     const selectedBasicComponent = selectedPath?.startsWith('library/basic/')
         ? basicComponentLibrary.find((item) => selectedPath === `library/basic/${item.kind}`)
         : undefined;
@@ -242,7 +249,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
     const selectFile = (file: ProjectFileTreeNode) => {
         setSelectedProjectFile(file.path);
         setRenameName(file.name);
-        setActionText(fileAction(file, 'select'));
+        setActionText(fileAction(file, 'select', t));
     };
 
     const selectBasicComponent = (kind: string) => {
@@ -252,14 +259,14 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         }
         setSelectedProjectFile(`library/basic/${item.kind}`);
         setRenameName('');
-        setActionText(`${item.name} 是基础组件；拖到预制体节点树即可添加。`);
+        setActionText(t('basicComponentDragHint', { name: t(item.nameKey) }));
     };
 
     const openFile = async (file: ProjectFileTreeNode) => {
         setSelectedProjectFile(file.path);
         if (file.kind === 'folder') {
             toggleFolder(file);
-            setActionText(fileAction(file, 'open'));
+            setActionText(fileAction(file, 'open', t));
             return;
         }
         if (file.kind === 'prefab') {
@@ -275,7 +282,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
             await openFileWithDefaultApp(file);
             return;
         }
-        setActionText(fileAction(file, 'open'));
+        setActionText(fileAction(file, 'open', t));
     };
 
     const openCodeFile = async (file: ProjectFileTreeNode) => {
@@ -284,7 +291,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         }
         try {
             await openProjectCodeFile(projectTree, file);
-            setActionText(`已请求 VS Code 打开 ${file.name}。`);
+            setActionText(t('openedVsCode', { name: file.name }));
         } catch (error) {
             setActionText(hostErrorMessage(error));
         }
@@ -296,7 +303,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         }
         try {
             await openProjectDefaultFile(projectTree, file);
-            setActionText(`已请求本机默认程序打开 ${file.name}。`);
+            setActionText(t('openedDefaultApp', { name: file.name }));
         } catch (error) {
             setActionText(hostErrorMessage(error));
         }
@@ -308,7 +315,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         }
         const refreshedTree = await refreshProjectFileTree(projectTree);
         refreshProject(refreshedTree, { selectPath, expandPaths });
-        setActionText('项目文件树已刷新。');
+        setActionText(t('projectFileTreeRefreshed'));
     };
 
     const createFolderInSelectedDirectory = async () => {
@@ -318,7 +325,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         }
         const directory = containingDirectory(projectTree, selectedFile);
         if (!directory) {
-            setActionText('无法确定新建文件夹位置。');
+            setActionText(t('cannotResolveNewFolderLocation'));
             return;
         }
 
@@ -326,9 +333,9 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
             const created = await createFolder(directory, name);
             setNewFolderName('');
             await refreshFileTree(created.path, [directory.path, created.path]);
-            setActionText(`已创建文件夹 ${created.name}。`);
+            setActionText(t('folderCreated', { name: created.name }));
         } catch (error) {
-            setActionText(error instanceof Error ? error.message : '新建文件夹失败。');
+            setActionText(error instanceof Error ? error.message : t('createFolderFailed'));
         }
     };
 
@@ -349,7 +356,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         document.setSelection({ type: 'node', node: rootLocator(document.prefab) });
         setOpenedPrefab(created.path);
         setNewPrefabName('');
-        setActionText(`已创建并打开 ${created.fileName}。`);
+        setActionText(t('prefabCreatedAndOpened', { file: created.fileName }));
         refreshEditorDocument();
     };
 
@@ -359,8 +366,8 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         }
         if (!canRenameFile(projectTree, file, openedPrefabPath, document.dirty)) {
             setActionText(file.path === projectTree.path
-                ? '不能重命名项目根目录。'
-                : '当前打开的 Prefab 有未保存修改，不能重命名。');
+                ? t('cannotRenameRoot')
+                : t('cannotRenameDirtyPrefab'));
             return;
         }
         setSelectedProjectFile(file.path);
@@ -376,11 +383,11 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
             return;
         }
         if (file.path === projectTree.path) {
-            setActionText('不能重命名项目根目录。');
+            setActionText(t('cannotRenameRoot'));
             return;
         }
         if (file.path === openedPrefabPath && document.dirty) {
-            setActionText('当前打开的 Prefab 有未保存修改，不能重命名。');
+            setActionText(t('cannotRenameDirtyPrefab'));
             return;
         }
 
@@ -390,9 +397,9 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
             await refreshFileTree(renamed.path, [expandPath]);
             setRenameName(renamed.name);
             setRenameTargetPath(undefined);
-            setActionText(`已重命名为 ${renamed.name}。`);
+            setActionText(t('renamedTo', { name: renamed.name }));
         } catch (error) {
-            setActionText(error instanceof Error ? error.message : '重命名失败。');
+            setActionText(error instanceof Error ? error.message : t('renameFailed'));
         }
     };
 
@@ -408,14 +415,14 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
             return;
         }
         if (file.path === projectTree.path) {
-            setActionText('不能删除项目根目录。');
+            setActionText(t('cannotDeleteRoot'));
             return;
         }
         if (file.path === openedPrefabPath && document.dirty) {
-            setActionText('当前打开的 Prefab 有未保存修改，不能删除。');
+            setActionText(t('cannotDeleteDirtyPrefab'));
             return;
         }
-        const confirmed = window.confirm(`删除 ${file.name}？`);
+        const confirmed = window.confirm(t('confirmDelete', { name: file.name }));
         if (!confirmed) {
             return;
         }
@@ -424,9 +431,9 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
             await deleteProjectEntry(projectTree, file);
             await refreshFileTree(file.path);
             setRenameTargetPath(undefined);
-            setActionText(`已删除 ${file.name}。`);
+            setActionText(t('deletedFile', { name: file.name }));
         } catch (error) {
-            setActionText(error instanceof Error ? error.message : '删除失败。');
+            setActionText(error instanceof Error ? error.message : t('deleteFailed'));
         }
     };
 
@@ -457,13 +464,13 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
     const createFolderInDirectory = async (directory: ProjectFileTreeNode) => {
         setSelectedProjectFile(directory.path);
         setNewFolderName('');
-        setActionText(`在 ${directory.name} 下输入文件夹名称。`);
+        setActionText(t('inputFolderNameIn', { name: directory.name }));
     };
 
     const createPrefabInDirectory = async (directory: ProjectFileTreeNode) => {
         setSelectedProjectFile(directory.path);
         setNewPrefabName('');
-        setActionText(`在 ${directory.name} 下输入 Prefab 名称。`);
+        setActionText(t('inputPrefabNameIn', { name: directory.name }));
     };
 
     if (!projectTree) {
@@ -477,7 +484,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
 
     return (
         <div className="panelSurface" data-testid="resource-explorer">
-            <div className="explorerTitle">资源管理器</div>
+            <div className="explorerTitle">{t('explorerTitle')}</div>
             <div className="searchBox" data-testid="project-path" title={projectPath}>{folderName(projectPath)}</div>
             <section className="panelSection">
                 <section className="accordionSection" data-testid="project-file-section">
@@ -487,27 +494,27 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                         onClick={() => setOpenSection('project')}
                         type="button"
                     >
-                        项目文件 · {countProjectFileTree(projectTree)} 项
+                        {t('projectFilesWithCount', { count: countProjectFileTree(projectTree) })}
                     </button>
                     <div
                         aria-hidden={openSection !== 'project'}
                         className={openSection === 'project' ? 'accordionPanel open' : 'accordionPanel'}
                     >
                         <div className="accordionContent">
-                            <div className="fileOperationBar" aria-label="文件操作">
-                                <Button icon="refresh" onPress={() => void refreshFileTree()}>刷新</Button>
+                            <div className="fileOperationBar" aria-label={t('fileOperationsLabel')}>
+                                <Button icon="refresh" onPress={() => void refreshFileTree()}>{t('refresh')}</Button>
                                 <Button disabled={selectedBasicComponent !== undefined || !selectedFile || !canRenameFile(projectTree, selectedFile, openedPrefabPath, document.dirty)} icon="edit" onPress={() => selectedFile ? beginRename(selectedFile) : undefined}>
-                                    重命名
+                                    {t('rename')}
                                 </Button>
                                 <Button disabled={selectedBasicComponent !== undefined || !selectedFile || !canDeleteFile(projectTree, selectedFile, openedPrefabPath, document.dirty)} icon="trash" onPress={() => void deleteSelectedEntry()} variant="danger">
-                                    删除
+                                    {t('delete')}
                                 </Button>
                             </div>
                             <div className="createPrefabRow">
                                 <TextField
                                     data-testid="rename-entry-name"
                                     disabled={selectedBasicComponent !== undefined || selectedFile?.path === projectTree.path}
-                                    inputProps={{ 'aria-label': '重命名当前条目', placeholder: '重命名当前条目' }}
+                                    inputProps={{ 'aria-label': t('renameEntryLabel'), placeholder: t('renameEntryLabel') }}
                                     onChange={setRenameName}
                                     value={renameName}
                                 />
@@ -516,33 +523,33 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                                     disabled={selectedBasicComponent !== undefined || selectedFile?.path === projectTree.path || renameName.trim() === ''}
                                     onPress={() => void renameSelectedEntry()}
                                 >
-                                    应用
+                                    {t('apply')}
                                 </Button>
                             </div>
                             <div className="createPrefabRow">
                                 <TextField
                                     data-testid="new-folder-name"
-                                    inputProps={{ 'aria-label': '文件夹名称', placeholder: '文件夹名称' }}
+                                    inputProps={{ 'aria-label': t('folderName'), placeholder: t('folderName') }}
                                     onChange={setNewFolderName}
                                     value={newFolderName}
                                 />
                                 <Button data-testid="create-folder" disabled={newFolderName.trim() === ''} icon="folder-plus" onPress={() => void createFolderInSelectedDirectory()}>
-                                    新建文件夹
+                                    {t('createFolder')}
                                 </Button>
                             </div>
                             <div className="createPrefabRow">
                                 <TextField
                                     data-testid="new-prefab-name"
-                                    inputProps={{ 'aria-label': 'Prefab 名称', placeholder: 'Prefab 名称' }}
+                                    inputProps={{ 'aria-label': t('prefabName'), placeholder: t('prefabName') }}
                                     onChange={setNewPrefabName}
                                     value={newPrefabName}
                                 />
                                 <Button data-testid="create-prefab" disabled={newPrefabName.trim() === ''} icon="plus" onPress={() => void createPrefab()}>
-                                    新建预制体
+                                    {t('createPrefab')}
                                 </Button>
                             </div>
                             <TreeView
-                                ariaLabel="项目文件树"
+                                ariaLabel={t('projectFileTreeLabel')}
                                 expandedKeys={expandedFolders}
                                 items={fileTreeItems}
                                 onExpandedChange={setTreeExpandedKeys}
@@ -571,7 +578,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                                     >
                                         {renameTargetPath === file.path ? (
                                             <input
-                                                aria-label="重命名当前条目"
+                                                aria-label={t('renameEntryLabel')}
                                                 autoFocus
                                                 className="inlineRenameInput"
                                                 data-testid="inline-rename-entry"
@@ -594,49 +601,49 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                                         )}
                                         <MenuTrigger>
                                             <Button
-                                                aria-label={`${file.name} 更多操作`}
+                                                aria-label={t('moreActions', { name: file.name })}
                                                 className="fileMoreButton"
                                                 icon="more"
                                                 onPress={() => selectFile(file)}
-                                                title="更多操作"
+                                                title={t('moreActionsTitle')}
                                                 variant="subtle"
                                             />
                                             <Popover className="fileMenuPopover">
-                                                <Menu className="fileMenu" aria-label={`${file.name} 操作`}>
+                                                <Menu className="fileMenu" aria-label={t('fileActionsLabel', { name: file.name })}>
                                                     <MenuItem onAction={() => void openFile(file)}>
-                                                        {file.kind === 'folder' ? '展开/收起' : file.kind === 'prefab' ? '打开' : '选择'}
+                                                        {file.kind === 'folder' ? t('toggleExpand') : file.kind === 'prefab' ? t('open') : t('select')}
                                                     </MenuItem>
                                                     {file.kind === 'folder' ? (
                                                         <>
                                                             <MenuItem onAction={() => void createFolderInDirectory(file)}>
-                                                                新建文件夹
+                                                                {t('createFolder')}
                                                             </MenuItem>
                                                             <MenuItem onAction={() => void createPrefabInDirectory(file)}>
-                                                                新建 Prefab
+                                                                {t('createPrefab')}
                                                             </MenuItem>
                                                         </>
                                                     ) : null}
                                                     {canOpenInVsCode(file) ? (
                                                         <MenuItem onAction={() => void openCodeFile(file)}>
-                                                            VS Code 打开
+                                                            {t('openVsCode')}
                                                         </MenuItem>
                                                     ) : null}
                                                     {canOpenWithDefaultApp(file) ? (
                                                         <MenuItem onAction={() => void openFileWithDefaultApp(file)}>
-                                                            系统默认程序打开
+                                                            {t('openDefaultApp')}
                                                         </MenuItem>
                                                     ) : null}
                                                     <MenuItem
                                                         isDisabled={!canRenameFile(projectTree, file, openedPrefabPath, document.dirty)}
                                                         onAction={() => beginRename(file)}
                                                     >
-                                                        重命名
+                                                        {t('rename')}
                                                     </MenuItem>
                                                     <MenuItem
                                                         isDisabled={!canDeleteFile(projectTree, file, openedPrefabPath, document.dirty)}
                                                         onAction={() => void deleteEntry(file)}
                                                     >
-                                                        删除
+                                                        {t('delete')}
                                                     </MenuItem>
                                                 </Menu>
                                             </Popover>
@@ -654,7 +661,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                         onClick={() => setOpenSection('library')}
                         type="button"
                     >
-                        基础组件库
+                        {t('basicComponentLibrary')}
                     </button>
                     <div
                         aria-hidden={openSection !== 'library'}
@@ -673,10 +680,10 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                                         data-basic-component={item.kind}
                                         key={item.kind}
                                         onClick={() => selectBasicComponent(item.kind)}
-                                        payload={basicComponentDragPayload(item.kind, item.name)}
-                                        title={item.detail}
+                                        payload={basicComponentDragPayload(item.kind, t(item.nameKey))}
+                                        title={t(item.detailKey)}
                                     >
-                                        <strong>{item.name}</strong>
+                                        <strong>{t(item.nameKey)}</strong>
                                     </DragSource>
                                 ))}
                             </div>
@@ -685,11 +692,11 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                 </section>
                 <section className="filePreview" data-testid="file-preview">
                     <div className="filePreviewContent">
-                        <span>文件</span>
-                        <strong>{selectedBasicComponent?.name ?? selectedFile?.name ?? projectTree.name}</strong>
-                        <small>{selectedBasicComponent ? '基础组件库' : selectedFile?.path ?? projectTree.path}</small>
+                        <span>{t('file')}</span>
+                        <strong>{selectedBasicComponent ? t(selectedBasicComponent.nameKey) : selectedFile?.name ?? projectTree.name}</strong>
+                        <small>{selectedBasicComponent ? t('basicComponentLibrary') : selectedFile?.path ?? projectTree.path}</small>
                         {selectedBasicComponent ? (
-                            <div className="fileRule">{selectedBasicComponent.detail}。拖到预制体节点树可作为子节点添加。</div>
+                            <div className="fileRule">{t('basicComponentPreviewRule', { detail: t(selectedBasicComponent.detailKey) })}</div>
                         ) : selectedFile?.kind === 'asset' ? (
                             <div className="imagePreview">
                                 {imagePreviewUrl ? (
@@ -704,44 +711,44 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                                         <i />
                                     </div>
                                 )}
-                                <p>资源文件已纳入完整文件树；内容按需读取。</p>
+                                <p>{t('assetPreviewRule')}</p>
                                 <Button icon="external" onPress={() => void openFileWithDefaultApp(selectedFile)}>
-                                    系统默认程序打开
+                                    {t('openDefaultApp')}
                                 </Button>
                             </div>
                         ) : selectedFile?.kind === 'component' ? (
                             <div className="fileRule">
-                                Component 文件。拖到 Inspector 空白区域，或从 Inspector 的添加列表挂到当前节点。
+                                {t('componentPreviewRule')}
                                 <div className="filePreviewActions">
                                     <Button icon="external" onPress={() => void openCodeFile(selectedFile)}>
-                                        VS Code 打开
+                                        {t('openVsCode')}
                                     </Button>
                                 </div>
                             </div>
                         ) : selectedFile?.kind === 'script' ? (
                             <div className="fileRule">
-                                只读代码文件。编辑器不修改源码；可在 VS Code 查看。
+                                {t('scriptPreviewRule')}
                                 <div className="filePreviewActions">
                                     <Button icon="external" onPress={() => void openCodeFile(selectedFile)}>
-                                        VS Code 打开
+                                        {t('openVsCode')}
                                     </Button>
                                 </div>
                             </div>
                         ) : selectedFile?.kind === 'doc' ? (
                             <div className="fileRule">
-                                文档文件只读浏览；可用本机默认程序查看。
+                                {t('docPreviewRule')}
                                 <div className="filePreviewActions">
                                     <Button icon="external" onPress={() => void openFileWithDefaultApp(selectedFile)}>
-                                        系统默认程序打开
+                                        {t('openDefaultApp')}
                                     </Button>
                                 </div>
                             </div>
                         ) : selectedFile?.kind === 'prefab' ? (
-                            <div className="fileRule">双击进入预制体编辑；拖到预制体节点树可作为子节点添加。</div>
+                            <div className="fileRule">{t('prefabPreviewRule')}</div>
                         ) : selectedFile?.kind === 'folder' ? (
-                            <div className="fileRule">目录包含 {collectFolderPaths(selectedFile).length - 1} 个子目录。</div>
+                            <div className="fileRule">{t('folderPreviewRule', { count: collectFolderPaths(selectedFile).length - 1 })}</div>
                         ) : (
-                            <div className="fileRule">当前条目仅用于项目浏览。</div>
+                            <div className="fileRule">{t('unknownPreviewRule')}</div>
                         )}
                         <div className="fileAction">{actionText}</div>
                     </div>

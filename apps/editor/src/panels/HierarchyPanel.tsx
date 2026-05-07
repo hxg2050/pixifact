@@ -4,6 +4,7 @@ import { DropZone, TreeView } from '../components/system';
 import type { TreeViewItem } from '../components/system';
 import { refreshEditorDocument } from '../document/editorDocumentController';
 import { useEditorStore } from '../editorStore';
+import { useI18n } from '../i18n';
 import {
     basicComponentDragDataType,
     createBasicComponentNode,
@@ -47,6 +48,7 @@ function collectNodeLocators(node: NodeSpec): string[] {
 
 export function HierarchyTree({ document }: { document: EditorDocument }) {
     useDocumentRevision();
+    const t = useI18n();
     const projectTree = useEditorStore((state) => state.projectTree);
     const openedPrefabPath = useEditorStore((state) => state.openedPrefabPath);
     const items = collectHierarchy(document.prefab.root);
@@ -63,7 +65,7 @@ export function HierarchyTree({ document }: { document: EditorDocument }) {
 
     const addBasicComponentUnderNode = (kind: string, parent: string) => {
         if (!isBasicComponentKind(kind)) {
-            setError('拖入的基础组件不存在。');
+            setError(t('basicComponentMissing'));
             return;
         }
 
@@ -85,13 +87,13 @@ export function HierarchyTree({ document }: { document: EditorDocument }) {
 
     const addPrefabUnderNode = async (prefabPath: string, parent: string) => {
         if (prefabPath === openedPrefabPath) {
-            setError('不能把当前正在编辑的 Prefab 拖入自身。');
+            setError(t('prefabCannotDropSelf'));
             return;
         }
 
         const file = projectTree ? findFileByPath(projectTree, prefabPath) : undefined;
         if (!projectTree || !file || file.kind !== 'prefab') {
-            setError('拖入的文件不是 Prefab。');
+            setError(t('droppedFileNotPrefab'));
             return;
         }
 
@@ -117,12 +119,12 @@ export function HierarchyTree({ document }: { document: EditorDocument }) {
     return (
         <div className="nodeTree" data-testid="hierarchy-tree">
             <div className="sectionHeader hierarchyHeader">
-                <div className="sectionTitle">节点树</div>
-                <small>拖入基础组件或 Prefab</small>
+                <div className="sectionTitle">{t('hierarchyTreeTitle')}</div>
+                <small>{t('hierarchyDropHint')}</small>
             </div>
             {error ? <div className="errorBox">{error}</div> : null}
             <TreeView
-                ariaLabel="预制体节点树"
+                ariaLabel={t('prefabNodeTreeLabel')}
                 expandedKeys={expandedKeys}
                 items={treeItems}
                 onItemAction={(item) => document.setSelection({ type: 'node', node: item.locator })}
@@ -131,7 +133,7 @@ export function HierarchyTree({ document }: { document: EditorDocument }) {
                 renderItem={({ item }) => (
                     <DropZone
                         acceptedTypes={[prefabDragDataType, basicComponentDragDataType]}
-                        aria-label={`拖放到 ${nodeLabel(item.node)}`}
+                        aria-label={t('dropToNode', { node: nodeLabel(item.node) })}
                         className={[
                             'nodeRow',
                             item.locator === selected ? 'selected' : '',
@@ -160,10 +162,12 @@ export function HierarchyTree({ document }: { document: EditorDocument }) {
 }
 
 export function HierarchyPanel({ document }: { document: EditorDocument }) {
+    const t = useI18n();
+
     return (
-        <aside className="panel leftPanel" aria-label="层级">
+        <aside className="panel leftPanel" aria-label={t('hierarchyLabel')}>
             <header className="panelHeader">
-                <h2>层级</h2>
+                <h2>{t('hierarchyLabel')}</h2>
             </header>
             <HierarchyTree document={document} />
         </aside>
