@@ -147,12 +147,8 @@ test('editor restores dockview prototype layout and auto-applies AI commands', a
     await expect(page.getByTestId('resource-explorer')).toContainText('InventoryPanel.prefab');
     await expect(page.getByTestId('resource-explorer')).toContainText('HudPanel.prefab');
     await expect(page.getByTestId('resource-explorer')).toContainText('ButtonBinding.ts');
-    await expect(page.getByTestId('file-preview').getByRole('button', { name: '文件说明' })).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.getByTestId('file-preview').locator('.accordionPanel')).not.toHaveClass(/open/);
-    await page.getByTestId('file-preview').getByRole('button', { name: '文件说明' }).click();
-    await expect(page.getByTestId('file-preview').locator('.accordionPanel')).toHaveClass(/open/);
-    await expect(page.getByTestId('project-file-section').getByRole('button', { name: /项目文件/ })).toHaveAttribute('aria-expanded', 'false');
-    await page.getByTestId('project-file-section').getByRole('button', { name: /项目文件/ }).click();
+    await expect(page.getByTestId('file-preview')).toContainText('GameProject');
+    await expect(page.getByTestId('file-preview')).toContainText('目录包含');
     await expect(page.getByTestId('project-file-section').getByRole('button', { name: /项目文件/ })).toHaveAttribute('aria-expanded', 'true');
     await expect(page.getByTestId('basic-component-library').getByRole('button', { name: '基础组件库' })).toHaveAttribute('aria-expanded', 'false');
     await page.getByTestId('basic-component-library').getByRole('button', { name: '基础组件库' }).click();

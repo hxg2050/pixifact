@@ -30,6 +30,8 @@
   "license": "MIT",
   "scripts": {
     "build": "bunx --no-install rollup -c",
+    "desktop": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install tauri dev",
+    "desktop:build": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install tauri build",
     "editor": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install vite apps/editor",
     "editor:ai": "bun run build && bun apps/editor/src/mock/mock-ai-server.mjs",
     "editor:gateway": "bun apps/editor/src/gateway/ai-gateway-adapter.mjs",
@@ -80,6 +82,7 @@
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@rollup/plugin-typescript": "^11.1.6",
+    "@tauri-apps/cli": "2.11.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "happy-dom": "^20.9.0",

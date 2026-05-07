@@ -9,6 +9,7 @@ import {
     findFileByPath,
     mergeExpandedFolderPaths,
     nearestExistingPath,
+    projectFileRelativePath,
     renameProjectEntry,
     savePrefabFile,
     projectFileKind,
@@ -274,6 +275,18 @@ describe('project file tree service', () => {
             'GameProject',
             'GameProject/assets',
         ]);
+    });
+
+    it('resolves project-relative file paths', async () => {
+        const tree = await readProjectFileTree(new MockDirectoryHandle('GameProject', [
+            new MockDirectoryHandle('scripts', [
+                new MockFileHandle('logic.ts', ''),
+            ]),
+        ]) as unknown as FileSystemDirectoryHandle);
+        const logic = findFileByPath(tree, 'GameProject/scripts/logic.ts');
+
+        expect(projectFileRelativePath(tree, tree)).toBe('');
+        expect(projectFileRelativePath(tree, logic!)).toBe('scripts/logic.ts');
     });
 
     it('saves the current editor document back to an opened prefab file', async () => {

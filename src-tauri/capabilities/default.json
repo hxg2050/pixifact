@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Allow the main editor window to call Pixifact host commands.",
+  "windows": ["main"],
+  "permissions": ["core:default"]
+}

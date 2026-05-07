@@ -10,12 +10,18 @@ AI_FIRST_GAME_EDITOR_PLAN.md
 
 ## 1. 当前项目定义
 
-Pixifact 是 AI-first 游戏 UI / 轻量玩法编辑器。
+Pixifact 是 AI-first 游戏 UI / 轻量玩法编辑器。当前产品交付方向是 Tauri 桌面版优先；浏览器 Web 入口只作为开发预览和 Playwright 自动化测试承载。
 
 项目中心：
 
 ```txt
 apps/editor/
+```
+
+桌面 host：
+
+```txt
+src-tauri/
 ```
 
 底层能力：
@@ -58,9 +64,10 @@ src/ui/        runtime UI 组件
 
 ### 3.1 Editor Product First
 
+- [x] 产品方向切换为 Tauri desktop-first，本机文件和外部程序能力由桌面 host 提供。
 - [ ] `apps/editor/` 的正式 UI 以 `apps/editor-dockview-prototype/` 为交互基准。
 - [ ] 文件系统、Prefab 节点树、Viewport、Inspector、AI 对话是首屏核心。
-- [ ] 不再把 examples 或 runtime showcase 当作项目主入口。
+- [ ] 不再把 examples、runtime showcase 或浏览器 Web 入口当作项目主入口。
 - [ ] 文档、技能和 agent 规则默认围绕 editor 工作流组织。
 
 ### 3.2 AI Send-and-Execute
@@ -74,8 +81,8 @@ src/ui/        runtime UI 组件
 
 - [ ] 文件系统面板成为项目入口。
 - [ ] 双击 Prefab 在编辑器内打开。
-- [ ] 双击图片使用系统图片查看器。
-- [ ] 双击代码跳转 VS Code。
+- [ ] 双击图片、视频和未知资源使用系统默认程序。
+- [ ] 双击代码跳转 VS Code，并在当前 VS Code 窗口打开项目。
 - [ ] Component 文件可拖到 Inspector 挂载。
 - [ ] 编辑器不直接修改 TypeScript 源码文件。
 

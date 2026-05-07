@@ -11,11 +11,12 @@
 
 ## 项目概览
 
-Pixifact 是以 `apps/editor/` 为核心的 AI-first 游戏 UI / 轻量玩法编辑器。`pixifact` runtime 是编辑器预览、Prefab 实例化和导出代码的底座，不再是本仓库的主目标。
+Pixifact 是以 `apps/editor/` 为核心的 AI-first 游戏 UI / 轻量玩法编辑器。当前产品方向是 Tauri 桌面版优先；浏览器 Web 入口只作为开发预览和自动化测试承载，不作为最终产品形态。`pixifact` runtime 是编辑器预览、Prefab 实例化和导出代码的底座，不再是本仓库的主目标。
 
 当前仓库同时包含：
 
 - `apps/editor/`：Pixifact AI-first Game Editor 产品应用，是项目中心。
+- `src-tauri/`：Pixifact 桌面版 host，负责本机文件系统、外部程序打开、打包和桌面窗口。
 - `apps/editor-dockview-prototype/`：最终 IDE / dock layout 交互原型。
 - `src/`：编辑器领域模型、runtime foundation、UI 组件、Prefab、Command、EditorDocument、AI proposal 等底层能力。
 - `src/editor/`、`src/commands/`、`src/prefab/`：editor-first 领域能力的一等目录。
@@ -155,6 +156,18 @@ bun run example:build
 
 ```bash
 bun run editor
+```
+
+本地启动 Tauri 桌面版：
+
+```bash
+bun run desktop
+```
+
+打包 Tauri 桌面版：
+
+```bash
+bun run desktop:build
 ```
 
 本地启动 mock AI server：

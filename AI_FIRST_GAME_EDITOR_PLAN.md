@@ -5,12 +5,14 @@
 项目重新定义：
 
 - Pixifact 是 editor-first 项目，核心产品是 `apps/editor/`。
+- 当前产品交付方向是 Tauri 桌面版优先；浏览器 Web 入口只作为开发预览和自动化测试承载。
 - `src/` 下的 runtime、Prefab、Command、EditorDocument、AI proposal 等能力是编辑器基础设施。
 - 后续路线不再以通用 PixiJS framework 为中心，新增底层能力必须服务编辑器工作流、Prefab 实例化、Viewport 预览、Command 应用或导出。
 
 核心结论：
 
 - 编辑器是产品级应用，目录固定为 `apps/editor`。
+- 桌面 host 位于 `src-tauri/`，负责本机文件系统、外部程序打开、窗口和打包。
 - `examples` 只放 runtime 示例，不承载编辑器产品。
 - AI-first 是第一原则，自然语言是主要创作入口。
 - AI 对用户表现为“发送即执行”，不暴露手动预演和应用按钮。
@@ -19,6 +21,16 @@
 - 不内嵌代码编辑器，不使用 Monaco，不把 JSON textarea 作为主要交互。
 - EditorDocument、PrefabSpec、Command 和 runtime preview 是真正的编辑闭环。
 - 当前最终 UI 原型在 `apps/editor-dockview-prototype/`，后续产品实现应以该原型确定的交互为准。
+
+### 0.0 运行形态
+
+Pixifact Editor 的正式产品形态是本地桌面应用：
+
+- React / Vite UI 继续位于 `apps/editor/`，作为桌面应用的前端界面。
+- Tauri host 位于 `src-tauri/`，负责浏览器不能可靠完成的本机能力。
+- 浏览器 Web 入口只用于开发预览、组件调试和 Playwright 自动化测试。
+- 产品能力不再围绕浏览器限制设计；打开本机文件、调用 VS Code、调用系统默认程序都走 Tauri host。
+- Bun 是开发仓库的包管理器和前端构建工具，不要求最终安装桌面版的用户配置 Bun 环境。
 
 ## 0. 最终方案快照
 
@@ -671,20 +683,19 @@ AI provider 形态：
 
 ### 5.8 Desktop Packaging
 
-后续采用：
+当前采用：
 
 ```txt
 Tauri v2
 ```
 
-先不做桌面壳。
+桌面壳已进入主线开发，负责本机文件系统、VS Code 打开、系统默认程序打开和最终打包。
 
-引入时机：
+当前边界：
 
-- Web editor alpha 稳定。
-- 需要本地文件系统。
-- 需要桌面菜单和快捷键。
-- 需要企业本地部署。
+- `apps/editor/` 保持 React / Vite UI。
+- `src-tauri/` 提供 host command。
+- 浏览器入口继续用于开发预览和 E2E，不定义产品能力。
 
 ### 5.9 Testing
 

@@ -10,12 +10,8 @@ import {
     isBasicComponentKind,
 } from '../services/basicComponentLibrary';
 import { createPrefabInstanceNode } from '../services/prefabInstance';
-import { findFileByPath, prefabDragDataType } from '../services/projectFileTree';
+import { findFileByPath, prefabDragDataType, readProjectFileText } from '../services/projectFileTree';
 import { collectHierarchy, selectedNodeId, useDocumentRevision } from './common';
-
-async function readPrefabSpec(handle: FileSystemFileHandle): Promise<PrefabSpec> {
-    return JSON.parse(await (await handle.getFile()).text()) as PrefabSpec;
-}
 
 interface HierarchyTreeNode {
     depth: number;
@@ -94,12 +90,12 @@ export function HierarchyTree({ document }: { document: EditorDocument }) {
         }
 
         const file = projectTree ? findFileByPath(projectTree, prefabPath) : undefined;
-        if (!file || file.kind !== 'prefab') {
+        if (!projectTree || !file || file.kind !== 'prefab') {
             setError('拖入的文件不是 Prefab。');
             return;
         }
 
-        const source = await readPrefabSpec(file.handle as FileSystemFileHandle);
+        const source = JSON.parse(await readProjectFileText(projectTree, file)) as PrefabSpec;
         const node = createPrefabInstanceNode(source, document.prefab);
         const result = document.apply({
             op: 'createNode',

@@ -744,6 +744,18 @@ textarea {
     line-height: 1.45;
 }
 
+.imagePreview .systemButton,
+.filePreviewActions .systemButton {
+    justify-self: start;
+}
+
+.filePreviewActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
 .atlasPreview {
     display: grid;
     aspect-ratio: 16 / 9;

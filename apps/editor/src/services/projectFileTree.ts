@@ -1,5 +1,20 @@
 import type { EditorDocument } from '../../../../src';
 import { editorDragDataTypes } from './dragPayload';
+import {
+    createHostProjectDirectory,
+    createHostProjectFile,
+    deleteHostProjectEntry,
+    isDesktopHost,
+    openHostCodeFile,
+    openHostDefaultFile,
+    pickHostProjectFolder,
+    readHostProjectFileBytes,
+    readHostProjectFileText,
+    readHostProjectFileTree,
+    renameHostProjectEntry,
+    writeHostProjectFileText,
+} from './hostBridge';
+import type { HostProjectFileTreeNode } from './hostBridge';
 import { prefabAssetName, prefabFileName, prefabRootKey } from './prefabNaming';
 
 export type ProjectFileKind = 'folder' | 'prefab' | 'script' | 'component' | 'asset' | 'doc' | 'unknown';
@@ -11,7 +26,9 @@ export interface ProjectFileTreeNode {
     path: string;
     kind: ProjectFileKind;
     depth: number;
-    handle: FileSystemHandle;
+    handle?: FileSystemHandle;
+    systemPath?: string;
+    projectRootPath?: string;
     children?: ProjectFileTreeNode[];
     detail?: string;
 }
@@ -48,6 +65,21 @@ export class ProjectFileOperationError extends Error {
         super(message);
         this.name = 'ProjectFileOperationError';
     }
+}
+
+function ensureBrowserHandle<T extends FileSystemHandle>(file: ProjectFileTreeNode) {
+    if (!file.handle) {
+        throw new ProjectFileOperationError('当前条目缺少浏览器文件句柄，请使用桌面版重新打开项目。');
+    }
+    return file.handle as T;
+}
+
+function ensureProjectRootPath(projectTree: ProjectFileTreeNode) {
+    const path = projectTree.projectRootPath ?? projectTree.systemPath;
+    if (!path) {
+        throw new ProjectFileOperationError('当前项目缺少本机路径，请使用桌面版重新打开项目。');
+    }
+    return path;
 }
 
 function extension(name: string) {
@@ -133,6 +165,11 @@ export async function readProjectFileTree(handle: FileSystemDirectoryHandle) {
 }
 
 export async function openProjectFolder() {
+    if (isDesktopHost()) {
+        const tree = await pickHostProjectFolder();
+        return tree ? projectFileTreeFromHost(tree) : undefined;
+    }
+
     const picker = (window as WindowWithDirectoryPicker).showDirectoryPicker;
     if (!picker) {
         return undefined;
@@ -172,6 +209,13 @@ export function parentPath(path: string) {
     const parts = path.split('/');
     parts.pop();
     return parts.join('/');
+}
+
+export function projectFileRelativePath(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
+    if (file.path === projectTree.path) {
+        return '';
+    }
+    return file.path.slice(projectTree.path.length + 1);
 }
 
 export function findParentDirectory(
@@ -259,12 +303,16 @@ export async function createPrefabFile(directory: ProjectFileTreeNode, name: str
         throw new ProjectFileOperationError(`已存在 ${fileName}。`);
     }
 
-    const directoryHandle = directory.handle as FileSystemDirectoryHandle;
-    const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true }) as WritableFileHandle;
-    const writable = await fileHandle.createWritable();
     const content = JSON.stringify(createBlankPrefab(name), null, 2);
-    await writable.write(content);
-    await writable.close();
+    if (directory.systemPath) {
+        await createHostProjectFile(ensureProjectRootPath(directory), directory.path, fileName, content);
+    } else {
+        const directoryHandle = ensureBrowserHandle<FileSystemDirectoryHandle>(directory);
+        const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true }) as WritableFileHandle;
+        const writable = await fileHandle.createWritable();
+        await writable.write(content);
+        await writable.close();
+    }
 
     return {
         fileName,
@@ -283,8 +331,12 @@ export async function createFolder(directory: ProjectFileTreeNode, name: string)
         throw new ProjectFileOperationError(`已存在 ${folderName}。`);
     }
 
-    const directoryHandle = directory.handle as MutableDirectoryHandle;
-    await directoryHandle.getDirectoryHandle(folderName, { create: true });
+    if (directory.systemPath) {
+        await createHostProjectDirectory(ensureProjectRootPath(directory), directory.path, folderName);
+    } else {
+        const directoryHandle = ensureBrowserHandle<MutableDirectoryHandle>(directory);
+        await directoryHandle.getDirectoryHandle(folderName, { create: true });
+    }
     return {
         name: folderName,
         path: `${directory.path}/${folderName}`,
@@ -321,8 +373,12 @@ export async function deleteProjectEntry(
         throw new ProjectFileOperationError('找不到父目录。');
     }
 
-    const parentHandle = parent.handle as MutableDirectoryHandle;
-    await parentHandle.removeEntry(target.name, { recursive: options.recursive ?? false });
+    if (projectTree.systemPath) {
+        await deleteHostProjectEntry(ensureProjectRootPath(projectTree), target.path, options.recursive ?? false);
+    } else {
+        const parentHandle = ensureBrowserHandle<MutableDirectoryHandle>(parent);
+        await parentHandle.removeEntry(target.name, { recursive: options.recursive ?? false });
+    }
 }
 
 export async function renameProjectEntry(
@@ -350,21 +406,25 @@ export async function renameProjectEntry(
         throw new ProjectFileOperationError(`已存在 ${nextName}。`);
     }
 
-    const parentHandle = parent.handle as MutableDirectoryHandle;
-    if (target.kind === 'folder') {
-        if (target.children?.length) {
-            throw new ProjectFileOperationError('当前只支持重命名空目录。');
-        }
-        await parentHandle.getDirectoryHandle(nextName, { create: true });
-        await parentHandle.removeEntry(target.name);
+    if (projectTree.systemPath) {
+        await renameHostProjectEntry(ensureProjectRootPath(projectTree), target.path, nextName);
     } else {
-        const sourceHandle = target.handle as ReadableFileHandle;
-        const file = await sourceHandle.getFile();
-        const nextHandle = await parentHandle.getFileHandle(nextName, { create: true }) as WritableFileHandle;
-        const writable = await nextHandle.createWritable();
-        await writable.write(await file.arrayBuffer());
-        await writable.close();
-        await parentHandle.removeEntry(target.name);
+        const parentHandle = ensureBrowserHandle<MutableDirectoryHandle>(parent);
+        if (target.kind === 'folder') {
+            if (target.children?.length) {
+                throw new ProjectFileOperationError('当前只支持重命名空目录。');
+            }
+            await parentHandle.getDirectoryHandle(nextName, { create: true });
+            await parentHandle.removeEntry(target.name);
+        } else {
+            const sourceHandle = ensureBrowserHandle<ReadableFileHandle>(target);
+            const file = await sourceHandle.getFile();
+            const nextHandle = await parentHandle.getFileHandle(nextName, { create: true }) as WritableFileHandle;
+            const writable = await nextHandle.createWritable();
+            await writable.write(await file.arrayBuffer());
+            await writable.close();
+            await parentHandle.removeEntry(target.name);
+        }
     }
 
     return {
@@ -375,14 +435,70 @@ export async function renameProjectEntry(
 
 export async function savePrefabFile(projectTree: ProjectFileTreeNode, path: string, document: EditorDocument) {
     const file = findFileByPath(projectTree, path);
-    const handle = file?.handle as WritableFileHandle | undefined;
-    if (!handle) {
+    if (!file) {
         return false;
     }
 
-    const writable = await handle.createWritable();
-    await writable.write(document.serialize());
-    await writable.close();
+    if (projectTree.systemPath) {
+        await writeHostProjectFileText(ensureProjectRootPath(projectTree), file.path, document.serialize());
+    } else {
+        const handle = file.handle as WritableFileHandle | undefined;
+        if (!handle) {
+            return false;
+        }
+        const writable = await handle.createWritable();
+        await writable.write(document.serialize());
+        await writable.close();
+    }
     document.dirty = false;
     return true;
+}
+
+export async function refreshProjectFileTree(projectTree: ProjectFileTreeNode) {
+    if (projectTree.systemPath) {
+        return projectFileTreeFromHost(await readHostProjectFileTree(ensureProjectRootPath(projectTree)));
+    }
+    return readProjectFileTree(ensureBrowserHandle<FileSystemDirectoryHandle>(projectTree));
+}
+
+export async function readProjectFileText(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
+    if (projectTree.systemPath) {
+        return readHostProjectFileText(ensureProjectRootPath(projectTree), file.path);
+    }
+    const handle = ensureBrowserHandle<FileSystemFileHandle>(file);
+    return (await handle.getFile()).text();
+}
+
+export async function readProjectFileBytes(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
+    if (projectTree.systemPath) {
+        return readHostProjectFileBytes(ensureProjectRootPath(projectTree), file.path);
+    }
+    const handle = ensureBrowserHandle<FileSystemFileHandle>(file);
+    return new Uint8Array(await (await handle.getFile()).arrayBuffer());
+}
+
+export async function openProjectCodeFile(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
+    await openHostCodeFile(ensureProjectRootPath(projectTree), file.path);
+}
+
+export async function openProjectDefaultFile(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
+    await openHostDefaultFile(ensureProjectRootPath(projectTree), file.path);
+}
+
+function projectFileTreeFromHost(
+    node: HostProjectFileTreeNode,
+    projectRootPath = node.systemPath,
+): ProjectFileTreeNode {
+    const kind = node.kind as ProjectFileKind;
+    return {
+        id: node.id,
+        name: node.name,
+        path: node.path,
+        kind,
+        depth: node.depth,
+        systemPath: node.systemPath,
+        projectRootPath,
+        children: node.children?.map((child) => projectFileTreeFromHost(child, projectRootPath)),
+        detail: node.detail,
+    };
 }

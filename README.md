@@ -2,7 +2,7 @@
 
 Pixifact 是一个以编辑器为核心的 AI-first 游戏 UI / 轻量玩法创作工具。
 
-本仓库的主目标不是继续打磨一个通用 PixiJS 封装库，而是交付一个可用、可验证、可扩展的编辑器产品。`pixifact` 运行时和 `src/` 下的组件、Prefab、Command、EditorDocument 等能力是编辑器的底座，不再是项目本身的中心。
+本仓库的主目标不是继续打磨一个通用 PixiJS 封装库，而是交付一个可用、可验证、可扩展的本地桌面编辑器产品。当前产品方向是 Tauri desktop-first；浏览器 Web 入口只作为开发预览和自动化测试承载。`pixifact` 运行时和 `src/` 下的组件、Prefab、Command、EditorDocument 等能力是编辑器的底座，不再是项目本身的中心。
 
 [English](./README.en.md)
 
@@ -32,6 +32,7 @@ Prompt -> EditorCommand -> Validate / Repair -> EditorDocument -> Runtime Previe
 ```txt
 apps/editor/                  AI-first editor 产品应用
 apps/editor-dockview-prototype/  最终 IDE 面板交互原型
+src-tauri/                    Tauri 桌面版 host，本机文件和外部程序能力
 src/                          编辑器领域模型、command、prefab、runtime 基础能力
 src/editor/                   EditorDocument、AI context、diff、memory、logic 等编辑器领域模型
 src/commands/                 EditorCommand validation / apply / undo 基础能力
@@ -45,8 +46,16 @@ skills/                       本仓库维护的 Codex skills
 
 ## 启动编辑器
 
+桌面版开发入口：
+
 ```bash
 bun install
+bun run desktop
+```
+
+只启动浏览器开发预览：
+
+```bash
 bun run editor
 ```
 
@@ -55,6 +64,14 @@ Vite 会输出本地访问地址，通常是：
 ```txt
 http://localhost:5173/
 ```
+
+打包桌面版：
+
+```bash
+bun run desktop:build
+```
+
+开发和打包桌面版需要 Rust / Cargo。最终安装桌面 App 的用户不需要配置 Bun 或 Rust 环境。
 
 ## AI Gateway
 

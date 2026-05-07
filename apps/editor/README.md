@@ -1,6 +1,12 @@
 # Pixifact AI-first Game Editor
 
-`apps/editor` 是 Pixifact 的核心产品应用。它用于使用和验证：
+`apps/editor` 是 Pixifact 桌面版的 React / Vite 前端界面，也是当前开发预览入口。正式产品形态是 Tauri 桌面版，桌面 host 位于：
+
+```txt
+src-tauri/
+```
+
+浏览器 Web 入口只用于开发预览和 Playwright 自动化测试，不作为最终产品形态。`apps/editor` 用于使用和验证：
 
 ```txt
 Prompt -> AI Proposal -> Dry Run -> Diff Review -> Apply -> Manual Refine -> Memory -> Export / Import
@@ -12,6 +18,14 @@ Prompt -> AI Proposal -> Dry Run -> Diff Review -> Apply -> Manual Refine -> Mem
 
 ```bash
 bun install
+bun run desktop
+```
+
+`desktop` 会启动 Tauri，并由 Tauri 启动 Vite 开发服务器。
+
+只启动浏览器开发预览：
+
+```bash
 bun run editor
 ```
 
@@ -21,7 +35,15 @@ Vite 会输出本地访问地址，通常是：
 http://localhost:5173/
 ```
 
-如果默认端口已被占用，Vite 会自动换到下一个可用端口，以终端输出为准。
+浏览器预览如果默认端口已被占用，Vite 会自动换到下一个可用端口，以终端输出为准。
+
+打包桌面版：
+
+```bash
+bun run desktop:build
+```
+
+开发和打包桌面版需要本机 Rust / Cargo 工具链。最终用户安装打包后的桌面 App，不需要配置 Bun 环境。
 
 ## Mock AI 使用
 

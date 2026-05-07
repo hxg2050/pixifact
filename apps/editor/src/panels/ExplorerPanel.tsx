@@ -28,9 +28,14 @@ import {
     createPrefabFile,
     deleteProjectEntry,
     containingDirectory,
-    readProjectFileTree,
+    openProjectCodeFile,
+    openProjectDefaultFile,
+    readProjectFileBytes,
+    readProjectFileText,
+    refreshProjectFileTree,
     renameProjectEntry,
 } from '../services/projectFileTree';
+import { hostErrorMessage } from '../services/hostBridge';
 import { getNodeLocator, useDocumentRevision } from './common';
 
 interface ImportMetaWithEnv extends ImportMeta {
@@ -51,14 +56,17 @@ function folderName(path: string) {
 function fileAction(file: ProjectFileTreeNode, mode: 'select' | 'open') {
     if (file.kind === 'asset') {
         return mode === 'open'
-            ? `已选择图片资源 ${file.path}。`
-            : '图片资源按需预览；当前阶段不调用系统图片查看器。';
+            ? `已请求系统默认程序打开 ${file.name}。`
+            : '图片资源可预览；桌面版双击会调用本机默认程序打开。';
     }
     if (file.kind === 'component') {
-        return `${file.name} 是可挂载 Component；拖到 Inspector 空白区域即可添加。`;
+        return `${file.name} 是可挂载 Component；拖到 Inspector 空白区域即可添加，也可以在 VS Code 打开。`;
     }
     if (file.kind === 'script') {
-        return '代码文件只读；当前阶段不在编辑器内打开源码。';
+        return '代码文件只读；桌面版双击会跳转 VS Code 查看源码。';
+    }
+    if (file.kind === 'doc') {
+        return '文档文件只读；桌面版可调用本机默认程序查看。';
     }
     if (file.kind === 'prefab') {
         return mode === 'open'
@@ -113,13 +121,24 @@ function canDeleteFile(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNo
     return file.path !== projectTree.path && !(file.path === openedPrefabPath && dirty);
 }
 
+function canOpenInVsCode(file: ProjectFileTreeNode) {
+    return file.kind === 'script' || file.kind === 'component';
+}
+
+function canOpenWithDefaultApp(file: ProjectFileTreeNode) {
+    return file.kind === 'asset' || file.kind === 'doc' || file.kind === 'unknown';
+}
+
 function rootLocator(prefab: PrefabSpec) {
     return getNodeLocator(prefab.root);
 }
 
 async function loadPrefabFile(document: EditorDocument, file: ProjectFileTreeNode) {
-    const handle = file.handle as FileSystemFileHandle;
-    const content = await (await handle.getFile()).text();
+    const projectTree = useEditorStore.getState().projectTree;
+    if (!projectTree) {
+        return;
+    }
+    const content = await readProjectFileText(projectTree, file);
     document.load(content);
     document.setSelection({ type: 'node', node: rootLocator(document.prefab) });
     refreshEditorDocument();
@@ -131,12 +150,12 @@ function EmptyProjectState() {
             <span>项目</span>
             <strong>未打开文件夹</strong>
             <small>点击顶部“打开文件夹”读取完整项目文件树。</small>
-            <div className="fileRule">浏览器需要支持 File System Access API，建议使用 Chrome 或 Edge。</div>
+            <div className="fileRule">桌面版会打开本机文件夹；浏览器预览需要支持 File System Access API。</div>
         </section>
     );
 }
 
-type ExplorerAccordionSection = 'project' | 'library' | 'preview';
+type ExplorerAccordionSection = 'project' | 'library';
 
 export function ResourceExplorer({ document }: { document: EditorDocument; revision?: number }) {
     useDocumentRevision();
@@ -165,12 +184,17 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         return [fileTreeItem(projectTree)];
     }, [projectTree]);
     const selectedFile = projectTree && selectedPath ? findFileInTree(projectTree, selectedPath) ?? projectTree : projectTree;
-    const projectPath = projectTree?.path ?? editorProjectPath();
+    const devProjectRootPath = editorProjectPath();
+    const projectPath = projectTree?.systemPath ?? projectTree?.path ?? devProjectRootPath;
     const selectedBasicComponent = selectedPath?.startsWith('library/basic/')
         ? basicComponentLibrary.find((item) => selectedPath === `library/basic/${item.kind}`)
         : undefined;
 
     useEffect(() => {
+        if (!projectTree) {
+            setImagePreviewUrl(undefined);
+            return undefined;
+        }
         if (selectedFile?.kind !== 'asset') {
             setImagePreviewUrl(undefined);
             return undefined;
@@ -178,13 +202,9 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
 
         let revoked = false;
         let objectUrl: string | undefined;
-        const handle = selectedFile.handle as FileSystemFileHandle;
-        void handle.getFile()
-            .then((file) => {
-                if (!file.type.startsWith('image/')) {
-                    return;
-                }
-                objectUrl = URL.createObjectURL(file);
+        void readProjectFileBytes(projectTree, selectedFile)
+            .then((bytes) => {
+                objectUrl = URL.createObjectURL(new Blob([bytes.slice().buffer]));
                 if (revoked) {
                     URL.revokeObjectURL(objectUrl);
                     return;
@@ -203,7 +223,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                 URL.revokeObjectURL(objectUrl);
             }
         };
-    }, [selectedFile]);
+    }, [projectTree, selectedFile]);
 
     const toggleFolder = (file: ProjectFileTreeNode) => {
         const next = new Set(expandedFolders);
@@ -245,15 +265,48 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         if (file.kind === 'prefab') {
             await loadPrefabFile(document, file);
             setOpenedPrefab(file.path);
+        } else if (file.kind === 'asset' || file.kind === 'unknown') {
+            await openFileWithDefaultApp(file);
+            return;
+        } else if (file.kind === 'script' || file.kind === 'component') {
+            await openCodeFile(file);
+            return;
+        } else if (file.kind === 'doc') {
+            await openFileWithDefaultApp(file);
+            return;
         }
         setActionText(fileAction(file, 'open'));
+    };
+
+    const openCodeFile = async (file: ProjectFileTreeNode) => {
+        if (!projectTree) {
+            return;
+        }
+        try {
+            await openProjectCodeFile(projectTree, file);
+            setActionText(`已请求 VS Code 打开 ${file.name}。`);
+        } catch (error) {
+            setActionText(hostErrorMessage(error));
+        }
+    };
+
+    const openFileWithDefaultApp = async (file: ProjectFileTreeNode) => {
+        if (!projectTree) {
+            return;
+        }
+        try {
+            await openProjectDefaultFile(projectTree, file);
+            setActionText(`已请求本机默认程序打开 ${file.name}。`);
+        } catch (error) {
+            setActionText(hostErrorMessage(error));
+        }
     };
 
     const refreshFileTree = async (selectPath?: string, expandPaths: string[] = []) => {
         if (!projectTree) {
             return;
         }
-        const refreshedTree = await readProjectFileTree(projectTree.handle as FileSystemDirectoryHandle);
+        const refreshedTree = await refreshProjectFileTree(projectTree);
         refreshProject(refreshedTree, { selectPath, expandPaths });
         setActionText('项目文件树已刷新。');
     };
@@ -290,7 +343,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         }
 
         const created = await createPrefabFile(directory, name);
-        const refreshedTree = await readProjectFileTree(projectTree.handle as FileSystemDirectoryHandle);
+        const refreshedTree = await refreshProjectFileTree(projectTree);
         refreshProject(refreshedTree, { selectPath: created.path, expandPaths: [directory.path] });
         document.load(created.content);
         document.setSelection({ type: 'node', node: rootLocator(document.prefab) });
@@ -563,6 +616,16 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                                                             </MenuItem>
                                                         </>
                                                     ) : null}
+                                                    {canOpenInVsCode(file) ? (
+                                                        <MenuItem onAction={() => void openCodeFile(file)}>
+                                                            VS Code 打开
+                                                        </MenuItem>
+                                                    ) : null}
+                                                    {canOpenWithDefaultApp(file) ? (
+                                                        <MenuItem onAction={() => void openFileWithDefaultApp(file)}>
+                                                            系统默认程序打开
+                                                        </MenuItem>
+                                                    ) : null}
                                                     <MenuItem
                                                         isDisabled={!canRenameFile(projectTree, file, openedPrefabPath, document.dirty)}
                                                         onAction={() => beginRename(file)}
@@ -620,54 +683,67 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                         </div>
                     </div>
                 </section>
-                <section className="accordionSection filePreview" data-testid="file-preview">
-                    <button
-                        aria-expanded={openSection === 'preview'}
-                        className="accordionHeader"
-                        onClick={() => setOpenSection('preview')}
-                        type="button"
-                    >
-                        文件说明
-                    </button>
-                    <div
-                        aria-hidden={openSection !== 'preview'}
-                        className={openSection === 'preview' ? 'accordionPanel open' : 'accordionPanel'}
-                    >
-                        <div className="accordionContent filePreviewContent">
-                            <span>文件</span>
-                            <strong>{selectedBasicComponent?.name ?? selectedFile?.name ?? projectTree.name}</strong>
-                            <small>{selectedBasicComponent ? '基础组件库' : selectedFile?.path ?? projectTree.path}</small>
-                            {selectedBasicComponent ? (
-                                <div className="fileRule">{selectedBasicComponent.detail}。拖到预制体节点树可作为子节点添加。</div>
-                            ) : selectedFile?.kind === 'asset' ? (
-                                <div className="imagePreview">
-                                    {imagePreviewUrl ? (
-                                        <img alt={selectedFile.name} src={imagePreviewUrl} />
-                                    ) : (
-                                        <div className="atlasPreview">
-                                            <i />
-                                            <i />
-                                            <i />
-                                            <i />
-                                            <i />
-                                            <i />
-                                        </div>
-                                    )}
-                                    <p>资源文件已纳入完整文件树；内容按需读取。</p>
+                <section className="filePreview" data-testid="file-preview">
+                    <div className="filePreviewContent">
+                        <span>文件</span>
+                        <strong>{selectedBasicComponent?.name ?? selectedFile?.name ?? projectTree.name}</strong>
+                        <small>{selectedBasicComponent ? '基础组件库' : selectedFile?.path ?? projectTree.path}</small>
+                        {selectedBasicComponent ? (
+                            <div className="fileRule">{selectedBasicComponent.detail}。拖到预制体节点树可作为子节点添加。</div>
+                        ) : selectedFile?.kind === 'asset' ? (
+                            <div className="imagePreview">
+                                {imagePreviewUrl ? (
+                                    <img alt={selectedFile.name} src={imagePreviewUrl} />
+                                ) : (
+                                    <div className="atlasPreview">
+                                        <i />
+                                        <i />
+                                        <i />
+                                        <i />
+                                        <i />
+                                        <i />
+                                    </div>
+                                )}
+                                <p>资源文件已纳入完整文件树；内容按需读取。</p>
+                                <Button icon="external" onPress={() => void openFileWithDefaultApp(selectedFile)}>
+                                    系统默认程序打开
+                                </Button>
+                            </div>
+                        ) : selectedFile?.kind === 'component' ? (
+                            <div className="fileRule">
+                                Component 文件。拖到 Inspector 空白区域，或从 Inspector 的添加列表挂到当前节点。
+                                <div className="filePreviewActions">
+                                    <Button icon="external" onPress={() => void openCodeFile(selectedFile)}>
+                                        VS Code 打开
+                                    </Button>
                                 </div>
-                            ) : selectedFile?.kind === 'component' ? (
-                                <div className="fileRule">Component 文件。拖到 Inspector 空白区域，或从 Inspector 的添加列表挂到当前节点。</div>
-                            ) : selectedFile?.kind === 'script' ? (
-                                <div className="fileRule">只读代码文件。当前阶段不在编辑器内修改源码。</div>
-                            ) : selectedFile?.kind === 'prefab' ? (
-                                <div className="fileRule">双击进入预制体编辑；拖到预制体节点树可作为子节点添加。</div>
-                            ) : selectedFile?.kind === 'folder' ? (
-                                <div className="fileRule">目录包含 {collectFolderPaths(selectedFile).length - 1} 个子目录。</div>
-                            ) : (
-                                <div className="fileRule">当前条目仅用于项目浏览。</div>
-                            )}
-                            <div className="fileAction">{actionText}</div>
-                        </div>
+                            </div>
+                        ) : selectedFile?.kind === 'script' ? (
+                            <div className="fileRule">
+                                只读代码文件。编辑器不修改源码；可在 VS Code 查看。
+                                <div className="filePreviewActions">
+                                    <Button icon="external" onPress={() => void openCodeFile(selectedFile)}>
+                                        VS Code 打开
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : selectedFile?.kind === 'doc' ? (
+                            <div className="fileRule">
+                                文档文件只读浏览；可用本机默认程序查看。
+                                <div className="filePreviewActions">
+                                    <Button icon="external" onPress={() => void openFileWithDefaultApp(selectedFile)}>
+                                        系统默认程序打开
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : selectedFile?.kind === 'prefab' ? (
+                            <div className="fileRule">双击进入预制体编辑；拖到预制体节点树可作为子节点添加。</div>
+                        ) : selectedFile?.kind === 'folder' ? (
+                            <div className="fileRule">目录包含 {collectFolderPaths(selectedFile).length - 1} 个子目录。</div>
+                        ) : (
+                            <div className="fileRule">当前条目仅用于项目浏览。</div>
+                        )}
+                        <div className="fileAction">{actionText}</div>
                     </div>
                 </section>
             </section>
