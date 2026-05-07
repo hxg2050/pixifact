@@ -5,6 +5,7 @@ import {
     RemoteAiProposalProvider,
 } from '../../../../src';
 import type {
+    AiExecutionAttempt,
     AiExecutionResult,
     EditorCommand,
     EditorDocument,
@@ -49,6 +50,60 @@ function remoteHeaders(header: string, token: string) {
     return name && value ? { [name]: value } : undefined;
 }
 
+function formatJson(value: unknown) {
+    return JSON.stringify(value, null, 2);
+}
+
+function AttemptDetails({ attempt }: { attempt: AiExecutionAttempt }) {
+    return (
+        <section className="attemptDetail">
+            <header>
+                <strong>第 {attempt.attempt} 轮</strong>
+                <span>{attempt.run.ok ? attempt.applied ? '已应用' : '应用失败' : '校验失败'}</span>
+            </header>
+            {attempt.proposal.explanation ? <p>{attempt.proposal.explanation}</p> : null}
+            {attempt.run.error ? (
+                <div className="detailNotice">
+                    <span>校验错误</span>
+                    <small>{attempt.run.error}</small>
+                </div>
+            ) : null}
+            {attempt.applyError ? (
+                <div className="detailNotice">
+                    <span>应用错误</span>
+                    <small>{attempt.applyError}</small>
+                </div>
+            ) : null}
+            {attempt.run.diffs.length > 0 ? (
+                <div className="detailGrid">
+                    <span>Diff</span>
+                    <div>
+                        {attempt.run.diffs.map((diff, index) => (
+                            <small key={`${diff.target}-${index}`}>
+                                {diff.target}: {formatValue(diff.before)} {'->'} {formatValue(diff.after)}
+                            </small>
+                        ))}
+                    </div>
+                </div>
+            ) : null}
+            {attempt.run.warnings.length > 0 ? (
+                <div className="detailGrid">
+                    <span>Warnings</span>
+                    <div>
+                        {attempt.run.warnings.map((warning, index) => (
+                            <small key={`${warning.target}-${index}`}>{warning.message}</small>
+                        ))}
+                    </div>
+                </div>
+            ) : null}
+            <details className="commandDetails">
+                <summary>Commands JSON</summary>
+                <pre>{formatJson(attempt.proposal.commands)}</pre>
+            </details>
+        </section>
+    );
+}
+
 function ResultMessage({ message }: { message: Extract<AiMessage, { role: 'result' }> }) {
     const { execution } = message;
     const { proposal, run, attempts } = execution;
@@ -86,6 +141,14 @@ function ResultMessage({ message }: { message: Extract<AiMessage, { role: 'resul
                     ? `合法命令已应用到项目。${attempts.length > 1 ? `已自动修正 ${attempts.length - 1} 次。` : ''}`
                     : lastAttempt.applyError ?? execution.error}
             </div>
+            <details className="executionDetails">
+                <summary>执行详情</summary>
+                <div className="executionDetailStack">
+                    {attempts.map((attempt) => (
+                        <AttemptDetails attempt={attempt} key={attempt.proposal.id} />
+                    ))}
+                </div>
+            </details>
         </div>
     );
 }

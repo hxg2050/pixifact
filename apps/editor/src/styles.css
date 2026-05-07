@@ -1165,6 +1165,105 @@ textarea {
     font-weight: 760;
 }
 
+.executionDetails {
+    display: grid;
+    gap: 8px;
+}
+
+.executionDetails summary,
+.commandDetails summary {
+    color: #1d4ed8;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 850;
+}
+
+.executionDetailStack,
+.attemptDetail {
+    display: grid;
+    min-width: 0;
+    gap: 8px;
+}
+
+.attemptDetail {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fff;
+    padding: 8px;
+}
+
+.attemptDetail header,
+.detailGrid,
+.detailNotice {
+    display: grid;
+    min-width: 0;
+    gap: 6px;
+}
+
+.attemptDetail header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+}
+
+.attemptDetail header strong,
+.attemptDetail header span,
+.detailGrid span,
+.detailNotice span {
+    font-size: 11px;
+    font-weight: 850;
+}
+
+.attemptDetail header span {
+    color: var(--muted);
+}
+
+.attemptDetail p,
+.detailGrid small,
+.detailNotice small {
+    margin: 0;
+    color: var(--text);
+    font-size: 11px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.detailGrid {
+    grid-template-columns: 72px minmax(0, 1fr);
+}
+
+.detailGrid div {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+}
+
+.detailNotice {
+    border: 1px solid #f1bc65;
+    border-radius: 6px;
+    background: #fff7e6;
+    padding: 6px 8px;
+}
+
+.commandDetails {
+    display: grid;
+    min-width: 0;
+    gap: 6px;
+}
+
+.commandDetails pre {
+    max-height: 220px;
+    margin: 0;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #111827;
+    padding: 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
 .inspectorSurface {
     overflow: auto;
 }
