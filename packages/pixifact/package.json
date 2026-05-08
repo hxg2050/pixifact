@@ -1,0 +1,79 @@
+{
+  "name": "pixifact",
+  "version": "0.1.3",
+  "description": "Pixif semantic framework for 2D UI and lightweight game scenes.",
+  "packageManager": "bun@1.3.13",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "files": [
+    "dist/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hxg2050/pixifact.git",
+    "directory": "packages/pixifact"
+  },
+  "keywords": [
+    "pixif",
+    "pixifact",
+    "game-editor",
+    "pixijs",
+    "scene",
+    "runtime"
+  ],
+  "author": "youxia <243802688@qq.com>",
+  "license": "MIT",
+  "scripts": {
+    "build": "bunx --no-install tsc -p tsconfig.build.json"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.js",
+      "require": "./dist/runtime/index.js"
+    },
+    "./nodes": {
+      "types": "./dist/nodes/index.d.ts",
+      "import": "./dist/nodes/index.js",
+      "require": "./dist/nodes/index.js"
+    },
+    "./scene": {
+      "types": "./dist/scene/index.d.ts",
+      "import": "./dist/scene/index.js",
+      "require": "./dist/scene/index.js"
+    },
+    "./authoring": {
+      "types": "./dist/authoring/index.d.ts",
+      "import": "./dist/authoring/index.js",
+      "require": "./dist/authoring/index.js"
+    },
+    "./commands": {
+      "types": "./dist/commands/index.d.ts",
+      "import": "./dist/commands/index.js",
+      "require": "./dist/commands/index.js"
+    }
+  },
+  "peerDependencies": {
+    "pixi.js": ">=8.3.0"
+  },
+  "dependencies": {
+    "@math.gl/core": "^4.0.1",
+    "eventemitter3": "^5.0.1"
+  },
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^11.1.6",
+    "rollup": "^4.9.4",
+    "tslib": "^2.6.2",
+    "typescript": "^5.3.3"
+  }
+}

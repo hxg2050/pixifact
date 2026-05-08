@@ -15,6 +15,7 @@ import type {
     DropOperation,
     DropZoneProps as AriaDropZoneProps,
     DropZoneRenderProps,
+    DragOptions,
 } from 'react-aria-components';
 
 type SystemDragItem = Record<string, string>;
@@ -29,11 +30,13 @@ export interface SystemDropPayload extends SystemDragPayload {
     item: DropItem;
 }
 
-interface DragSourceProps extends Omit<HTMLAttributes<HTMLElement>, 'children'> {
+interface DragSourceProps extends Omit<HTMLAttributes<HTMLElement>, 'children' | 'onDragEnd' | 'onDragStart'> {
     as?: 'button' | 'div';
     children?: ReactNode;
     disabled?: boolean;
     getAllowedDropOperations?: () => DropOperation[];
+    onSystemDragEnd?: DragOptions['onDragEnd'];
+    onSystemDragStart?: DragOptions['onDragStart'];
     payload?: SystemDragPayload;
     type?: string;
 }
@@ -43,6 +46,8 @@ interface DropZoneProps extends Omit<AriaDropZoneProps, 'children' | 'className'
     children?: ReactNode | ((props: DropZoneRenderProps) => ReactNode);
     className?: string | ((props: DropZoneRenderProps) => string);
     disabled?: boolean;
+    getDropOperation?: (types: { has(type: string | symbol): boolean }, allowedOperations: DropOperation[]) => DropOperation;
+    onDropMove?: AriaDropZoneProps['onDropMove'];
     onPayloadDrop(payload: SystemDropPayload): void | Promise<void>;
 }
 
@@ -122,6 +127,8 @@ function ActiveDragSource({
     className,
     disabled,
     getAllowedDropOperations = () => ['copy'],
+    onSystemDragEnd,
+    onSystemDragStart,
     payload,
     ...props
 }: DragSourceProps & { payload: SystemDragPayload }) {
@@ -129,6 +136,8 @@ function ActiveDragSource({
         getAllowedDropOperations,
         getItems: () => payload ? [dragItemFromPayload(payload)] : [],
         hasDragButton: true,
+        onDragEnd: onSystemDragEnd,
+        onDragStart: onSystemDragStart,
         isDisabled: disabled,
     });
     const classes = [
@@ -155,6 +164,8 @@ export const DropZone = forwardRef<HTMLDivElement, DropZoneProps>(function DropZ
     children,
     className,
     disabled,
+    getDropOperation,
+    onDropMove,
     onPayloadDrop,
     ...props
 }, ref) {
@@ -169,9 +180,13 @@ export const DropZone = forwardRef<HTMLDivElement, DropZoneProps>(function DropZ
                 if (!acceptsAnyType(types, acceptedTypes)) {
                     return 'cancel';
                 }
+                if (getDropOperation) {
+                    return getDropOperation(types, allowedOperations);
+                }
                 return allowedOperations.includes('copy') ? 'copy' : allowedOperations[0] ?? 'copy';
             }}
             isDisabled={disabled}
+            onDropMove={onDropMove}
             onDrop={async (event) => {
                 const payload = await readPayload(event.items, acceptedTypes);
                 if (payload) {

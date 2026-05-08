@@ -1,9 +1,9 @@
 ---
 name: pixifact-editor
-description: Build, maintain, and document the Pixifact AI-first editor and its runtime foundation. Use when working in this repository on apps/editor, EditorDocument, PrefabSpec, commands, AI proposal/repair flow, runtime preview, or underlying pixifact runtime code involving Application, GameObject, Group, Component lifecycles, Layout, GridLayout, FlexGroup/Flex, Graphics, Label, Image, NineSliceImage, Button, ScrollView, Input, Textarea, package exports, examples, tests, or PixiJS v8 integration patterns.
+description: Build, maintain, and document the Pixifact framework, editor, and MCP tooling. Use when working in this repository on packages/pixifact, packages/pixifact-mcp, apps/editor, SceneDocument, SceneSpec, SceneCommand, AI proposal/repair flow, runtime preview, or underlying pixifact runtime code involving Application, GameObject, Group, Component lifecycles, Layout, GridLayout, FlexGroup/Flex, Graphics, Label, Image, NineSliceImage, Button templates, ScrollView, Input, Textarea, package exports, examples, tests, or PixiJS v8 integration patterns.
 ---
 
-# Pixifact Editor And Runtime Foundation
+# Pixifact Framework, Editor, And MCP
 
 ## Workflow
 
@@ -11,19 +11,24 @@ Use this skill for Pixifact editor architecture and the runtime conventions that
 
 Start by identifying whether the work is inside this repository or in a consumer app:
 
-- For repository work, read `README.md`, `PLAN.md`, `AI_FIRST_GAME_EDITOR_PLAN.md`, and the relevant files under `apps/editor/` or `src/`.
-- For consumer code, prefer public imports from `pixifact`, `pixifact/core`, `pixifact/ui`, `pixifact/editor`, `pixifact/commands`, or `pixifact/prefab`.
+- For repository work, read `README.md`, `PLAN.md`, and the relevant files under `packages/pixifact/`, `packages/pixifact-mcp/`, or `apps/editor/`.
+- For consumer code, prefer public imports from `pixifact`, `pixifact/runtime`, `pixifact/scene`, `pixifact/commands`, or `pixifact/authoring`.
 - For repository orientation, read `references/project-map.md`.
 - For implementation conventions, read `references/patterns.md`.
 
 ## Core Rules
 
-- Treat `apps/editor/` as the product center. Runtime changes should serve editor workflows, Prefab instantiation, viewport preview, command application, or export.
-- `EditorDocument` is the only source of truth for editor project data.
+- Treat `packages/pixifact/` as the public Scene semantic layer consumed by the editor, MCP, and agents.
+- Runtime changes should serve Scene instantiation, editor workflows, viewport preview, command application, MCP, or export.
+- `SceneDocument` is the only source of truth for editor and agent Scene edits.
 - AI does not mutate projects directly; it produces structured commands / proposals that are validated before application.
+- Public authored node kinds are only `container`, `image`, `text`, `input`, and `shape`.
+- Only `container` nodes can contain children.
+- Display data belongs to node fields such as `text.value`, `image.src`, `input.value`, and `shape.color`.
+- Do not expose `ui.TextGraphic`, `ui.ImageGraphic`, or `ui.RoundedRectGraphic` as authored components.
 - Create runtime nodes with `GameObject.instantiate(Type, parent, props?)` when a parent is available.
 - `GameObject.instantiate()` applies props before `render()`. Composite `Group` subclasses may read initial props while building their child tree.
-- Treat `Group` as the only container node. Render leaves such as `Graphics`, `Label`, `Image`, and `NineSliceImage` should not own child nodes.
+- Treat runtime `Group` as the underlying container implementation. Render leaves such as `Graphics`, `Label`, `Image`, and `NineSliceImage` should not own child nodes.
 - Mount objects under `Application.root` for ticker-driven updates.
 - Put reusable behavior in `Component` subclasses. Use `awake`, `start`, `update`, and `onDestroy` consistently; `start` runs once immediately before the component's first update tick. Always clean up listeners in `onDestroy`.
 - Prefer logical `width` and `height` for layout decisions instead of deriving layout from Pixi bounds unless the source code already does so intentionally.

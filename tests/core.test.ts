@@ -1,8 +1,8 @@
 import { Container, Ticker } from 'pixi.js';
 import { describe, expect, it, vi } from 'vitest';
-import { Application, Component, Flex, FlexDirection, FlexGroup, GameObject, Graphics, GridLayout, Group, Image, Label, Layout, NineSliceImage } from '../src/core';
-import { setProps, sp } from '../src/core/utils/setProps';
-import { onlyOnceQueueMicrotask } from '../src/core/utils/onlyOnceQueueMicrotask';
+import { Application, Component, Flex, FlexDirection, FlexGroup, GameObject, Graphics, GridLayout, Group, Image, Label, Layout, NineSliceImage } from 'pixifact/runtime';
+import { setProps, sp } from 'pixifact/runtime/utils/setProps';
+import { onlyOnceQueueMicrotask } from 'pixifact/runtime/utils/onlyOnceQueueMicrotask';
 
 class TestObject extends GameObject<Container> {
     display = new Container();

@@ -8,19 +8,19 @@ import {
     Application,
     createRuntimeActions,
     emptySelection,
-} from '../../../../src';
+} from 'pixifact';
 import type {
-    EditorDocument,
+    SceneDocument,
     RuntimePreview,
-} from '../../../../src';
+} from 'pixifact';
 import { selectionBoundsForNode } from './selectionBounds';
 
 interface PixifactViewportProps {
-    document: EditorDocument;
+    document: SceneDocument;
     revision: number;
 }
 
-function attachSelectionHandlers(document: EditorDocument, preview: RuntimePreview) {
+function attachSelectionHandlers(document: SceneDocument, preview: RuntimePreview) {
     const seen = new Set<object>();
     const cleanup: Array<() => void> = [];
 
@@ -60,7 +60,7 @@ function attachSelectionHandlers(document: EditorDocument, preview: RuntimePrevi
     };
 }
 
-function drawSelectionBounds(document: EditorDocument, preview: RuntimePreview | undefined, outline: PixiGraphics) {
+function drawSelectionBounds(document: SceneDocument, preview: RuntimePreview | undefined, outline: PixiGraphics) {
     outline.clear();
 
     if (!preview || document.selection.type === 'none') {

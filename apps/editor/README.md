@@ -3,7 +3,7 @@
 `apps/editor` 是 Pixifact 桌面版的 React / Vite 前端界面，也是当前开发预览入口。正式产品形态是 Tauri 桌面版，桌面 host 位于：
 
 ```txt
-src-tauri/
+apps/editor/src-tauri/
 ```
 
 浏览器 Web 入口只用于开发预览和 Playwright 自动化测试，不作为最终产品形态。`apps/editor` 用于使用和验证：
@@ -60,12 +60,12 @@ bun run desktop:build
 
 Mock provider 适合离线使用和本地测试。
 
-## Prefab
+## Scene
 
-Editor 使用 Prefab 作为可复用 UI / GameObject 树资产。格式、命名规则和当前支持范围见：
+Editor 使用 Scene 作为统一 UI / 轻场景资产。格式、命名规则和当前支持范围见：
 
 ```txt
-apps/editor/PREFAB.md
+apps/editor/SCENE.md
 ```
 
 ## Remote AI 使用
@@ -202,17 +202,17 @@ http://127.0.0.1:5176
 ## UI 文案和按钮原则
 
 - 主要使用中文，但不要为了中文而中文。
-- 保留 `AI-first`、`Prompt`、`Dry Run`、`Diff`、`Memory`、`Mock`、`Remote`、`ID`、`Key`、`Type`、`Prefab`、`TS` 等术语。
+- 保留 `AI-first`、`Prompt`、`Dry Run`、`Diff`、`Memory`、`Mock`、`Remote`、`MCP`、`Agent`、`ID`、`Key`、`Type`、`Scene`、`TS` 等术语。
 - 工具动作可用 SVG 图标或图标 + 短文本。
 - 决策动作保留文字，例如生成、预演、应用、拒绝、保存动作。
 - 纯图标按钮必须提供 `aria-label` 和 `title`。
 
 ## 架构边界
 
-- `EditorDocument` 是唯一 source of truth。
+- `SceneDocument` 是唯一 source of truth。
 - Zustand 只保存 UI 状态。
 - React panel 不保存项目树副本。
-- 项目修改必须走 `EditorDocument` API 或 command。
+- 项目修改必须走 `SceneDocument` API 或 `SceneCommand`。
 - AI 只生成 proposal，不直接修改项目。
 - JSON 只是资产格式，不作为普通用户主编辑界面。
 - 不引入 Monaco，不做内嵌代码编辑器。

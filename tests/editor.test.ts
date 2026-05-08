@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-    EditorDocument,
+    ButtonComponent,
+    SceneDocument,
     MockAiProposalProvider,
-    ImageGraphic,
     ProgressBar,
     RemoteAiProposalProvider,
     ScrollRect,
@@ -14,105 +14,104 @@ import {
     createLogicGraph,
     createRuntimeActions,
     createUseInventoryItemFlow,
-    button,
+    component,
+    container,
     createInventoryPanelCommands,
     createAiProposal,
     dryRunProposal,
     dryRunCommands,
     getAiComponentSchemas,
-    group,
-    imageGraphic,
     instantiate,
-    inputField,
     listPaletteComponents,
-    prefab,
-    progressBar,
-    ref,
-    roundedRect,
-    scrollRect,
-    summarizePrefabForAi,
-    textGraphic,
+    scene,
+    shape,
+    summarizeSceneForAi,
+    text,
     validateLogicGraph,
     validateCommand,
-} from '../src';
-import type { PrefabSpec } from '../src';
+} from 'pixifact';
+import type { SceneSpec } from 'pixifact';
 
-function createButtonPrefab(): PrefabSpec {
-    return prefab('PrimaryButton',
-        group('Button', {
+function createButtonScene(): SceneSpec {
+    return scene('PrimaryButton',
+        container('Button', {
             id: 'root',
             key: 'submitButton',
             width: 140,
             height: 44,
             components: [
-                roundedRect({ color: 0x2563eb, radius: 8 }, 'bg'),
-                button({ targetGraphic: ref('bg'), onClick: 'submitLogin' }, 'button'),
+                component('ui.Button', { targetGraphic: 'submitButtonBg', onClick: 'submitLogin' }, 'button'),
             ],
             children: [
-                group('Label', {
+                shape('背景', {
+                    id: 'submitButtonBg',
+                    key: 'submitButtonBg',
+                    width: 140,
+                    height: 44,
+                    type: 'roundedRect',
+                    color: 0x2563eb,
+                    radius: 8,
+                }),
+                text('Label', {
                     id: 'label-node',
                     key: 'submitButtonLabel',
                     width: 140,
                     height: 44,
-                    components: [
-                        textGraphic({
-                            text: 'Submit',
-                            color: 0xffffff,
-                            fontSize: 14,
-                            center: true,
-                        }, 'text'),
-                    ],
+                    value: 'Submit',
+                    color: 0xffffff,
+                    fontSize: 14,
+                    center: true,
                 }),
             ],
         }),
     );
 }
 
-describe('EditorDocument', () => {
-    it('loads and serializes prefab specs without using runtime objects as source of truth', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+describe('SceneDocument', () => {
+    it('loads and serializes scene specs without using runtime objects as source of truth', () => {
+        const doc = new SceneDocument(createButtonScene());
         const json = doc.serialize();
-        const next = new EditorDocument(createButtonPrefab());
+        const next = new SceneDocument(createButtonScene());
 
         next.load(json);
 
-        expect(next.prefab.name).toBe('PrimaryButton');
-        expect(next.prefab.root.key).toBe('submitButton');
+        expect(next.scene.name).toBe('PrimaryButton');
+        expect(next.scene.root.key).toBe('submitButton');
         expect(next.dirty).toBe(false);
     });
 
-    it('applies setComponentProp commands and supports undo/redo', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+    it('applies setNodeData commands and supports undo/redo', () => {
+        const doc = new SceneDocument(createButtonScene());
 
         const result = doc.apply({
-            op: 'setComponentProp',
+            op: 'setNodeData',
             node: 'submitButtonLabel',
-            component: 'text',
-            prop: 'text',
+            field: 'text',
+            prop: 'value',
             value: 'Continue',
         });
 
         expect(result.ok).toBe(true);
         expect(doc.dirty).toBe(true);
         expect(doc.canUndo).toBe(true);
-        expect(doc.prefab.root.children?.[0].components?.[0].props?.text).toBe('Continue');
+        expect(doc.scene.root.children?.[1].text?.value).toBe('Continue');
         expect(doc.overrides[0]).toMatchObject({
             source: 'manual',
-            target: 'submitButtonLabel.text.text',
+            target: 'submitButtonLabel.text.value',
             before: 'Submit',
             after: 'Continue',
         });
 
         doc.undo();
-        expect(doc.prefab.root.children?.[0].components?.[0].props?.text).toBe('Submit');
+        expect(doc.scene.root.children?.[1].text?.value).toBe('Submit');
         expect(doc.canRedo).toBe(true);
 
         doc.redo();
-        expect(doc.prefab.root.children?.[0].components?.[0].props?.text).toBe('Continue');
+        expect(doc.scene.root.children?.[1].text?.value).toBe('Continue');
     });
 
-    it('applies setTransform commands and can instantiate the edited prefab', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+    it('applies setTransform commands and can instantiate the edited scene', () => {
+        const doc = new SceneDocument(createButtonScene());
 
         doc.apply({
             op: 'setTransform',
@@ -123,85 +122,82 @@ describe('EditorDocument', () => {
             },
         });
 
-        expect(doc.prefab.root.transform?.width).toBe(180);
-        expect(doc.prefab.root.transform?.height).toBe(52);
+        expect(doc.scene.root.transform?.width).toBe(180);
+        expect(doc.scene.root.transform?.height).toBe(52);
 
-        const runtime = instantiate(doc.prefab);
+        const runtime = instantiate(doc.scene);
         expect(runtime.root.width).toBe(180);
         expect(runtime.root.height).toBe(52);
     });
 
     it('rebuilds runtime preview and builds inspector models from schema', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         doc.setSelection({ type: 'node', node: 'submitButtonLabel' });
 
         const preview = doc.rebuildPreview();
         const inspector = doc.getInspectorModel();
 
         expect(preview.nodes.get('submitButton')).toBeDefined();
-        expect(inspector?.components[0].displayName).toBe('Text');
-        expect(inspector?.components[0].fields.some((field) => field.key === 'text')).toBe(true);
+        expect(inspector?.display[0].displayName).toBe('Text');
+        expect(inspector?.display[0].fields.some((field) => field.key === 'value')).toBe(true);
 
         doc.apply({
-            op: 'setComponentProp',
+            op: 'setNodeData',
             node: 'submitButtonLabel',
-            component: 'text',
-            prop: 'text',
+            field: 'text',
+            prop: 'value',
             value: 'Preview',
         });
 
-        expect(doc.preview?.components.get('text')).toBeDefined();
+        expect(doc.preview?.nodes.get('submitButtonLabel')).toBeDefined();
         doc.destroy();
     });
 
     it('adds and removes components through commands', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
 
         const add = doc.apply({
             op: 'addComponent',
             node: 'submitButtonLabel',
-            component: roundedRect({ color: 0xff0000 }, 'label-bg'),
+            component: component('ui.Button', { onClick: 'submitLogin' }, 'label-button'),
             index: 0,
         });
 
         expect(add.ok).toBe(true);
-        expect(doc.prefab.root.children?.[0].components?.[0].id).toBe('label-bg');
+        expect(doc.scene.root.children?.[1].components?.[0].id).toBe('label-button');
 
         const remove = doc.apply({
             op: 'removeComponent',
             node: 'submitButtonLabel',
-            component: 'label-bg',
+            component: 'label-button',
         });
 
         expect(remove.ok).toBe(true);
-        expect(doc.prefab.root.children?.[0].components?.some((component) => component.id === 'label-bg')).toBe(false);
+        expect(doc.scene.root.children?.[1].components?.some((component) => component.id === 'label-button')).toBe(false);
 
         doc.undo();
-        expect(doc.prefab.root.children?.[0].components?.some((component) => component.id === 'label-bg')).toBe(true);
+        expect(doc.scene.root.children?.[1].components?.some((component) => component.id === 'label-button')).toBe(true);
     });
 
     it('builds component palette items from schema and creates default component specs', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         const items = listPaletteComponents({
-            prefab: doc.prefab,
+            scene: doc.scene,
             node: 'submitButton',
         });
-        const rounded = items.find((item) => item.type === 'ui.RoundedRectGraphic');
         const buttonItem = items.find((item) => item.type === 'ui.Button');
 
-        expect(rounded?.category).toBe('UI/Graphic');
         expect(buttonItem?.disabledReason).toContain('already exists');
 
-        const spec = createComponentSpecFromSchema('ui.TextGraphic', 'titleText');
+        const spec = createComponentSpecFromSchema('ui.ProgressBar', 'progress');
         expect(spec).toMatchObject({
-            id: 'titleText',
-            type: 'ui.TextGraphic',
+            id: 'progress',
+            type: 'ui.ProgressBar',
         });
         expect(spec.props).toMatchObject({
-            text: '',
-            color: 0x000000,
-            fontSize: 14,
-            center: false,
+            value: 0,
+            min: 0,
+            max: 1,
         });
 
         const result = doc.apply({
@@ -211,15 +207,14 @@ describe('EditorDocument', () => {
         });
 
         expect(result.ok).toBe(true);
-        expect(doc.prefab.root.components?.some((component) => component.id === 'titleText')).toBe(true);
+        expect(doc.scene.root.components?.some((component) => component.id === 'progress')).toBe(true);
     });
 
     it('updates node props and supports tree commands with undo', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         const createPanel = doc.apply({
             op: 'createNode',
-            parent: 'submitButton',
-            node: group('Panel', {
+            node: container('Panel', {
                 id: 'panel',
                 key: 'panel',
                 width: 120,
@@ -228,7 +223,7 @@ describe('EditorDocument', () => {
         });
 
         expect(createPanel.ok).toBe(true);
-        expect(doc.prefab.root.children?.some((node) => node.key === 'panel')).toBe(true);
+        expect(doc.scene.root.children?.some((node) => node.key === 'panel')).toBe(true);
 
         doc.apply({
             op: 'setNodeProp',
@@ -236,49 +231,82 @@ describe('EditorDocument', () => {
             prop: 'role',
             value: 'dialog-panel',
         });
-        expect(doc.prefab.root.children?.find((node) => node.key === 'panel')?.role).toBe('dialog-panel');
+        expect(doc.scene.root.children?.find((node) => node.key === 'panel')?.role).toBe('dialog-panel');
 
         doc.apply({
             op: 'reorderNode',
             node: 'panel',
             index: 0,
         });
-        expect(doc.prefab.root.children?.[0].key).toBe('panel');
+        expect(doc.scene.root.children?.[0].key).toBe('panel');
 
         doc.apply({
             op: 'reparentNode',
-            node: 'submitButtonLabel',
+            node: 'submitButtonBg',
             parent: 'panel',
         });
-        expect(doc.prefab.root.children?.[0].children?.[0].key).toBe('submitButtonLabel');
+        expect(doc.scene.root.children?.[0].children?.[0].key).toBe('submitButtonBg');
 
         doc.undo();
-        expect(doc.prefab.root.children?.some((node) => node.key === 'submitButtonLabel')).toBe(true);
+        expect(doc.scene.root.children?.some((node) => node.key === 'submitButtonBg')).toBe(true);
+    });
+
+    it('rejects adding children to non-container nodes', () => {
+        const doc = new SceneDocument(createButtonScene());
+        const createUnderButton = doc.apply({
+            op: 'createNode',
+            parent: 'submitButtonLabel',
+            node: container('Panel', {
+                id: 'panel',
+                key: 'panel',
+            }),
+        });
+
+        expect(createUnderButton.ok).toBe(false);
+        expect(createUnderButton.error).toContain('Only container nodes');
+
+        const createPanel = doc.apply({
+            op: 'createNode',
+            node: container('Panel', {
+                id: 'floatingPanel',
+                key: 'floatingPanel',
+            }),
+        });
+        expect(createPanel.ok).toBe(true);
+
+        const reparentUnderButton = doc.apply({
+            op: 'reparentNode',
+            node: 'floatingPanel',
+            parent: 'submitButtonLabel',
+        });
+
+        expect(reparentUnderButton.ok).toBe(false);
+        expect(reparentUnderButton.error).toContain('Only container nodes');
     });
 
     it('applies inventory template commands and instantiates the generated native component tree', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         const result = doc.apply({
             op: 'batch',
-            commands: createInventoryPanelCommands({ parent: 'submitButton', columns: 4, rows: 3 }),
+            commands: createInventoryPanelCommands({ columns: 4, rows: 3 }),
         });
 
         expect(result.ok).toBe(true);
-        const panel = doc.prefab.root.children?.find((node) => node.key === 'inventoryPanel');
+        const panel = doc.scene.root.children?.find((node) => node.key === 'inventoryPanel');
         expect(panel?.children?.filter((node) => node.role === 'inventory-slot')).toHaveLength(12);
 
-        const runtime = instantiate(doc.prefab, undefined, {
+        const runtime = instantiate(doc.scene, undefined, {
             actions: {
                 useInventoryItem() {},
             },
         });
         expect(runtime.nodes.get('inventoryPanel')).toBeDefined();
-        expect(runtime.components.get('inventorySlot1UseButton:button')).toBeDefined();
+        expect(runtime.components.get('inventorySlot1UseButtonButton')).toBeDefined();
 
-        const dryRun = dryRunProposal(createButtonPrefab(), createAiProposal({
+        const dryRun = dryRunProposal(createButtonScene(), createAiProposal({
             commands: [{
                 op: 'batch',
-                commands: createInventoryPanelCommands({ parent: 'submitButton' }),
+                commands: createInventoryPanelCommands(),
             }],
         }));
         expect(dryRun.ok).toBe(true);
@@ -286,8 +314,8 @@ describe('EditorDocument', () => {
     });
 
     it('rejects invalid component props with schema errors', () => {
-        const prefabSpec = createButtonPrefab();
-        const result = validateCommand(prefabSpec, {
+        const sceneSpec = createButtonScene();
+        const result = validateCommand(sceneSpec, {
             op: 'setComponentProp',
             node: 'submitButton',
             component: 'button',
@@ -299,37 +327,37 @@ describe('EditorDocument', () => {
         expect(result.error).toContain('does not exist');
     });
 
-    it('summarizes prefabs and schemas for AI and dry-runs command lists', () => {
-        const source = createButtonPrefab();
-        const summary = summarizePrefabForAi(source);
+    it('summarizes scenes and schemas for AI and dry-runs command lists', () => {
+        const source = createButtonScene();
+        const summary = summarizeSceneForAi(source);
         const schemas = getAiComponentSchemas();
 
         expect(summary.root.key).toBe('submitButton');
         expect(schemas.some((schema) => schema.type === 'ui.Button')).toBe(true);
 
         const result = dryRunCommands(source, [{
-            op: 'setComponentProp',
+            op: 'setNodeData',
             node: 'submitButtonLabel',
-            component: 'text',
-            prop: 'text',
+            field: 'text',
+            prop: 'value',
             value: 'Continue',
         }]);
 
         expect(result.ok).toBe(true);
-        expect(result.prefab?.root.children?.[0].components?.[0].props?.text).toBe('Continue');
-        expect(source.root.children?.[0].components?.[0].props?.text).toBe('Submit');
+        expect(result.scene?.root.children?.[1].text?.value).toBe('Continue');
+        expect(source.root.children?.[1].text?.value).toBe('Submit');
     });
 
-    it('dry-runs AI proposals with diffs and keeps the source prefab unchanged', () => {
-        const source = createButtonPrefab();
+    it('dry-runs AI proposals with diffs and keeps the source scene unchanged', () => {
+        const source = createButtonScene();
         const proposal = createAiProposal({
             prompt: 'Start game button',
             explanation: 'Rename the button label.',
             commands: [{
-                op: 'setComponentProp',
+                op: 'setNodeData',
                 node: 'submitButtonLabel',
-                component: 'text',
-                prop: 'text',
+                field: 'text',
+                prop: 'value',
                 value: 'Start Game',
             }],
         });
@@ -337,29 +365,29 @@ describe('EditorDocument', () => {
         const result = dryRunProposal(source, proposal);
 
         expect(result.ok).toBe(true);
-        expect(result.diffs[0].target).toBe('submitButtonLabel.text.text');
+        expect(result.diffs[0].target).toBe('submitButtonLabel.text.value');
         expect(result.diffs[0].before).toBe('Submit');
         expect(result.diffs[0].after).toBe('Start Game');
-        expect(result.prefab?.root.children?.[0].components?.[0].props?.text).toBe('Start Game');
-        expect(source.root.children?.[0].components?.[0].props?.text).toBe('Submit');
+        expect(result.scene?.root.children?.[1].text?.value).toBe('Start Game');
+        expect(source.root.children?.[1].text?.value).toBe('Submit');
     });
 
     it('rejects AI proposals that touch locked props', () => {
         const proposal = createAiProposal({
             commands: [{
-                op: 'setComponentProp',
+                op: 'setNodeData',
                 node: 'submitButtonLabel',
-                component: 'text',
+                field: 'text',
                 prop: 'fontSize',
                 value: 18,
             }],
         });
 
-        const result = dryRunProposal(createButtonPrefab(), proposal, {
+        const result = dryRunProposal(createButtonScene(), proposal, {
             locks: [{
-                target: 'component',
+                target: 'nodeData',
                 node: 'submitButtonLabel',
-                component: 'text',
+                field: 'text',
                 prop: 'fontSize',
                 reason: 'Designer override',
             }],
@@ -370,47 +398,47 @@ describe('EditorDocument', () => {
     });
 
     it('stores locks on editor documents and records AI overrides', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         doc.addLock({
-            target: 'component',
+            target: 'nodeData',
             node: 'submitButtonLabel',
-            component: 'text',
+            field: 'text',
             prop: 'fontSize',
         });
 
         expect(doc.locks).toHaveLength(1);
 
         doc.removeLock({
-            target: 'component',
+            target: 'nodeData',
             node: 'submitButtonLabel',
-            component: 'text',
+            field: 'text',
             prop: 'fontSize',
         });
 
         expect(doc.locks).toHaveLength(0);
 
         const result = doc.apply({
-            op: 'setComponentProp',
+            op: 'setNodeData',
             node: 'submitButtonLabel',
-            component: 'text',
-            prop: 'text',
+            field: 'text',
+            prop: 'value',
             value: 'AI Start',
         }, 'ai');
 
         expect(result.ok).toBe(true);
         expect(doc.overrides.at(-1)).toMatchObject({
             source: 'ai',
-            target: 'submitButtonLabel.text.text',
+            target: 'submitButtonLabel.text.value',
             after: 'AI Start',
         });
     });
 
     it('turns manual overrides into accepted memory for future AI context', async () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         doc.apply({
-            op: 'setComponentProp',
+            op: 'setNodeData',
             node: 'submitButtonLabel',
-            component: 'text',
+            field: 'text',
             prop: 'fontSize',
             value: 18,
         });
@@ -423,7 +451,7 @@ describe('EditorDocument', () => {
 
         const provider = new MockAiProposalProvider();
         const proposal = await provider.generate('把按钮改成 Start Game', {
-            prefab: doc.prefab,
+            scene: doc.scene,
             selection: 'submitButton',
             memory: doc.memory,
         });
@@ -433,7 +461,7 @@ describe('EditorDocument', () => {
 
         doc.setMemoryEnabled(doc.memory[0].id, false);
         const disabledProposal = await provider.generate('把按钮改成 Start Game', {
-            prefab: doc.prefab,
+            scene: doc.scene,
             selection: 'submitButton',
             memory: doc.memory,
         });
@@ -457,14 +485,14 @@ describe('EditorDocument', () => {
     });
 
     it('serializes and loads full AI-first editor project state', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         const proposal = createAiProposal({
             id: 'proposal-test',
             prompt: 'make label larger',
             commands: [{
-                op: 'setComponentProp',
+                op: 'setNodeData',
                 node: 'submitButtonLabel',
-                component: 'text',
+                field: 'text',
                 prop: 'fontSize',
                 value: 18,
             }],
@@ -484,26 +512,26 @@ describe('EditorDocument', () => {
         doc.addLogicFlow(createUseInventoryItemFlow());
         doc.setSelection({ type: 'node', node: 'submitButtonLabel' });
         doc.addLock({
-            target: 'component',
+            target: 'nodeData',
             node: 'submitButtonLabel',
-            component: 'text',
+            field: 'text',
             prop: 'fontSize',
         });
         doc.apply({
-            op: 'setComponentProp',
+            op: 'setNodeData',
             node: 'submitButtonLabel',
-            component: 'text',
+            field: 'text',
             prop: 'fontSize',
             value: 18,
         });
         doc.acceptMemorySuggestion(doc.getMemorySuggestions()[0]);
-        doc.recordProposalRun(dryRunProposal(doc.prefab, proposal));
+        doc.recordProposalRun(dryRunProposal(doc.scene, proposal));
         doc.markProposalApplied(proposal);
 
-        const next = new EditorDocument(createButtonPrefab());
+        const next = new SceneDocument(createButtonScene());
         next.load(doc.serializeState());
 
-        expect(next.prefab.root.children?.[0].components?.[0].props?.fontSize).toBe(18);
+        expect(next.scene.root.children?.[1].text?.fontSize).toBe(18);
         expect(next.selection).toEqual({ type: 'node', node: 'submitButtonLabel' });
         expect(next.designTokens?.colors?.primary).toBe(0x2563eb);
         expect(next.actions.map((action) => action.key)).toEqual(['submitLogin', 'useInventoryItem']);
@@ -519,14 +547,14 @@ describe('EditorDocument', () => {
     });
 
     it('records proposal history across generate, dry-run, reject and apply states', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         const proposal = createAiProposal({
             id: 'proposal-history',
             commands: [{
-                op: 'setComponentProp',
+                op: 'setNodeData',
                 node: 'submitButtonLabel',
-                component: 'text',
-                prop: 'text',
+                field: 'text',
+                prop: 'value',
                 value: 'Start',
             }],
         });
@@ -534,7 +562,7 @@ describe('EditorDocument', () => {
         doc.recordProposal(proposal);
         expect(doc.proposalHistory[0].status).toBe('generated');
 
-        const run = dryRunProposal(doc.prefab, proposal);
+        const run = dryRunProposal(doc.scene, proposal);
         doc.recordProposalRun(run);
         expect(doc.proposalHistory).toHaveLength(1);
         expect(doc.proposalHistory[0].status).toBe('dryRunPassed');
@@ -548,7 +576,7 @@ describe('EditorDocument', () => {
     });
 
     it('repairs invalid AI commands before applying the proposal', async () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         const prompts: string[] = [];
         const provider = {
             async generate(prompt: string) {
@@ -558,17 +586,17 @@ describe('EditorDocument', () => {
                     prompt,
                     commands: prompts.length === 1
                         ? [{
-                            op: 'setComponentProp',
+                            op: 'setNodeData',
                             node: 'missingNode',
-                            component: 'text',
-                            prop: 'text',
+                            field: 'text',
+                            prop: 'value',
                             value: 'Broken',
                         }]
                         : [{
-                            op: 'setComponentProp',
+                            op: 'setNodeData',
                             node: 'submitButtonLabel',
-                            component: 'text',
-                            prop: 'text',
+                            field: 'text',
+                            prop: 'value',
                             value: 'Fixed',
                         }],
                 });
@@ -583,26 +611,26 @@ describe('EditorDocument', () => {
         expect(result.attempts).toHaveLength(2);
         expect(prompts[1]).toContain('未通过 Pixifact 校验');
         expect(prompts[1]).toContain('Node "missingNode" was not found.');
-        expect(doc.prefab.root.children?.[0].components?.[0].props?.text).toBe('Fixed');
+        expect(doc.scene.root.children?.[1].text?.value).toBe('Fixed');
         expect(doc.overrides.at(-1)).toMatchObject({
             source: 'ai',
-            target: 'submitButtonLabel.text.text',
+            target: 'submitButtonLabel.text.value',
             after: 'Fixed',
         });
         expect(doc.proposalHistory.map((entry) => entry.status)).toEqual(['dryRunFailed', 'applied']);
     });
 
     it('returns a failed AI execution result when repair attempts are exhausted', async () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         const provider = {
             async generate(prompt: string) {
                 return createAiProposal({
                     id: `failed-${prompt.length}`,
                     prompt,
                     commands: [{
-                        op: 'setComponentProp',
+                        op: 'setNodeData',
                         node: 'submitButtonLabel',
-                        component: 'text',
+                        field: 'text',
                         prop: 'missing',
                         value: 'Broken',
                     }],
@@ -618,14 +646,14 @@ describe('EditorDocument', () => {
         expect(result.applied).toBe(false);
         expect(result.attempts).toHaveLength(2);
         expect(result.error).toContain('does not exist');
-        expect(doc.prefab.root.children?.[0].components?.[0].props?.text).toBe('Submit');
+        expect(doc.scene.root.children?.[1].text?.value).toBe('Submit');
         expect(doc.proposalHistory.at(-1)?.status).toBe('rejected');
     });
 
     it('builds AI authoring context with schemas, locks, design tokens and memory', () => {
-        const prefabSpec = createButtonPrefab();
+        const sceneSpec = createButtonScene();
         const context = buildAiAuthoringContext({
-            prefab: prefabSpec,
+            scene: sceneSpec,
             selection: 'submitButtonLabel',
             designTokens: {
                 colors: { primary: 0x2563eb },
@@ -639,9 +667,9 @@ describe('EditorDocument', () => {
             }],
             logicGraph: createLogicGraph([createUseInventoryItemFlow()]),
             locks: [{
-                target: 'component',
+                target: 'nodeData',
                 node: 'submitButtonLabel',
-                component: 'text',
+                field: 'text',
                 prop: 'fontSize',
             }],
             memory: [{
@@ -653,10 +681,10 @@ describe('EditorDocument', () => {
             }],
         });
 
-        expect(context.prefabSummary.root.key).toBe('submitButton');
-        expect(context.componentSchemas.some((schema) => schema.type === 'ui.TextGraphic')).toBe(true);
+        expect(context.sceneSummary.root.key).toBe('submitButton');
+        expect(context.componentSchemas.some((schema) => schema.type === 'ui.TextGraphic')).toBe(false);
         expect(context.commandSchemas.some((schema) => schema.op === 'createNode')).toBe(true);
-        expect(context.commandSummary).toContain('EditorCommand');
+        expect(context.commandSummary).toContain('SceneCommand');
         expect(context.commandSummary).toContain('useInventoryItem');
         expect(context.selection).toEqual({ type: 'node', node: 'submitButtonLabel' });
         expect(context.lockedTargets).toEqual(['submitButtonLabel.text.fontSize']);
@@ -666,13 +694,13 @@ describe('EditorDocument', () => {
         expect(context.memorySummary).toContain('fontSize=18');
         expect(context.memory).toHaveLength(1);
 
-        prefabSpec.root.key = 'mutated-after-context-build';
-        expect(context.prefab.root.key).toBe('submitButton');
+        sceneSpec.root.key = 'mutated-after-context-build';
+        expect(context.scene.root.key).toBe('submitButton');
     });
 
     it('excludes disabled memory from AI authoring context', () => {
         const context = buildAiAuthoringContext({
-            prefab: createButtonPrefab(),
+            scene: createButtonScene(),
             memory: [{
                 id: 'enabled',
                 context: 'button.text',
@@ -696,7 +724,7 @@ describe('EditorDocument', () => {
     });
 
     it('validates event props against the project action registry when provided', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         doc.addAction({ key: 'submitLogin' });
 
         const ok = doc.apply({
@@ -727,7 +755,7 @@ describe('EditorDocument', () => {
                 value: 'missingAction',
             }],
         });
-        const dryRun = dryRunProposal(createButtonPrefab(), proposal, {
+        const dryRun = dryRunProposal(createButtonScene(), proposal, {
             actions: doc.actions,
         });
         expect(dryRun.ok).toBe(false);
@@ -735,14 +763,14 @@ describe('EditorDocument', () => {
     });
 
     it('does not validate plain string props against the action registry', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         doc.addAction({ key: 'submitLogin' });
 
         const result = doc.apply({
-            op: 'setComponentProp',
+            op: 'setNodeData',
             node: 'submitButtonLabel',
-            component: 'text',
-            prop: 'text',
+            field: 'text',
+            prop: 'value',
             value: 'Remote Start',
         });
 
@@ -760,7 +788,7 @@ describe('EditorDocument', () => {
     });
 
     it('validates, stores and compiles logic graph flows', () => {
-        const doc = new EditorDocument(createButtonPrefab());
+        const doc = new SceneDocument(createButtonScene());
         doc.addAction({ key: 'useInventoryItem' });
 
         const flow = createUseInventoryItemFlow();
@@ -770,7 +798,7 @@ describe('EditorDocument', () => {
 
         const validation = validateLogicGraph(doc.logicGraph, {
             actions: doc.actions,
-            prefab: doc.prefab,
+            scene: doc.scene,
         });
         expect(validation.ok).toBe(true);
 
@@ -796,10 +824,10 @@ describe('EditorDocument', () => {
                     prompt: 'remote prompt',
                     explanation: 'Remote edit.',
                     commands: [{
-                        op: 'setComponentProp',
+                        op: 'setNodeData',
                         node: 'submitButtonLabel',
-                        component: 'text',
-                        prop: 'text',
+                        field: 'text',
+                        prop: 'value',
                         value: 'Remote Start',
                     }],
                 },
@@ -824,14 +852,14 @@ describe('EditorDocument', () => {
             },
             fetch: fetchMock,
         });
-        const source = createButtonPrefab();
+        const source = createButtonScene();
         const proposal = await provider.generate('make it remote', {
-            prefab: source,
+            scene: source,
             selection: 'submitButtonLabel',
         });
 
         expect(proposal.commands[0]).toMatchObject({
-            op: 'setComponentProp',
+            op: 'setNodeData',
             value: 'Remote Start',
         });
         expect(calls[0].url).toBe('https://ai.example.test/proposal');
@@ -846,7 +874,7 @@ describe('EditorDocument', () => {
             model: 'model-x',
             timeoutMs: 30000,
         });
-        expect(body.context.prefabSummary.root.key).toBe('submitButton');
+        expect(body.context.sceneSummary.root.key).toBe('submitButton');
         expect((calls[0].init?.headers as Record<string, string>).authorization).toBe('Bearer test');
         expect(calls[0].init?.signal).toBeInstanceOf(AbortSignal);
     });
@@ -865,7 +893,7 @@ describe('EditorDocument', () => {
         });
 
         await expect(provider.generate('bad response', {
-            prefab: createButtonPrefab(),
+            scene: createButtonScene(),
         })).rejects.toThrow('commands array');
     });
 
@@ -881,22 +909,22 @@ describe('EditorDocument', () => {
         });
 
         await expect(provider.generate('slow response', {
-            prefab: createButtonPrefab(),
+            scene: createButtonScene(),
         })).rejects.toThrow('timed out after 1ms');
     });
 
     it('reports design token warnings without blocking valid proposals', () => {
         const proposal = createAiProposal({
             commands: [{
-                op: 'setComponentProp',
-                node: 'submitButton',
-                component: 'bg',
+                op: 'setNodeData',
+                node: 'submitButtonBg',
+                field: 'shape',
                 prop: 'color',
                 value: 0xff00ff,
             }],
         });
 
-        const result = dryRunProposal(createButtonPrefab(), proposal, {
+        const result = dryRunProposal(createButtonScene(), proposal, {
             designTokens: {
                 colors: {
                     primary: 0x2563eb,
@@ -910,9 +938,9 @@ describe('EditorDocument', () => {
 
     it('generates mock AI proposals from prompts and dry-runs them', async () => {
         const provider = new MockAiProposalProvider();
-        const source = createButtonPrefab();
+        const source = createButtonScene();
         const proposal = await provider.generate('把按钮改成 Start Game，并移动到中心', {
-            prefab: source,
+            scene: source,
             selection: 'submitButton',
             designTokens: {
                 colors: {
@@ -926,15 +954,15 @@ describe('EditorDocument', () => {
 
         const result = dryRunProposal(source, proposal);
         expect(result.ok).toBe(true);
-        expect(result.prefab?.root.transform?.x).toBe(320);
-        expect(result.prefab?.root.children?.[0].components?.[0].props?.text).toBe('Start Game');
+        expect(result.scene?.root.transform?.x).toBe(320);
+        expect(result.scene?.root.children?.[1].text?.value).toBe('Start Game');
     });
 
     it('generates editable inventory panels from natural language prompts', async () => {
         const provider = new MockAiProposalProvider();
-        const source = createButtonPrefab();
+        const source = createButtonScene();
         const proposal = await provider.generate('创建一个背包界面，四列三行，每个格子有图标、数量和 Use 按钮', {
-            prefab: source,
+            scene: source,
             selection: 'submitButton',
         });
 
@@ -942,22 +970,22 @@ describe('EditorDocument', () => {
 
         const result = dryRunProposal(source, proposal);
         expect(result.ok).toBe(true);
-        const panel = result.prefab?.root.children?.find((node) => node.key === 'inventoryPanel');
+        const panel = result.scene?.root.children?.find((node) => node.key === 'inventoryPanel');
         expect(panel?.role).toBe('inventory-panel');
         expect(panel?.children?.filter((node) => node.role === 'inventory-slot')).toHaveLength(12);
     });
 
     it('registers additional UI components for editor palettes', () => {
-        const spec = prefab('FormControls',
-            group('Root', {
+        const spec = scene('FormControls',
+            container('Root', {
                 id: 'root',
                 width: 200,
                 height: 80,
                 components: [
-                    progressBar({ fillNode: 'root', value: 0.5 }, 'progress'),
-                    scrollRect({ contentHeight: 200 }, 'scroll'),
-                    inputField({ placeholder: 'Name' }, 'input'),
-                    imageGraphic({}, 'image'),
+                    component('ui.ProgressBar', { fillNode: 'root', value: 0.5 }, 'progress'),
+                    component('ui.ScrollRect', { contentHeight: 200 }, 'scroll'),
+                    component('ui.InputField', { placeholder: 'Name' }, 'input'),
+                    component('ui.Button', {}, 'button'),
                 ],
             }),
         );
@@ -967,6 +995,6 @@ describe('EditorDocument', () => {
         expect(runtime.components.get('progress')).toBeInstanceOf(ProgressBar);
         expect(runtime.components.get('scroll')).toBeInstanceOf(ScrollRect);
         expect(runtime.components.get('input')).toBeDefined();
-        expect(runtime.components.get('image')).toBeInstanceOf(ImageGraphic);
+        expect(runtime.components.get('button')).toBeInstanceOf(ButtonComponent);
     });
 });

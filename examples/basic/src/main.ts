@@ -16,7 +16,7 @@ import {
     Layout,
     ScrollView,
     Textarea,
-} from '../../../src';
+} from 'pixifact';
 
 const FONT = 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 

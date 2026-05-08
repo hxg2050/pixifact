@@ -2,43 +2,44 @@
 
 ## Purpose
 
-Pixifact is an editor-first AI game UI and lightweight gameplay authoring tool. The editor product lives in `apps/editor/`. The `pixifact` runtime package under `src/` is the foundation for Prefab instantiation, viewport preview, command application, tests, and exported runtime code.
+Pixifact is a standalone 2D UI and lightweight scene framework. The editor, MCP server, and external agents consume the same Scene semantic layer from `packages/pixifact/`.
 
 ## Important Paths
 
-- `apps/editor/` - AI-first editor product.
-- `apps/editor/src/EditorApp.tsx` - top-level editor composition and document subscription.
+- `packages/pixifact/` - core package published as `pixifact`.
+- `packages/pixifact/src/runtime/` - Application, GameObject, Transform, Group, Component, Layout, and PixiJS bridge.
+- `packages/pixifact/src/nodes/` - runtime nodes and compound controls.
+- `packages/pixifact/src/scene/` - Scene spec, templates, DSL, and runtime instantiation.
+- `packages/pixifact/src/commands/` - SceneCommand validation and application.
+- `packages/pixifact/src/authoring/` - SceneDocument, AI context/proposal, diff, action/logic/memory authoring models.
+- `packages/pixifact-mcp/` - MCP server for local Scene automation.
+- `apps/editor/` - Pixifact desktop editor product.
+- `apps/editor/src-tauri/` - Tauri desktop host.
 - `apps/editor/src/panels/` - editor panels.
 - `apps/editor/src/components/` - shared React controls and system components.
 - `apps/editor/src/preview/` - runtime preview integration.
 - `apps/editor/src/services/` - editor application services.
 - `apps/editor/src/gateway/` - real AI gateway adapter sample.
 - `apps/editor-dockview-prototype/` - IDE-style dock layout interaction prototype.
-- `src/editor/` - EditorDocument, AI context/proposal, diff, action/logic/memory editor models.
-- `src/commands/` - editor command validation and application.
-- `src/prefab/` - Prefab spec, templates, DSL, and runtime instantiation.
-- `src/core/` - runtime foundation: Application, GameObject, Transform, Group, Component, Layout.
-- `src/ui/` - runtime UI components including Button, ScrollView, Input, and Textarea.
-- `examples/basic/` - runtime example app, not the editor product.
-- `tests/` - unit and editor-domain tests.
-- `tests/e2e/` - Playwright Alpha workflow tests.
-- `PLAN.md` - editor-first project plan.
-- `AI_FIRST_GAME_EDITOR_PLAN.md` - detailed product and architecture plan.
+- `examples/basic/` - runtime example app.
+- `tests/` - unit, editor-domain, and MCP tests.
+- `tests/e2e/` - Playwright editor workflow tests.
+- `PLAN.md` - current Scene migration and project plan.
 - `skills/` - repository-owned Codex skills.
 - `scripts/install-skills.mjs` - installs repository skills into Codex's skills directory.
 
 ## Runtime Package Shape
 
-Public package entry points are declared in `package.json`:
+Public package entry points are declared in `packages/pixifact/package.json`:
 
 - `pixifact`
-- `pixifact/core`
-- `pixifact/ui`
-- `pixifact/editor`
+- `pixifact/runtime`
+- `pixifact/nodes`
+- `pixifact/scene`
 - `pixifact/commands`
-- `pixifact/prefab`
+- `pixifact/authoring`
 
-Build output is generated under `dist/`. Do not edit `dist/` by hand unless the user specifically asks for generated artifacts.
+Build output is generated under `packages/pixifact/dist/`. Do not edit generated output by hand unless the user specifically asks for generated artifacts.
 
 ## Commands
 

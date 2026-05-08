@@ -6,8 +6,8 @@
 
 - Pixifact 是 editor-first 项目，核心产品是 `apps/editor/`。
 - 当前产品交付方向是 Tauri 桌面版优先；浏览器 Web 入口只作为开发预览和自动化测试承载。
-- `src/` 下的 runtime、Prefab、Command、EditorDocument、AI proposal 等能力是编辑器基础设施。
-- 后续路线不再以通用 PixiJS framework 为中心，新增底层能力必须服务编辑器工作流、Prefab 实例化、Viewport 预览、Command 应用或导出。
+- `src/` 下的 runtime、Scene、Command、SceneDocument、AI proposal 等能力是编辑器基础设施。
+- 后续路线不再以通用 PixiJS framework 为中心，新增底层能力必须服务编辑器工作流、Scene 实例化、Viewport 预览、Command 应用或导出。
 
 核心结论：
 
@@ -19,7 +19,7 @@
 - AI 内部必须走结构化 command、validation、错误反馈、自动修正循环，直到命令合法后才写入项目。
 - 开发者通过属性级 Lock、Inspector、Undo、Memory 和项目结构约束控制最终结果。
 - 不内嵌代码编辑器，不使用 Monaco，不把 JSON textarea 作为主要交互。
-- EditorDocument、PrefabSpec、Command 和 runtime preview 是真正的编辑闭环。
+- SceneDocument、SceneSpec、Command 和 runtime preview 是真正的编辑闭环。
 - 当前最终 UI 原型在 `apps/editor-dockview-prototype/`，后续产品实现应以该原型确定的交互为准。
 
 ### 0.0 运行形态
@@ -42,13 +42,13 @@ Pixifact Editor 的正式产品形态是本地桌面应用：
 
 首屏核心面板：
 
-- 文件系统：项目目录、脚本、资源、Component 文件、Prefab 文件。
-- 预制体：只展示当前打开 Prefab 的节点树，不单独罗列 Prefab 列表。
-- Viewport：预览和选择当前 Prefab 节点。
+- 文件系统：项目目录、脚本、资源、Component 文件、Scene 文件。
+- 预制体：只展示当前打开 Scene 的节点树，不单独罗列 Scene 列表。
+- Viewport：预览和选择当前 Scene 节点。
 - Inspector：查看和编辑选中节点属性。
 - AI 对话：自然语言入口。
 
-资源模型只保留 `Prefab` 一种 UI 资源模型：
+资源模型只保留 `Scene` 一种 UI 资源模型：
 
 - 不引入 Scene 资源。
 - 不把 Component 当成独立 UI 资源类型。
@@ -66,17 +66,17 @@ Pixifact Editor 的正式产品形态是本地桌面应用：
 - 单击图片资源时，在编辑器内预览图片。
 - 双击图片资源时，调用系统图片查看器打开。
 - 双击代码文件时，跳转 VS Code 打开；编辑器不内嵌代码编辑器，也不直接修改代码。
-- 双击 Prefab 文件时，在编辑器内打开并编辑该 Prefab。
+- 双击 Scene 文件时，在编辑器内打开并编辑该 Scene。
 - Component 文件可以从文件面板拖到 Inspector 底部的空白区域，挂载到当前节点。
 
-### 0.3 Prefab / 节点树
+### 0.3 Scene / 节点树
 
-节点树面板只负责当前 Prefab 的节点结构：
+节点树面板只负责当前 Scene 的节点结构：
 
-- 显示当前打开的 Prefab 名称和节点统计。
-- 显示当前 Prefab 的节点树。
+- 显示当前打开的 Scene 名称和节点统计。
+- 显示当前 Scene 的节点树。
 - 单击节点后同步 Viewport 和 Inspector selection。
-- Prefab 列表只存在于文件系统面板，不在节点树顶部重复展示。
+- Scene 列表只存在于文件系统面板，不在节点树顶部重复展示。
 
 ### 0.4 Inspector
 
@@ -107,13 +107,13 @@ AI 面板像对话框，而不是 proposal 审核器。
 
 ```txt
 User Prompt
-  -> buildAiContext(EditorDocument)
-  -> AI 生成 EditorCommand[]
+  -> buildAiContext(SceneDocument)
+  -> AI 生成 SceneCommand[]
   -> validateCommand
   -> 如果失败，把错误反馈给 AI
-  -> AI 修正 EditorCommand[]
+  -> AI 修正 SceneCommand[]
   -> 重复直到合法或达到最大修正次数
-  -> EditorDocument.apply(command)
+  -> SceneDocument.apply(command)
   -> Viewport / Inspector / 节点树刷新
   -> 记录可回滚历史和失败修正轨迹
 ```
@@ -197,7 +197,7 @@ components/system/Disclosure.tsx
 2. 用 `lucide-react` 替换手写 SVG。
 3. 文件系统操作区迁移到 system Button / TextField。
 4. 文件树和预制体节点树迁移到 React Aria Tree / collection 模型。
-5. 基础组件、Prefab、Component 拖拽迁移到 React Aria DnD。
+5. 基础组件、Scene、Component 拖拽迁移到 React Aria DnD。
 6. Inspector 字段迁移到 system Field 组件。
 7. 补齐键盘操作：方向键浏览、Enter 打开、F2 重命名、Delete 删除、Context Menu。
 
@@ -213,7 +213,7 @@ Pixifact AI-first Game Editor
 
 ```txt
 一个面向游戏 UI、交互和轻量玩法逻辑的 AI-first 编辑器。
-设计师用自然语言描述目标，AI 生成可编辑的 Prefab / runtime 组件树；
+设计师用自然语言描述目标，AI 生成可编辑的 Scene / runtime 组件树；
 开发者通过可视化审查、属性锁定、命令回放和项目记忆保持工程控制权。
 ```
 
@@ -293,7 +293,7 @@ Prompt -> Send -> Command validation -> AI repair loop -> Auto apply -> Manual r
 
 系统输出：
 
-- 可编辑的 Prefab / runtime 组件树。
+- 可编辑的 Scene / runtime 组件树。
 - 可解释的布局和样式说明。
 - 已通过校验的 command 执行结果。
 - 必要时展示关键修正轨迹。
@@ -314,13 +314,13 @@ AI 的每一次修改都必须可控。
 
 ### 3.3 Native-first
 
-AI 生成的是编辑器可维护的 Prefab / Component / Command 结构，不是中间页面、HTML mock 或无法维护的 JSON 文本。
+AI 生成的是编辑器可维护的 Scene / Component / Command 结构，不是中间页面、HTML mock 或无法维护的 JSON 文本。
 
 真实资产模型：
 
 ```txt
-EditorDocument
-  PrefabSpec
+SceneDocument
+  SceneSpec
     NodeSpec
       ComponentSpec[]
   ActionRegistry
@@ -451,7 +451,7 @@ src/ui/graphics/
   RoundedRectGraphic.ts
   TextGraphic.ts
 
-src/prefab/
+src/scene/
   spec.ts
   dsl.ts
   uiDsl.ts
@@ -466,7 +466,7 @@ src/commands/
   utils.ts
 
 src/editor/
-  EditorDocument.ts
+  SceneDocument.ts
   EditorProjectState.ts
   EditorSelection.ts
   RuntimePreview.ts
@@ -490,11 +490,11 @@ src/editor/
 
 - `@ComponentMeta` / `@Prop` 装饰器。
 - `ComponentRegistry` schema。
-- `PrefabSpec` / `NodeSpec` / `ComponentSpec`。
+- `SceneSpec` / `NodeSpec` / `ComponentSpec`。
 - `Group` 作为唯一层级容器。
 - `Component` 表达能力。
 - `Graphic` 表达显示。
-- `instantiate(PrefabSpec)` 生成真实 runtime tree。
+- `instantiate(SceneSpec)` 生成真实 runtime tree。
 - Command 协议和 `CommandStack`。
 - Command validation。
 - Undo / redo。
@@ -568,8 +568,8 @@ Zustand
 
 禁止保存：
 
-- `PrefabSpec` 的独立副本。
-- `EditorDocument` 的独立副本。
+- `SceneSpec` 的独立副本。
+- `SceneDocument` 的独立副本。
 - command 应用后的影子项目树。
 
 ### 5.3 Source of Truth
@@ -577,13 +577,13 @@ Zustand
 唯一 source of truth：
 
 ```txt
-EditorDocument
+SceneDocument
 ```
 
 所有真实项目修改必须走：
 
-- `EditorDocument.apply(command)`。
-- `EditorDocument` 已提供的项目 API。
+- `SceneDocument.apply(command)`。
+- `SceneDocument` 已提供的项目 API。
 - AI command repair runner 的 validate / repair / apply 工作流。
 
 不得绕过 command 直接改 runtime tree。
@@ -599,7 +599,7 @@ Pixifact runtime / PixiJS canvas
 渲染路径：
 
 ```txt
-PrefabSpec -> instantiate() -> RuntimePreview -> runtime tree -> canvas
+SceneSpec -> instantiate() -> RuntimePreview -> runtime tree -> canvas
 ```
 
 Runtime tree 只用于：
@@ -734,7 +734,7 @@ apps/editor/
       editorDocumentController.ts
     panels/
       FileSystemPanel.tsx
-      PrefabTreePanel.tsx
+      SceneTreePanel.tsx
       InspectorPanel.tsx
       ViewportPanel.tsx
       AiPanel.tsx
@@ -777,13 +777,13 @@ src/
 目标：
 
 ```txt
-自然语言生成 Prefab / runtime 组件树，并自动修正到合法 command 后应用。
+自然语言生成 Scene / runtime 组件树，并自动修正到合法 command 后应用。
 ```
 
 输入：
 
 - Prompt。
-- 当前 PrefabSpec 摘要。
+- 当前 SceneSpec 摘要。
 - ComponentRegistry schema。
 - DesignToken。
 - ActionRegistry。
@@ -794,7 +794,7 @@ src/
 
 输出：
 
-- `EditorCommand[]`。
+- `SceneCommand[]`。
 - explanation。
 - validation / repair trace。
 - applied result。
@@ -818,7 +818,7 @@ src/
 
 能力：
 
-- 渲染当前 PrefabSpec。
+- 渲染当前 SceneSpec。
 - 点击选择节点。
 - 显示 selection bounds。
 - command 后自动 rebuild。
@@ -829,7 +829,7 @@ src/
 目标：
 
 ```txt
-展示和管理 Prefab 节点树。
+展示和管理 Scene 节点树。
 ```
 
 能力：
@@ -1005,7 +1005,7 @@ schema-driven 属性编辑。
 保留英文或中英混用：
 
 - 产品和行业术语：AI-first、Prompt、Command、Repair、Memory、Mock、Remote。
-- 工程概念：ID、Key、Type、Prefab、Command、EditorDocument、ActionRegistry、LogicGraph。
+- 工程概念：ID、Key、Type、Scene、Command、SceneDocument、ActionRegistry、LogicGraph。
 - 文件和语言名：JSON、TypeScript、TS。
 - 组件 schema 的原始 display name 和 type，例如 `Button`、`Rounded Rect`、`ui.Button`。
 
@@ -1043,7 +1043,7 @@ schema-driven 属性编辑。
 
 ```txt
 User Prompt
-  -> buildAiContext(EditorDocument)
+  -> buildAiContext(SceneDocument)
   -> AiCommandProvider.generate(context, prompt)
   -> validateCommand(commands)
   -> invalid commands become AI repair feedback
@@ -1057,9 +1057,9 @@ User Prompt
 
 ```txt
 Inspector / Viewport / Hierarchy operation
-  -> EditorCommand
+  -> SceneCommand
   -> validateCommand
-  -> EditorDocument.apply(command, 'manual')
+  -> SceneDocument.apply(command, 'manual')
   -> CommandStack stores inverse
   -> OverrideJournal records before/after
   -> RuntimePreview rebuild
@@ -1078,7 +1078,7 @@ Import:
   .ai-editor.json
     -> Zod validation
     -> EditorProjectState
-    -> EditorDocument.load
+    -> SceneDocument.load
     -> RuntimePreview rebuild
 ```
 
@@ -1090,7 +1090,7 @@ AI provider 请求应包含：
 - prompt。
 - project summary。
 - component schemas。
-- current prefab。
+- current scene。
 - selection。
 - design tokens。
 - actions。
@@ -1112,7 +1112,7 @@ AI provider 响应只能包含：
 AI provider 不能：
 
 - 直接修改文件。
-- 直接修改 EditorDocument。
+- 直接修改 SceneDocument。
 - 直接调用 runtime API。
 - 返回需要用户手写的代码片段作为唯一结果。
 
@@ -1172,8 +1172,8 @@ Phase 14 是当前下一步。
   - `editor`: `vite apps/editor`
   - `editor:build`: `vite build apps/editor`
 - 建立基础三栏布局。
-- 接入 `EditorDocument`。
-- 加载默认 Button prefab。
+- 接入 `SceneDocument`。
+- 加载默认 Button scene。
 
 验收：
 
@@ -1196,14 +1196,14 @@ Phase 14 是当前下一步。
 
 - 实现 `PixifactViewport.tsx`。
 - 创建 runtime `Application`。
-- 使用 `EditorDocument.rebuildPreview()`。
+- 使用 `SceneDocument.rebuildPreview()`。
 - 将 preview 挂载到 canvas。
 - 监听 document change 后刷新。
 - 实现最小 selection bounds。
 
 验收：
 
-- 默认 Button prefab 可见。
+- 默认 Button scene 可见。
 - command 修改后 viewport 同步。
 - 销毁组件时 Pixi application 正确清理。
 
@@ -1220,7 +1220,7 @@ Phase 14 是当前下一步。
 任务：
 
 - 实现 `HierarchyPanel.tsx`。
-- 展示 PrefabSpec 节点树。
+- 展示 SceneSpec 节点树。
 - 点击 hierarchy node 更新 selection。
 - 点击 viewport runtime node 更新 selection。
 - selection 在 Hierarchy / Inspector / Viewport 间同步。
@@ -1284,7 +1284,7 @@ Phase 14 是当前下一步。
 
 - Prompt “创建背包界面”能生成 proposal。
 - Dry Run 能显示 diff。
-- Apply 后 prefab 和 viewport 更新。
+- Apply 后 scene 和 viewport 更新。
 - Reject 不修改项目。
 - 已 lock 字段不会被 proposal 覆盖。
 
@@ -1472,7 +1472,7 @@ Phase 14 是当前下一步。
 任务：
 
 - 已全量检查 editor UI 文案，确保中文优先，但不过度翻译工程术语。
-- 已保留 `AI-first`、`ID`、`Key`、`Type`、`Prefab`、`Dry Run`、`Diff`、`TS`、`Mock`、`Remote` 等工程和行业术语。
+- 已保留 `AI-first`、`ID`、`Key`、`Type`、`Scene`、`Dry Run`、`Diff`、`TS`、`Mock`、`Remote` 等工程和行业术语。
 - 已建立工具动作图标按钮体系，决策动作保留文字按钮。
 - 已检查并修正空态、错误态、按钮禁用态和导入失败状态。
 - 已给拆分后的 `apps/editor/src/panels/` 添加维护说明，明确每个面板的职责边界。
@@ -1526,9 +1526,9 @@ Phase 14 是当前下一步。
 - 已完成真实 `ylscode` / `gpt-5.5` / Responses API 手动联调：`Editor -> Gateway -> ylsagi Responses -> AiProposal -> Dry Run / Apply`。
 - 已支持 Responses base URL 自动规范化：`https://code.ylsagi.com/codex` 会转为 `/v1/responses`。
 - 已将 Remote 和 Model timeout 默认提升到 `300000ms`，并将默认 reasoning effort 调整为 `medium`，避免交互路径长时间卡在 `xhigh`。
-- 已补充 `commandSchemas` 和 `commandSummary` 到 AI context，明确可用 EditorCommand 协议。
+- 已补充 `commandSchemas` 和 `commandSummary` 到 AI context，明确可用 SceneCommand 协议。
 - 已在 gateway system prompt 中明确要求模型使用 `context.commandSchemas` / `context.commandSummary`，不再声明缺少命令规范。
-- 已收紧真实模型输出要求：command 必须使用当前 `EditorCommand` 字段。
+- 已收紧真实模型输出要求：command 必须使用当前 `SceneCommand` 字段。
 - 已增加“模型误称缺少命令规范”时的 gateway 自动纠偏重试。
 
 剩余任务：
@@ -1543,8 +1543,8 @@ Phase 14 是当前下一步。
 
 ```txt
 1. 用户打开编辑器并选择项目路径。
-2. 文件系统面板展示项目目录、脚本、资源、Component 文件和 Prefab 文件。
-3. 用户双击 `InventoryPanel.prefab`，预制体节点树、Viewport 和 Inspector 同步切换。
+2. 文件系统面板展示项目目录、脚本、资源、Component 文件和 Scene 文件。
+3. 用户双击 `InventoryPanel.scene`，预制体节点树、Viewport 和 Inspector 同步切换。
 4. 用户在 Viewport 或节点树中选择某个节点。
 5. 用户在 Inspector 修改属性，并可锁定单个属性。
 6. 用户点击 Inspector 底部 `添加`，从项目 Component 列表挂载 Component。
@@ -1552,7 +1552,7 @@ Phase 14 是当前下一步。
 8. 用户单击图片资源在文件面板预览，双击图片用系统图片查看器打开。
 9. 用户双击代码文件跳转 VS Code，编辑器本身不修改代码。
 10. 用户在 AI 对话框输入需求并点击 `发送`。
-11. AI 生成 EditorCommand，编辑器自动校验；若非法，反馈错误给 AI 修正。
+11. AI 生成 SceneCommand，编辑器自动校验；若非法，反馈错误给 AI 修正。
 12. 修正到合法后自动应用，Viewport、节点树和 Inspector 刷新。
 13. 用户可以查看执行结果和关键修正轨迹。
 14. 用户可以 undo / redo，并导出 / 导入项目资产。
@@ -1580,9 +1580,9 @@ Phase 14 是当前下一步。
 
 - Runtime preview。
 - Component model。
-- PrefabSpec。
+- SceneSpec。
 - Command protocol。
-- EditorDocument core。
+- SceneDocument core。
 - Basic mock provider。
 
 目的：
@@ -1602,7 +1602,7 @@ Phase 14 是当前下一步。
 - 更完整 LogicGraph。
 - E2E test generation。
 - 高级 diff / merge。
-- 多 prefab 管理。
+- 多 scene 管理。
 - 组件库管理。
 
 ### 12.3 Enterprise 版本方向
@@ -1653,7 +1653,7 @@ Phase 14 是当前下一步。
 
 应对：
 
-- `EditorDocument` 是唯一 source of truth。
+- `SceneDocument` 是唯一 source of truth。
 - Zustand 只保存 UI 状态。
 - React 通过订阅 document event 刷新。
 
@@ -1671,7 +1671,7 @@ Phase 14 是当前下一步。
 
 - JSON 只做资产格式。
 - ProjectPanel 只做导入、导出、校验和摘要。
-- 文件系统面板是左侧资源管理器入口，类似 VS Code 的目录区；第一版展示项目路径、Prefab、脚本、Component 文件和图片资源。
+- 文件系统面板是左侧资源管理器入口，类似 VS Code 的目录区；第一版展示项目路径、Scene、脚本、Component 文件和图片资源。
 - 代码文件双击跳转 VS Code，编辑器不内嵌代码编辑器，也不直接写磁盘代码文件。
 - 所有日常 UI 编辑都通过文件系统、节点树、Viewport、Inspector 和 AI 对话完成。
 
@@ -1696,8 +1696,8 @@ Phase 14: Dockview 原型固化 / 最终产品 UI 落地
 
 ```txt
 1. 以 `apps/editor-dockview-prototype/` 为交互基准，整理正式 `apps/editor` 的面板结构。
-2. 将文件系统、Prefab 节点树、Viewport、Inspector、AI 对话拆成正式面板组件。
+2. 将文件系统、Scene 节点树、Viewport、Inspector、AI 对话拆成正式面板组件。
 3. 将 AI 从 proposal 审核流改为“发送 -> command validation -> repair loop -> auto apply”。
-4. 将 Inspector 的属性级锁、底部 Add Component、Component 文件拖拽添加接入正式 `EditorDocument` command。
-5. 将文件面板接入真实项目路径：图片预览、图片系统打开、代码跳转 VS Code、Prefab 双击编辑。
+4. 将 Inspector 的属性级锁、底部 Add Component、Component 文件拖拽添加接入正式 `SceneDocument` command。
+5. 将文件面板接入真实项目路径：图片预览、图片系统打开、代码跳转 VS Code、Scene 双击编辑。
 ```

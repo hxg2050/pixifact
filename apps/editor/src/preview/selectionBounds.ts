@@ -1,4 +1,4 @@
-import type { Group } from '../../../../src';
+import type { Group } from 'pixifact';
 
 export interface SelectionBounds {
     x: number;

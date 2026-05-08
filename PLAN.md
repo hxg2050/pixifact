@@ -1,106 +1,84 @@
-# Pixifact Editor-first Plan
+# Pixifact Scene Migration Plan
 
-本文档记录项目重新定位后的执行计划。历史上 `PLAN.md` 主要跟踪 pixifact runtime 的框架收敛；从现在开始，本项目以编辑器产品为核心。
+本文档记录当前 Pixifact 最终目标和迁移状态。项目已经从 editor-only 目标收敛为 `pixifact` framework + editor + MCP：核心包提供 Scene 语义，编辑器和 Agent 都通过相同命令协议修改 Scene。
 
-完整产品设计和阶段计划见：
+## 1. 最终定位
 
-```txt
-AI_FIRST_GAME_EDITOR_PLAN.md
-```
+- Pixifact 是独立的 2D UI + 轻场景开发框架。
+- PixiJS 只作为底层渲染实现，不作为用户 authoring 心智。
+- 编辑器用于搭建 UI / 基础场景、预览 AI 生成结果和手动调整。
+- MCP 将 Pixifact Scene 能力开放给 Codex、Claude Code 等 Agent。
+- 资产模型统一为 Godot-style `Scene`，不做 Scene + Prefab 双资源体系。
 
-## 1. 当前项目定义
+## 2. Public Model
 
-Pixifact 是 AI-first 游戏 UI / 轻量玩法编辑器。当前产品交付方向是 Tauri 桌面版优先；浏览器 Web 入口只作为开发预览和 Playwright 自动化测试承载。
+- 资产扩展名：`.scene`。
+- 资产格式：`SceneSpec`。
+- 根节点：必须是 `container`。
+- 节点类型：`container`、`image`、`text`、`input`、`shape`。
+- 子节点规则：只有 `container` 可以拥有 `children`。
+- 组件规则：所有节点都可以挂行为组件。
+- 显示规则：显示数据在节点字段上，例如 `text.value`、`image.src`、`input.value`、`shape.color`。
+- 组合控件：Button、ProgressBar、ScrollView 等是 Scene 模板或 runtime 组合控件，不是基础显示节点。
+- 命令协议：`SceneCommand`、`validateSceneCommand`、`applySceneCommand`、`instantiateScene`。
+- Authoring document：`SceneDocument` 是 editor 和 Agent 修改 Scene 的 source of truth。
 
-项目中心：
-
-```txt
-apps/editor/
-```
-
-桌面 host：
-
-```txt
-src-tauri/
-```
-
-底层能力：
-
-```txt
-src/
-```
-
-`src/` 中的 runtime、Prefab、Command、EditorDocument、AI proposal、LogicGraph、ActionRegistry 等能力都应服务编辑器闭环：
+## 3. 当前结构
 
 ```txt
-Prompt -> Command / Proposal -> Validate -> Repair -> Apply -> Preview -> Export / Import
+packages/pixifact/src/runtime/    runtime foundation
+packages/pixifact/src/nodes/      runtime nodes and compound controls
+packages/pixifact/src/scene/      SceneSpec、DSL、instantiateScene、templates
+packages/pixifact/src/commands/   SceneCommand validate / apply / undo
+packages/pixifact/src/authoring/  SceneDocument、AI context、diff、memory、logic
+packages/pixifact-mcp/            MCP server
+apps/editor/                      desktop editor frontend
+apps/editor/src-tauri/            Tauri host
 ```
 
-当前结构边界：
+## 4. 已完成
 
-```txt
-src/editor/    EditorDocument、AI context、diff、memory、logic 等编辑器领域模型
-src/commands/  EditorCommand validate / apply / undo
-src/prefab/    PrefabSpec、DSL、模板和 runtime instantiate
-src/core/      PixiJS runtime foundation
-src/ui/        runtime UI 组件
+- [x] 根目录迁移为 Bun workspace。
+- [x] 核心包移动到 `packages/pixifact`，包名保持 `pixifact`。
+- [x] MCP server 移动到 `packages/pixifact-mcp`。
+- [x] Tauri host 移动到 `apps/editor/src-tauri`。
+- [x] `SceneSpec` / `.scene` / `scene` kind 落地。
+- [x] 基础 authoring 节点收敛为 `container/image/text/input/shape`。
+- [x] `SceneCommand`、`validateSceneCommand`、`applySceneCommand` 和 `setNodeData` 落地。
+- [x] `SceneDocument` 成为编辑器和 Agent 的 source of truth。
+- [x] `instantiateScene` 将 Scene 节点映射到 runtime。
+- [x] 编辑器创建项、Hierarchy、Inspector、Viewport 基于 Scene 语义工作。
+- [x] MCP tools 使用 `scenePath`、`get_scene` 和 `SceneCommand`。
+- [x] AI context 只暴露 Scene 节点和行为组件 schema。
+
+## 5. 下一阶段
+
+- [ ] 将 editor 主流程从 Alpha proposal 审查器继续收敛为 Agent / MCP first 工作流。
+- [ ] 继续优化桌面版本机能力：文件打开、外部程序、代码跳转。
+- [ ] 扩充 Scene 模板库：Button、ProgressBar、ScrollView、常用 HUD 组合。
+- [ ] 让 Inspector 更贴近具体节点类型，而不是暴露内部 runtime 实现。
+- [ ] 增加 `.scene` 创建、保存、MCP 修改和 editor 预览的 E2E 覆盖。
+
+## 6. 验证策略
+
+优先运行最小相关验证。
+
+```bash
+bun run test
 ```
 
-## 2. 已完成的底座
-
-- [x] PixiJS v8 runtime foundation：`Application`、`GameObject`、`Group`、渲染叶子、组件生命周期。
-- [x] 布局能力：`Layout`、`GridLayout`、`FlexGroup` / `Flex`。
-- [x] UI runtime 组件：`Button`、`ScrollView`、`Input`、`Textarea` 等。
-- [x] PrefabSpec / NodeSpec / ComponentSpec。
-- [x] Command validate / apply / diff。
-- [x] EditorDocument 作为项目 source of truth。
-- [x] Runtime preview 从 PrefabSpec 实例化真实 runtime tree。
-- [x] Alpha editor shell、Inspector、Hierarchy、AI proposal、Project import/export。
-- [x] Mock AI server 和真实 gateway adapter 样例。
-- [x] Playwright Alpha 主流程测试。
-- [x] 包管理器统一迁移到 Bun。
-
-## 3. 新优先级
-
-### 3.1 Editor Product First
-
-- [x] 产品方向切换为 Tauri desktop-first，本机文件和外部程序能力由桌面 host 提供。
-- [ ] `apps/editor/` 的正式 UI 以 `apps/editor-dockview-prototype/` 为交互基准。
-- [ ] 文件系统、Prefab 节点树、Viewport、Inspector、AI 对话是首屏核心。
-- [ ] 不再把 examples、runtime showcase 或浏览器 Web 入口当作项目主入口。
-- [ ] 文档、技能和 agent 规则默认围绕 editor 工作流组织。
-
-### 3.2 AI Send-and-Execute
-
-- [ ] AI 面板从 proposal 审核器收敛为对话式发送入口。
-- [ ] 用户不再手动点击“生成 / 预演 / 应用”完成主流程。
-- [ ] 内部保留 command validation、repair loop、错误轨迹和 undo。
-- [ ] 错误反馈给 AI 自动修正，达到上限后再向用户解释失败原因。
-
-### 3.3 Project File Workflow
-
-- [ ] 文件系统面板成为项目入口。
-- [ ] 双击 Prefab 在编辑器内打开。
-- [ ] 双击图片、视频和未知资源使用系统默认程序。
-- [ ] 双击代码跳转 VS Code，并在当前 VS Code 窗口打开项目。
-- [ ] Component 文件可拖到 Inspector 挂载。
-- [ ] 编辑器不直接修改 TypeScript 源码文件。
-
-### 3.4 Runtime As Infrastructure
-
-- [x] `pixifact/editor`、`pixifact/commands`、`pixifact/prefab` 作为 editor-first 领域入口。
-- [ ] 新 runtime API 必须服务 editor、Prefab、preview、command 或 export。
-- [ ] 避免为了“通用框架完整性”新增不被 editor 使用的抽象。
-- [ ] Runtime 示例只用于验证底层能力，不定义产品方向。
-
-## 4. 验证策略
-
-编辑器相关改动优先：
+编辑器相关改动：
 
 ```bash
 bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
-bun run test
 bun run editor:build
+```
+
+runtime 或导出 API 改动：
+
+```bash
+bun run build
+bun run example:build
 ```
 
 Alpha 主流程改动：
@@ -108,14 +86,3 @@ Alpha 主流程改动：
 ```bash
 bun run editor:e2e
 ```
-
-Runtime / package-entry 改动：
-
-```bash
-bun run build
-bun run example:build
-```
-
-## 5. 历史说明
-
-旧版框架计划中的核心模型、ticker 生命周期、布局、ScrollView、发布配置和 UI 组件稳定性已经完成，作为 editor runtime foundation 继续保留。后续不再用这些条目定义项目目标。

@@ -1,26 +1,29 @@
 import { expect, test } from '@playwright/test';
 
-const remoteConfigStorageKey = 'pixifact.editor.remoteConfig.v1';
-
-test('editor restores dockview prototype layout and auto-applies AI commands', async ({ page }) => {
+test('editor restores dockview prototype layout and exposes MCP agent guidance', async ({ page }) => {
     await page.goto('/');
 
     const dockTab = (title: string) => page.locator('.dv-default-tab-content').filter({ hasText: new RegExp(`^${title}$`) });
 
     await expect(page.getByText('Pixifact Editor')).toBeVisible();
     await expect(dockTab('文件系统')).toBeVisible();
-    await expect(dockTab('预制体')).toBeVisible();
-    await expect(dockTab('Viewport')).toBeVisible();
+    await expect(dockTab('Scene')).toBeVisible();
+    await expect(dockTab('视口')).toBeVisible();
     await expect(dockTab('Inspector')).toBeVisible();
-    await expect(dockTab('AI 对话')).toBeVisible();
+    await expect(dockTab('Agent')).toBeVisible();
+
+    await dockTab('Agent').dragTo(dockTab('视口'), { force: true });
+    await expect(page.locator('.dv-groupview').filter({ has: dockTab('Agent') }).filter({ has: dockTab('视口') })).toHaveCount(1);
+
     await expect(page.getByTestId('resource-explorer')).toContainText('未打开文件夹');
     await expect(page.getByTestId('save-status')).toContainText('未打开项目文件夹');
     await expect(page.getByTestId('hierarchy-tree')).toContainText('按钮');
-
-    await page.getByTestId('ai-prompt').fill('创建一个背包界面，四列三行，每个格子有图标、数量和 Use 按钮。');
-    await page.getByTestId('ai-generate').click();
-    await expect(page.getByTestId('ai-run-result')).toContainText('自动校验完成');
-    await expect(page.getByTestId('ai-run-result')).toContainText('合法命令已应用到项目');
+    await expect(page.getByText('使用 Codex / Claude Code 操作编辑器')).toBeVisible();
+    await expect(page.getByTestId('mcp-status-bar')).toContainText('MCP Bridge');
+    await expect(page.getByTestId('mcp-status-bar')).toContainText('bun run editor:mcp');
+    await expect(page.getByTestId('mcp-status-bar')).toContainText('当前编辑对象');
+    await expect(page.getByText('dry_run_commands')).toBeVisible();
+    await expect(page.getByText('apply_commands')).toBeVisible();
     await expect(page.getByTestId('summary-bar')).toContainText('个节点');
 
     await page.evaluate(() => {
@@ -89,46 +92,48 @@ test('editor restores dockview prototype layout and auto-applies AI commands', a
             }
         }
 
-        const inventoryPrefab = JSON.stringify({
+        const inventoryScene = JSON.stringify({
             name: 'InventoryPanel',
             root: {
-                type: 'Group',
+                kind: 'container',
                 name: '背包面板',
                 key: 'inventoryRoot',
                 transform: { width: 520, height: 420 },
                 children: [],
             },
         });
-        const hudPrefab = JSON.stringify({
+        const hudScene = JSON.stringify({
             version: 1,
-            type: 'prefab',
+            type: 'scene',
             name: 'HudPanel',
             root: {
-                type: 'Group',
+                kind: 'container',
                 name: 'HUD',
                 key: 'hudRoot',
                 transform: { width: 320, height: 80 },
-                components: [
-                    { id: 'hudBg', type: 'ui.RoundedRectGraphic', props: { color: 16777215, radius: 8 } },
-                ],
                 children: [
                     {
-                        type: 'Group',
+                        kind: 'shape',
+                        name: 'Background',
+                        key: 'hudBg',
+                        transform: { width: 320, height: 80 },
+                        shape: { type: 'roundedRect', color: 16777215, radius: 8 },
+                    },
+                    {
+                        kind: 'text',
                         name: 'Score',
                         key: 'scoreLabel',
                         transform: { width: 120, height: 24 },
-                        components: [
-                            { id: 'scoreText', type: 'ui.TextGraphic', props: { text: 'Score', fontSize: 16 } },
-                        ],
+                        text: { value: 'Score', fontSize: 16 },
                     },
                 ],
             },
         });
 
         const project = new MockDirectoryHandle('GameProject', [
-            new MockDirectoryHandle('prefabs', [
-                new MockFileHandle('InventoryPanel.prefab', inventoryPrefab),
-                new MockFileHandle('HudPanel.prefab', hudPrefab),
+            new MockDirectoryHandle('scenes', [
+                new MockFileHandle('InventoryPanel.scene', inventoryScene),
+                new MockFileHandle('HudPanel.scene', hudScene),
             ]),
             new MockDirectoryHandle('scripts', [
                 new MockDirectoryHandle('components', [
@@ -144,8 +149,8 @@ test('editor restores dockview prototype layout and auto-applies AI commands', a
     await page.getByRole('button', { name: '打开文件夹' }).click();
     await expect(page.getByTestId('save-status')).toContainText('项目文件树已读取');
     await expect(page.getByTestId('resource-explorer')).toContainText('GameProject');
-    await expect(page.getByTestId('resource-explorer')).toContainText('InventoryPanel.prefab');
-    await expect(page.getByTestId('resource-explorer')).toContainText('HudPanel.prefab');
+    await expect(page.getByTestId('resource-explorer')).toContainText('InventoryPanel.scene');
+    await expect(page.getByTestId('resource-explorer')).toContainText('HudPanel.scene');
     await expect(page.getByTestId('resource-explorer')).toContainText('ButtonBinding.ts');
     await expect(page.getByTestId('file-preview')).toContainText('GameProject');
     await expect(page.getByTestId('file-preview')).toContainText('目录包含');
@@ -153,7 +158,7 @@ test('editor restores dockview prototype layout and auto-applies AI commands', a
     await expect(page.getByTestId('basic-component-library').getByRole('button', { name: '基础组件库' })).toHaveAttribute('aria-expanded', 'false');
     await page.getByTestId('basic-component-library').getByRole('button', { name: '基础组件库' }).click();
     await expect(page.getByTestId('project-file-section').getByRole('button', { name: /项目文件/ })).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.getByTestId('basic-component-library')).toContainText('节点');
+    await expect(page.getByTestId('basic-component-library')).toContainText('容器');
     await expect(page.getByTestId('basic-component-library')).toContainText('按钮');
     await expect(page.getByTestId('basic-component-library')).toContainText('文字');
     await expect(page.getByTestId('basic-component-library')).toContainText('图片');
@@ -162,36 +167,32 @@ test('editor restores dockview prototype layout and auto-applies AI commands', a
     await expect(page.getByTestId('basic-component-library').getByRole('button', { name: '基础组件库' })).toHaveAttribute('aria-expanded', 'false');
     await expect(page.getByTestId('basic-component-library').locator('.accordionPanel')).not.toHaveClass(/open/);
 
-    await page.locator('[data-file-id="GameProject/prefabs/InventoryPanel.prefab"]').dblclick();
+    await page.locator('[data-file-id="GameProject/scenes/InventoryPanel.scene"]').dblclick();
     await expect(page.getByTestId('hierarchy-tree')).toContainText('背包面板');
-    await expect(page.getByRole('banner')).toContainText('InventoryPanel.prefab');
+    await expect(page.getByRole('banner')).toContainText('InventoryPanel.scene');
 
-    await page.locator('[data-file-id="GameProject/prefabs"]').click();
+    await page.locator('[data-file-id="GameProject/scenes"]').click();
     await page.keyboard.press('Enter');
-    await page.locator('[data-file-id="GameProject/prefabs"]').click();
-    await page.getByRole('button', { name: 'prefabs 更多操作' }).click();
+    await page.locator('[data-file-id="GameProject/scenes"]').click();
+    await page.getByRole('button', { name: 'scenes 更多操作' }).click();
     await page.getByRole('menuitem', { name: '新建文件夹' }).click();
-    await expect(page.getByTestId('file-preview')).toContainText('在 prefabs 下输入文件夹名称。');
+    await expect(page.getByTestId('file-preview')).toContainText('在 scenes 下输入文件夹名称。');
     await page.getByTestId('new-folder-name').fill('TempFolder');
     await page.getByTestId('create-folder').click();
     await expect(page.getByTestId('resource-explorer')).toContainText('TempFolder');
 
-    await page.locator('[data-file-id="GameProject/prefabs/TempFolder"]').click();
+    await page.locator('[data-file-id="GameProject/scenes/TempFolder"]').click();
     await page.keyboard.press('F2');
     await page.getByTestId('inline-rename-entry').fill('RenamedFolder');
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('resource-explorer')).toContainText('RenamedFolder');
-    await page.locator('[data-file-id="GameProject/prefabs/RenamedFolder"]').click();
-    page.once('dialog', (dialog) => void dialog.accept());
-    await page.keyboard.press('Delete');
-    await expect(page.locator('[data-file-id="GameProject/prefabs/RenamedFolder"]')).toHaveCount(0);
 
-    await page.locator('[data-file-id="GameProject/prefabs"]').click();
-    await page.getByTestId('new-prefab-name').fill('MenuPanel');
-    await page.getByTestId('create-prefab').click();
-    await expect(page.getByTestId('resource-explorer')).toContainText('MenuPanel.prefab');
+    await page.locator('[data-file-id="GameProject/scenes"]').click();
+    await page.getByTestId('new-scene-name').fill('MenuPanel');
+    await page.getByTestId('create-scene').click();
+    await expect(page.getByTestId('resource-explorer')).toContainText('MenuPanel.scene');
     await expect(page.getByTestId('hierarchy-tree')).toContainText('MenuPanel');
-    await expect(page.getByRole('banner')).toContainText('MenuPanel.prefab');
+    await expect(page.getByRole('banner')).toContainText('MenuPanel.scene');
 
     const hierarchyTree = page.getByTestId('hierarchy-tree');
     const rootNode = hierarchyTree.locator('.nodeRow').filter({ hasText: 'MenuPanel' }).first();
@@ -202,50 +203,70 @@ test('editor restores dockview prototype layout and auto-applies AI commands', a
     await page.getByTestId('basic-component-library').getByRole('button', { name: '基础组件库' }).click();
     await page.locator('[data-basic-component="button"]').dragTo(rootNode);
     await expect(hierarchyTree).toContainText('按钮1');
+    const buttonNode = hierarchyTree.locator('.nodeRow').filter({ hasText: '按钮1' }).first();
+    await buttonNode.click({ button: 'right' });
+    await page.getByTestId('node-menu-rename').click();
+    await page.getByTestId('inline-rename-node').fill('开始按钮');
+    await page.keyboard.press('Enter');
+    await expect(hierarchyTree).toContainText('开始按钮');
+    await hierarchyTree.locator('.nodeRow').filter({ hasText: '开始按钮' }).first().click({ button: 'right' });
+    await page.getByTestId('node-menu-copy').click();
+    await rootNode.click({ button: 'right' });
+    await page.getByTestId('node-menu-paste').click();
+    await expect(hierarchyTree).toContainText('开始按钮 副本');
+    await hierarchyTree.locator('.nodeRow').filter({ hasText: '文字' }).first().click({ button: 'right' });
+    await expect(page.getByTestId('node-menu-paste')).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await selectRootNode();
+    await page.locator('[data-basic-component="container"]').dragTo(rootNode);
+    await expect(hierarchyTree).toContainText('容器1');
     await selectRootNode();
     await page.locator('[data-basic-component="text"]').dragTo(rootNode);
     await expect(hierarchyTree).toContainText('文字1');
     await selectRootNode();
     await page.locator('[data-basic-component="image"]').dragTo(rootNode);
     await expect(hierarchyTree).toContainText('图片1');
+    const imageNode = hierarchyTree.locator('.nodeRow').filter({ hasText: '图片1' }).first();
+    const textNode = hierarchyTree.locator('.nodeRow').filter({ hasText: '文字1' }).first();
+    await imageNode.dragTo(textNode, {
+        targetPosition: { x: 10, y: 2 },
+    });
+    const containerNode = hierarchyTree.locator('.nodeRow').filter({ hasText: '容器1' }).first();
+    await textNode.dragTo(containerNode, {
+        targetPosition: { x: 86, y: 13 },
+    });
+    await imageNode.click({ button: 'right' });
+    await page.getByTestId('node-menu-delete').click();
+    await expect(hierarchyTree).not.toContainText('图片1');
     await selectRootNode();
     await page.getByTestId('project-file-section').getByRole('button', { name: /项目文件/ }).click();
-    await page.locator('[data-file-id="GameProject/prefabs/HudPanel.prefab"]').dragTo(
+    await page.locator('[data-file-id="GameProject/scenes/HudPanel.scene"]').dragTo(
         rootNode,
     );
     await expect(hierarchyTree).toContainText('HudPanel 实例');
     await selectRootNode();
 
     await page.getByRole('textbox', { name: '名称', exact: true }).fill('SavedMenu');
+    await page.locator('[data-file-id="GameProject/scenes/HudPanel.scene"]').dblclick();
+    await expect(hierarchyTree).toContainText('SavedMenu');
+    await expect(page.getByRole('banner')).toContainText('MenuPanel.scene');
     await page.getByRole('button', { name: '保存' }).click();
-    await expect(page.getByTestId('save-status')).toContainText('已保存 MenuPanel.prefab');
-    const savedPrefab = await page.evaluate(async () => {
+    await expect(page.getByTestId('save-status')).toContainText('已保存 MenuPanel.scene');
+    const savedScene = await page.evaluate(async () => {
         const project = await window.showDirectoryPicker!();
-        const prefabs = await project.getDirectoryHandle('prefabs');
-        const file = await prefabs.getFileHandle('MenuPanel.prefab');
+        const scenes = await project.getDirectoryHandle('scenes');
+        const file = await scenes.getFileHandle('MenuPanel.scene');
         return JSON.parse(await (await file.getFile()).text());
     });
-    expect(savedPrefab.root.name).toBe('SavedMenu');
-    expect(savedPrefab.root.children.map((node: { key: string }) => node.key)).toEqual(['button1', 'text1', 'image1', 'hudPanelInstance1_hudRoot']);
-    expect(savedPrefab.root.children[0].components.map((component: { type: string }) => component.type)).toContain('ui.Button');
-    expect(savedPrefab.root.children[1].components[0].type).toBe('ui.TextGraphic');
-    expect(savedPrefab.root.children[2].components[0].type).toBe('ui.ImageGraphic');
-    expect(savedPrefab.root.children[3].name).toBe('HudPanel 实例');
-    expect(savedPrefab.root.children[3].children[0].key).toBe('hudPanelInstance1_scoreLabel');
-});
-
-test('remote service config stays simple and does not expose tokens', async ({ page }) => {
-    await page.goto('/');
-
-    await page.getByTestId('ai-config-toggle').click();
-    await page.getByRole('button', { name: 'AI 服务' }).click();
-    await page.getByTestId('ai-remote-endpoint').fill('/proposal');
-    await expect(page.getByTestId('ai-remote-model-token')).toHaveCount(0);
-    await page.getByText('高级').click();
-    await page.getByTestId('ai-remote-timeout').fill('5000');
-
-    const storedRemoteConfig = await page.evaluate((key) => localStorage.getItem(key), remoteConfigStorageKey);
-    expect(storedRemoteConfig).toContain('/proposal');
-    expect(storedRemoteConfig).toContain('Authorization');
-    expect(storedRemoteConfig).not.toContain('token');
+    expect(savedScene.root.name).toBe('SavedMenu');
+    expect(savedScene.root.children.map((node: { key: string }) => node.key)).toEqual(['button1', 'button1Copy', 'container1', 'hudPanelInstance1_hudRoot']);
+    expect(savedScene.root.children[0].name).toBe('开始按钮');
+    expect(savedScene.root.children[1].name).toBe('开始按钮 副本');
+    expect(savedScene.root.children[0].components.map((component: { type: string }) => component.type)).toContain('ui.Button');
+    expect(savedScene.root.children[1].children[0].key).toMatch(/^button1BgCopy/);
+    expect(savedScene.root.children[1].components[0].props.targetGraphic).toBe(savedScene.root.children[1].children[0].key);
+    expect(savedScene.root.children[2].children[0].key).toBe('text1');
+    expect(savedScene.root.children[2].children[0].kind).toBe('text');
+    expect(savedScene.root.children[3].name).toBe('HudPanel 实例');
+    expect(savedScene.root.children[3].children[1].key).toBe('hudPanelInstance1_scoreLabel');
 });

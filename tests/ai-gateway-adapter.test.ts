@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createAiProposalRequest, group, prefab } from '../src';
+import { container, createAiProposalRequest, scene } from 'pixifact';
 import { createGatewayResponse } from '../apps/editor/src/gateway/gatewayCore.mjs';
 
-function createGatewayPrefab() {
-    return prefab('GatewayProject',
-        group('Root', {
+function createGatewayScene() {
+    return scene('GatewayProject',
+        container('Root', {
             key: 'root',
             width: 320,
             height: 180,
@@ -15,7 +15,7 @@ function createGatewayPrefab() {
 describe('AI gateway adapter core', () => {
     it('creates proposal responses for the protocol', async () => {
         const request = createAiProposalRequest('rename root', {
-            prefab: createGatewayPrefab(),
+            scene: createGatewayScene(),
             selection: 'root',
         });
 
@@ -40,7 +40,7 @@ describe('AI gateway adapter core', () => {
 
     it('rejects unauthorized requests', async () => {
         const response = await createGatewayResponse(createAiProposalRequest('test', {
-            prefab: createGatewayPrefab(),
+            scene: createGatewayScene(),
         }), {
             headers: { authorization: 'Bearer wrong' },
             gatewayToken: 'local-test',
@@ -68,7 +68,7 @@ describe('AI gateway adapter core', () => {
 
     it('reports invalid model proposals', async () => {
         const response = await createGatewayResponse(createAiProposalRequest('test', {
-            prefab: createGatewayPrefab(),
+            scene: createGatewayScene(),
         }), {
             generateProposal: async () => ({
                 explanation: 'Missing commands.',

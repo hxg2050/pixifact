@@ -15,7 +15,7 @@ export default defineConfig({
         trace: 'on-first-retry',
     },
     webServer: {
-        command: 'VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install vite apps/editor --host 127.0.0.1 --port 5196 --strictPort',
+        command: 'VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install vite apps/editor --config vite.config.ts --host 127.0.0.1 --port 5196 --strictPort',
         url: 'http://127.0.0.1:5196',
         reuseExistingServer: false,
         timeout: 60_000,

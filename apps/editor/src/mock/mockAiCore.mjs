@@ -26,12 +26,12 @@ export function createMockAiResponse(payload, createMockAiProposal) {
     }
 
     const context = payload.context;
-    if (!context || typeof context !== 'object' || !context.prefab) {
-        return json(400, { error: 'context.prefab 不能为空。' });
+    if (!context || typeof context !== 'object' || !context.scene) {
+        return json(400, { error: 'context.scene 不能为空。' });
     }
 
     const proposal = createMockAiProposal(payload.prompt, {
-        prefab: context.prefab,
+        scene: context.scene,
         selection: context.selection?.node,
         designTokens: context.designTokens,
         actions: context.actions,

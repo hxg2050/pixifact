@@ -1,60 +1,76 @@
-# Pixifact AI-first Game Editor
+# Pixifact
 
-Pixifact is an editor-first AI game UI and lightweight gameplay authoring tool.
+Pixifact is a standalone 2D UI and lightweight scene development framework. PixiJS is the rendering implementation underneath; Pixifact exposes Scene, node, behavior component, command, and authoring document semantics.
 
-This repository is no longer defined by the standalone `pixifact` framework. The editor product is the center of gravity. The `pixifact` runtime, prefab model, commands, `EditorDocument`, and related code under `src/` are the foundation that makes the editor possible.
+The editor, MCP server, and external agents all consume the Pixifact semantic layer. The desktop editor lives in `apps/editor/`; it is used to build UI / lightweight scenes, preview AI or agent output, refine manually, and expose controlled editing tools to Codex, Claude Code, and similar agents through MCP.
 
 [中文](./README.md)
 
-## Product Positioning
+## Core Model
 
-Pixifact's primary authoring loop is:
+Pixifact uses a Godot-style unified `Scene` asset model. It does not use a Unity-style split between Scene resources and Prefab resources.
 
 ```txt
-Prompt -> EditorCommand -> Validate / Repair -> EditorDocument -> Runtime Preview -> Export / Import
+Prompt / Agent -> SceneCommand -> Validate / Dry Run -> SceneDocument -> instantiateScene -> Runtime Preview
 ```
 
-The current Alpha still exposes a `Proposal -> Dry Run -> Diff -> Apply` review flow so command validation, diffing, undo, export, and import can be verified. The product direction is send-and-execute: the user describes the goal, AI returns structured commands, the editor validates and repairs them, then applies legal changes to `EditorDocument`.
-
-## Boundaries
-
-- `apps/editor/` is the product surface.
-- `EditorDocument` is the only source of truth for project data.
-- Zustand stores UI state only, not copies of PrefabSpec or EditorDocument.
-- AI cannot directly mutate projects; it can only produce structured commands / proposals.
-- Real project changes must go through `EditorDocument` APIs or commands.
-- JSON is an asset format, not the primary editing surface.
-- No Monaco and no embedded TypeScript editor.
-- The runtime is the preview and prefab-instantiation foundation, not the repository's main product goal.
+- `.scene` files store `SceneSpec`.
+- `SceneSpec.root` must be a `container`.
+- Public node kinds are only `container`, `image`, `text`, `input`, and `shape`.
+- Only `container` nodes can contain children.
+- Every node can carry behavior components.
+- Button, ProgressBar, ScrollView, and similar controls are Scene templates or compound controls, not base display nodes.
+- `ui.TextGraphic`, `ui.ImageGraphic`, and `ui.RoundedRectGraphic` are internal runtime implementation details, not authoring APIs.
 
 ## Repository Layout
 
 ```txt
-apps/editor/                  AI-first editor product
-apps/editor-dockview-prototype/  IDE-style dock layout interaction prototype
-src/                          editor domain model, commands, prefab, and runtime foundation
-src/editor/                   EditorDocument, AI context, diff, memory, logic, and editor-domain models
-src/commands/                 EditorCommand validation / apply / undo foundation
-src/prefab/                   PrefabSpec, DSL, templates, and runtime instantiation
-examples/                     runtime examples, not editor product surfaces
-tests/                        unit tests and editor-domain tests
-tests/e2e/                    Playwright Alpha workflow tests
-sample-projects/              projects importable by the editor
-skills/                       repository-owned Codex skills
+packages/pixifact/              core Pixifact package, published as pixifact
+packages/pixifact/src/runtime/  Application, GameObject, Component, layout, PixiJS bridge
+packages/pixifact/src/nodes/    runtime nodes and compound controls
+packages/pixifact/src/scene/    SceneSpec, DSL, Scene instantiation, Scene templates
+packages/pixifact/src/commands/ SceneCommand validation, application, undo foundation
+packages/pixifact/src/authoring/SceneDocument, selection, diff, AI context, locks, actions, logic
+packages/pixifact-mcp/          MCP server; depends on pixifact, not on the desktop editor
+apps/editor/                    Pixifact desktop editor React / Vite frontend
+apps/editor/src-tauri/          Tauri desktop host
+examples/                       runtime examples
+tests/                          unit, editor, and MCP tests
+tests/e2e/                      Playwright editor workflow tests
+sample-projects/                sample Pixifact projects
+skills/                         repository-owned Codex skills
 ```
 
-## Run The Editor
+## Run
 
 ```bash
 bun install
 bun run editor
 ```
 
-Vite prints the local URL, usually:
+Desktop development entry:
 
-```txt
-http://localhost:5173/
+```bash
+bun run desktop
 ```
+
+Build the desktop app:
+
+```bash
+bun run desktop:build
+```
+
+Desktop development and packaging require Rust / Cargo. Users who install the packaged desktop app do not need Bun or Rust.
+
+## MCP
+
+Start the MCP server:
+
+```bash
+bun run editor:mcp
+```
+
+The MCP tools read and write `SceneCommand` changes against `.scene` or `pixifact.aiEditorProject` files. With a Live Editor connection, tools operate on the open editor; without it, they read and write local project files directly.
 
 ## AI Gateway
 
@@ -76,18 +92,39 @@ Default Remote endpoint:
 http://localhost:8788/proposal
 ```
 
-The gateway only returns structured proposals. It does not mutate `EditorDocument` and does not write project files.
+The gateway only returns structured proposals. It does not mutate `SceneDocument` and does not write project files.
+
+## Package Entry Points
+
+```ts
+import { Application, GameObject, Group } from 'pixifact/runtime';
+import { SceneDocument } from 'pixifact/authoring';
+import { applySceneCommand, validateSceneCommand } from 'pixifact/commands';
+import { container, scene, shape, text, instantiateScene } from 'pixifact/scene';
+```
+
+The root `pixifact` entry also exports the public semantic layer for editor, MCP, and tests.
 
 ## Verification
 
 Run the smallest relevant check first.
 
+```bash
+bun run test
+```
+
 Editor changes:
 
 ```bash
 bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
-bun run test
 bun run editor:build
+```
+
+Runtime or export API changes:
+
+```bash
+bun run build
+bun run example:build
 ```
 
 Alpha workflow changes:
@@ -96,33 +133,6 @@ Alpha workflow changes:
 bun run editor:e2e
 ```
 
-Runtime / package-entry changes:
-
-```bash
-bun run build
-bun run example:build
-```
-
-## Package Entry Points
-
-The npm package name is `pixifact`. Public entry points expose runtime and editor-domain APIs directly:
-
-```ts
-import { Application, GameObject, Group } from 'pixifact';
-import { Button, Input, ScrollView, Textarea } from 'pixifact/ui';
-import { Layout, GridLayout } from 'pixifact/core';
-```
-
-Editor-first domain entry points:
-
-```ts
-import { EditorDocument } from 'pixifact/editor';
-import { applyCommand } from 'pixifact/commands';
-import { instantiate } from 'pixifact/prefab';
-```
-
-These APIs are the editor runtime foundation. New runtime work should serve editor workflows, prefab instantiation, viewport preview, command application, and export instead of growing into an independent general-purpose framework.
-
 ## Codex Skills
 
 The repository-owned Codex skill lives at:
@@ -130,8 +140,6 @@ The repository-owned Codex skill lives at:
 ```txt
 skills/pixifact-editor
 ```
-
-The skill covers Pixifact editor work and the underlying runtime conventions.
 
 Install from the source checkout:
 

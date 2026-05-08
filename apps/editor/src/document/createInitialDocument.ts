@@ -1,58 +1,31 @@
 import {
-    EditorDocument,
-    button,
-    group,
-    prefab,
-    ref,
-    roundedRect,
-    textGraphic,
-} from '../../../../src';
-import type { PrefabSpec } from '../../../../src';
+    buttonScene,
+    container,
+    SceneDocument,
+    scene,
+} from 'pixifact';
+import type { SceneSpec } from 'pixifact';
 
-export function createInitialPrefab(): PrefabSpec {
-    return prefab('默认按钮',
-        group('画布', {
+export function createInitialScene(): SceneSpec {
+    return scene('默认按钮',
+        container('画布', {
             id: 'root',
             key: 'root',
             width: 960,
             height: 540,
             children: [
-                group('按钮', {
+                buttonScene('按钮', {
                     id: 'submit-button-node',
                     key: 'submitButton',
                     x: 64,
                     y: 64,
                     width: 160,
                     height: 48,
-                    components: [
-                        roundedRect({
-                            color: 0x2563eb,
-                            radius: 8,
-                            strokeColor: 0x1d4ed8,
-                            strokeWidth: 1,
-                        }, 'bg'),
-                        button({
-                            targetGraphic: ref('bg'),
-                            onClick: 'submitLogin',
-                        }, 'button'),
-                    ],
-                    children: [
-                        group('标签', {
-                            id: 'submit-button-label-node',
-                            key: 'submitButtonLabel',
-                            width: 160,
-                            height: 48,
-                            components: [
-                                textGraphic({
-                                    text: '提交',
-                                    color: 0xffffff,
-                                    fontSize: 14,
-                                    fontWeight: '700',
-                                    center: true,
-                                }, 'text'),
-                            ],
-                        }),
-                    ],
+                    label: '提交',
+                    color: 0x2563eb,
+                    textColor: 0xffffff,
+                    radius: 8,
+                    onClick: 'submitLogin',
                 }),
             ],
         }),
@@ -60,7 +33,7 @@ export function createInitialPrefab(): PrefabSpec {
 }
 
 export function createInitialDocument() {
-    const document = new EditorDocument(createInitialPrefab());
+    const document = new SceneDocument(createInitialScene());
 
     document.addAction({
         key: 'submitLogin',

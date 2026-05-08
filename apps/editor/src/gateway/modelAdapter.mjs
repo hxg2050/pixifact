@@ -80,11 +80,14 @@ function systemPrompt() {
         'Return JSON only. Do not use markdown.',
         'The JSON must be an AiProposal object or { "proposal": AiProposal }.',
         'AiProposal fields: id?, prompt?, explanation?, commands, annotations?, risks?.',
-        'commands must contain only valid Pixifact EditorCommand objects.',
-        'The request context includes commandSchemas and commandSummary. Treat them as the allowed EditorCommand protocol.',
+        'commands must contain only valid Pixifact SceneCommand objects.',
+        'The request context includes commandSchemas and commandSummary. Treat them as the allowed SceneCommand protocol.',
         'Do not claim command specs are missing when commandSummary is present.',
-        'Use createNode with NodeSpec objects to create UI, and setComponentProp/setTransform to edit existing UI.',
-        'For buttons, use ui.Button onClick only with declared context.actions keys.',
+        'Use createNode with NodeSpec objects to create UI, and setTransform or setNodeData to edit existing UI.',
+        'Authored node kinds are only container, image, text, input, and shape. Only container nodes can contain children.',
+        'Use setNodeData for display data such as text.value, image.src/image.mode, input.value, and shape.color/radius.',
+        'Do not expose ui.TextGraphic, ui.ImageGraphic, or ui.RoundedRectGraphic as authored components.',
+        'Buttons are container templates with shape/text children plus ui.Button behavior. For ui.Button onClick, use only declared context.actions keys.',
         'Do not write files. Do not invent actions that are not declared in context.actions.',
         'If no safe change is possible, return an empty commands array with an explanation and risk.',
     ].join('\n');
@@ -181,7 +184,7 @@ function looksLikeMissingCommandSpec(proposal) {
         ...(Array.isArray(proposal?.annotations) ? proposal.annotations.map((item) => item?.message) : []),
     ].filter(Boolean).join('\n');
 
-    return /缺少.*命令|命令.*规范|EditorCommand.*缺少|EditorCommand.*规范|command spec|command.*missing|cannot.*command/i.test(text);
+    return /缺少.*命令|命令.*规范|SceneCommand.*缺少|SceneCommand.*规范|command spec|command.*missing|cannot.*command/i.test(text);
 }
 
 function createHeaders(env) {
@@ -270,8 +273,8 @@ export async function callUpstreamModel(request, options = {}) {
                 ...env,
                 PIXIFACT_AI_UPSTREAM_PROMPT_SUFFIX: [
                     'You previously claimed command specs were missing, but they are present in context.commandSchemas and context.commandSummary.',
-                    'Generate a valid AiProposal now. Use createNode, batch, setComponentProp, and setTransform as needed.',
-                    'For an inventory panel, create Group nodes and use ui.RoundedRectGraphic, ui.TextGraphic, and ui.Button. Use ui.Button.onClick = "useInventoryItem" only if that action exists.',
+                    'Generate a valid AiProposal now. Use createNode, batch, setNodeData, setComponentProp, and setTransform as needed.',
+                    'For an inventory panel, create container, shape, text, image, and input nodes. Use ui.Button only as a behavior component on a button template container.',
                 ].join('\n'),
             },
             skipCommandRetry: true,

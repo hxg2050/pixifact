@@ -1,22 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { createAiProposalRequest, createMockAiProposal, group, prefab, roundedRect, textGraphic } from '../src';
+import { container, createAiProposalRequest, createMockAiProposal, scene, shape, text } from 'pixifact';
 import { createMockAiResponse } from '../apps/editor/src/mock/mockAiCore.mjs';
 
-function createMockPrefab() {
-    return prefab('MockProject',
-        group('Root', {
+function createMockScene() {
+    return scene('MockProject',
+        container('Root', {
             key: 'root',
             width: 320,
             height: 180,
-            components: [
-                roundedRect({ color: 0x2563eb }, 'bg'),
-            ],
             children: [
-                group('Label', {
+                shape('背景', {
+                    key: 'bg',
+                    color: 0x2563eb,
+                }),
+                text('Label', {
                     key: 'submitButtonLabel',
-                    components: [
-                        textGraphic({ text: 'Submit' }, 'text'),
-                    ],
+                    value: 'Submit',
                 }),
             ],
         }),
@@ -26,7 +25,7 @@ function createMockPrefab() {
 describe('mock AI server core', () => {
     it('creates remote proposal responses', () => {
         const request = createAiProposalRequest('开始游戏并居中', {
-            prefab: createMockPrefab(),
+            scene: createMockScene(),
             selection: 'root',
             actions: [{ key: 'submitLogin' }],
         });

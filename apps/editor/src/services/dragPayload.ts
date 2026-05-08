@@ -1,7 +1,8 @@
 export const editorDragDataTypes = {
     basicComponent: 'application/x-pixifact-basic-component',
     component: 'application/x-pixifact-component',
-    prefab: 'application/x-pixifact-prefab',
+    hierarchyNode: 'application/x-pixifact-hierarchy-node',
+    scene: 'application/x-pixifact-scene',
 } as const;
 
 export type EditorDragDataType = typeof editorDragDataTypes[keyof typeof editorDragDataTypes];
@@ -28,10 +29,18 @@ export function componentDragPayload(componentType: string, label?: string): Edi
     };
 }
 
-export function prefabDragPayload(path: string, label?: string): EditorDragPayload {
+export function hierarchyNodeDragPayload(locator: string, label?: string): EditorDragPayload {
+    return {
+        data: locator,
+        label,
+        type: editorDragDataTypes.hierarchyNode,
+    };
+}
+
+export function sceneDragPayload(path: string, label?: string): EditorDragPayload {
     return {
         data: path,
         label,
-        type: editorDragDataTypes.prefab,
+        type: editorDragDataTypes.scene,
     };
 }

@@ -1,6 +1,6 @@
 import { Container, Ticker } from 'pixi.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Application, Button, GameObject, Group, Input, Layout, ScrollView, Textarea } from '../src';
+import { Application, Button, GameObject, Group, Input, Layout, ScrollView, Textarea } from 'pixifact';
 
 function setElementRect(element: Element, left: number, top: number) {
     vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({

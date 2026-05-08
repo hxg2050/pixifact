@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DockviewReact } from 'dockview';
+import { DockviewReact, themeLight } from 'dockview';
 import type { DockviewApi, DockviewReadyEvent, IDockviewPanelProps } from 'dockview';
-import type { EditorDocument } from '../../../src';
+import type { SceneDocument } from 'pixifact';
 import {
-    getEditorDocument,
-    refreshEditorDocument,
-    resetEditorDocument,
-} from './document/editorDocumentController';
+    getSceneDocument,
+    refreshSceneDocument,
+    resetSceneDocument,
+} from './document/sceneDocumentController';
 import { IconButton } from './components/IconButton';
-import { Select } from './components/system';
+import { Button, Select, SystemIcon } from './components/system';
 import { useEditorStore } from './editorStore';
 import type { EditorLanguage } from './i18n';
 import { editorLanguageNames, translate, useI18n } from './i18n';
@@ -18,19 +18,21 @@ import { AiPanel } from './panels/AiPanel';
 import { InspectorPanel } from './panels/InspectorPanel';
 import { SummaryBar } from './panels/SummaryBar';
 import { ViewportPanel } from './panels/ViewportPanel';
-import { useDocumentRevision } from './panels/common';
-import { openProjectFolder, savePrefabFile } from './services/projectFileTree';
+import { collectHierarchy, useDocumentRevision } from './panels/common';
+import { openProjectFolder, saveSceneFile } from './services/projectFileTree';
+import { startLiveEditorMcpClient } from './mcp/liveEditorClient';
+import { pixifactMcpBridgeUrl } from './mcp/liveBridge';
 import 'dockview/dist/styles/dockview.css';
 
 interface EditorPanelParams {
-    document: EditorDocument;
+    document: SceneDocument;
     revision: number;
 }
 
 function dockPanelTitles(language: EditorLanguage) {
     return {
         fileSystem: translate(language, 'panelFileSystem'),
-        prefabTree: translate(language, 'panelPrefab'),
+        sceneTree: translate(language, 'panelScene'),
         viewport: translate(language, 'viewportLabel'),
         inspector: 'Inspector',
         ai: translate(language, 'panelAi'),
@@ -40,13 +42,20 @@ function dockPanelTitles(language: EditorLanguage) {
 function setDockPanelTitles(api: DockviewApi, language: EditorLanguage) {
     const titles = dockPanelTitles(language);
     api.getPanel('filesystem')?.api.setTitle(titles.fileSystem);
-    api.getPanel('prefab')?.api.setTitle(titles.prefabTree);
+    api.getPanel('scene')?.api.setTitle(titles.sceneTree);
     api.getPanel('viewport')?.api.setTitle(titles.viewport);
     api.getPanel('inspector')?.api.setTitle(titles.inspector);
     api.getPanel('ai')?.api.setTitle(titles.ai);
 }
 
-function createDockComponents(document: EditorDocument, revision: number) {
+function setInitialDockLayout(api: DockviewApi) {
+    api.getPanel('filesystem')?.group.api.setSize({ width: 280 });
+    api.getPanel('scene')?.group.api.setSize({ width: 300 });
+    api.getPanel('inspector')?.group.api.setSize({ width: 360 });
+    api.getPanel('ai')?.group.api.setSize({ height: 220 });
+}
+
+function createDockComponents(document: SceneDocument, revision: number) {
     const params: EditorPanelParams = { document, revision };
 
     return {
@@ -55,8 +64,8 @@ function createDockComponents(document: EditorDocument, revision: number) {
                 <ResourceExplorer {...props.params} document={params.document} revision={params.revision} />
             </div>
         ),
-        prefabTree: (props: IDockviewPanelProps<EditorPanelParams>) => (
-            <PrefabTreePanel {...props.params} document={params.document} />
+        sceneTree: (props: IDockviewPanelProps<EditorPanelParams>) => (
+            <SceneTreePanel {...props.params} document={params.document} />
         ),
         viewport: (props: IDockviewPanelProps<EditorPanelParams>) => (
             <ViewportPanel {...props.params} document={params.document} revision={params.revision} />
@@ -68,22 +77,28 @@ function createDockComponents(document: EditorDocument, revision: number) {
                 model={params.document.getInspectorModel()}
             />
         ),
-        ai: (props: IDockviewPanelProps<EditorPanelParams>) => (
-            <AiPanel {...props.params} document={params.document} />
-        ),
+        ai: () => <AiPanel />,
     };
 }
 
-function PrefabTreePanel({ document }: { document: EditorDocument }) {
+function SceneTreePanel({ document }: { document: SceneDocument }) {
     useDocumentRevision();
     const t = useI18n();
+    const openedScenePath = useEditorStore((state) => state.openedScenePath);
+    const hierarchy = collectHierarchy(document.scene.root);
+    const componentCount = hierarchy.reduce((total, item) => total + (item.node.components?.length ?? 0), 0);
 
     return (
         <div className="dockPanelSurface">
             <section className="resourceMeta">
-                <span>{t('panelPrefab')}</span>
-                <strong>{document.prefab.name}</strong>
-                <small>{t('rootChildren', { count: document.prefab.root.children?.length ?? 0 })}</small>
+                <span>{t('panelScene')}</span>
+                <strong>{document.scene.name}</strong>
+                <small title={openedScenePath ?? t('unboundSceneFile')}>{openedScenePath ?? t('unboundSceneFile')}</small>
+                <div className="sceneMetaGrid">
+                    <span>{t('nodeCount', { count: hierarchy.length })}</span>
+                    <span>{t('componentCount', { count: componentCount })}</span>
+                    <span className={document.dirty ? 'sceneState dirty' : 'sceneState saved'}>{document.dirty ? t('dirtyUnsaved') : t('saved')}</span>
+                </div>
             </section>
             <HierarchyTree document={document} />
         </div>
@@ -96,52 +111,61 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
         id: 'filesystem',
         component: 'fileSystem',
         title: titles.fileSystem,
+        initialWidth: 280,
+        minimumWidth: 220,
     });
-    const prefabTree = event.api.addPanel({
-        id: 'prefab',
-        component: 'prefabTree',
-        title: titles.prefabTree,
+    const sceneTree = event.api.addPanel({
+        id: 'scene',
+        component: 'sceneTree',
+        title: titles.sceneTree,
+        initialWidth: 300,
+        minimumWidth: 240,
         position: { referencePanel: fileSystem, direction: 'right' },
     });
     const viewport = event.api.addPanel({
         id: 'viewport',
         component: 'viewport',
         title: titles.viewport,
-        position: { referencePanel: prefabTree, direction: 'right' },
+        minimumWidth: 420,
+        position: { referencePanel: sceneTree, direction: 'right' },
     });
     event.api.addPanel({
         id: 'inspector',
         component: 'inspector',
         title: titles.inspector,
+        initialWidth: 360,
+        minimumWidth: 300,
         position: { referencePanel: viewport, direction: 'right' },
     });
     event.api.addPanel({
         id: 'ai',
         component: 'ai',
         title: titles.ai,
+        initialHeight: 220,
+        minimumHeight: 160,
         position: { referencePanel: viewport, direction: 'below' },
     });
 }
 
 export function EditorApp() {
     const revision = useDocumentRevision();
-    const document = getEditorDocument();
+    const document = getSceneDocument();
     const t = useI18n();
     const language = useEditorStore((state) => state.language);
     const setLanguage = useEditorStore((state) => state.setLanguage);
     const setProject = useEditorStore((state) => state.setProject);
     const projectTree = useEditorStore((state) => state.projectTree);
-    const openedPrefabPath = useEditorStore((state) => state.openedPrefabPath);
+    const openedScenePath = useEditorStore((state) => state.openedScenePath);
     const dockApiRef = useRef<DockviewApi | undefined>(undefined);
-    const [saveStatusKey, setSaveStatusKey] = useState<'closed' | 'treeLoaded' | 'noPrefab' | 'savedFile'>('closed');
+    const [saveStatusKey, setSaveStatusKey] = useState<'closed' | 'treeLoaded' | 'noScene' | 'savedFile'>('closed');
     const [savedFileName, setSavedFileName] = useState('');
     const components = useMemo(() => createDockComponents(document, revision), [document, revision]);
     const saveStatus = useMemo(() => {
         switch (saveStatusKey) {
             case 'treeLoaded':
                 return t('saveStatusTreeLoaded');
-            case 'noPrefab':
-                return t('saveStatusNoPrefab');
+            case 'noScene':
+                return t('saveStatusNoScene');
             case 'savedFile':
                 return t('saveStatusSavedFile', { file: savedFileName });
             case 'closed':
@@ -155,16 +179,18 @@ export function EditorApp() {
         }
     }, [language]);
 
+    useEffect(() => startLiveEditorMcpClient(), []);
+
     const resetDocument = useCallback(() => {
-        resetEditorDocument();
+        resetSceneDocument();
     }, []);
     const undo = useCallback(() => {
         document.undo();
-        refreshEditorDocument();
+        refreshSceneDocument();
     }, [document]);
     const redo = useCallback(() => {
         document.redo();
-        refreshEditorDocument();
+        refreshSceneDocument();
     }, [document]);
     const openFolder = useCallback(async () => {
         const tree = await openProjectFolder();
@@ -173,27 +199,28 @@ export function EditorApp() {
             setSaveStatusKey('treeLoaded');
         }
     }, [setProject]);
-    const savePrefab = useCallback(async () => {
+    const saveScene = useCallback(async () => {
         if (!projectTree) {
             setSaveStatusKey('closed');
             return;
         }
-        if (!openedPrefabPath) {
-            setSaveStatusKey('noPrefab');
+        if (!openedScenePath) {
+            setSaveStatusKey('noScene');
             return;
         }
 
-        const saved = await savePrefabFile(projectTree, openedPrefabPath, document);
+        const saved = await saveSceneFile(projectTree, openedScenePath, document);
         if (saved) {
-            setSavedFileName(openedPrefabPath.split('/').pop() ?? openedPrefabPath);
+            setSavedFileName(openedScenePath.split('/').pop() ?? openedScenePath);
             setSaveStatusKey('savedFile');
-            refreshEditorDocument();
+            refreshSceneDocument();
         }
-    }, [document, openedPrefabPath, projectTree]);
+    }, [document, openedScenePath, projectTree]);
 
     const handleDockReady = useCallback((event: DockviewReadyEvent) => {
         dockApiRef.current = event.api;
         addInitialPanels(event, language);
+        window.requestAnimationFrame(() => setInitialDockLayout(event.api));
     }, [language]);
 
     return (
@@ -207,35 +234,61 @@ export function EditorApp() {
                     </div>
                 </div>
                 <div className="statusBar">
-                    <span>{document.prefab.name}.prefab</span>
-                    <span>{document.dirty ? t('dirtyUnsaved') : t('saved')}</span>
+                    <span>{document.scene.name}.scene</span>
+                    <span className={document.dirty ? 'statusPill dirty' : 'statusPill saved'}>{document.dirty ? t('dirtyUnsaved') : t('saved')}</span>
                     <span data-testid="save-status">{saveStatus}</span>
                     <span>AI Ready</span>
                     <SummaryBar document={document} />
                 </div>
                 <div className="topActions" aria-label={t('topActionsLabel')}>
-                    <IconButton icon="undo" label={t('undo')} onClick={undo} disabled={!document.canUndo} />
-                    <IconButton icon="redo" label={t('redo')} onClick={redo} disabled={!document.canRedo} />
-                    <button onClick={() => void openFolder()} type="button">{t('openFolder')}</button>
-                    <button onClick={resetDocument} type="button">{t('resetMock')}</button>
-                    <button onClick={() => void savePrefab()} type="button">{t('save')}</button>
-                    <button type="button">{t('preview')}</button>
-                    <button className="primary" type="button">{t('run')}</button>
-                    <Select
-                        aria-label={t('language')}
-                        className="languageSelect"
-                        onSelectionChange={(key) => setLanguage(key as EditorLanguage)}
-                        options={(Object.keys(editorLanguageNames) as EditorLanguage[]).map((key) => ({
-                            label: editorLanguageNames[key],
-                            value: key,
-                        }))}
-                        selectedKey={language}
-                    />
+                    <div className="topActionGroup">
+                        <IconButton icon="undo" label={t('undo')} onClick={undo} disabled={!document.canUndo} />
+                        <IconButton icon="redo" label={t('redo')} onClick={redo} disabled={!document.canRedo} />
+                    </div>
+                    <div className="topActionGroup">
+                        <Button icon="folder-open" onPress={() => void openFolder()}>{t('openFolder')}</Button>
+                        <Button icon="save" onPress={() => void saveScene()}>{t('save')}</Button>
+                        <Button icon="reset" onPress={resetDocument}>{t('resetMock')}</Button>
+                    </div>
+                    <div className="topActionGroup">
+                        <Button icon="eye">{t('preview')}</Button>
+                        <Button icon="play" variant="primary">{t('run')}</Button>
+                    </div>
+                    <div className="languageControl">
+                        <SystemIcon name="languages" />
+                        <Select
+                            aria-label={t('language')}
+                            className="languageSelect"
+                            onSelectionChange={(key) => setLanguage(key as EditorLanguage)}
+                            options={(Object.keys(editorLanguageNames) as EditorLanguage[]).map((key) => ({
+                                label: editorLanguageNames[key],
+                                value: key,
+                            }))}
+                            selectedKey={language}
+                        />
+                    </div>
                 </div>
             </header>
             <main className="dockHost dockview-theme-light">
-                <DockviewReact components={components} onReady={handleDockReady} />
+                <DockviewReact components={components} onReady={handleDockReady} theme={themeLight} />
             </main>
+            <footer className="mcpStatusBar" aria-label={t('agentStatusTitle')} data-testid="mcp-status-bar">
+                <div>
+                    <span>{t('agentBridge')}</span>
+                    <strong>bun run editor:mcp</strong>
+                    <small>{pixifactMcpBridgeUrl}</small>
+                </div>
+                <div>
+                    <span>{t('agentEditorTarget')}</span>
+                    <strong>{document.scene.name}</strong>
+                    <small>{openedScenePath ?? t('unboundSceneFile')}</small>
+                </div>
+                <div>
+                    <span>{t('agentProjectState')}</span>
+                    <strong>{projectTree ? t('agentProjectOpened') : t('agentProjectNotOpened')}</strong>
+                    <small>{projectTree?.projectRootPath ?? projectTree?.path ?? t('projectOpenHint')}</small>
+                </div>
+            </footer>
         </div>
     );
 }

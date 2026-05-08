@@ -62,8 +62,8 @@ export function validateGatewayPayload(payload) {
 
     if (!payload.context || typeof payload.context !== 'object') {
         errors.push('context 必须是对象。');
-    } else if (!payload.context.prefab || typeof payload.context.prefab !== 'object') {
-        errors.push('context.prefab 不能为空。');
+    } else if (!payload.context.scene || typeof payload.context.scene !== 'object') {
+        errors.push('context.scene 不能为空。');
     }
 
     return errors;

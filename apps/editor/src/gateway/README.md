@@ -1,6 +1,6 @@
 # AI Gateway Adapter
 
-本目录放真实 AI gateway 接入样例。Gateway 只负责把 `pixifact.aiProposal.v1` 请求转给模型，并返回 `AiProposal`；它不访问 editor runtime，不写文件，也不直接修改 `EditorDocument`。
+本目录放真实 AI gateway 接入样例。Gateway 只负责把 `pixifact.aiProposal.v1` 请求转给模型，并返回 `AiProposal`；它不访问 editor runtime，不写文件，也不直接修改 `SceneDocument`。
 
 ## 协议
 
@@ -19,8 +19,8 @@ authorization: Bearer <optional-token>
     protocol: 'pixifact.aiProposal.v1',
     prompt: string,
     context: {
-        prefab,
-        prefabSummary,
+        scene,
+        sceneSummary,
         componentSchemas,
         selection,
         designTokens,
@@ -44,7 +44,7 @@ Gateway 返回：
         id?: string,
         prompt?: string,
         explanation?: string,
-        commands: EditorCommand[],
+        commands: SceneCommand[],
         annotations?: AiAnnotation[],
         risks?: string[],
     },

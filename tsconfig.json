@@ -4,6 +4,7 @@
     "experimentalDecorators": true,
     "useDefineForClassFields": true,
     "module": "ESNext",
+    "jsx": "react-jsx",
     "lib": [
       "ESNext",
       "DOM"
@@ -19,9 +20,20 @@
     "noImplicitReturns": true,
     "skipLibCheck": true,
     "declaration": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "pixifact": [
+        "packages/pixifact/src/index.ts"
+      ],
+      "pixifact/*": [
+        "packages/pixifact/src/*"
+      ]
+    }
   },
   "include": [
-    "src"
+    "packages/pixifact/src",
+    "apps/editor/src",
+    "packages/pixifact-mcp/src"
   ]
 }

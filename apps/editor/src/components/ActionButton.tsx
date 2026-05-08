@@ -6,6 +6,7 @@ interface ActionButtonProps extends Omit<AriaButtonProps, 'className' | 'childre
     className?: string;
     icon: IconName;
     label: string;
+    title?: string;
     variant?: 'default' | 'primary';
 }
 

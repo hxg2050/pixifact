@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createAiProposalRequest, group, prefab } from '../src';
+import { container, createAiProposalRequest, scene } from 'pixifact';
 import {
     callUpstreamModel,
     createUpstreamRequestBody,
@@ -9,8 +9,8 @@ import {
 
 function createModelRequest() {
     return createAiProposalRequest('rename root', {
-        prefab: prefab('ModelProject',
-            group('Root', {
+        scene: scene('ModelProject',
+            container('Root', {
                 key: 'root',
                 width: 320,
                 height: 180,
@@ -293,7 +293,7 @@ describe('AI gateway model adapter', () => {
                 calls.push({ body: String(init?.body) });
                 const content = calls.length === 1
                     ? {
-                        explanation: '缺少可用的 EditorCommand 规范。',
+                        explanation: '缺少可用的 SceneCommand 规范。',
                         commands: [],
                     }
                     : {

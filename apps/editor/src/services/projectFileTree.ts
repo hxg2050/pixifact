@@ -1,4 +1,4 @@
-import type { EditorDocument } from '../../../../src';
+import type { SceneDocument } from 'pixifact';
 import { editorDragDataTypes } from './dragPayload';
 import {
     createHostProjectDirectory,
@@ -15,10 +15,10 @@ import {
     writeHostProjectFileText,
 } from './hostBridge';
 import type { HostProjectFileTreeNode } from './hostBridge';
-import { prefabAssetName, prefabFileName, prefabRootKey } from './prefabNaming';
+import { sceneAssetName, sceneFileName, sceneRootKey } from './sceneNaming';
 
-export type ProjectFileKind = 'folder' | 'prefab' | 'script' | 'component' | 'asset' | 'doc' | 'unknown';
-export const prefabDragDataType = editorDragDataTypes.prefab;
+export type ProjectFileKind = 'folder' | 'scene' | 'script' | 'component' | 'asset' | 'doc' | 'unknown';
+export const sceneDragDataType = editorDragDataTypes.scene;
 
 export interface ProjectFileTreeNode {
     id: string;
@@ -89,8 +89,8 @@ function extension(name: string) {
 
 export function projectFileKind(name: string, path: string): ProjectFileKind {
     const ext = extension(name);
-    if (name.endsWith('.prefab')) {
-        return 'prefab';
+    if (name.endsWith('.scene')) {
+        return 'scene';
     }
     if (scriptExtensions.has(ext)) {
         return path.includes('/components/') || name.endsWith('Binding.ts')
@@ -275,16 +275,16 @@ export function mergeExpandedFolderPaths(
     return [...next];
 }
 
-export function createBlankPrefab(name: string) {
-    const assetName = prefabAssetName(name);
+export function createBlankScene(name: string) {
+    const assetName = sceneAssetName(name);
     return {
         version: 1,
-        type: 'prefab' as const,
+        type: 'scene' as const,
         name: assetName,
         root: {
-            type: 'Group' as const,
+            kind: 'container' as const,
             name: assetName,
-            key: prefabRootKey(assetName),
+            key: sceneRootKey(assetName),
             transform: {
                 width: 320,
                 height: 180,
@@ -294,16 +294,16 @@ export function createBlankPrefab(name: string) {
     };
 }
 
-export async function createPrefabFile(directory: ProjectFileTreeNode, name: string) {
-    const fileName = prefabFileName(name);
-    if (!fileName || fileName === '.prefab') {
-        throw new ProjectFileOperationError('Prefab 名称不能为空。');
+export async function createSceneFile(directory: ProjectFileTreeNode, name: string) {
+    const fileName = sceneFileName(name);
+    if (!fileName || fileName === '.scene') {
+        throw new ProjectFileOperationError('Scene 名称不能为空。');
     }
     if (directory.children?.some((child) => child.name === fileName)) {
         throw new ProjectFileOperationError(`已存在 ${fileName}。`);
     }
 
-    const content = JSON.stringify(createBlankPrefab(name), null, 2);
+    const content = JSON.stringify(createBlankScene(name), null, 2);
     if (directory.systemPath) {
         await createHostProjectFile(ensureProjectRootPath(directory), directory.path, fileName, content);
     } else {
@@ -433,7 +433,7 @@ export async function renameProjectEntry(
     };
 }
 
-export async function savePrefabFile(projectTree: ProjectFileTreeNode, path: string, document: EditorDocument) {
+export async function saveSceneFile(projectTree: ProjectFileTreeNode, path: string, document: SceneDocument) {
     const file = findFileByPath(projectTree, path);
     if (!file) {
         return false;

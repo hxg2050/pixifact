@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { EditorDocument, PrefabSpec } from '../../../../src';
+import type { SceneDocument, SceneSpec } from 'pixifact';
 import {
     Button,
     DragSource,
@@ -11,7 +11,7 @@ import {
     TreeView,
 } from '../components/system';
 import type { TreeViewItem } from '../components/system';
-import { refreshEditorDocument } from '../document/editorDocumentController';
+import { refreshSceneDocument } from '../document/sceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
 import type { I18nKey } from '../i18n';
@@ -19,7 +19,7 @@ import { basicComponentLibrary } from '../services/basicComponentLibrary';
 import {
     basicComponentDragPayload,
     componentDragPayload,
-    prefabDragPayload,
+    sceneDragPayload,
 } from '../services/dragPayload';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import {
@@ -27,7 +27,7 @@ import {
     componentTypeFromPath,
     countProjectFileTree,
     createFolder,
-    createPrefabFile,
+    createSceneFile,
     deleteProjectEntry,
     containingDirectory,
     openProjectCodeFile,
@@ -72,10 +72,10 @@ function fileAction(file: ProjectFileTreeNode, mode: 'select' | 'open', t: Trans
     if (file.kind === 'doc') {
         return t('docSelected');
     }
-    if (file.kind === 'prefab') {
+    if (file.kind === 'scene') {
         return mode === 'open'
-            ? t('prefabOpened', { name: file.name })
-            : t('prefabSelected');
+            ? t('sceneOpened', { name: file.name })
+            : t('sceneSelected');
     }
     if (file.kind === 'folder') {
         return t('folderSelected');
@@ -107,8 +107,8 @@ function findFileInTree(node: ProjectFileTreeNode, path: string): ProjectFileTre
 }
 
 function fileDragPayload(file: ProjectFileTreeNode) {
-    if (file.kind === 'prefab') {
-        return prefabDragPayload(file.path, file.name);
+    if (file.kind === 'scene') {
+        return sceneDragPayload(file.path, file.name);
     }
     if (file.kind === 'component') {
         const componentType = componentTypeFromPath(file.path);
@@ -117,12 +117,12 @@ function fileDragPayload(file: ProjectFileTreeNode) {
     return undefined;
 }
 
-function canRenameFile(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode, openedPrefabPath?: string, dirty?: boolean) {
-    return file.path !== projectTree.path && !(file.path === openedPrefabPath && dirty);
+function canRenameFile(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode, openedScenePath?: string, dirty?: boolean) {
+    return file.path !== projectTree.path && !(file.path === openedScenePath && dirty);
 }
 
-function canDeleteFile(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode, openedPrefabPath?: string, dirty?: boolean) {
-    return file.path !== projectTree.path && !(file.path === openedPrefabPath && dirty);
+function canDeleteFile(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode, openedScenePath?: string, dirty?: boolean) {
+    return file.path !== projectTree.path && !(file.path === openedScenePath && dirty);
 }
 
 function canOpenInVsCode(file: ProjectFileTreeNode) {
@@ -133,19 +133,25 @@ function canOpenWithDefaultApp(file: ProjectFileTreeNode) {
     return file.kind === 'asset' || file.kind === 'doc' || file.kind === 'unknown';
 }
 
-function rootLocator(prefab: PrefabSpec) {
-    return getNodeLocator(prefab.root);
+function rootLocator(scene: SceneSpec) {
+    return getNodeLocator(scene.root);
 }
 
-async function loadPrefabFile(document: EditorDocument, file: ProjectFileTreeNode) {
+async function loadSceneFile(document: SceneDocument, file: ProjectFileTreeNode, t: Translate) {
     const projectTree = useEditorStore.getState().projectTree;
     if (!projectTree) {
-        return;
+        return false;
+    }
+    const currentPath = useEditorStore.getState().openedScenePath;
+    if (document.dirty && currentPath !== file.path && !window.confirm(t('discardDirtySceneConfirm'))) {
+        return false;
     }
     const content = await readProjectFileText(projectTree, file);
     document.load(content);
-    document.setSelection({ type: 'node', node: rootLocator(document.prefab) });
-    refreshEditorDocument();
+    document.setSelection({ type: 'node', node: rootLocator(document.scene) });
+    useEditorStore.getState().setOpenedScene(file.path);
+    refreshSceneDocument();
+    return true;
 }
 
 function EmptyProjectState() {
@@ -163,18 +169,18 @@ function EmptyProjectState() {
 
 type ExplorerAccordionSection = 'project' | 'library';
 
-export function ResourceExplorer({ document }: { document: EditorDocument; revision?: number }) {
+export function ResourceExplorer({ document }: { document: SceneDocument; revision?: number }) {
     useDocumentRevision();
     const t = useI18n();
     const projectTree = useEditorStore((state) => state.projectTree);
     const selectedPath = useEditorStore((state) => state.selectedProjectFilePath);
     const expandedProjectFolders = useEditorStore((state) => state.expandedProjectFolders);
     const setSelectedProjectFile = useEditorStore((state) => state.setSelectedProjectFile);
-    const setOpenedPrefab = useEditorStore((state) => state.setOpenedPrefab);
+    const setOpenedScene = useEditorStore((state) => state.setOpenedScene);
     const setExpandedProjectFolders = useEditorStore((state) => state.setExpandedProjectFolders);
     const refreshProject = useEditorStore((state) => state.refreshProject);
-    const openedPrefabPath = useEditorStore((state) => state.openedPrefabPath);
-    const [newPrefabName, setNewPrefabName] = useState('');
+    const openedScenePath = useEditorStore((state) => state.openedScenePath);
+    const [newSceneName, setNewSceneName] = useState('');
     const [newFolderName, setNewFolderName] = useState('');
     const [renameName, setRenameName] = useState('');
     const [renameTargetPath, setRenameTargetPath] = useState<string>();
@@ -269,9 +275,11 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
             setActionText(fileAction(file, 'open', t));
             return;
         }
-        if (file.kind === 'prefab') {
-            await loadPrefabFile(document, file);
-            setOpenedPrefab(file.path);
+        if (file.kind === 'scene') {
+            const loaded = await loadSceneFile(document, file, t);
+            if (!loaded) {
+                return;
+            }
         } else if (file.kind === 'asset' || file.kind === 'unknown') {
             await openFileWithDefaultApp(file);
             return;
@@ -339,8 +347,8 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         }
     };
 
-    const createPrefab = async () => {
-        const name = newPrefabName.trim();
+    const createScene = async () => {
+        const name = newSceneName.trim();
         if (!name || !projectTree) {
             return;
         }
@@ -348,26 +356,29 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         if (!directory) {
             return;
         }
+        if (document.dirty && !window.confirm(t('discardDirtySceneConfirm'))) {
+            return;
+        }
 
-        const created = await createPrefabFile(directory, name);
+        const created = await createSceneFile(directory, name);
         const refreshedTree = await refreshProjectFileTree(projectTree);
         refreshProject(refreshedTree, { selectPath: created.path, expandPaths: [directory.path] });
         document.load(created.content);
-        document.setSelection({ type: 'node', node: rootLocator(document.prefab) });
-        setOpenedPrefab(created.path);
-        setNewPrefabName('');
-        setActionText(t('prefabCreatedAndOpened', { file: created.fileName }));
-        refreshEditorDocument();
+        document.setSelection({ type: 'node', node: rootLocator(document.scene) });
+        setOpenedScene(created.path);
+        setNewSceneName('');
+        setActionText(t('sceneCreatedAndOpened', { file: created.fileName }));
+        refreshSceneDocument();
     };
 
     const beginRename = (file: ProjectFileTreeNode) => {
         if (!projectTree || selectedBasicComponent) {
             return;
         }
-        if (!canRenameFile(projectTree, file, openedPrefabPath, document.dirty)) {
+        if (!canRenameFile(projectTree, file, openedScenePath, document.dirty)) {
             setActionText(file.path === projectTree.path
                 ? t('cannotRenameRoot')
-                : t('cannotRenameDirtyPrefab'));
+                : t('cannotRenameDirtyScene'));
             return;
         }
         setSelectedProjectFile(file.path);
@@ -386,8 +397,8 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
             setActionText(t('cannotRenameRoot'));
             return;
         }
-        if (file.path === openedPrefabPath && document.dirty) {
-            setActionText(t('cannotRenameDirtyPrefab'));
+        if (file.path === openedScenePath && document.dirty) {
+            setActionText(t('cannotRenameDirtyScene'));
             return;
         }
 
@@ -418,8 +429,8 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
             setActionText(t('cannotDeleteRoot'));
             return;
         }
-        if (file.path === openedPrefabPath && document.dirty) {
-            setActionText(t('cannotDeleteDirtyPrefab'));
+        if (file.path === openedScenePath && document.dirty) {
+            setActionText(t('cannotDeleteDirtyScene'));
             return;
         }
         const confirmed = window.confirm(t('confirmDelete', { name: file.name }));
@@ -467,10 +478,10 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
         setActionText(t('inputFolderNameIn', { name: directory.name }));
     };
 
-    const createPrefabInDirectory = async (directory: ProjectFileTreeNode) => {
+    const createSceneInDirectory = async (directory: ProjectFileTreeNode) => {
         setSelectedProjectFile(directory.path);
-        setNewPrefabName('');
-        setActionText(t('inputPrefabNameIn', { name: directory.name }));
+        setNewSceneName('');
+        setActionText(t('inputSceneNameIn', { name: directory.name }));
     };
 
     if (!projectTree) {
@@ -503,14 +514,14 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                         <div className="accordionContent">
                             <div className="fileOperationBar" aria-label={t('fileOperationsLabel')}>
                                 <Button icon="refresh" onPress={() => void refreshFileTree()}>{t('refresh')}</Button>
-                                <Button disabled={selectedBasicComponent !== undefined || !selectedFile || !canRenameFile(projectTree, selectedFile, openedPrefabPath, document.dirty)} icon="edit" onPress={() => selectedFile ? beginRename(selectedFile) : undefined}>
+                                <Button disabled={selectedBasicComponent !== undefined || !selectedFile || !canRenameFile(projectTree, selectedFile, openedScenePath, document.dirty)} icon="edit" onPress={() => selectedFile ? beginRename(selectedFile) : undefined}>
                                     {t('rename')}
                                 </Button>
-                                <Button disabled={selectedBasicComponent !== undefined || !selectedFile || !canDeleteFile(projectTree, selectedFile, openedPrefabPath, document.dirty)} icon="trash" onPress={() => void deleteSelectedEntry()} variant="danger">
+                                <Button disabled={selectedBasicComponent !== undefined || !selectedFile || !canDeleteFile(projectTree, selectedFile, openedScenePath, document.dirty)} icon="trash" onPress={() => void deleteSelectedEntry()} variant="danger">
                                     {t('delete')}
                                 </Button>
                             </div>
-                            <div className="createPrefabRow">
+                            <div className="createSceneRow">
                                 <TextField
                                     data-testid="rename-entry-name"
                                     disabled={selectedBasicComponent !== undefined || selectedFile?.path === projectTree.path}
@@ -526,7 +537,7 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                                     {t('apply')}
                                 </Button>
                             </div>
-                            <div className="createPrefabRow">
+                            <div className="createSceneRow">
                                 <TextField
                                     data-testid="new-folder-name"
                                     inputProps={{ 'aria-label': t('folderName'), placeholder: t('folderName') }}
@@ -537,15 +548,15 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                                     {t('createFolder')}
                                 </Button>
                             </div>
-                            <div className="createPrefabRow">
+                            <div className="createSceneRow">
                                 <TextField
-                                    data-testid="new-prefab-name"
-                                    inputProps={{ 'aria-label': t('prefabName'), placeholder: t('prefabName') }}
-                                    onChange={setNewPrefabName}
-                                    value={newPrefabName}
+                                    data-testid="new-scene-name"
+                                    inputProps={{ 'aria-label': t('sceneName'), placeholder: t('sceneName') }}
+                                    onChange={setNewSceneName}
+                                    value={newSceneName}
                                 />
-                                <Button data-testid="create-prefab" disabled={newPrefabName.trim() === ''} icon="plus" onPress={() => void createPrefab()}>
-                                    {t('createPrefab')}
+                                <Button data-testid="create-scene" disabled={newSceneName.trim() === ''} icon="plus" onPress={() => void createScene()}>
+                                    {t('createScene')}
                                 </Button>
                             </div>
                             <TreeView
@@ -611,15 +622,15 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                                             <Popover className="fileMenuPopover">
                                                 <Menu className="fileMenu" aria-label={t('fileActionsLabel', { name: file.name })}>
                                                     <MenuItem onAction={() => void openFile(file)}>
-                                                        {file.kind === 'folder' ? t('toggleExpand') : file.kind === 'prefab' ? t('open') : t('select')}
+                                                        {file.kind === 'folder' ? t('toggleExpand') : file.kind === 'scene' ? t('open') : t('select')}
                                                     </MenuItem>
                                                     {file.kind === 'folder' ? (
                                                         <>
                                                             <MenuItem onAction={() => void createFolderInDirectory(file)}>
                                                                 {t('createFolder')}
                                                             </MenuItem>
-                                                            <MenuItem onAction={() => void createPrefabInDirectory(file)}>
-                                                                {t('createPrefab')}
+                                                            <MenuItem onAction={() => void createSceneInDirectory(file)}>
+                                                                {t('createScene')}
                                                             </MenuItem>
                                                         </>
                                                     ) : null}
@@ -634,13 +645,13 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                                                         </MenuItem>
                                                     ) : null}
                                                     <MenuItem
-                                                        isDisabled={!canRenameFile(projectTree, file, openedPrefabPath, document.dirty)}
+                                                        isDisabled={!canRenameFile(projectTree, file, openedScenePath, document.dirty)}
                                                         onAction={() => beginRename(file)}
                                                     >
                                                         {t('rename')}
                                                     </MenuItem>
                                                     <MenuItem
-                                                        isDisabled={!canDeleteFile(projectTree, file, openedPrefabPath, document.dirty)}
+                                                        isDisabled={!canDeleteFile(projectTree, file, openedScenePath, document.dirty)}
                                                         onAction={() => void deleteEntry(file)}
                                                     >
                                                         {t('delete')}
@@ -743,8 +754,8 @@ export function ResourceExplorer({ document }: { document: EditorDocument; revis
                                     </Button>
                                 </div>
                             </div>
-                        ) : selectedFile?.kind === 'prefab' ? (
-                            <div className="fileRule">{t('prefabPreviewRule')}</div>
+                        ) : selectedFile?.kind === 'scene' ? (
+                            <div className="fileRule">{t('scenePreviewRule')}</div>
                         ) : selectedFile?.kind === 'folder' ? (
                             <div className="fileRule">{t('folderPreviewRule', { count: collectFolderPaths(selectedFile).length - 1 })}</div>
                         ) : (

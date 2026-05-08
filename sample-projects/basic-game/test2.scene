@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "type": "scene",
+  "name": "test2",
+  "root": {
+    "key": "test2Root",
+    "name": "test2",
+    "kind": "container",
+    "transform": {
+      "width": 320,
+      "height": 180
+    },
+    "children": []
+  }
+}

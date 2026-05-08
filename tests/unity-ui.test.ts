@@ -5,16 +5,11 @@ import {
     ComponentRegistry,
     GameObject,
     Group,
-    RoundedRectGraphic,
-    TextGraphic,
-    button,
-    group,
+    buttonScene,
     instantiate,
-    prefab,
-    ref,
-    roundedRect,
-    textGraphic,
-} from '../src';
+    scene,
+} from 'pixifact';
+import { RoundedRectGraphic, TextGraphic } from '../packages/pixifact/src/nodes/graphics';
 
 describe('Unity-like UI component metadata', () => {
     it('registers decorated components with prop schemas', () => {
@@ -58,32 +53,17 @@ describe('Unity-like Button vertical slice', () => {
         GameObject.destroy(node);
     });
 
-    it('instantiates a button prefab from TS DSL and resolves refs/actions', () => {
+    it('instantiates a button scene from TS DSL and resolves refs/actions', () => {
         const click = vi.fn();
-        const spec = prefab('PrimaryButton',
-            group('Button', {
+        const spec = scene('PrimaryButton',
+            buttonScene('Button', {
                 key: 'submitButton',
                 width: 140,
                 height: 44,
-                components: [
-                    roundedRect({ color: 0x2563eb, radius: 8 }, 'bg'),
-                    button({ targetGraphic: ref('bg'), onClick: 'submitLogin' }, 'button'),
-                ],
-                children: [
-                    group('Label', {
-                        key: 'submitButtonLabel',
-                        width: 140,
-                        height: 44,
-                        components: [
-                            textGraphic({
-                                text: 'Submit',
-                                color: 0xffffff,
-                                fontSize: 14,
-                                center: true,
-                            }, 'text'),
-                        ],
-                    }),
-                ],
+                label: 'Submit',
+                color: 0x2563eb,
+                radius: 8,
+                onClick: 'submitLogin',
             }),
         );
 
@@ -93,8 +73,8 @@ describe('Unity-like Button vertical slice', () => {
             },
         });
         const root = result.root;
-        const graphic = result.components.get('bg') as RoundedRectGraphic;
-        const text = result.components.get('text') as TextGraphic;
+        const graphic = result.components.get('submitButtonBg') as RoundedRectGraphic;
+        const text = result.components.get('submitButtonLabel') as TextGraphic;
 
         expect(root).toBeInstanceOf(Group);
         expect(root.width).toBe(140);

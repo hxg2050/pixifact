@@ -1,44 +1,59 @@
 # AGENTS.md
 
-本文件是给 Codex / coding agents 的项目入口说明。进入本仓库后，先阅读本文件，再按任务需要阅读 `README.md`、`PLAN.md`、`AI_FIRST_GAME_EDITOR_PLAN.md` 和相关源码。
+本文件是给 Codex / coding agents 的项目入口说明。进入本仓库后，先阅读本文件，再按任务需要阅读 `README.md`、`PLAN.md` 和相关源码。
 
-## 📌 附加行为规范
+## 附加行为规范
 
 在处理本项目任何代码相关任务前，必须先读取并遵守 `CODEX.md` 中的行为规范，并与本文件规则合并执行。
 
--   非必须不编写主动兜底、静默默认值或主动抛错逻辑；让错误在运行或测试时自然暴露，以便定位并修复真实调用问题。
--   当前项目处于开发阶段，永远不用考虑向下兼容；不要为了旧 API、旧路径、旧协议或旧数据格式新增兼容层、别名、fallback、deprecation shim。相关改动应直接迁移调用方并删除旧入口。
+- 非必须不编写主动兜底、静默默认值或主动抛错逻辑；让错误在运行或测试时自然暴露，以便定位并修复真实调用问题。
+- 当前项目处于开发阶段，永远不用考虑向下兼容；不要为了旧 API、旧路径、旧协议或旧数据格式新增兼容层、别名、fallback、deprecation shim。相关改动应直接迁移调用方并删除旧入口。
 
 ## 项目概览
 
-Pixifact 是以 `apps/editor/` 为核心的 AI-first 游戏 UI / 轻量玩法编辑器。当前产品方向是 Tauri 桌面版优先；浏览器 Web 入口只作为开发预览和自动化测试承载，不作为最终产品形态。`pixifact` runtime 是编辑器预览、Prefab 实例化和导出代码的底座，不再是本仓库的主目标。
+Pixifact 是独立的 2D UI + 轻场景开发框架。PixiJS 只作为底层渲染实现；编辑器、MCP 和外部 Agent 都应使用 Pixifact 的 Scene 语义层。
 
-当前仓库同时包含：
+当前仓库包含：
 
-- `apps/editor/`：Pixifact AI-first Game Editor 产品应用，是项目中心。
-- `src-tauri/`：Pixifact 桌面版 host，负责本机文件系统、外部程序打开、打包和桌面窗口。
-- `apps/editor-dockview-prototype/`：最终 IDE / dock layout 交互原型。
-- `src/`：编辑器领域模型、runtime foundation、UI 组件、Prefab、Command、EditorDocument、AI proposal 等底层能力。
-- `src/editor/`、`src/commands/`、`src/prefab/`：editor-first 领域能力的一等目录。
-- `src/ui/`：runtime UI 组件。
-- `examples/`：runtime 示例，不承载 editor 产品。
-- `tests/`：单元测试和编辑器相关测试。
-- `tests/e2e/`：Playwright Alpha 主流程测试。
+- `packages/pixifact/`：核心 Pixifact 包，包名为 `pixifact`。
+- `packages/pixifact/src/runtime/`：`Application`、`GameObject`、`Component`、布局、PixiJS bridge。
+- `packages/pixifact/src/nodes/`：runtime 节点和组合控件实现。
+- `packages/pixifact/src/scene/`：`SceneSpec`、Scene DSL、Scene 实例化、Scene 模板。
+- `packages/pixifact/src/commands/`：`SceneCommand` 校验、应用、撤销基础。
+- `packages/pixifact/src/authoring/`：`SceneDocument`、selection、diff、AI context、locks、actions、logic。
+- `packages/pixifact-mcp/`：Pixifact MCP server，依赖 `pixifact`，不依赖桌面编辑器。
+- `apps/editor/`：Pixifact 桌面编辑器产品应用。
+- `apps/editor/src-tauri/`：Tauri desktop host。
+- `apps/editor-dockview-prototype/`：IDE / dock layout 交互原型。
+- `examples/`：runtime 示例。
+- `tests/`：单元测试、编辑器测试、MCP 测试。
+- `tests/e2e/`：Playwright editor 主流程测试。
 
 ## 核心架构规则
 
-- `EditorDocument` 是 editor 项目的唯一 source of truth。
-- Zustand 只保存 UI 状态，不保存 PrefabSpec / EditorDocument 的副本。
-- 所有真实项目修改必须走 `EditorDocument` API 或 command。
-- AI 不直接修改项目，只生成结构化 command / proposal。
-- 当前 Alpha proposal 必须能 dry-run、review diff、apply、reject；后续产品方向是发送即执行和 repair loop。
-- JSON 只是资产格式，不作为主要编辑入口。
+- `SceneDocument` 是 editor 和 Agent 修改 Scene 的唯一 source of truth。
+- Zustand 只保存 UI 状态，不保存 `SceneSpec` / `SceneDocument` 的副本。
+- 所有真实项目修改必须走 `SceneDocument` API 或 `SceneCommand`。
+- AI / Agent 不直接修改项目，只生成结构化 `SceneCommand` / proposal。
+- 当前 Alpha proposal 必须能 dry-run、review diff、apply、reject；后续产品方向是 Agent / MCP first 和 repair loop。
+- JSON 是资产格式，不作为主要编辑入口。
 - 不引入 Monaco，不做内嵌代码编辑器。
+
+## Scene 规则
+
+- 资产统一使用 `SceneSpec`，文件扩展名为 `.scene`。
+- `SceneSpec.root` 必须是 `container`。
+- 公开节点类型只有 `container`、`image`、`text`、`input`、`shape`。
+- 只有 `container` 可以包含子节点。
+- 所有节点都可以挂行为组件。
+- 显示数据放在节点字段上，例如 `text.value`、`image.src`、`input.value`、`shape.color`。
+- `Button`、`ProgressBar`、`ScrollView` 等是 Scene 模板或组合控件，不作为基础显示节点。
+- 不向用户或 Agent 暴露 `ui.TextGraphic`、`ui.ImageGraphic`、`ui.RoundedRectGraphic` 作为 authoring 组件。
 
 ## Runtime Foundation 规则
 
 - 使用 `GameObject.instantiate(Type, parent, props?)` 创建 runtime 节点。
-- `Group` 是唯一容器节点。
+- runtime `Group` 是底层唯一容器节点；公开 authoring 名称使用 `container`。
 - `Graphics`、`Label`、`Image`、`NineSliceImage` 等渲染叶子不应拥有子节点。
 - 挂载到 `Application.root` 后才参与 ticker-driven update。
 - 可复用行为放在 `Component` 子类里。
@@ -46,7 +61,7 @@ Pixifact 是以 `apps/editor/` 为核心的 AI-first 游戏 UI / 轻量玩法编
 - 组件清理必须在 `onDestroy` 中释放事件监听。
 - 布局优先使用 `Layout`、`GridLayout`、`FlexGroup` / `Flex`。
 - 尽量使用逻辑 `width` / `height` 做布局判断，不随意依赖 Pixi bounds。
-- 新增 runtime 能力时，优先服务 editor workflow、Prefab 实例化、Viewport 预览、Command 应用和导出，不为了通用框架扩展而扩展。
+- 新增 runtime 能力时，优先服务 Scene 实例化、editor workflow、Viewport 预览、Command 应用、MCP 和导出。
 
 ## Editor UI 设计原则
 
@@ -63,10 +78,10 @@ Pixifact 是以 `apps/editor/` 为核心的 AI-first 游戏 UI / 轻量玩法编
 
 保留英文或中英混用：
 
-- 产品和行业术语：AI-first、Prompt、Dry Run、Diff、Memory、Mock、Remote。
-- 工程概念：ID、Key、Type、Prefab、Command、EditorDocument、ActionRegistry、LogicGraph。
+- 产品和行业术语：AI-first、Prompt、Dry Run、Diff、Memory、Mock、Remote、MCP、Agent。
+- 工程概念：ID、Key、Type、Scene、Command、SceneDocument、ActionRegistry、LogicGraph。
 - 文件和语言名：JSON、TypeScript、TS。
-- 组件 schema 的原始 display name 和 type，例如 `Button`、`Rounded Rect`、`ui.Button`。
+- 组件 schema 的原始 display name 和 type，例如 `Button`、`ui.Button`。
 
 ### 按钮
 
@@ -74,21 +89,6 @@ Pixifact 是以 `apps/editor/` 为核心的 AI-first 游戏 UI / 轻量玩法编
 - 决策动作保留清晰文字。
 - 纯图标按钮必须提供 `aria-label` 和 `title`。
 - 图标服务于扫描效率，不替代关键语义。
-
-适合图标化：
-
-- 撤销、重做。
-- 锁定、解锁。
-- 导入、导出、校验。
-- 添加、编辑、删除。
-
-保留文字：
-
-- 生成。
-- 预演。
-- 应用。
-- 拒绝。
-- 保存动作。
 
 当前按钮组件：
 
@@ -170,10 +170,10 @@ bun run desktop
 bun run desktop:build
 ```
 
-本地启动 mock AI server：
+本地启动 MCP server：
 
 ```bash
-bun run editor:ai
+bun run editor:mcp
 ```
 
 本地启动真实 gateway adapter 样例：
@@ -190,5 +190,5 @@ bun run editor:gateway
 - 不要 revert 用户已有改动。
 - 不要把 React state 变成项目数据源。
 - 不要为了 UI 美化破坏 Alpha 核心流程测试。
-- 新增面板或服务时，优先复用现有 `EditorDocument`、command、serializer、validator。
-- 运行测试或构建后，避免提交 `apps/editor/dist`、`test-results`、`playwright-report` 等临时产物。
+- 新增面板或服务时，优先复用现有 `SceneDocument`、command、serializer、validator。
+- 运行测试或构建后，避免提交 `apps/editor/dist`、`packages/pixifact/dist`、`test-results`、`playwright-report`、`apps/editor/src-tauri/target` 等临时产物。

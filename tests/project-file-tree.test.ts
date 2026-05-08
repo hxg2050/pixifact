@@ -4,20 +4,20 @@ import {
     componentTypeFromPath,
     countProjectFileTree,
     createFolder,
-    createPrefabFile,
+    createSceneFile,
     deleteProjectEntry,
     findFileByPath,
     mergeExpandedFolderPaths,
     nearestExistingPath,
     projectFileRelativePath,
     renameProjectEntry,
-    savePrefabFile,
+    saveSceneFile,
     projectFileKind,
     readProjectFileTree,
 } from '../apps/editor/src/services/projectFileTree';
-import { createPrefabInstanceNode } from '../apps/editor/src/services/prefabInstance';
-import { prefabAssetName, prefabFileName, prefabRootKey } from '../apps/editor/src/services/prefabNaming';
-import { EditorDocument, button, group, prefab, ref, roundedRect, textGraphic } from '../src';
+import { createSceneInstanceNode } from '../apps/editor/src/services/sceneInstance';
+import { sceneAssetName, sceneFileName, sceneRootKey } from '../apps/editor/src/services/sceneNaming';
+import { SceneDocument, buttonScene, container, scene, shape, text } from 'pixifact';
 
 class MockFileHandle {
     readonly kind = 'file';
@@ -98,18 +98,18 @@ class MockDirectoryHandle {
 }
 
 describe('project file tree service', () => {
-    it('normalizes Pixifact prefab asset names', () => {
-        expect(prefabAssetName('inventory panel')).toBe('InventoryPanel');
-        expect(prefabAssetName('InventoryPanel.prefab')).toBe('InventoryPanel');
-        expect(prefabAssetName('test')).toBe('Test');
-        expect(prefabFileName('inventory panel')).toBe('InventoryPanel.prefab');
-        expect(prefabRootKey('InventoryPanel')).toBe('inventoryPanelRoot');
+    it('normalizes Pixifact scene asset names', () => {
+        expect(sceneAssetName('inventory panel')).toBe('InventoryPanel');
+        expect(sceneAssetName('InventoryPanel.scene')).toBe('InventoryPanel');
+        expect(sceneAssetName('test')).toBe('Test');
+        expect(sceneFileName('inventory panel')).toBe('InventoryPanel.scene');
+        expect(sceneRootKey('InventoryPanel')).toBe('inventoryPanelRoot');
     });
 
     it('reads a complete folder tree and classifies file kinds', async () => {
         const tree = await readProjectFileTree(new MockDirectoryHandle('GameProject', [
-            new MockDirectoryHandle('prefabs', [
-                new MockFileHandle('Button.prefab', '{}'),
+            new MockDirectoryHandle('scenes', [
+                new MockFileHandle('Button.scene', '{}'),
             ]),
             new MockDirectoryHandle('scripts', [
                 new MockDirectoryHandle('components', [
@@ -124,54 +124,54 @@ describe('project file tree service', () => {
         expect(countProjectFileTree(tree)).toBe(9);
         expect(collectFolderPaths(tree)).toEqual([
             'GameProject',
-            'GameProject/prefabs',
+            'GameProject/scenes',
             'GameProject/scripts',
             'GameProject/scripts/components',
         ]);
         expect(tree.children?.map((child) => child.name)).toEqual([
-            'prefabs',
+            'scenes',
             'scripts',
             'atlas.png',
             'README.md',
         ]);
-        expect(projectFileKind('Button.prefab', 'GameProject/prefabs/Button.prefab')).toBe('prefab');
+        expect(projectFileKind('Button.scene', 'GameProject/scenes/Button.scene')).toBe('scene');
         expect(projectFileKind('logic.ts', 'GameProject/scripts/logic.ts')).toBe('script');
         expect(projectFileKind('atlas.png', 'GameProject/atlas.png')).toBe('asset');
         expect(componentTypeFromPath('GameProject/scripts/components/ButtonBinding.ts')).toBe('ui.Button');
     });
 
-    it('creates a blank prefab file in the selected directory', async () => {
+    it('creates a blank scene file in the selected directory', async () => {
         const tree = await readProjectFileTree(new MockDirectoryHandle('GameProject', [
-            new MockDirectoryHandle('prefabs', []),
+            new MockDirectoryHandle('scenes', []),
         ]) as unknown as FileSystemDirectoryHandle);
-        const prefabs = tree.children?.[0];
+        const scenes = tree.children?.[0];
 
-        const created = await createPrefabFile(prefabs!, 'menu panel');
+        const created = await createSceneFile(scenes!, 'menu panel');
         const refreshed = await readProjectFileTree(tree.handle as FileSystemDirectoryHandle);
 
-        expect(created.path).toBe('GameProject/prefabs/MenuPanel.prefab');
+        expect(created.path).toBe('GameProject/scenes/MenuPanel.scene');
         expect(JSON.parse(created.content)).toMatchObject({
             version: 1,
-            type: 'prefab',
+            type: 'scene',
             name: 'MenuPanel',
             root: {
-                type: 'Group',
+                kind: 'container',
                 name: 'MenuPanel',
                 key: 'menuPanelRoot',
             },
         });
-        expect(refreshed.children?.[0].children?.[0].name).toBe('MenuPanel.prefab');
+        expect(refreshed.children?.[0].children?.[0].name).toBe('MenuPanel.scene');
     });
 
-    it('rejects duplicate prefab file names', async () => {
+    it('rejects duplicate scene file names', async () => {
         const tree = await readProjectFileTree(new MockDirectoryHandle('GameProject', [
-            new MockDirectoryHandle('prefabs', [
-                new MockFileHandle('MenuPanel.prefab', '{}'),
+            new MockDirectoryHandle('scenes', [
+                new MockFileHandle('MenuPanel.scene', '{}'),
             ]),
         ]) as unknown as FileSystemDirectoryHandle);
-        const prefabs = tree.children?.[0];
+        const scenes = tree.children?.[0];
 
-        await expect(createPrefabFile(prefabs!, 'menu panel')).rejects.toThrow('已存在 MenuPanel.prefab');
+        await expect(createSceneFile(scenes!, 'menu panel')).rejects.toThrow('已存在 MenuPanel.scene');
     });
 
     it('creates a folder in the selected directory', async () => {
@@ -242,12 +242,12 @@ describe('project file tree service', () => {
         const empty = findFileByPath(tree, 'GameProject/empty');
         const assets = findFileByPath(tree, 'GameProject/assets');
 
-        const renamed = await renameProjectEntry(tree, empty!, 'prefabs');
+        const renamed = await renameProjectEntry(tree, empty!, 'scenes');
         await expect(renameProjectEntry(tree, assets!, 'sprites')).rejects.toThrow('空目录');
         const refreshed = await readProjectFileTree(tree.handle as FileSystemDirectoryHandle);
 
-        expect(renamed.path).toBe('GameProject/prefabs');
-        expect(findFileByPath(refreshed, 'GameProject/prefabs')).toBeDefined();
+        expect(renamed.path).toBe('GameProject/scenes');
+        expect(findFileByPath(refreshed, 'GameProject/scenes')).toBeDefined();
     });
 
     it('rejects duplicate entry names during rename', async () => {
@@ -289,19 +289,19 @@ describe('project file tree service', () => {
         expect(projectFileRelativePath(tree, logic!)).toBe('scripts/logic.ts');
     });
 
-    it('saves the current editor document back to an opened prefab file', async () => {
-        const file = new MockFileHandle('Button.prefab', '{}');
+    it('saves the current editor document back to an opened scene file', async () => {
+        const file = new MockFileHandle('Button.scene', '{}');
         const tree = await readProjectFileTree(new MockDirectoryHandle('GameProject', [
-            new MockDirectoryHandle('prefabs', [file]),
+            new MockDirectoryHandle('scenes', [file]),
         ]) as unknown as FileSystemDirectoryHandle);
-        const document = new EditorDocument(prefab('SavedButton', group('SavedButton', {
+        const document = new SceneDocument(scene('SavedButton', container('SavedButton', {
             key: 'savedButtonRoot',
             width: 200,
             height: 80,
         })));
         document.dirty = true;
 
-        const saved = await savePrefabFile(tree, 'GameProject/prefabs/Button.prefab', document);
+        const saved = await saveSceneFile(tree, 'GameProject/scenes/Button.scene', document);
 
         expect(saved).toBe(true);
         expect(document.dirty).toBe(false);
@@ -313,42 +313,44 @@ describe('project file tree service', () => {
         });
     });
 
-    it('creates an embedded prefab instance node with isolated locators', () => {
-        const source = prefab('InventoryPanel', group('Panel', {
+    it('creates an embedded scene instance node with isolated locators', () => {
+        const source = scene('InventoryPanel', container('Panel', {
             id: 'root',
             key: 'panelRoot',
             width: 200,
             height: 100,
-            components: [
-                roundedRect({ color: 0x2563eb }, 'bg'),
-                button({ targetGraphic: ref('bg') }, 'button'),
-            ],
             children: [
-                group('Title', {
+                shape('背景', {
+                    id: 'bg',
+                    key: 'bg',
+                    color: 0x2563eb,
+                }),
+                buttonScene('按钮', {
+                    key: 'button',
+                }),
+                text('Title', {
                     key: 'title',
-                    components: [
-                        textGraphic({ text: 'Inventory' }, 'text'),
-                    ],
+                    value: 'Inventory',
                 }),
             ],
         }));
-        const target = prefab('MenuPanel', group('Menu', {
+        const target = scene('MenuPanel', container('Menu', {
             key: 'menuRoot',
             children: [
-                group('Existing', { key: 'inventoryPanelInstance1_panelRoot' }),
+                container('Existing', { key: 'inventoryPanelInstance1_panelRoot' }),
             ],
         }));
 
-        const instance = createPrefabInstanceNode(source, target);
+        const instance = createSceneInstanceNode(source, target);
 
         expect(instance).toMatchObject({
             name: 'InventoryPanel 实例',
-            role: 'prefab-instance',
+            role: 'scene-instance',
             id: 'inventoryPanelInstance2_root',
             key: 'inventoryPanelInstance2_panelRoot',
         });
-        expect(instance.components?.[1].props?.targetGraphic).toBe('inventoryPanelInstance2_bg');
-        expect(instance.children?.[0].key).toBe('inventoryPanelInstance2_title');
-        expect(instance.children?.[0].components?.[0].id).toBe('inventoryPanelInstance2_text');
+        expect(instance.children?.[1].components?.[0].props?.targetGraphic).toBe('inventoryPanelInstance2_buttonBg');
+        expect(instance.children?.[2].key).toBe('inventoryPanelInstance2_title');
+        expect(instance.children?.[2].kind).toBe('text');
     });
 });

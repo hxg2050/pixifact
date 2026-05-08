@@ -1,9 +1,9 @@
 import { useSyncExternalStore } from 'react';
-import type { EditorDocument, NodeSpec } from '../../../../src';
+import type { SceneDocument, NodeSpec } from 'pixifact';
 import {
-    getEditorDocumentRevision,
-    subscribeEditorDocument,
-} from '../document/editorDocumentController';
+    getSceneDocumentRevision,
+    subscribeSceneDocument,
+} from '../document/sceneDocumentController';
 import { useI18n } from '../i18n';
 import type { I18nKey } from '../i18n';
 
@@ -26,14 +26,16 @@ export function collectHierarchy(node: NodeSpec, depth = 0, items: HierarchyItem
         depth,
     });
 
-    for (const child of node.children ?? []) {
-        collectHierarchy(child, depth + 1, items);
+    if (node.kind === 'container') {
+        for (const child of node.children ?? []) {
+            collectHierarchy(child, depth + 1, items);
+        }
     }
 
     return items;
 }
 
-export function selectedNodeId(document: EditorDocument) {
+export function selectedNodeId(document: SceneDocument) {
     return document.selection.type === 'node' || document.selection.type === 'component'
         ? document.selection.node
         : undefined;
@@ -41,9 +43,9 @@ export function selectedNodeId(document: EditorDocument) {
 
 export function useDocumentRevision() {
     return useSyncExternalStore(
-        subscribeEditorDocument,
-        getEditorDocumentRevision,
-        getEditorDocumentRevision,
+        subscribeSceneDocument,
+        getSceneDocumentRevision,
+        getSceneDocumentRevision,
     );
 }
 

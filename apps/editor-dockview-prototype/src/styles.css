@@ -237,7 +237,7 @@ textarea {
     background: #f59e0b;
 }
 
-.fileRow.prefab::before {
+.fileRow.scene::before {
     background: #7c3aed;
 }
 

@@ -1,10 +1,18 @@
-import type { EditorDocument, NodeSpec } from '../../../../src';
+import {
+    buttonScene,
+    container,
+    image,
+    input,
+    shape,
+    text,
+} from 'pixifact';
+import type { SceneDocument, NodeSpec } from 'pixifact';
 import type { I18nKey } from '../i18n';
 import { editorDragDataTypes } from './dragPayload';
 
 export const basicComponentDragDataType = editorDragDataTypes.basicComponent;
 
-export type BasicComponentKind = 'group' | 'button' | 'text' | 'image';
+export type BasicComponentKind = 'container' | 'button' | 'text' | 'image' | 'input' | 'shape';
 
 export interface BasicComponentItem {
     kind: BasicComponentKind;
@@ -15,10 +23,12 @@ export interface BasicComponentItem {
 }
 
 export const basicComponentLibrary: BasicComponentItem[] = [
-    { kind: 'group', name: '节点', detail: '空 Group 容器', nameKey: 'basicGroupName', detailKey: 'basicGroupDetail' },
-    { kind: 'button', name: '按钮', detail: '背景 + Button + 文字', nameKey: 'basicButtonName', detailKey: 'basicButtonDetail' },
-    { kind: 'text', name: '文字', detail: 'TextGraphic 文本', nameKey: 'basicTextName', detailKey: 'basicTextDetail' },
-    { kind: 'image', name: '图片', detail: 'ImageGraphic 图片', nameKey: 'basicImageName', detailKey: 'basicImageDetail' },
+    { kind: 'container', name: '容器', detail: '可包含子节点', nameKey: 'basicGroupName', detailKey: 'basicGroupDetail' },
+    { kind: 'image', name: '图片', detail: 'Image 节点', nameKey: 'basicImageName', detailKey: 'basicImageDetail' },
+    { kind: 'text', name: '文字', detail: 'Text 节点', nameKey: 'basicTextName', detailKey: 'basicTextDetail' },
+    { kind: 'input', name: '输入', detail: 'Input 节点', nameKey: 'basicInputName', detailKey: 'basicInputDetail' },
+    { kind: 'shape', name: '形状', detail: 'Shape 节点', nameKey: 'basicShapeName', detailKey: 'basicShapeDetail' },
+    { kind: 'button', name: '按钮', detail: 'Scene 模板', nameKey: 'basicButtonName', detailKey: 'basicButtonDetail' },
 ];
 
 function nodeKeyBase(kind: BasicComponentKind) {
@@ -29,8 +39,12 @@ function nodeKeyBase(kind: BasicComponentKind) {
             return 'text';
         case 'image':
             return 'image';
+        case 'input':
+            return 'input';
+        case 'shape':
+            return 'shape';
         default:
-            return 'node';
+            return 'container';
     }
 }
 
@@ -41,14 +55,16 @@ function collectNodeKeys(node: NodeSpec, keys = new Set<string>()) {
     if (node.id) {
         keys.add(node.id);
     }
-    for (const child of node.children ?? []) {
-        collectNodeKeys(child, keys);
+    if (node.kind === 'container') {
+        for (const child of node.children ?? []) {
+            collectNodeKeys(child, keys);
+        }
     }
     return keys;
 }
 
-function nextNodeKey(document: EditorDocument, kind: BasicComponentKind) {
-    const keys = collectNodeKeys(document.prefab.root);
+function nextNodeKey(document: SceneDocument, kind: BasicComponentKind) {
+    const keys = collectNodeKeys(document.scene.root);
     const base = nodeKeyBase(kind);
     let index = 1;
     let key = `${base}${index}`;
@@ -61,64 +77,64 @@ function nextNodeKey(document: EditorDocument, kind: BasicComponentKind) {
     return { key, index };
 }
 
-export function createBasicComponentNode(document: EditorDocument, kind: BasicComponentKind): NodeSpec {
+export function createBasicComponentNode(document: SceneDocument, kind: BasicComponentKind): NodeSpec {
     const { key, index } = nextNodeKey(document, kind);
 
     switch (kind) {
         case 'button':
-            return {
-                type: 'Group',
+            return buttonScene(`按钮${index}`, {
                 key,
-                name: `按钮${index}`,
-                transform: { width: 120, height: 36 },
-                components: [
-                    { id: `${key}Bg`, type: 'ui.RoundedRectGraphic', props: { color: 0x2563eb, radius: 6 } },
-                    { id: `${key}Button`, type: 'ui.Button', props: { targetGraphic: `${key}Bg` } },
-                ],
-                children: [
-                    {
-                        type: 'Group',
-                        key: `${key}Label`,
-                        name: '文字',
-                        transform: { width: 120, height: 36 },
-                        components: [
-                            {
-                                id: `${key}LabelText`,
-                                type: 'ui.TextGraphic',
-                                props: { text: '按钮', color: 0xffffff, fontSize: 14, center: true },
-                            },
-                        ],
-                    },
-                ],
-            };
+                width: 120,
+                height: 36,
+                label: '按钮',
+                color: 0x2563eb,
+                radius: 6,
+            });
         case 'text':
-            return {
-                type: 'Group',
+            return text(`文字${index}`, {
                 key,
-                name: `文字${index}`,
-                transform: { width: 120, height: 28 },
-                components: [
-                    { id: `${key}Text`, type: 'ui.TextGraphic', props: { text: '文字', color: 0x111827, fontSize: 16 } },
-                ],
-            };
+                width: 120,
+                height: 28,
+                value: '文字',
+                color: 0x111827,
+                fontSize: 16,
+            });
         case 'image':
-            return {
-                type: 'Group',
+            return image(`图片${index}`, {
                 key,
-                name: `图片${index}`,
-                transform: { width: 96, height: 96 },
-                components: [
-                    { id: `${key}Image`, type: 'ui.ImageGraphic', props: { src: '', tint: 0xffffff } },
-                ],
-            };
+                width: 96,
+                height: 96,
+                mode: 'sprite',
+                src: '',
+                tint: 0xffffff,
+            });
+        case 'input':
+            return input(`输入${index}`, {
+                key,
+                width: 160,
+                height: 36,
+                value: '',
+                backgroundColor: 0xffffff,
+                borderColor: 0x94a3b8,
+                borderSize: 1,
+                fontSize: 16,
+            });
+        case 'shape':
+            return shape(`形状${index}`, {
+                key,
+                width: 100,
+                height: 100,
+                type: 'roundedRect',
+                color: 0xe5e7eb,
+                radius: 8,
+            });
         default:
-            return {
-                type: 'Group',
+            return container(`容器${index}`, {
                 key,
-                name: `节点${index}`,
-                transform: { width: 100, height: 100 },
+                width: 100,
+                height: 100,
                 children: [],
-            };
+            });
     }
 }
 

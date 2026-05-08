@@ -1,68 +1,57 @@
-# Pixifact AI-first Game Editor
+# Pixifact
 
-Pixifact 是一个以编辑器为核心的 AI-first 游戏 UI / 轻量玩法创作工具。
+Pixifact 是一个独立的 2D UI + 轻场景开发框架。PixiJS 是底层渲染实现，Pixifact 对外暴露 Scene、节点、行为组件、Command 和 authoring document 语义。
 
-本仓库的主目标不是继续打磨一个通用 PixiJS 封装库，而是交付一个可用、可验证、可扩展的本地桌面编辑器产品。当前产品方向是 Tauri desktop-first；浏览器 Web 入口只作为开发预览和自动化测试承载。`pixifact` 运行时和 `src/` 下的组件、Prefab、Command、EditorDocument 等能力是编辑器的底座，不再是项目本身的中心。
+编辑器、MCP server 和外部 Agent 都是 Pixifact 语义层的使用方。当前桌面编辑器位于 `apps/editor/`，用于搭建 UI / 基础场景、预览 AI 或 Agent 生成结果、手动调整，并通过 MCP 向 Codex、Claude Code 等工具开放受控编辑能力。
 
 [English](./README.en.md)
 
-## 核心定位
+## 核心模型
 
-Pixifact 的主创作路径是：
+Pixifact 使用 Godot-style 统一 `Scene` 资产，不做 Unity 式 Scene + Prefab 双资源体系。
 
 ```txt
-Prompt -> EditorCommand -> Validate / Repair -> EditorDocument -> Runtime Preview -> Export / Import
+Prompt / Agent -> SceneCommand -> Validate / Dry Run -> SceneDocument -> instantiateScene -> Runtime Preview
 ```
 
-当前 Alpha 仍保留 `Proposal -> Dry Run -> Diff -> Apply` 的审查流程，用于验证 command、diff、undo 和导入导出闭环。后续产品方向是“发送即执行”：用户输入自然语言，AI 生成结构化 command，编辑器自动校验和修正，合法后写入 `EditorDocument`。
-
-## 产品边界
-
-- `apps/editor/` 是仓库的核心产品目录。
-- `EditorDocument` 是项目唯一 source of truth。
-- Zustand 只保存 UI 状态，不保存 PrefabSpec / EditorDocument 副本。
-- AI 不能直接修改项目，只能产出结构化 command / proposal。
-- 所有真实项目修改必须走 `EditorDocument` API 或 command。
-- JSON 是资产格式，不是主要编辑入口。
-- 不引入 Monaco，不在编辑器内嵌 TypeScript 代码编辑器。
-- runtime 是编辑器预览和 Prefab 实例化底座，不再作为仓库路线的主目标。
+- `.scene` 文件保存 `SceneSpec`。
+- `SceneSpec.root` 必须是 `container`。
+- 公开节点类型只有 `container`、`image`、`text`、`input`、`shape`。
+- 只有 `container` 可以包含子节点。
+- 所有节点都可以挂行为组件。
+- Button、ProgressBar、ScrollView 等作为 Scene 模板或组合控件，不作为基础显示节点。
+- `ui.TextGraphic`、`ui.ImageGraphic`、`ui.RoundedRectGraphic` 只是内部 runtime 实现细节，不是 authoring API。
 
 ## 目录
 
 ```txt
-apps/editor/                  AI-first editor 产品应用
-apps/editor-dockview-prototype/  最终 IDE 面板交互原型
-src-tauri/                    Tauri 桌面版 host，本机文件和外部程序能力
-src/                          编辑器领域模型、command、prefab、runtime 基础能力
-src/editor/                   EditorDocument、AI context、diff、memory、logic 等编辑器领域模型
-src/commands/                 EditorCommand validation / apply / undo 基础能力
-src/prefab/                   PrefabSpec、DSL、模板和 runtime instantiate
-examples/                     runtime 能力示例，不承载编辑器产品
-tests/                        单元测试和编辑器领域测试
-tests/e2e/                    Playwright Alpha 主流程测试
-sample-projects/              编辑器可导入的样例项目
-skills/                       本仓库维护的 Codex skills
+packages/pixifact/              核心 Pixifact 包，包名为 pixifact
+packages/pixifact/src/runtime/  Application、GameObject、Component、布局、PixiJS bridge
+packages/pixifact/src/nodes/    runtime 节点和组合控件实现
+packages/pixifact/src/scene/    SceneSpec、DSL、Scene 实例化、Scene 模板
+packages/pixifact/src/commands/ SceneCommand 校验、应用、撤销基础
+packages/pixifact/src/authoring/SceneDocument、selection、diff、AI context、locks、actions、logic
+packages/pixifact-mcp/          MCP server，依赖 pixifact，不依赖桌面编辑器
+apps/editor/                    Pixifact 桌面编辑器 React / Vite 前端
+apps/editor/src-tauri/          Tauri desktop host
+examples/                       runtime 示例
+tests/                          单元测试、编辑器测试、MCP 测试
+tests/e2e/                      Playwright editor 主流程测试
+sample-projects/                样例 Pixifact 项目
+skills/                         本仓库维护的 Codex skills
 ```
 
-## 启动编辑器
+## 启动
+
+```bash
+bun install
+bun run editor
+```
 
 桌面版开发入口：
 
 ```bash
-bun install
 bun run desktop
-```
-
-只启动浏览器开发预览：
-
-```bash
-bun run editor
-```
-
-Vite 会输出本地访问地址，通常是：
-
-```txt
-http://localhost:5173/
 ```
 
 打包桌面版：
@@ -72,6 +61,16 @@ bun run desktop:build
 ```
 
 开发和打包桌面版需要 Rust / Cargo。最终安装桌面 App 的用户不需要配置 Bun 或 Rust 环境。
+
+## MCP
+
+启动 MCP server：
+
+```bash
+bun run editor:mcp
+```
+
+MCP tools 读写 `SceneCommand` 和 `.scene` / `pixifact.aiEditorProject` 文件。Live Editor 连接存在时会操作当前打开的编辑器；没有连接时会直接读写本地项目文件。
 
 ## AI Gateway
 
@@ -93,18 +92,39 @@ OPENAI_API_KEY=your-key bun run editor:gateway
 http://localhost:8788/proposal
 ```
 
-Gateway 只返回结构化 proposal，不直接修改 `EditorDocument`，也不写项目文件。
+Gateway 只返回结构化 proposal，不直接修改 `SceneDocument`，也不写项目文件。
+
+## Package 入口
+
+```ts
+import { Application, GameObject, Group } from 'pixifact/runtime';
+import { SceneDocument } from 'pixifact/authoring';
+import { applySceneCommand, validateSceneCommand } from 'pixifact/commands';
+import { container, scene, shape, text, instantiateScene } from 'pixifact/scene';
+```
+
+根入口 `pixifact` 也会导出公开语义层，方便 editor、MCP 和测试直接使用。
 
 ## 验证
 
 优先运行最小相关验证。
 
+```bash
+bun run test
+```
+
 编辑器相关改动：
 
 ```bash
 bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
-bun run test
 bun run editor:build
+```
+
+runtime 或导出 API 改动：
+
+```bash
+bun run build
+bun run example:build
 ```
 
 Alpha 主流程改动：
@@ -113,33 +133,6 @@ Alpha 主流程改动：
 bun run editor:e2e
 ```
 
-Runtime / 导出入口改动：
-
-```bash
-bun run build
-bun run example:build
-```
-
-## Package 入口
-
-当前 npm 包名是 `pixifact`。公开入口按 editor-first 结构直接暴露 runtime 和编辑器领域能力：
-
-```ts
-import { Application, GameObject, Group } from 'pixifact';
-import { Button, Input, ScrollView, Textarea } from 'pixifact/ui';
-import { Layout, GridLayout } from 'pixifact/core';
-```
-
-Editor-first 领域入口：
-
-```ts
-import { EditorDocument } from 'pixifact/editor';
-import { applyCommand } from 'pixifact/commands';
-import { instantiate } from 'pixifact/prefab';
-```
-
-这些 API 是编辑器 runtime foundation。新增能力应优先服务编辑器工作流、Prefab 实例化、viewport 预览、command 应用和导出，而不是扩展成独立通用框架。
-
 ## Codex Skills
 
 仓库维护的 Codex skill 位于：
@@ -147,8 +140,6 @@ import { instantiate } from 'pixifact/prefab';
 ```txt
 skills/pixifact-editor
 ```
-
-该 skill 面向 Pixifact editor 和底层 runtime 约定。
 
 源码仓库内安装：
 

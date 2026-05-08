@@ -4,16 +4,16 @@ import {
     isLocked,
     listPaletteComponents,
     validateDesignTokenValue,
-} from '../../../../src';
+} from 'pixifact';
 import type {
-    EditorCommand,
-    EditorDocument,
+    SceneCommand,
+    SceneDocument,
     InspectorComponentModel,
     InspectorFieldModel,
     InspectorNodeModel,
     PaletteComponentItem,
     RectTransformSpec,
-} from '../../../../src';
+} from 'pixifact';
 import { IconButton } from '../components/IconButton';
 import {
     Checkbox,
@@ -22,7 +22,7 @@ import {
     Select,
     TextField,
 } from '../components/system';
-import { refreshEditorDocument } from '../document/editorDocumentController';
+import { refreshSceneDocument } from '../document/sceneDocumentController';
 import { useI18n } from '../i18n';
 import type { I18nKey } from '../i18n';
 import { editorDragDataTypes } from '../services/dragPayload';
@@ -268,17 +268,17 @@ function nodePropField(key: 'id' | 'key' | 'role' | 'name', value: unknown, t: T
     };
 }
 
-function designWarning(document: EditorDocument, target: string, prop: string, value: unknown) {
+function designWarning(document: SceneDocument, target: string, prop: string, value: unknown) {
     return validateDesignTokenValue(document.designTokens, target, prop, value)?.message;
 }
 
-function paletteDisabledReason(item: PaletteComponentItem, selected: string, t: Translate) {
+function paletteDisabledReason(item: PaletteComponentItem, t: Translate) {
     return item.disabledReason
         ? item.disabledReason.replace('already exists on this node.', t('componentAlreadyExists'))
         : undefined;
 }
 
-export function InspectorPanel({ document, model }: { document: EditorDocument; model?: InspectorNodeModel }) {
+export function InspectorPanel({ document, model }: { document: SceneDocument; model?: InspectorNodeModel }) {
     useDocumentRevision();
     const t = useI18n();
     const selected = selectedNodeId(document);
@@ -304,14 +304,14 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
         return null;
     }
 
-    const applyCommand = (command: EditorCommand) => {
+    const applyCommand = (command: SceneCommand) => {
         const result = document.apply(command, 'manual');
         if (!result.ok) {
             setError(result.error);
             return;
         }
         setError(undefined);
-        refreshEditorDocument();
+        refreshSceneDocument();
     };
 
     const commitNodeProp = (prop: 'id' | 'key' | 'role' | 'name', value: unknown) => {
@@ -333,6 +333,19 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
         });
     };
 
+    const commitDisplayProp = (field: InspectorFieldModel, value: unknown) => {
+        if (model.kind === 'container') {
+            return;
+        }
+        applyCommand({
+            op: 'setNodeData',
+            node: selected,
+            field: model.kind,
+            prop: field.key,
+            value,
+        });
+    };
+
     const commitComponentProp = (component: InspectorComponentModel, field: InspectorFieldModel, value: unknown) => {
         applyCommand({
             op: 'setComponentProp',
@@ -350,11 +363,11 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
         } else {
             document.addLock({ ...lock, reason: 'Inspector lock' });
         }
-        refreshEditorDocument();
+        refreshSceneDocument();
     };
 
     const addComponent = (item: PaletteComponentItem) => {
-        const disabledReason = paletteDisabledReason(item, selected, t);
+        const disabledReason = paletteDisabledReason(item, t);
         if (disabledReason) {
             setActionText(disabledReason);
             return;
@@ -375,12 +388,12 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
         setError(undefined);
         setComponentPickerOpen(false);
         setActionText(t('componentAdded', { name: item.displayName }));
-        refreshEditorDocument();
+        refreshSceneDocument();
     };
 
     const addComponentByType = (type: string) => {
         const item = listPaletteComponents({
-            prefab: document.prefab,
+            scene: document.scene,
             node: selected,
         }).find((candidate) => candidate.type === type);
         if (!item) {
@@ -402,7 +415,7 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
         } else {
             document.addLock({ ...lock, reason: 'Inspector lock' });
         }
-        refreshEditorDocument();
+        refreshSceneDocument();
     };
 
     const nodeFields = [
@@ -449,6 +462,22 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
                     ))}
                 </div>
             </section>
+            {model.display.map((display) => (
+                <section className="inspectorSection" key={display.type}>
+                    <h3>{display.displayName}</h3>
+                    <div className="fieldStack">
+                        {display.fields.map((field) => (
+                            <EditableFieldRow
+                                field={field}
+                                key={field.key}
+                                label={displayFieldLabel(field, t)}
+                                onCommit={(value) => commitDisplayProp(field, value)}
+                                warning={designWarning(document, `${selected}.${model.kind}.${field.key}`, field.key, field.value)}
+                            />
+                        ))}
+                    </div>
+                </section>
+            ))}
             {model.components.map((component) => (
                 <section className="inspectorSection" key={`${component.id ?? component.type}`}>
                     <h3>{component.displayName}</h3>
@@ -485,10 +514,10 @@ export function InspectorPanel({ document, model }: { document: EditorDocument; 
                 {componentPickerOpen ? (
                     <div className="componentPicker">
                         {listPaletteComponents({
-                            prefab: document.prefab,
+                            scene: document.scene,
                             node: selected,
                         }).map((item) => {
-                            const disabledReason = paletteDisabledReason(item, selected, t);
+                            const disabledReason = paletteDisabledReason(item, t);
                             return (
                                 <button
                                     disabled={!!disabledReason}

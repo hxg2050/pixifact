@@ -5,7 +5,7 @@ import type { DockviewReadyEvent, IDockviewPanelProps } from 'dockview';
 import 'dockview/dist/styles/dockview.css';
 import './styles.css';
 
-type FileKind = 'folder' | 'prefab' | 'script' | 'component' | 'asset' | 'doc';
+type FileKind = 'folder' | 'scene' | 'script' | 'component' | 'asset' | 'doc';
 type AiStage = 'idle' | 'applied';
 
 interface FileItem {
@@ -17,7 +17,7 @@ interface FileItem {
     path: string;
 }
 
-interface PrefabItem {
+interface SceneItem {
     id: string;
     name: string;
     nodeCount: number;
@@ -58,7 +58,7 @@ interface ComponentDefinition {
 
 interface PrototypeState {
     selectedFile: string;
-    selectedPrefab: string;
+    selectedScene: string;
     selectedNode: string;
     fileAction: string;
     componentPickerOpen: boolean;
@@ -86,14 +86,14 @@ const files: FileItem[] = [
     { id: 'component-health-bar', name: 'HealthBarBinding.ts', kind: 'component', depth: 2, detail: 'Component', path: 'scripts/components/HealthBarBinding.ts' },
     { id: 'component-cooldown', name: 'CooldownTimer.ts', kind: 'component', depth: 2, detail: 'Component', path: 'scripts/components/CooldownTimer.ts' },
     { id: 'component-action', name: 'ActionBinder.ts', kind: 'component', depth: 2, detail: 'Component', path: 'scripts/components/ActionBinder.ts' },
-    { id: 'prefabs', name: 'prefabs', kind: 'folder', depth: 0, detail: '预制体目录', path: 'prefabs/' },
-    { id: 'battle-hud-file', name: 'BattleHUD.prefab', kind: 'prefab', depth: 1, detail: '当前打开', path: 'prefabs/BattleHUD.prefab' },
-    { id: 'inventory-file', name: 'InventoryPanel.prefab', kind: 'prefab', depth: 1, detail: '可复用', path: 'prefabs/InventoryPanel.prefab' },
-    { id: 'quest-file', name: 'QuestCard.prefab', kind: 'prefab', depth: 1, detail: '可复用', path: 'prefabs/QuestCard.prefab' },
+    { id: 'scenes', name: 'scenes', kind: 'folder', depth: 0, detail: 'Scene 目录', path: 'scenes/' },
+    { id: 'battle-hud-file', name: 'BattleHUD.scene', kind: 'scene', depth: 1, detail: '当前打开', path: 'scenes/BattleHUD.scene' },
+    { id: 'inventory-file', name: 'InventoryPanel.scene', kind: 'scene', depth: 1, detail: '可复用', path: 'scenes/InventoryPanel.scene' },
+    { id: 'quest-file', name: 'QuestCard.scene', kind: 'scene', depth: 1, detail: '可复用', path: 'scenes/QuestCard.scene' },
     { id: 'readme', name: 'README.md', kind: 'doc', depth: 0, detail: '文档', path: 'README.md' },
 ];
 
-const prefabs: PrefabItem[] = [
+const scenes: SceneItem[] = [
     { id: 'battle-hud', name: 'BattleHUD', nodeCount: 21, componentCount: 34 },
     { id: 'inventory-panel', name: 'InventoryPanel', nodeCount: 14, componentCount: 22 },
     { id: 'quest-card', name: 'QuestCard', nodeCount: 6, componentCount: 9 },
@@ -127,33 +127,33 @@ const projectComponents: ComponentDefinition[] = [
     },
 ];
 
-const nodesByPrefab: Record<string, NodeItem[]> = {
+const nodesByScene: Record<string, NodeItem[]> = {
     'battle-hud': [
         {
             id: 'root',
             name: '游戏画布',
-            type: 'Group',
+            type: 'Container',
             depth: 0,
             transform: { x: 0, y: 0, width: 960, height: 540 },
-            components: [{ name: 'Rounded Rect', fields: [['Color', '#0f172a'], ['Radius', '0']] }],
+            components: [{ name: 'Shape', fields: [['Color', '#0f172a'], ['Radius', '0']] }],
             canvasClass: 'root',
         },
         {
             id: 'topBar',
             name: '顶部状态栏',
-            type: 'Group',
+            type: 'Container',
             depth: 1,
             transform: { x: 24, y: 20, width: 912, height: 72 },
-            components: [{ name: 'Rounded Rect', fields: [['Color', '#1e293b'], ['Radius', '14']] }],
+            components: [{ name: 'Shape', fields: [['Color', '#1e293b'], ['Radius', '14']] }],
             canvasClass: 'topHud',
         },
         {
             id: 'questCard',
             name: '任务卡片',
-            type: 'Group',
+            type: 'Container',
             depth: 1,
             transform: { x: 24, y: 116, width: 304, height: 162 },
-            components: [{ name: 'Rounded Rect', fields: [['Color', '#1e293b'], ['Radius', '12']] }],
+            components: [{ name: 'Shape', fields: [['Color', '#1e293b'], ['Radius', '12']] }],
             canvasClass: 'questCard',
         },
         {
@@ -163,7 +163,7 @@ const nodesByPrefab: Record<string, NodeItem[]> = {
             depth: 1,
             transform: { x: 372, y: 334, width: 216, height: 56 },
             components: [
-                { name: 'Rounded Rect', fields: [['Color', '#2563eb'], ['Radius', '12'], ['Stroke', '#1d4ed8 / 1']] },
+                { name: 'Shape', fields: [['Color', '#2563eb'], ['Radius', '12'], ['Stroke', '#1d4ed8 / 1']] },
                 { name: 'Button', fields: [['onClick', 'startBattle'], ['Transition', 'colorTint'], ['Interactable', 'true']] },
             ],
             canvasClass: 'startButton',
@@ -175,7 +175,7 @@ const nodesByPrefab: Record<string, NodeItem[]> = {
             depth: 1,
             transform: { x: 612, y: 334, width: 144, height: 56 },
             components: [
-                { name: 'Rounded Rect', fields: [['Color', '#334155'], ['Radius', '12']] },
+                { name: 'Shape', fields: [['Color', '#334155'], ['Radius', '12']] },
                 { name: 'Button', fields: [['onClick', 'openInventory'], ['Transition', 'colorTint']] },
             ],
             canvasClass: 'inventoryButton',
@@ -183,10 +183,10 @@ const nodesByPrefab: Record<string, NodeItem[]> = {
         {
             id: 'skillBar',
             name: '技能栏',
-            type: 'Group',
+            type: 'Container',
             depth: 1,
             transform: { x: 258, y: 438, width: 444, height: 72 },
-            components: [{ name: 'Rounded Rect', fields: [['Color', '#1e293b'], ['Radius', '16']] }],
+            components: [{ name: 'Shape', fields: [['Color', '#1e293b'], ['Radius', '16']] }],
             canvasClass: 'skillBar',
         },
         {
@@ -221,10 +221,10 @@ const nodesByPrefab: Record<string, NodeItem[]> = {
         {
             id: 'inventoryRoot',
             name: '背包面板',
-            type: 'Group',
+            type: 'Container',
             depth: 0,
             transform: { x: 0, y: 0, width: 520, height: 420 },
-            components: [{ name: 'Rounded Rect', fields: [['Color', '#1e293b'], ['Radius', '14']] }],
+            components: [{ name: 'Shape', fields: [['Color', '#1e293b'], ['Radius', '14']] }],
             canvasClass: 'inventoryPanel',
         },
         {
@@ -233,12 +233,12 @@ const nodesByPrefab: Record<string, NodeItem[]> = {
             type: 'Text',
             depth: 1,
             transform: { x: 24, y: 18, width: 240, height: 32 },
-            components: [{ name: 'Text Graphic', fields: [['Text', '背包'], ['Font Size', '22']] }],
+            components: [{ name: 'Text', fields: [['Text', '背包'], ['Font Size', '22']] }],
         },
         {
             id: 'slotGrid',
             name: '格子网格',
-            type: 'Group',
+            type: 'Container',
             depth: 1,
             transform: { x: 24, y: 72, width: 472, height: 272 },
             components: [{ name: 'Grid', fields: [['Columns', '4'], ['Rows', '3']] }],
@@ -256,10 +256,10 @@ const nodesByPrefab: Record<string, NodeItem[]> = {
         {
             id: 'questCard',
             name: '任务卡片',
-            type: 'Group',
+            type: 'Container',
             depth: 0,
             transform: { x: 0, y: 0, width: 304, height: 162 },
-            components: [{ name: 'Rounded Rect', fields: [['Color', '#1e293b'], ['Radius', '12']] }],
+            components: [{ name: 'Shape', fields: [['Color', '#1e293b'], ['Radius', '12']] }],
             canvasClass: 'questCard',
         },
         {
@@ -268,7 +268,7 @@ const nodesByPrefab: Record<string, NodeItem[]> = {
             type: 'Text',
             depth: 1,
             transform: { x: 18, y: 16, width: 260, height: 28 },
-            components: [{ name: 'Text Graphic', fields: [['Text', '当前任务']] }],
+            components: [{ name: 'Text', fields: [['Text', '当前任务']] }],
         },
     ],
     'skill-button': [
@@ -279,7 +279,7 @@ const nodesByPrefab: Record<string, NodeItem[]> = {
             depth: 0,
             transform: { x: 0, y: 0, width: 124, height: 48 },
             components: [
-                { name: 'Rounded Rect', fields: [['Color', '#334155'], ['Radius', '10']] },
+                { name: 'Shape', fields: [['Color', '#334155'], ['Radius', '10']] },
                 { name: 'Button', fields: [['onClick', 'castSkill']] },
             ],
         },
@@ -288,9 +288,9 @@ const nodesByPrefab: Record<string, NodeItem[]> = {
 
 const initialState: PrototypeState = {
     selectedFile: 'battle-hud-file',
-    selectedPrefab: 'battle-hud',
+    selectedScene: 'battle-hud',
     selectedNode: 'startBattleButton',
-    fileAction: '双击预制体文件开始编辑；代码文件只允许跳转到 VS Code。',
+    fileAction: '双击 Scene 文件开始编辑；代码文件只允许跳转到 VS Code。',
     componentPickerOpen: false,
     addedComponents: {},
     lockedFields: {},
@@ -301,11 +301,11 @@ const initialState: PrototypeState = {
 };
 
 function currentNodes(state: PrototypeState) {
-    return nodesByPrefab[state.selectedPrefab] ?? nodesByPrefab['battle-hud'];
+    return nodesByScene[state.selectedScene] ?? nodesByScene['battle-hud'];
 }
 
-function currentPrefab(state: PrototypeState) {
-    return prefabs.find((prefab) => prefab.id === state.selectedPrefab) ?? prefabs[0];
+function currentScene(state: PrototypeState) {
+    return scenes.find((scene) => scene.id === state.selectedScene) ?? scenes[0];
 }
 
 function currentNode(state: PrototypeState) {
@@ -314,7 +314,7 @@ function currentNode(state: PrototypeState) {
 }
 
 function selectedNodeKey(state: PrototypeState) {
-    return `${state.selectedPrefab}:${state.selectedNode}`;
+    return `${state.selectedScene}:${state.selectedNode}`;
 }
 
 function selectedFileItem(state: PrototypeState) {
@@ -368,8 +368,8 @@ function fieldLockKey(state: PrototypeState, groupName: string, fieldName: strin
     return `${selectedNodeKey(state)}:${groupName}:${fieldName}`;
 }
 
-function prefabFileId(prefabId: string) {
-    switch (prefabId) {
+function sceneFileId(sceneId: string) {
+    switch (sceneId) {
         case 'inventory-panel':
             return 'inventory-file';
         case 'quest-card':
@@ -391,8 +391,8 @@ function FileSystemPanel({ params }: IDockviewPanelProps<PanelParams>) {
                     ? 'Component 可拖动到 Inspector 空白区域，或在 Inspector 中点击添加。'
                     : item.kind === 'script'
                     ? '代码文件只读；双击会跳转到 VS Code 打开。'
-                    : item.kind === 'prefab'
-                        ? '预制体已选中；双击会进入预制体编辑。'
+                    : item.kind === 'scene'
+                        ? 'Scene 已选中；双击会进入 Scene 编辑。'
                         : item.kind === 'folder'
                             ? '目录只用于浏览项目结构。'
                             : '文档只读预览；编辑交给外部工具。';
@@ -402,19 +402,19 @@ function FileSystemPanel({ params }: IDockviewPanelProps<PanelParams>) {
 
     const openFile = (item: FileItem) => {
         setState((previous) => {
-            if (item.kind === 'prefab') {
-                const selectedPrefab = item.id === 'inventory-file'
+            if (item.kind === 'scene') {
+                const selectedScene = item.id === 'inventory-file'
                     ? 'inventory-panel'
                     : item.id === 'quest-file'
                         ? 'quest-card'
                         : 'battle-hud';
-                const firstNode = nodesByPrefab[selectedPrefab][0]?.id ?? previous.selectedNode;
+                const firstNode = nodesByScene[selectedScene][0]?.id ?? previous.selectedNode;
                 return {
                     ...previous,
                     selectedFile: item.id,
-                    selectedPrefab,
+                    selectedScene,
                     selectedNode: firstNode,
-                    fileAction: `已打开 ${item.name} 进行预制体编辑。`,
+                    fileAction: `已打开 ${item.name} 进行 Scene 编辑。`,
                 };
             }
             if (item.kind === 'script') {
@@ -499,8 +499,8 @@ function FileSystemPanel({ params }: IDockviewPanelProps<PanelParams>) {
                     <div className="fileRule">Component 文件。拖到 Inspector 空白区域，或从 Inspector 的添加列表挂到当前节点。</div>
                 ) : file.kind === 'script' ? (
                     <div className="fileRule">只读代码文件。双击跳转 VS Code，编辑器不直接修改源码。</div>
-                ) : file.kind === 'prefab' ? (
-                    <div className="fileRule">双击进入预制体编辑，节点树和 Viewport 会切换到该预制体。</div>
+                ) : file.kind === 'scene' ? (
+                    <div className="fileRule">双击进入 Scene 编辑，节点树和 Viewport 会切换到该 Scene。</div>
                 ) : (
                     <div className="fileRule">当前条目仅用于项目浏览。</div>
                 )}
@@ -512,15 +512,15 @@ function FileSystemPanel({ params }: IDockviewPanelProps<PanelParams>) {
 
 function NodeTreePanel({ params }: IDockviewPanelProps<PanelParams>) {
     const { state, setState } = params;
-    const selectedPrefab = currentPrefab(state);
+    const selectedScene = currentScene(state);
     const nodes = currentNodes(state);
 
     return (
         <div className="panelSurface">
             <section className="resourceMeta">
-                <span>预制体</span>
-                <strong>{selectedPrefab.name}</strong>
-                <small>{selectedPrefab.nodeCount} nodes · {selectedPrefab.componentCount} components</small>
+                <span>Scene</span>
+                <strong>{selectedScene.name}</strong>
+                <small>{selectedScene.nodeCount} nodes · {selectedScene.componentCount} components</small>
             </section>
             <div className="nodeTree">
                 <div className="sectionTitle">节点树</div>
@@ -543,7 +543,7 @@ function NodeTreePanel({ params }: IDockviewPanelProps<PanelParams>) {
 
 function ViewportPanel({ params }: IDockviewPanelProps<PanelParams>) {
     const { state, setState } = params;
-    const selectedPrefab = currentPrefab(state);
+    const selectedScene = currentScene(state);
     const selectedNode = currentNode(state);
 
     const selectNode = (nodeId: string) => {
@@ -553,7 +553,7 @@ function ViewportPanel({ params }: IDockviewPanelProps<PanelParams>) {
     return (
         <div className="viewportSurface">
             <div className="viewportToolbar">
-                <span>{selectedPrefab.name}.prefab · {selectedNode.name}</span>
+                <span>{selectedScene.name}.scene · {selectedNode.name}</span>
                 <div>
                     <button type="button">100%</button>
                     <button type="button">适配</button>
@@ -561,7 +561,7 @@ function ViewportPanel({ params }: IDockviewPanelProps<PanelParams>) {
                 </div>
             </div>
             <div className="canvasWrap">
-                {state.selectedPrefab === 'battle-hud' ? (
+                {state.selectedScene === 'battle-hud' ? (
                     <div className="canvas">
                         <button className={state.selectedNode === 'topBar' ? 'hud topHud canvasSelectable selectedOverlay' : 'hud topHud canvasSelectable'} onClick={() => selectNode('topBar')} type="button">
                             <span>
@@ -595,7 +595,7 @@ function ViewportPanel({ params }: IDockviewPanelProps<PanelParams>) {
                 ) : (
                     <div className="canvas smallCanvas">
                         <div className="prototypeCard">
-                            <strong>{selectedPrefab.name}</strong>
+                            <strong>{selectedScene.name}</strong>
                             <span>{selectedNode.name}</span>
                         </div>
                     </div>
@@ -675,12 +675,12 @@ function InspectorPanel({ params }: IDockviewPanelProps<PanelParams>) {
         ? {
             id: 'countdownPanel',
             name: '战斗倒计时',
-            type: 'Group',
+            type: 'Container',
             depth: 1,
             transform: { x: 388, y: 256, width: 184, height: 54 },
             components: [
-                { name: 'Rounded Rect', fields: [['Color', '#020617'], ['Radius', '12']] },
-                { name: 'Text Graphic', fields: [['Text', '00:30'], ['Font Size', '20']] },
+                { name: 'Shape', fields: [['Color', '#020617'], ['Radius', '12']] },
+                { name: 'Text', fields: [['Text', '00:30'], ['Font Size', '20']] },
             ],
         }
         : currentNode(state);
@@ -837,7 +837,7 @@ function addInitialPanels(event: DockviewReadyEvent) {
     const nodeTree = event.api.addPanel({
         id: 'nodes',
         component: 'nodeTree',
-        title: '预制体',
+        title: 'Scene',
         position: { referencePanel: fileSystem, direction: 'right' },
     });
     const viewport = event.api.addPanel({
@@ -872,11 +872,11 @@ function App() {
                     <span className="mark">P</span>
                     <div>
                         <strong>Pixifact Editor</strong>
-                        <small>Dockview prototype · 只保留预制体资源模型</small>
+                        <small>Dockview prototype · 使用统一 Scene 资源模型</small>
                     </div>
                 </div>
                 <div className="statusBar">
-                    <span>{currentPrefab(state).name}.prefab</span>
+                    <span>{currentScene(state).name}.scene</span>
                     <span>{state.dirty ? '有未保存修改' : '已保存'}</span>
                     <span>AI {state.aiStage === 'idle' ? 'Ready' : '已修正并应用'}</span>
                 </div>
