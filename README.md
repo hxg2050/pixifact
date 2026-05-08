@@ -36,7 +36,6 @@ apps/editor/                    Pixifact 桌面编辑器 React / Vite 前端
 apps/editor/src-tauri/          Tauri desktop host
 examples/                       runtime 示例
 tests/                          单元测试、编辑器测试、MCP 测试
-tests/e2e/                      Playwright editor 主流程测试
 sample-projects/                样例 Pixifact 项目
 skills/                         本仓库维护的 Codex skills
 ```
@@ -45,13 +44,15 @@ skills/                         本仓库维护的 Codex skills
 
 ```bash
 bun install
-bun run editor
+bun run desktop
 ```
 
-桌面版开发入口：
+`bun run editor` 是 `bun run desktop` 的别名。项目不再提供或维护浏览器版编辑器入口；Tauri 开发模式内部启动的 Vite server 只服务桌面 WebView。
+
+同样可以使用别名：
 
 ```bash
-bun run desktop
+bun run editor
 ```
 
 打包桌面版：
@@ -117,7 +118,7 @@ bun run test
 
 ```bash
 bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
-bun run editor:build
+bun run editor:frontend:build
 ```
 
 runtime 或导出 API 改动：
@@ -125,12 +126,6 @@ runtime 或导出 API 改动：
 ```bash
 bun run build
 bun run example:build
-```
-
-Alpha 主流程改动：
-
-```bash
-bun run editor:e2e
 ```
 
 ## Codex Skills

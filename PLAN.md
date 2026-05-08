@@ -71,7 +71,7 @@ bun run test
 
 ```bash
 bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
-bun run editor:build
+bun run editor:frontend:build
 ```
 
 runtime 或导出 API 改动：
@@ -81,8 +81,4 @@ bun run build
 bun run example:build
 ```
 
-Alpha 主流程改动：
-
-```bash
-bun run editor:e2e
-```
+桌面主流程改动使用 Tauri 手动验证或后续桌面自动化测试；不再维护浏览器 Playwright 入口。

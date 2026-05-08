@@ -56,8 +56,8 @@ Gateway 返回：
 ## 鉴权
 
 - 本地 editor 的 AI 服务配置只保留 gateway endpoint / timeout。
-- 模型 API key 放在 gateway 的本地配置文件或环境变量里，不进入浏览器。
-- Endpoint、timeout、auth header 会保存在浏览器 localStorage；token 不持久化。
+- 模型 API key 放在 gateway 的本地配置文件或环境变量里，不进入桌面 WebView。
+- Endpoint、timeout、auth header 会保存在 Tauri WebView localStorage；token 不持久化。
 - 样例 adapter 使用 `PIXIFACT_AI_GATEWAY_TOKEN` 校验 `Authorization: Bearer <token>`。
 - 如果 gateway 放在公网，应在外层再加 HTTPS、rate limit 和日志脱敏。
 

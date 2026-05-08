@@ -5,14 +5,14 @@
 项目重新定义：
 
 - Pixifact 是 editor-first 项目，核心产品是 `apps/editor/`。
-- 当前产品交付方向是 Tauri 桌面版优先；浏览器 Web 入口只作为开发预览和自动化测试承载。
+- 当前产品交付方向是 Tauri 桌面版；不再启动或维护独立浏览器编辑器入口。
 - `src/` 下的 runtime、Scene、Command、SceneDocument、AI proposal 等能力是编辑器基础设施。
 - 后续路线不再以通用 PixiJS framework 为中心，新增底层能力必须服务编辑器工作流、Scene 实例化、Viewport 预览、Command 应用或导出。
 
 核心结论：
 
 - 编辑器是产品级应用，目录固定为 `apps/editor`。
-- 桌面 host 位于 `src-tauri/`，负责本机文件系统、外部程序打开、窗口和打包。
+- 桌面 host 位于 `apps/editor/src-tauri/`，负责本机文件系统、外部程序打开、窗口和打包。
 - `examples` 只放 runtime 示例，不承载编辑器产品。
 - AI-first 是第一原则，自然语言是主要创作入口。
 - AI 对用户表现为“发送即执行”，不暴露手动预演和应用按钮。
@@ -20,16 +20,16 @@
 - 开发者通过属性级 Lock、Inspector、Undo、Memory 和项目结构约束控制最终结果。
 - 不内嵌代码编辑器，不使用 Monaco，不把 JSON textarea 作为主要交互。
 - SceneDocument、SceneSpec、Command 和 runtime preview 是真正的编辑闭环。
-- 当前最终 UI 原型在 `apps/editor-dockview-prototype/`，后续产品实现应以该原型确定的交互为准。
+- 正式 `apps/editor/` 已采用 Dockview 面板结构，后续产品实现直接在桌面编辑器中推进。
 
 ### 0.0 运行形态
 
 Pixifact Editor 的正式产品形态是本地桌面应用：
 
 - React / Vite UI 继续位于 `apps/editor/`，作为桌面应用的前端界面。
-- Tauri host 位于 `src-tauri/`，负责浏览器不能可靠完成的本机能力。
-- 浏览器 Web 入口只用于开发预览、组件调试和 Playwright 自动化测试。
-- 产品能力不再围绕浏览器限制设计；打开本机文件、调用 VS Code、调用系统默认程序都走 Tauri host。
+- Tauri host 位于 `apps/editor/src-tauri/`，负责本机能力。
+- 不再提供独立浏览器 Web 入口；Tauri dev 内部使用的 Vite server 只服务桌面 WebView。
+- 打开本机文件、调用 VS Code、调用系统默认程序都走 Tauri host。
 - Bun 是开发仓库的包管理器和前端构建工具，不要求最终安装桌面版的用户配置 Bun 环境。
 
 ## 0. 最终方案快照
@@ -422,13 +422,12 @@ apps/editor/src/
 
 ```txt
 bun run test
-bun run editor:build
+bun run editor:frontend:build
 bun run build
-bun run editor:e2e
 ```
 
-以上命令已通过；E2E 覆盖的是旧 Alpha 的 prompt -> dry-run -> apply -> manual refine -> memory -> export -> import 流程。
-最终产品交互已在 `apps/editor-dockview-prototype/` 中重新收敛，后续正式实现应迁移到发送即执行和 repair loop。
+以上命令已通过；浏览器 Playwright E2E 已停止维护，后续主流程验证应走 Tauri 桌面 host 或桌面自动化。
+正式 `apps/editor/` 已采用 Dockview 面板结构，后续应迁移到发送即执行和 repair loop。
 
 ### 4.2 已有核心底座
 
@@ -694,8 +693,8 @@ Tauri v2
 当前边界：
 
 - `apps/editor/` 保持 React / Vite UI。
-- `src-tauri/` 提供 host command。
-- 浏览器入口继续用于开发预览和 E2E，不定义产品能力。
+- `apps/editor/src-tauri/` 提供 host command。
+- Tauri dev 内部 Vite server 只服务桌面 WebView，不作为浏览器版编辑器入口。
 
 ### 5.9 Testing
 
@@ -708,14 +707,14 @@ Vitest
 后续：
 
 ```txt
-Playwright
+Desktop automation
 ```
 
 测试层级：
 
 - Core unit tests：commands、document、AI repair loop、logic graph、memory。
 - Editor shell tests：panel interaction、store、provider controller。
-- E2E tests：prompt -> send -> repair loop -> auto apply -> export -> import。
+- Desktop workflow tests：prompt -> send -> repair loop -> auto apply -> export -> import。
 
 ## 6. 目标目录结构
 
@@ -1122,7 +1121,7 @@ AI provider 不能：
 
 ```txt
 Phase 0 - Phase 13 是旧 Alpha 实现记录，保留为历史背景。
-当前产品方向已由 `apps/editor-dockview-prototype/` 重新收敛。
+当前产品方向已在正式 `apps/editor/` 的 Dockview 桌面界面中收敛。
 Phase 14 是当前下一步。
 ```
 
@@ -1169,8 +1168,8 @@ Phase 14 是当前下一步。
 - 创建 `apps/editor/src/editorStore.ts`。
 - 创建 `apps/editor/src/styles.css`。
 - 恢复 package scripts：
-  - `editor`: `vite apps/editor`
-  - `editor:build`: `vite build apps/editor`
+  - `editor`: `bun run desktop`
+  - `editor:frontend:build`: `vite build apps/editor`
 - 建立基础三栏布局。
 - 接入 `SceneDocument`。
 - 加载默认 Button scene。
@@ -1178,7 +1177,7 @@ Phase 14 是当前下一步。
 验收：
 
 - `bun run editor` 可启动。
-- `bun run editor:build` 通过。
+- `bun run editor:frontend:build` 通过。
 - 页面不是空白。
 - 能显示基础 editor shell。
 
@@ -1437,9 +1436,9 @@ Phase 14 是当前下一步。
 - editor 切换 Remote 后可生成 proposal。
 - `bun run test` 覆盖 mock server core。
 
-### Phase 12: E2E Alpha Scenario
+### Phase 12: Alpha Scenario
 
-状态：已完成。
+状态：已归档。
 
 目标：
 
@@ -1449,14 +1448,14 @@ Phase 14 是当前下一步。
 
 任务：
 
-- 引入 Playwright。
-- 编写主流程 E2E。
+- 已停止维护浏览器 Playwright 入口。
+- 后续主流程自动化应基于桌面 host。
 - 测试 prompt -> dry-run -> apply -> manual refine -> memory -> export -> import。
 - 修复 UI 尺寸、状态、空态、错误态。
 
 验收：
 
-- E2E 自动跑通 Alpha 核心使用场景。
+- 桌面流程可以验证 Alpha 核心使用场景。
 - 本地核心流程不依赖人工手动修复。
 
 ### Phase 13: Alpha Usability / 编辑器可用性收口
@@ -1476,8 +1475,8 @@ Phase 14 是当前下一步。
 - 已建立工具动作图标按钮体系，决策动作保留文字按钮。
 - 已检查并修正空态、错误态、按钮禁用态和导入失败状态。
 - 已给拆分后的 `apps/editor/src/panels/` 添加维护说明，明确每个面板的职责边界。
-- 已整理本地使用流程：`bun run editor`、`bun run editor:ai`、`bun run editor:e2e`。
-- 已检查 Alpha E2E 覆盖核心使用路径和关键失败路径。
+- 已整理本地使用流程：`bun run desktop`、`bun run editor`、`bun run editor:ai`。
+- 已停止维护浏览器 Playwright 入口。
 - 已复查构建产物和测试报告；`apps/editor/dist`、`dist`、`test-results` 为本地验证产物，按 `.gitignore` 规则避免误提交。
 
 验收：
@@ -1486,7 +1485,7 @@ Phase 14 是当前下一步。
 - 使用者能按文档跑通 Mock / Remote 两种 AI proposal 路径。
 - UI 主要用户动作、错误提示、空态为中文；工程术语保持英文或中英混用。
 - 工具动作按钮支持 SVG 图标或图标 + 文本，且纯图标按钮具备 `aria-label` 和 `title`。
-- `bun run test`、`bun run editor:build`、`bun run editor:e2e`、`bun run build` 通过。
+- `bun run test`、`bun run editor:frontend:build`、`bun run build` 通过。
 
 ### Phase 14: Real AI Gateway / 真实 AI 网关接入
 
@@ -1511,8 +1510,8 @@ Phase 14 是当前下一步。
 - 已补充 gateway adapter core 测试。
 - 已增加 Remote provider 成功路径 E2E，覆盖生成、Dry Run、Apply。
 - 已修复普通 `string` prop 被误按 `event` prop 校验 ActionRegistry 的问题。
-- 已将 Remote endpoint、timeout、auth header 持久化到浏览器 localStorage。
-- 已将 Remote gateway/model 的非敏感配置持久化到浏览器 localStorage。
+- 已将 Remote endpoint、timeout、auth header 持久化到 Tauri WebView localStorage。
+- 已将 Remote gateway/model 的非敏感配置持久化到 Tauri WebView localStorage。
 - 已明确 gateway token 和 model token 不持久化，不写入 `.ai-editor.json`。
 - 已实现 `apps/editor/src/gateway/modelAdapter.mjs`，支持 OpenAI-style HTTP 上游。
 - 已支持从 editor UI 随 `pixifact.aiProposal.v1` 请求传入 model API、endpoint、token、model、timeout、auth header、auth prefix、reasoning effort、service tier、store 和 temperature。
@@ -1695,7 +1694,7 @@ Phase 14: Dockview 原型固化 / 最终产品 UI 落地
 具体顺序：
 
 ```txt
-1. 以 `apps/editor-dockview-prototype/` 为交互基准，整理正式 `apps/editor` 的面板结构。
+1. 以正式 `apps/editor` 的 Dockview 面板结构为基准继续整理编辑器。
 2. 将文件系统、Scene 节点树、Viewport、Inspector、AI 对话拆成正式面板组件。
 3. 将 AI 从 proposal 审核流改为“发送 -> command validation -> repair loop -> auto apply”。
 4. 将 Inspector 的属性级锁、底部 Add Component、Component 文件拖拽添加接入正式 `SceneDocument` command。

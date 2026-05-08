@@ -36,7 +36,6 @@ apps/editor/                    Pixifact desktop editor React / Vite frontend
 apps/editor/src-tauri/          Tauri desktop host
 examples/                       runtime examples
 tests/                          unit, editor, and MCP tests
-tests/e2e/                      Playwright editor workflow tests
 sample-projects/                sample Pixifact projects
 skills/                         repository-owned Codex skills
 ```
@@ -45,13 +44,15 @@ skills/                         repository-owned Codex skills
 
 ```bash
 bun install
-bun run editor
+bun run desktop
 ```
 
-Desktop development entry:
+`bun run editor` is an alias for `bun run desktop`. The project no longer provides or maintains a browser editor entry; the Vite server started by Tauri dev mode is only an internal desktop WebView frontend.
+
+Alias:
 
 ```bash
-bun run desktop
+bun run editor
 ```
 
 Build the desktop app:
@@ -117,7 +118,7 @@ Editor changes:
 
 ```bash
 bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
-bun run editor:build
+bun run editor:frontend:build
 ```
 
 Runtime or export API changes:
@@ -125,12 +126,6 @@ Runtime or export API changes:
 ```bash
 bun run build
 bun run example:build
-```
-
-Alpha workflow changes:
-
-```bash
-bun run editor:e2e
 ```
 
 ## Codex Skills

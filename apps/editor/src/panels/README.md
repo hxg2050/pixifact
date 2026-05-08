@@ -1,6 +1,6 @@
 # Editor Panels
 
-正式 editor 当前按 dockview prototype 固化为五个核心面板：
+正式 editor 当前按 Dockview 桌面界面固化为五个核心面板：
 
 - `ExplorerPanel.tsx`：文件系统入口，展示项目文件、图片预览说明、Scene 双击打开、Component 文件拖拽数据。
 - `HierarchyPanel.tsx`：只展示当前打开 Scene 的节点树。

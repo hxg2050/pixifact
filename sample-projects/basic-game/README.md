@@ -7,16 +7,14 @@
 1. 启动编辑器：
 
 ```bash
-bun run editor
+bun run desktop
 ```
 
-2. 在编辑器右侧打开 `项目`。
-3. 点击 `导入项目`。
-4. 选择本目录下的：
+也可以使用桌面入口别名 `bun run editor`。
 
-```txt
-basic-game.ai-editor.json
-```
+2. 点击顶部 `打开文件夹`。
+3. 选择本目录。
+4. 双击 `.scene` 文件进入编辑。
 
 导入后会看到一个 960x540 的基础游戏 HUD：
 
@@ -31,9 +29,7 @@ basic-game.ai-editor.json
 ## 目录说明
 
 ```txt
-basic-game.ai-editor.json  编辑器可导入的项目资产
-assets/                    资源占位目录
-scripts/                   逻辑脚本占位目录
+*.scene   Scene 资产
+assets/   图片和资源目录
+scripts/  逻辑脚本目录
 ```
-
-当前编辑器还没有真实磁盘文件树和资源导入能力，所以 `assets/` 和 `scripts/` 主要用于模拟项目结构。真正打开编辑器项目时，请导入 `.ai-editor.json`。

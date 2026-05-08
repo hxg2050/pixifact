@@ -56,5 +56,7 @@ Use these when touched code warrants it:
 ```bash
 bun run build
 bun run example:build
-bun run editor:build
+bun run editor:frontend:build
 ```
+
+`bun run editor` is the Tauri desktop entry alias. The repository no longer provides or maintains a standalone browser editor workflow.

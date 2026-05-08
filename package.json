@@ -33,13 +33,11 @@
     "build": "cd packages/pixifact && bun run build",
     "desktop": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install tauri dev --config apps/editor/src-tauri/tauri.conf.json",
     "desktop:build": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install tauri build --config apps/editor/src-tauri/tauri.conf.json",
-    "editor": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install vite apps/editor --config vite.config.ts",
+    "editor": "bun run desktop",
     "editor:ai": "bun run build && bun apps/editor/src/mock/mock-ai-server.mjs",
     "editor:gateway": "bun apps/editor/src/gateway/ai-gateway-adapter.mjs",
     "editor:mcp": "bun packages/pixifact-mcp/src/pixifact-mcp-server.ts",
-    "editor:build": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install vite build apps/editor --config vite.config.ts",
-    "editor:dockview": "bunx --no-install vite apps/editor-dockview-prototype --config vite.config.ts",
-    "editor:e2e": "bunx --no-install playwright test",
+    "editor:frontend:build": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install vite build apps/editor --config vite.config.ts",
     "example": "bunx --no-install vite examples/basic --config vite.config.ts",
     "example:build": "bunx --no-install vite build examples/basic --config vite.config.ts",
     "skills:install": "bun scripts/install-skills.mjs --replace",
@@ -47,7 +45,6 @@
     "test:watch": "bunx --no-install vitest"
   },
   "devDependencies": {
-    "@playwright/test": "^1.59.1",
     "@rollup/plugin-typescript": "^11.1.6",
     "@tauri-apps/cli": "2.11.1",
     "@types/react": "^19.2.14",

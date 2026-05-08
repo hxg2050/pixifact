@@ -23,14 +23,10 @@ function tauriCore() {
     return (window as WindowWithTauri).__TAURI__?.core;
 }
 
-export function isDesktopHost() {
-    return tauriCore() !== undefined;
-}
-
 export async function invokeHost<T>(command: string, args?: Record<string, unknown>) {
     const core = tauriCore();
     if (!core) {
-        throw new Error('当前浏览器预览不支持本机文件系统能力，请使用桌面版。');
+        throw new Error('当前环境不是 Pixifact 桌面版，无法调用 Tauri host。');
     }
     return core.invoke<T>(command, args);
 }

@@ -20,10 +20,8 @@ Pixifact is a standalone 2D UI and lightweight scene framework. The editor, MCP 
 - `apps/editor/src/preview/` - runtime preview integration.
 - `apps/editor/src/services/` - editor application services.
 - `apps/editor/src/gateway/` - real AI gateway adapter sample.
-- `apps/editor-dockview-prototype/` - IDE-style dock layout interaction prototype.
 - `examples/basic/` - runtime example app.
 - `tests/` - unit, editor-domain, and MCP tests.
-- `tests/e2e/` - Playwright editor workflow tests.
 - `PLAN.md` - current Scene migration and project plan.
 - `skills/` - repository-owned Codex skills.
 - `scripts/install-skills.mjs` - installs repository skills into Codex's skills directory.
@@ -46,11 +44,12 @@ Build output is generated under `packages/pixifact/dist/`. Do not edit generated
 ```bash
 bun install
 bun run test
-bun run editor:build
-bun run editor:e2e
+bun run editor:frontend:build
 bun run build
 bun run example:build
 bun run skills:install
 ```
+
+`bun run editor` launches the Tauri desktop editor. Standalone browser editor and browser Playwright workflows are not maintained.
 
 `bun run skills:install` copies every skill folder under `skills/` into `${CODEX_HOME:-$HOME/.codex}/skills`.

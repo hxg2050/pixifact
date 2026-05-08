@@ -4,7 +4,6 @@ import {
     createHostProjectDirectory,
     createHostProjectFile,
     deleteHostProjectEntry,
-    isDesktopHost,
     openHostCodeFile,
     openHostDefaultFile,
     pickHostProjectFolder,
@@ -26,33 +25,10 @@ export interface ProjectFileTreeNode {
     path: string;
     kind: ProjectFileKind;
     depth: number;
-    handle?: FileSystemHandle;
     systemPath?: string;
     projectRootPath?: string;
     children?: ProjectFileTreeNode[];
     detail?: string;
-}
-
-interface DirectoryHandleWithEntries extends FileSystemDirectoryHandle {
-    entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
-}
-
-interface MutableDirectoryHandle extends DirectoryHandleWithEntries {
-    getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<FileSystemDirectoryHandle>;
-    getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle>;
-    removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>;
-}
-
-interface WritableFileHandle extends FileSystemFileHandle {
-    createWritable(): Promise<FileSystemWritableFileStream>;
-}
-
-interface ReadableFileHandle extends FileSystemFileHandle {
-    getFile(): Promise<File>;
-}
-
-interface WindowWithDirectoryPicker extends Window {
-    showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
 }
 
 const imageExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
@@ -65,13 +41,6 @@ export class ProjectFileOperationError extends Error {
         super(message);
         this.name = 'ProjectFileOperationError';
     }
-}
-
-function ensureBrowserHandle<T extends FileSystemHandle>(file: ProjectFileTreeNode) {
-    if (!file.handle) {
-        throw new ProjectFileOperationError('当前条目缺少浏览器文件句柄，请使用桌面版重新打开项目。');
-    }
-    return file.handle as T;
 }
 
 function ensureProjectRootPath(projectTree: ProjectFileTreeNode) {
@@ -112,69 +81,9 @@ export function componentTypeFromPath(path: string) {
     return match ? `ui.${match[1]}` : undefined;
 }
 
-function sortEntries(left: [string, FileSystemHandle], right: [string, FileSystemHandle]) {
-    if (left[1].kind !== right[1].kind) {
-        return left[1].kind === 'directory' ? -1 : 1;
-    }
-    return left[0].localeCompare(right[0]);
-}
-
-async function readDirectory(
-    handle: FileSystemDirectoryHandle,
-    path: string,
-    depth: number,
-): Promise<ProjectFileTreeNode> {
-    const entries: Array<[string, FileSystemHandle]> = [];
-    for await (const entry of (handle as DirectoryHandleWithEntries).entries()) {
-        entries.push(entry);
-    }
-    entries.sort(sortEntries);
-
-    const children: ProjectFileTreeNode[] = [];
-    for (const [name, childHandle] of entries) {
-        const childPath = `${path}/${name}`;
-        if (childHandle.kind === 'directory') {
-            children.push(await readDirectory(childHandle as FileSystemDirectoryHandle, childPath, depth + 1));
-        } else {
-            const kind = projectFileKind(name, childPath);
-            children.push({
-                id: childPath,
-                name,
-                path: childPath,
-                kind,
-                depth: depth + 1,
-                handle: childHandle,
-                detail: kind === 'component' ? componentTypeFromPath(childPath) : undefined,
-            });
-        }
-    }
-
-    return {
-        id: path,
-        name: handle.name,
-        path,
-        kind: 'folder',
-        depth,
-        handle,
-        children,
-    };
-}
-
-export async function readProjectFileTree(handle: FileSystemDirectoryHandle) {
-    return readDirectory(handle, handle.name, 0);
-}
-
 export async function openProjectFolder() {
-    if (isDesktopHost()) {
-        const tree = await pickHostProjectFolder();
-        return tree ? projectFileTreeFromHost(tree) : undefined;
-    }
-
-    const picker = (window as WindowWithDirectoryPicker).showDirectoryPicker;
-    if (!picker) {
-        return undefined;
-    }
-    return readProjectFileTree(await picker.call(window));
+    const tree = await pickHostProjectFolder();
+    return tree ? projectFileTreeFromHost(tree) : undefined;
 }
 
 export function countProjectFileTree(node: ProjectFileTreeNode): number {
@@ -304,15 +213,7 @@ export async function createSceneFile(directory: ProjectFileTreeNode, name: stri
     }
 
     const content = JSON.stringify(createBlankScene(name), null, 2);
-    if (directory.systemPath) {
-        await createHostProjectFile(ensureProjectRootPath(directory), directory.path, fileName, content);
-    } else {
-        const directoryHandle = ensureBrowserHandle<FileSystemDirectoryHandle>(directory);
-        const fileHandle = await directoryHandle.getFileHandle(fileName, { create: true }) as WritableFileHandle;
-        const writable = await fileHandle.createWritable();
-        await writable.write(content);
-        await writable.close();
-    }
+    await createHostProjectFile(ensureProjectRootPath(directory), directory.path, fileName, content);
 
     return {
         fileName,
@@ -331,12 +232,7 @@ export async function createFolder(directory: ProjectFileTreeNode, name: string)
         throw new ProjectFileOperationError(`已存在 ${folderName}。`);
     }
 
-    if (directory.systemPath) {
-        await createHostProjectDirectory(ensureProjectRootPath(directory), directory.path, folderName);
-    } else {
-        const directoryHandle = ensureBrowserHandle<MutableDirectoryHandle>(directory);
-        await directoryHandle.getDirectoryHandle(folderName, { create: true });
-    }
+    await createHostProjectDirectory(ensureProjectRootPath(directory), directory.path, folderName);
     return {
         name: folderName,
         path: `${directory.path}/${folderName}`,
@@ -373,12 +269,7 @@ export async function deleteProjectEntry(
         throw new ProjectFileOperationError('找不到父目录。');
     }
 
-    if (projectTree.systemPath) {
-        await deleteHostProjectEntry(ensureProjectRootPath(projectTree), target.path, options.recursive ?? false);
-    } else {
-        const parentHandle = ensureBrowserHandle<MutableDirectoryHandle>(parent);
-        await parentHandle.removeEntry(target.name, { recursive: options.recursive ?? false });
-    }
+    await deleteHostProjectEntry(ensureProjectRootPath(projectTree), target.path, options.recursive ?? false);
 }
 
 export async function renameProjectEntry(
@@ -406,26 +297,7 @@ export async function renameProjectEntry(
         throw new ProjectFileOperationError(`已存在 ${nextName}。`);
     }
 
-    if (projectTree.systemPath) {
-        await renameHostProjectEntry(ensureProjectRootPath(projectTree), target.path, nextName);
-    } else {
-        const parentHandle = ensureBrowserHandle<MutableDirectoryHandle>(parent);
-        if (target.kind === 'folder') {
-            if (target.children?.length) {
-                throw new ProjectFileOperationError('当前只支持重命名空目录。');
-            }
-            await parentHandle.getDirectoryHandle(nextName, { create: true });
-            await parentHandle.removeEntry(target.name);
-        } else {
-            const sourceHandle = ensureBrowserHandle<ReadableFileHandle>(target);
-            const file = await sourceHandle.getFile();
-            const nextHandle = await parentHandle.getFileHandle(nextName, { create: true }) as WritableFileHandle;
-            const writable = await nextHandle.createWritable();
-            await writable.write(await file.arrayBuffer());
-            await writable.close();
-            await parentHandle.removeEntry(target.name);
-        }
-    }
+    await renameHostProjectEntry(ensureProjectRootPath(projectTree), target.path, nextName);
 
     return {
         name: nextName,
@@ -439,42 +311,21 @@ export async function saveSceneFile(projectTree: ProjectFileTreeNode, path: stri
         return false;
     }
 
-    if (projectTree.systemPath) {
-        await writeHostProjectFileText(ensureProjectRootPath(projectTree), file.path, document.serialize());
-    } else {
-        const handle = file.handle as WritableFileHandle | undefined;
-        if (!handle) {
-            return false;
-        }
-        const writable = await handle.createWritable();
-        await writable.write(document.serialize());
-        await writable.close();
-    }
+    await writeHostProjectFileText(ensureProjectRootPath(projectTree), file.path, document.serialize());
     document.dirty = false;
     return true;
 }
 
 export async function refreshProjectFileTree(projectTree: ProjectFileTreeNode) {
-    if (projectTree.systemPath) {
-        return projectFileTreeFromHost(await readHostProjectFileTree(ensureProjectRootPath(projectTree)));
-    }
-    return readProjectFileTree(ensureBrowserHandle<FileSystemDirectoryHandle>(projectTree));
+    return projectFileTreeFromHost(await readHostProjectFileTree(ensureProjectRootPath(projectTree)));
 }
 
 export async function readProjectFileText(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
-    if (projectTree.systemPath) {
-        return readHostProjectFileText(ensureProjectRootPath(projectTree), file.path);
-    }
-    const handle = ensureBrowserHandle<FileSystemFileHandle>(file);
-    return (await handle.getFile()).text();
+    return readHostProjectFileText(ensureProjectRootPath(projectTree), file.path);
 }
 
 export async function readProjectFileBytes(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
-    if (projectTree.systemPath) {
-        return readHostProjectFileBytes(ensureProjectRootPath(projectTree), file.path);
-    }
-    const handle = ensureBrowserHandle<FileSystemFileHandle>(file);
-    return new Uint8Array(await (await handle.getFile()).arrayBuffer());
+    return readHostProjectFileBytes(ensureProjectRootPath(projectTree), file.path);
 }
 
 export async function openProjectCodeFile(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
