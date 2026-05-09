@@ -18,6 +18,7 @@ export interface EditorUiState {
     selectedProjectFilePath?: string;
     openedScenePath?: string;
     expandedProjectFolders: string[];
+    expandedHierarchyNodesByScene: Record<string, string[]>;
     prompt: string;
     setLanguage(language: EditorLanguage): void;
     setProject(tree: ProjectFileTreeNode): void;
@@ -25,6 +26,7 @@ export interface EditorUiState {
     setSelectedProjectFile(path: string): void;
     setOpenedScene(path: string): void;
     setExpandedProjectFolders(paths: string[]): void;
+    setExpandedHierarchyNodes(scenePath: string, paths: string[]): void;
     setPrompt(prompt: string): void;
 }
 
@@ -37,6 +39,7 @@ export const useEditorStore = create<EditorUiState>()(
             selectedProjectFilePath: undefined,
             openedScenePath: undefined,
             expandedProjectFolders: [],
+            expandedHierarchyNodesByScene: {},
             prompt: '创建一个背包界面，四列三行，每个格子有图标、数量和 Use 按钮。',
             setLanguage: (language) => set({ language }),
             setProject: (projectTree) => set({
@@ -62,6 +65,12 @@ export const useEditorStore = create<EditorUiState>()(
             setSelectedProjectFile: (selectedProjectFilePath) => set({ selectedProjectFilePath }),
             setOpenedScene: (openedScenePath) => set({ openedScenePath, selectedProjectFilePath: openedScenePath }),
             setExpandedProjectFolders: (expandedProjectFolders) => set({ expandedProjectFolders }),
+            setExpandedHierarchyNodes: (scenePath, expandedHierarchyNodes) => set((state) => ({
+                expandedHierarchyNodesByScene: {
+                    ...state.expandedHierarchyNodesByScene,
+                    [scenePath]: expandedHierarchyNodes,
+                },
+            })),
             setPrompt: (prompt) => set({ prompt }),
         }),
         {

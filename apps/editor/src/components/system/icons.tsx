@@ -3,6 +3,7 @@ import {
     ArrowDown,
     ArrowUp,
     Check,
+    Circle,
     Download,
     Edit3,
     Ellipsis,
@@ -10,6 +11,8 @@ import {
     FolderOpen,
     ExternalLink,
     FolderPlus,
+    Image,
+    LetterText,
     Languages,
     Lock,
     Play,
@@ -18,6 +21,8 @@ import {
     RefreshCw,
     RotateCcw,
     Save,
+    Square,
+    TextCursorInput,
     Trash2,
     Undo2,
     Unlock,
@@ -28,6 +33,7 @@ export type SystemIconName =
     | 'arrow-down'
     | 'arrow-up'
     | 'check'
+    | 'circle'
     | 'download'
     | 'edit'
     | 'eye'
@@ -35,6 +41,9 @@ export type SystemIconName =
     | 'folder-open'
     | 'more'
     | 'folder-plus'
+    | 'image'
+    | 'input'
+    | 'letter-text'
     | 'languages'
     | 'lock'
     | 'play'
@@ -43,6 +52,7 @@ export type SystemIconName =
     | 'refresh'
     | 'reset'
     | 'save'
+    | 'square'
     | 'trash'
     | 'undo'
     | 'unlock'
@@ -52,6 +62,7 @@ const iconComponents: Record<SystemIconName, ComponentType<SVGProps<SVGSVGElemen
     'arrow-down': ArrowDown,
     'arrow-up': ArrowUp,
     check: Check,
+    circle: Circle,
     download: Download,
     edit: Edit3,
     eye: Eye,
@@ -59,6 +70,9 @@ const iconComponents: Record<SystemIconName, ComponentType<SVGProps<SVGSVGElemen
     'folder-open': FolderOpen,
     more: Ellipsis,
     'folder-plus': FolderPlus,
+    image: Image,
+    input: TextCursorInput,
+    'letter-text': LetterText,
     languages: Languages,
     lock: Lock,
     play: Play,
@@ -67,6 +81,7 @@ const iconComponents: Record<SystemIconName, ComponentType<SVGProps<SVGSVGElemen
     refresh: RefreshCw,
     reset: RotateCcw,
     save: Save,
+    square: Square,
     trash: Trash2,
     undo: Undo2,
     unlock: Unlock,

@@ -5,13 +5,13 @@
   "identifier": "com.pixifact.editor",
   "build": {
     "beforeDevCommand": {
-      "script": "bunx --no-install vite apps/editor --config vite.config.ts --host 127.0.0.1 --port 5173 --strictPort",
-      "cwd": "../../"
+      "script": "bunx --no-install vite . --config ../../vite.config.ts --host 127.0.0.1 --port 5173 --strictPort",
+      "cwd": "../"
     },
     "devUrl": "http://127.0.0.1:5173",
     "beforeBuildCommand": {
       "script": "bun run editor:frontend:build",
-      "cwd": "../../"
+      "cwd": "../../../"
     },
     "frontendDist": "../dist"
   },

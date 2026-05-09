@@ -31,8 +31,8 @@
   "license": "MIT",
   "scripts": {
     "build": "cd packages/pixifact && bun run build",
-    "desktop": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install tauri dev --config apps/editor/src-tauri/tauri.conf.json",
-    "desktop:build": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install tauri build --config apps/editor/src-tauri/tauri.conf.json",
+    "desktop": "cd apps/editor && VITE_PIXIFACT_PROJECT_ROOT=$(pwd)/../.. bunx --no-install tauri dev",
+    "desktop:build": "cd apps/editor && VITE_PIXIFACT_PROJECT_ROOT=$(pwd)/../.. bunx --no-install tauri build",
     "editor": "bun run desktop",
     "editor:ai": "bun run build && bun apps/editor/src/mock/mock-ai-server.mjs",
     "editor:gateway": "bun apps/editor/src/gateway/ai-gateway-adapter.mjs",

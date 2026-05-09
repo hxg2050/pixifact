@@ -88,7 +88,7 @@ function renderTreeItem<T>({
                 {({ hasChildItems, isExpanded, level }) => (
                     <>
                         {hasChildItems ? (
-                            <AriaButton className="treeChevron" slot="chevron">
+                            <AriaButton className={isExpanded ? 'treeChevron treeChevron--expanded' : 'treeChevron'} slot="chevron">
                                 <span aria-hidden="true">›</span>
                             </AriaButton>
                         ) : (

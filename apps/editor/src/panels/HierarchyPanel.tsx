@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ComponentSpec, SceneDocument, NodeSpec, SceneSpec } from 'pixifact';
 import { ComponentRegistry } from 'pixifact';
-import { DragSource, DropZone, TreeView } from '../components/system';
-import type { TreeViewItem } from '../components/system';
+import { DragSource, DropZone, SystemIcon, TreeView } from '../components/system';
+import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/system';
 import { refreshSceneDocument } from '../document/sceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
@@ -42,8 +42,25 @@ interface NodeDropTargetState {
     position: NodeDropPosition;
 }
 
+const rootDropLocator = '__scene_root_drop__';
+
 function nodeLabel(node: NodeSpec) {
     return node.name ?? node.key ?? node.id ?? 'Node';
+}
+
+function nodeKindIcon(node: NodeSpec): SystemIconName {
+    switch (node.kind) {
+        case 'container':
+            return 'folder-open';
+        case 'image':
+            return 'image';
+        case 'text':
+            return 'letter-text';
+        case 'input':
+            return 'input';
+        case 'shape':
+            return node.shape?.type === 'roundedRect' ? 'square' : 'circle';
+    }
 }
 
 function hierarchyTreeItem(node: NodeSpec, depth = 0): TreeViewItem<HierarchyTreeNode> {
@@ -66,6 +83,21 @@ function collectNodeLocators(node: NodeSpec): string[] {
         locator,
         ...(node.kind === 'container' ? (node.children ?? []).flatMap(collectNodeLocators) : []),
     ];
+}
+
+function collectContainerLocators(node: NodeSpec): string[] {
+    if (node.kind !== 'container') {
+        return [];
+    }
+    const locator = node.key ?? node.id ?? node.name ?? 'root';
+    return [
+        locator,
+        ...(node.children ?? []).flatMap(collectContainerLocators),
+    ];
+}
+
+function sameStringArray(left: readonly string[], right: readonly string[]) {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function locateNode(node: NodeSpec, locator: string, parent?: Extract<NodeSpec, { kind: 'container' }>, index = 0): LocatedNode | undefined {
@@ -229,12 +261,22 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
     const t = useI18n();
     const projectTree = useEditorStore((state) => state.projectTree);
     const openedScenePath = useEditorStore((state) => state.openedScenePath);
+    const expandedHierarchyNodes = useEditorStore((state) => state.expandedHierarchyNodesByScene);
+    const setExpandedHierarchyNodes = useEditorStore((state) => state.setExpandedHierarchyNodes);
     const items = collectHierarchy(document.scene.root);
     const treeItems = [hierarchyTreeItem(document.scene.root)];
-    const expandedKeys = collectNodeLocators(document.scene.root);
+    const allNodeLocators = collectNodeLocators(document.scene.root);
+    const allContainerLocators = collectContainerLocators(document.scene.root);
+    const hierarchyStateKey = openedScenePath ?? getNodeLocator(document.scene.root);
+    const savedExpandedKeys = expandedHierarchyNodes[hierarchyStateKey];
+    const expandedKeys = savedExpandedKeys
+        ? savedExpandedKeys.filter((key) => allNodeLocators.includes(key))
+        : allContainerLocators;
     const selected = selectedNodeId(document);
     const selectedItemRef = useRef<HTMLDivElement | null>(null);
     const nodeRowRefs = useRef(new Map<string, HTMLDivElement>());
+    const previousHierarchyStateKeyRef = useRef<string | undefined>(undefined);
+    const previousContainerLocatorsRef = useRef<string[]>([]);
     const [error, setError] = useState<string>();
     const [dropTarget, setDropTarget] = useState<string>();
     const [nodeDropTarget, setNodeDropTarget] = useState<NodeDropTargetState>();
@@ -246,6 +288,25 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
     const contextLocated = contextMenu ? locateNode(document.scene.root, contextMenu.locator) : undefined;
     const isContextRoot = contextLocated?.node === document.scene.root;
     const canPasteIntoContext = Boolean(contextLocated && canContainChildNode(contextLocated.node, document.scene.root));
+
+    useEffect(() => {
+        const stateKeyChanged = previousHierarchyStateKeyRef.current !== hierarchyStateKey;
+        const previousContainerLocators = stateKeyChanged ? allContainerLocators : previousContainerLocatorsRef.current;
+        previousHierarchyStateKeyRef.current = hierarchyStateKey;
+        previousContainerLocatorsRef.current = allContainerLocators;
+
+        if (savedExpandedKeys) {
+            const existing = savedExpandedKeys.filter((key) => allNodeLocators.includes(key));
+            const previous = new Set(previousContainerLocators);
+            const added = stateKeyChanged ? [] : allContainerLocators.filter((key) => !previous.has(key));
+            const next = [...new Set([...existing, ...added])];
+            if (!sameStringArray(next, savedExpandedKeys)) {
+                setExpandedHierarchyNodes(hierarchyStateKey, next);
+            }
+            return;
+        }
+        setExpandedHierarchyNodes(hierarchyStateKey, allContainerLocators);
+    }, [allContainerLocators.join('\n'), allNodeLocators.join('\n'), hierarchyStateKey, savedExpandedKeys, setExpandedHierarchyNodes]);
 
     useEffect(() => {
         selectedItemRef.current?.scrollIntoView({ block: 'nearest' });
@@ -342,6 +403,18 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
         }, nextSelection);
     };
 
+    const setAllNodesExpanded = () => {
+        setExpandedHierarchyNodes(hierarchyStateKey, allContainerLocators);
+    };
+
+    const setAllNodesCollapsed = () => {
+        setExpandedHierarchyNodes(hierarchyStateKey, [getNodeLocator(document.scene.root)]);
+    };
+
+    const updateExpandedKeys = (keys: Set<TreeViewKey>) => {
+        setExpandedHierarchyNodes(hierarchyStateKey, [...keys].map(String));
+    };
+
     const moveHierarchyNode = (sourceLocator: string, targetLocator: string, position: NodeDropPosition) => {
         const source = locateNode(document.scene.root, sourceLocator);
         const target = locateNode(document.scene.root, targetLocator);
@@ -388,6 +461,19 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
         setNodeDropTarget(undefined);
     };
 
+    const moveHierarchyNodeToRoot = (sourceLocator: string) => {
+        const source = locateNode(document.scene.root, sourceLocator);
+        if (!source || source.node === document.scene.root) {
+            return;
+        }
+        applyNodeCommand({
+            op: 'reparentNode',
+            node: sourceLocator,
+            parent: getNodeLocator(document.scene.root),
+        }, sourceLocator);
+        setDropTarget(undefined);
+    };
+
     const addBasicComponentUnderNode = (kind: string, parent: string) => {
         if (!isBasicComponentKind(kind)) {
             setError(t('basicComponentMissing'));
@@ -413,6 +499,10 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
         setDropTarget(undefined);
         setError(undefined);
         refreshSceneDocument();
+    };
+
+    const addBasicComponentToRoot = (kind: string) => {
+        addBasicComponentUnderNode(kind, getNodeLocator(document.scene.root));
     };
 
     const addSceneUnderNode = async (scenePath: string, parent: string) => {
@@ -451,17 +541,28 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
         refreshSceneDocument();
     };
 
+    const addSceneToRoot = async (scenePath: string) => {
+        await addSceneUnderNode(scenePath, getNodeLocator(document.scene.root));
+    };
+
     return (
         <div className="nodeTree" data-testid="hierarchy-tree">
             <div className="sectionHeader hierarchyHeader">
-                <div className="sectionTitle">{t('hierarchyTreeTitle')}</div>
-                <small>{t('hierarchyDropHint')}</small>
+                <div>
+                    <div className="sectionTitle">{t('hierarchyTreeTitle')}</div>
+                    <small>{t('hierarchyDropHint')}</small>
+                </div>
+                <div className="hierarchyCreateActions" aria-label={t('hierarchyExpandActionsLabel')}>
+                    <button onClick={setAllNodesExpanded} type="button">{t('expandAll')}</button>
+                    <button onClick={setAllNodesCollapsed} type="button">{t('collapseAll')}</button>
+                </div>
             </div>
             {error ? <div className="errorBox">{error}</div> : null}
             <TreeView
                 ariaLabel={t('sceneNodeTreeLabel')}
                 expandedKeys={expandedKeys}
                 items={treeItems}
+                onExpandedChange={updateExpandedKeys}
                 onItemAction={(item) => document.setSelection({ type: 'node', node: item.locator })}
                 onSelectedKeyChange={(_, item) => document.setSelection({ type: 'node', node: item.locator })}
                 selectedKeys={selected ? [selected] : []}
@@ -566,13 +667,47 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
                                     value={renameDraft}
                                 />
                             ) : (
-                                <strong>{nodeLabel(item.node)}</strong>
+                                <span className="nodeName">
+                                    <SystemIcon name={nodeKindIcon(item.node)} />
+                                    <strong>{nodeLabel(item.node)}</strong>
+                                </span>
                             )}
-                            <small>{item.node.role ?? item.locator}</small>
                         </DragSource>
                     </DropZone>
                 )}
             />
+            <DropZone
+                acceptedTypes={[sceneDragDataType, basicComponentDragDataType, editorDragDataTypes.hierarchyNode]}
+                aria-label={t('dropToSceneRoot')}
+                className={[
+                    'rootDropZone',
+                    dropTarget === rootDropLocator ? 'dropTarget' : '',
+                ].filter(Boolean).join(' ')}
+                getDropOperation={(types, allowedOperations) => {
+                    if (types.has(editorDragDataTypes.hierarchyNode)) {
+                        return allowedOperations.includes('move') ? 'move' : 'cancel';
+                    }
+                    return allowedOperations.includes('copy') ? 'copy' : allowedOperations[0] ?? 'copy';
+                }}
+                onDropEnter={() => setDropTarget(rootDropLocator)}
+                onDropExit={() => setDropTarget((target) => target === rootDropLocator ? undefined : target)}
+                onPayloadDrop={(payload) => {
+                    setDropTarget(rootDropLocator);
+                    setNodeDropTarget(undefined);
+                    if (payload.type === editorDragDataTypes.hierarchyNode) {
+                        moveHierarchyNodeToRoot(payload.data);
+                        return;
+                    }
+                    if (payload.type === sceneDragDataType) {
+                        void addSceneToRoot(payload.data);
+                        return;
+                    }
+                    addBasicComponentToRoot(payload.data);
+                }}
+            >
+                <strong>{t('dropToSceneRoot')}</strong>
+                <span>{t('hierarchyDropHint')}</span>
+            </DropZone>
             {contextMenu && contextLocated ? (
                 <div
                     className="nodeContextMenu"

@@ -105,6 +105,27 @@ function SceneTreePanel({ document }: { document: SceneDocument }) {
     );
 }
 
+function WelcomePage({ onOpenFolder }: { onOpenFolder: () => void }) {
+    const t = useI18n();
+
+    return (
+        <section className="welcomePage" aria-labelledby="welcome-title" data-testid="welcome-page">
+            <div className="welcomeCard">
+                <span className="welcomeMark" aria-hidden="true">P</span>
+                <div className="welcomeCopy">
+                    <p>{t('project')}</p>
+                    <h1 id="welcome-title">{t('projectNotOpened')}</h1>
+                    <span>{t('projectOpenHint')}</span>
+                    <small>{t('projectOpenRule')}</small>
+                </div>
+                <Button icon="folder-open" onPress={onOpenFolder} variant="primary">
+                    {t('openFolder')}
+                </Button>
+            </div>
+        </section>
+    );
+}
+
 function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
     const titles = dockPanelTitles(language);
     const fileSystem = event.api.addPanel({
@@ -160,6 +181,7 @@ export function EditorApp() {
     const [saveStatusKey, setSaveStatusKey] = useState<'closed' | 'treeLoaded' | 'noScene' | 'savedFile'>('closed');
     const [savedFileName, setSavedFileName] = useState('');
     const components = useMemo(() => createDockComponents(document, revision), [document, revision]);
+    const hasProject = Boolean(projectTree);
     const saveStatus = useMemo(() => {
         switch (saveStatusKey) {
             case 'treeLoaded':
@@ -222,6 +244,21 @@ export function EditorApp() {
         addInitialPanels(event, language);
         window.requestAnimationFrame(() => setInitialDockLayout(event.api));
     }, [language]);
+    const topStatus = hasProject ? (
+        <>
+            <span>{document.scene.name}.scene</span>
+            <span className={document.dirty ? 'statusPill dirty' : 'statusPill saved'}>{document.dirty ? t('dirtyUnsaved') : t('saved')}</span>
+            <span data-testid="save-status">{saveStatus}</span>
+            <span>AI Ready</span>
+            <SummaryBar document={document} />
+        </>
+    ) : (
+        <>
+            <span>{t('projectNotOpened')}</span>
+            <span data-testid="save-status">{t('saveStatusClosed')}</span>
+            <span>{t('agentProjectNotOpened')}</span>
+        </>
+    );
 
     return (
         <div className="app">
@@ -234,26 +271,30 @@ export function EditorApp() {
                     </div>
                 </div>
                 <div className="statusBar">
-                    <span>{document.scene.name}.scene</span>
-                    <span className={document.dirty ? 'statusPill dirty' : 'statusPill saved'}>{document.dirty ? t('dirtyUnsaved') : t('saved')}</span>
-                    <span data-testid="save-status">{saveStatus}</span>
-                    <span>AI Ready</span>
-                    <SummaryBar document={document} />
+                    {topStatus}
                 </div>
                 <div className="topActions" aria-label={t('topActionsLabel')}>
-                    <div className="topActionGroup">
-                        <IconButton icon="undo" label={t('undo')} onClick={undo} disabled={!document.canUndo} />
-                        <IconButton icon="redo" label={t('redo')} onClick={redo} disabled={!document.canRedo} />
-                    </div>
+                    {hasProject ? (
+                        <div className="topActionGroup">
+                            <IconButton icon="undo" label={t('undo')} onClick={undo} disabled={!document.canUndo} />
+                            <IconButton icon="redo" label={t('redo')} onClick={redo} disabled={!document.canRedo} />
+                        </div>
+                    ) : null}
                     <div className="topActionGroup">
                         <Button icon="folder-open" onPress={() => void openFolder()}>{t('openFolder')}</Button>
-                        <Button icon="save" onPress={() => void saveScene()}>{t('save')}</Button>
-                        <Button icon="reset" onPress={resetDocument}>{t('resetMock')}</Button>
+                        {hasProject ? (
+                            <>
+                                <Button icon="save" onPress={() => void saveScene()}>{t('save')}</Button>
+                                <Button icon="reset" onPress={resetDocument}>{t('resetMock')}</Button>
+                            </>
+                        ) : null}
                     </div>
-                    <div className="topActionGroup">
-                        <Button icon="eye">{t('preview')}</Button>
-                        <Button icon="play" variant="primary">{t('run')}</Button>
-                    </div>
+                    {hasProject ? (
+                        <div className="topActionGroup">
+                            <Button icon="eye">{t('preview')}</Button>
+                            <Button icon="play" variant="primary">{t('run')}</Button>
+                        </div>
+                    ) : null}
                     <div className="languageControl">
                         <SystemIcon name="languages" />
                         <Select
@@ -269,8 +310,12 @@ export function EditorApp() {
                     </div>
                 </div>
             </header>
-            <main className="dockHost dockview-theme-light">
-                <DockviewReact components={components} onReady={handleDockReady} theme={themeLight} />
+            <main className={hasProject ? 'dockHost dockview-theme-light' : 'welcomeHost'}>
+                {hasProject ? (
+                    <DockviewReact components={components} onReady={handleDockReady} theme={themeLight} />
+                ) : (
+                    <WelcomePage onOpenFolder={() => void openFolder()} />
+                )}
             </main>
             <footer className="mcpStatusBar" aria-label={t('agentStatusTitle')} data-testid="mcp-status-bar">
                 <div>
