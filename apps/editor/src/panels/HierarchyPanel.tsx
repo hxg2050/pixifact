@@ -7,10 +7,10 @@ import { refreshSceneDocument } from '../document/sceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
 import {
-    basicComponentDragDataType,
-    createBasicComponentNode,
-    isBasicComponentKind,
-} from '../services/basicComponentLibrary';
+    nodeTemplateDragDataType,
+    createNodeTemplateNode,
+    isNodeTemplateKind,
+} from '../services/nodeTemplateLibrary';
 import { createSceneInstanceNode } from '../services/sceneInstance';
 import { hierarchyNodeDragPayload } from '../services/dragPayload';
 import { editorDragDataTypes } from '../services/dragPayload';
@@ -474,9 +474,9 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
         setDropTarget(undefined);
     };
 
-    const addBasicComponentUnderNode = (kind: string, parent: string) => {
-        if (!isBasicComponentKind(kind)) {
-            setError(t('basicComponentMissing'));
+    const addNodeTemplateUnderNode = (kind: string, parent: string) => {
+        if (!isNodeTemplateKind(kind)) {
+            setError(t('nodeTemplateMissing'));
             return;
         }
         const locatedParent = locateNode(document.scene.root, parent);
@@ -485,7 +485,7 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
             return;
         }
 
-        const node = createBasicComponentNode(document, kind);
+        const node = createNodeTemplateNode(document, kind);
         const result = document.apply({
             op: 'createNode',
             parent,
@@ -501,8 +501,8 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
         refreshSceneDocument();
     };
 
-    const addBasicComponentToRoot = (kind: string) => {
-        addBasicComponentUnderNode(kind, getNodeLocator(document.scene.root));
+    const addNodeTemplateToRoot = (kind: string) => {
+        addNodeTemplateUnderNode(kind, getNodeLocator(document.scene.root));
     };
 
     const addSceneUnderNode = async (scenePath: string, parent: string) => {
@@ -568,7 +568,7 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
                 selectedKeys={selected ? [selected] : []}
                 renderItem={({ item }) => (
                     <DropZone
-                        acceptedTypes={[sceneDragDataType, basicComponentDragDataType, editorDragDataTypes.hierarchyNode]}
+                        acceptedTypes={[sceneDragDataType, nodeTemplateDragDataType, editorDragDataTypes.hierarchyNode]}
                         aria-label={t('dropToNode', { node: nodeLabel(item.node) })}
                         className={[
                             'nodeRow',
@@ -611,7 +611,7 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
                                 void addSceneUnderNode(payload.data, item.locator);
                                 return;
                             }
-                            addBasicComponentUnderNode(payload.data, item.locator);
+                            addNodeTemplateUnderNode(payload.data, item.locator);
                         }}
                         ref={(element) => {
                             if (element) {
@@ -677,7 +677,7 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
                 )}
             />
             <DropZone
-                acceptedTypes={[sceneDragDataType, basicComponentDragDataType, editorDragDataTypes.hierarchyNode]}
+                acceptedTypes={[sceneDragDataType, nodeTemplateDragDataType, editorDragDataTypes.hierarchyNode]}
                 aria-label={t('dropToSceneRoot')}
                 className={[
                     'rootDropZone',
@@ -702,7 +702,7 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
                         void addSceneToRoot(payload.data);
                         return;
                     }
-                    addBasicComponentToRoot(payload.data);
+                    addNodeTemplateToRoot(payload.data);
                 }}
             >
                 <strong>{t('dropToSceneRoot')}</strong>

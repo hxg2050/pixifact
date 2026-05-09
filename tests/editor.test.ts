@@ -33,7 +33,7 @@ import {
     validateCommand,
 } from 'pixifact';
 import type { SceneSpec } from 'pixifact';
-import { createBasicComponentNode } from '../apps/editor/src/services/basicComponentLibrary';
+import { createNodeTemplateNode } from '../apps/editor/src/services/nodeTemplateLibrary';
 
 function createButtonScene(): SceneSpec {
     return scene('PrimaryButton',
@@ -1005,7 +1005,7 @@ describe('SceneDocument', () => {
 describe('editor scene templates', () => {
     it('creates Button as a container template instead of a base display node', () => {
         const doc = new SceneDocument(createButtonScene());
-        const node = createBasicComponentNode(doc, 'button');
+        const node = createNodeTemplateNode(doc, 'button');
 
         expect(node.kind).toBe('container');
         if (node.kind !== 'container') {
@@ -1046,8 +1046,8 @@ describe('editor scene templates', () => {
 
     it('adds ProgressBar and ScrollView through the editor template library', () => {
         const doc = new SceneDocument(createButtonScene());
-        const progressBar = createBasicComponentNode(doc, 'progressBar');
-        const scrollView = createBasicComponentNode(doc, 'scrollView');
+        const progressBar = createNodeTemplateNode(doc, 'progressBar');
+        const scrollView = createNodeTemplateNode(doc, 'scrollView');
 
         expect(progressBar.kind).toBe('container');
         expect(progressBar.components?.[0]?.type).toBe('ui.ProgressBar');

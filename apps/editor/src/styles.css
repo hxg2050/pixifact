@@ -681,7 +681,7 @@ textarea {
     pointer-events: none;
 }
 
-.basicLibraryTree {
+.nodeTemplateLibraryTree {
     margin-top: 4px;
 }
 
@@ -850,11 +850,11 @@ textarea {
     background: #0d9488;
 }
 
-.fileRow.basicComponent::before {
+.fileRow.nodeTemplate::before {
     background: #2563eb;
 }
 
-.fileRow.sceneTemplate::before {
+.fileRow.compositeTemplate::before {
     background: #9333ea;
 }
 

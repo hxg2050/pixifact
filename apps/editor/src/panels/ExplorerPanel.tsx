@@ -16,12 +16,12 @@ import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
 import type { I18nKey } from '../i18n';
 import {
-    basicComponentLibrary,
-    basicNodeLibrary,
-    sceneTemplateLibrary,
-} from '../services/basicComponentLibrary';
+    nodeTemplateLibrary,
+    baseNodeLibrary,
+    compositeTemplateLibrary,
+} from '../services/nodeTemplateLibrary';
 import {
-    basicComponentDragPayload,
+    nodeTemplateDragPayload,
     componentDragPayload,
     sceneDragPayload,
 } from '../services/dragPayload';
@@ -203,8 +203,8 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
     const selectedFile = projectTree && selectedPath ? findFileInTree(projectTree, selectedPath) ?? projectTree : projectTree;
     const devProjectRootPath = editorProjectPath();
     const projectPath = projectTree?.systemPath ?? projectTree?.path ?? devProjectRootPath ?? t('saveStatusClosed');
-    const selectedBasicComponent = selectedPath?.startsWith('library/basic/')
-        ? basicComponentLibrary.find((item) => selectedPath === `library/basic/${item.kind}`)
+    const selectedNodeTemplate = selectedPath?.startsWith('library/template/node/')
+        ? nodeTemplateLibrary.find((item) => selectedPath === `library/template/node/${item.kind}`)
         : undefined;
 
     useEffect(() => {
@@ -262,14 +262,14 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
         setActionText(fileAction(file, 'select', t));
     };
 
-    const selectBasicComponent = (kind: string) => {
-        const item = basicComponentLibrary.find((candidate) => candidate.kind === kind);
+    const selectNodeTemplate = (kind: string) => {
+        const item = nodeTemplateLibrary.find((candidate) => candidate.kind === kind);
         if (!item) {
             return;
         }
-        setSelectedProjectFile(`library/basic/${item.kind}`);
+        setSelectedProjectFile(`library/template/node/${item.kind}`);
         setRenameName('');
-        setActionText(t('basicComponentDragHint', { name: t(item.nameKey) }));
+        setActionText(t('nodeTemplateDragHint', { name: t(item.nameKey) }));
     };
 
     const openFile = async (file: ProjectFileTreeNode) => {
@@ -376,7 +376,7 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
     };
 
     const beginRename = (file: ProjectFileTreeNode) => {
-        if (!projectTree || selectedBasicComponent) {
+        if (!projectTree || selectedNodeTemplate) {
             return;
         }
         if (!canRenameFile(projectTree, file, openedScenePath, document.dirty)) {
@@ -393,7 +393,7 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
 
     const commitRename = async (file: ProjectFileTreeNode, name: string) => {
         const nextName = name.trim();
-        if (!nextName || !projectTree || selectedBasicComponent) {
+        if (!nextName || !projectTree || selectedNodeTemplate) {
             setRenameTargetPath(undefined);
             return;
         }
@@ -426,7 +426,7 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
     };
 
     const deleteEntry = async (file: ProjectFileTreeNode) => {
-        if (!projectTree || selectedBasicComponent) {
+        if (!projectTree || selectedNodeTemplate) {
             return;
         }
         if (file.path === projectTree.path) {
@@ -518,24 +518,24 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
                         <div className="accordionContent">
                             <div className="fileOperationBar" aria-label={t('fileOperationsLabel')}>
                                 <Button icon="refresh" onPress={() => void refreshFileTree()}>{t('refresh')}</Button>
-                                <Button disabled={selectedBasicComponent !== undefined || !selectedFile || !canRenameFile(projectTree, selectedFile, openedScenePath, document.dirty)} icon="edit" onPress={() => selectedFile ? beginRename(selectedFile) : undefined}>
+                                <Button disabled={selectedNodeTemplate !== undefined || !selectedFile || !canRenameFile(projectTree, selectedFile, openedScenePath, document.dirty)} icon="edit" onPress={() => selectedFile ? beginRename(selectedFile) : undefined}>
                                     {t('rename')}
                                 </Button>
-                                <Button disabled={selectedBasicComponent !== undefined || !selectedFile || !canDeleteFile(projectTree, selectedFile, openedScenePath, document.dirty)} icon="trash" onPress={() => void deleteSelectedEntry()} variant="danger">
+                                <Button disabled={selectedNodeTemplate !== undefined || !selectedFile || !canDeleteFile(projectTree, selectedFile, openedScenePath, document.dirty)} icon="trash" onPress={() => void deleteSelectedEntry()} variant="danger">
                                     {t('delete')}
                                 </Button>
                             </div>
                             <div className="createSceneRow">
                                 <TextField
                                     data-testid="rename-entry-name"
-                                    disabled={selectedBasicComponent !== undefined || selectedFile?.path === projectTree.path}
+                                    disabled={selectedNodeTemplate !== undefined || selectedFile?.path === projectTree.path}
                                     inputProps={{ 'aria-label': t('renameEntryLabel'), placeholder: t('renameEntryLabel') }}
                                     onChange={setRenameName}
                                     value={renameName}
                                 />
                                 <Button
                                     data-testid="rename-entry"
-                                    disabled={selectedBasicComponent !== undefined || selectedFile?.path === projectTree.path || renameName.trim() === ''}
+                                    disabled={selectedNodeTemplate !== undefined || selectedFile?.path === projectTree.path || renameName.trim() === ''}
                                     onPress={() => void renameSelectedEntry()}
                                 >
                                     {t('apply')}
@@ -669,54 +669,54 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
                         </div>
                     </div>
                 </section>
-                <section className="accordionSection" data-testid="basic-component-library">
+                <section className="accordionSection" data-testid="node-template-library">
                     <button
                         aria-expanded={openSection === 'library'}
                         className="accordionHeader"
                         onClick={() => setOpenSection('library')}
                         type="button"
                     >
-                        {t('basicComponentLibrary')}
+                        {t('nodeTemplateLibrary')}
                     </button>
                     <div
                         aria-hidden={openSection !== 'library'}
                         className={openSection === 'library' ? 'accordionPanel open' : 'accordionPanel'}
                     >
                         <div className="accordionContent">
-                            <div className="libraryGroupTitle">{t('basicNodeLibrary')}</div>
-                            <div className="fileTree basicLibraryTree">
-                                {basicNodeLibrary.map((item) => (
+                            <div className="libraryGroupTitle">{t('baseNodeLibrary')}</div>
+                            <div className="fileTree nodeTemplateLibraryTree">
+                                {baseNodeLibrary.map((item) => (
                                     <DragSource
                                         as="button"
                                         className={[
                                             'fileRow',
-                                            'basicComponent',
-                                            selectedPath === `library/basic/${item.kind}` ? 'selected' : '',
+                                            'nodeTemplate',
+                                            selectedPath === `library/template/node/${item.kind}` ? 'selected' : '',
                                         ].filter(Boolean).join(' ')}
-                                        data-basic-component={item.kind}
+                                        data-node-template={item.kind}
                                         key={item.kind}
-                                        onClick={() => selectBasicComponent(item.kind)}
-                                        payload={basicComponentDragPayload(item.kind, t(item.nameKey))}
+                                        onClick={() => selectNodeTemplate(item.kind)}
+                                        payload={nodeTemplateDragPayload(item.kind, t(item.nameKey))}
                                         title={t(item.detailKey)}
                                     >
                                         <strong>{t(item.nameKey)}</strong>
                                     </DragSource>
                                 ))}
                             </div>
-                            <div className="libraryGroupTitle">{t('sceneTemplateLibrary')}</div>
-                            <div className="fileTree basicLibraryTree">
-                                {sceneTemplateLibrary.map((item) => (
+                            <div className="libraryGroupTitle">{t('compositeTemplateLibrary')}</div>
+                            <div className="fileTree nodeTemplateLibraryTree">
+                                {compositeTemplateLibrary.map((item) => (
                                     <DragSource
                                         as="button"
                                         className={[
                                             'fileRow',
-                                            'sceneTemplate',
-                                            selectedPath === `library/basic/${item.kind}` ? 'selected' : '',
+                                            'compositeTemplate',
+                                            selectedPath === `library/template/node/${item.kind}` ? 'selected' : '',
                                         ].filter(Boolean).join(' ')}
-                                        data-basic-component={item.kind}
+                                        data-node-template={item.kind}
                                         key={item.kind}
-                                        onClick={() => selectBasicComponent(item.kind)}
-                                        payload={basicComponentDragPayload(item.kind, t(item.nameKey))}
+                                        onClick={() => selectNodeTemplate(item.kind)}
+                                        payload={nodeTemplateDragPayload(item.kind, t(item.nameKey))}
                                         title={t(item.detailKey)}
                                     >
                                         <strong>{t(item.nameKey)}</strong>
@@ -729,10 +729,10 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
                 <section className="filePreview" data-testid="file-preview">
                     <div className="filePreviewContent">
                         <span>{t('file')}</span>
-                        <strong>{selectedBasicComponent ? t(selectedBasicComponent.nameKey) : selectedFile?.name ?? projectTree.name}</strong>
-                        <small>{selectedBasicComponent ? t('basicComponentLibrary') : selectedFile?.path ?? projectTree.path}</small>
-                        {selectedBasicComponent ? (
-                            <div className="fileRule">{t('basicComponentPreviewRule', { detail: t(selectedBasicComponent.detailKey) })}</div>
+                        <strong>{selectedNodeTemplate ? t(selectedNodeTemplate.nameKey) : selectedFile?.name ?? projectTree.name}</strong>
+                        <small>{selectedNodeTemplate ? t('nodeTemplateLibrary') : selectedFile?.path ?? projectTree.path}</small>
+                        {selectedNodeTemplate ? (
+                            <div className="fileRule">{t('nodeTemplatePreviewRule', { detail: t(selectedNodeTemplate.detailKey) })}</div>
                         ) : selectedFile?.kind === 'asset' ? (
                             <div className="imagePreview">
                                 {imagePreviewUrl ? (

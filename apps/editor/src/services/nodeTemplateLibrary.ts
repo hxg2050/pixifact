@@ -12,12 +12,12 @@ import type { SceneDocument, NodeSpec } from 'pixifact';
 import type { I18nKey } from '../i18n';
 import { editorDragDataTypes } from './dragPayload';
 
-export const basicComponentDragDataType = editorDragDataTypes.basicComponent;
+export const nodeTemplateDragDataType = editorDragDataTypes.nodeTemplate;
 
-export type BasicComponentKind = 'container' | 'button' | 'progressBar' | 'scrollView' | 'text' | 'image' | 'input' | 'shape';
+export type NodeTemplateKind = 'container' | 'button' | 'progressBar' | 'scrollView' | 'text' | 'image' | 'input' | 'shape';
 
-export interface BasicComponentItem {
-    kind: BasicComponentKind;
+export interface NodeTemplateItem {
+    kind: NodeTemplateKind;
     name: string;
     detail: string;
     nameKey: I18nKey;
@@ -25,7 +25,7 @@ export interface BasicComponentItem {
     group: 'node' | 'template';
 }
 
-export const basicComponentLibrary: BasicComponentItem[] = [
+export const nodeTemplateLibrary: NodeTemplateItem[] = [
     { kind: 'container', name: '容器', detail: '可包含子节点', nameKey: 'basicGroupName', detailKey: 'basicGroupDetail', group: 'node' },
     { kind: 'image', name: '图片', detail: 'Image 节点', nameKey: 'basicImageName', detailKey: 'basicImageDetail', group: 'node' },
     { kind: 'text', name: '文字', detail: 'Text 节点', nameKey: 'basicTextName', detailKey: 'basicTextDetail', group: 'node' },
@@ -36,10 +36,10 @@ export const basicComponentLibrary: BasicComponentItem[] = [
     { kind: 'scrollView', name: '滚动视图', detail: 'Scene 模板', nameKey: 'basicScrollViewName', detailKey: 'basicScrollViewDetail', group: 'template' },
 ];
 
-export const basicNodeLibrary = basicComponentLibrary.filter((item) => item.group === 'node');
-export const sceneTemplateLibrary = basicComponentLibrary.filter((item) => item.group === 'template');
+export const baseNodeLibrary = nodeTemplateLibrary.filter((item) => item.group === 'node');
+export const compositeTemplateLibrary = nodeTemplateLibrary.filter((item) => item.group === 'template');
 
-function nodeKeyBase(kind: BasicComponentKind) {
+function nodeKeyBase(kind: NodeTemplateKind) {
     switch (kind) {
         case 'button':
             return 'button';
@@ -75,7 +75,7 @@ function collectNodeKeys(node: NodeSpec, keys = new Set<string>()) {
     return keys;
 }
 
-function nextNodeKey(document: SceneDocument, kind: BasicComponentKind) {
+function nextNodeKey(document: SceneDocument, kind: NodeTemplateKind) {
     const keys = collectNodeKeys(document.scene.root);
     const base = nodeKeyBase(kind);
     let index = 1;
@@ -89,7 +89,7 @@ function nextNodeKey(document: SceneDocument, kind: BasicComponentKind) {
     return { key, index };
 }
 
-export function createBasicComponentNode(document: SceneDocument, kind: BasicComponentKind): NodeSpec {
+export function createNodeTemplateNode(document: SceneDocument, kind: NodeTemplateKind): NodeSpec {
     const { key, index } = nextNodeKey(document, kind);
 
     switch (kind) {
@@ -164,6 +164,6 @@ export function createBasicComponentNode(document: SceneDocument, kind: BasicCom
     }
 }
 
-export function isBasicComponentKind(value: string): value is BasicComponentKind {
-    return basicComponentLibrary.some((item) => item.kind === value);
+export function isNodeTemplateKind(value: string): value is NodeTemplateKind {
+    return nodeTemplateLibrary.some((item) => item.kind === value);
 }
