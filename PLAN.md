@@ -19,7 +19,7 @@
 - 子节点规则：只有 `container` 可以拥有 `children`。
 - 组件规则：所有节点都可以挂行为组件。
 - 显示规则：显示数据在节点字段上，例如 `text.value`、`image.src`、`input.value`、`shape.color`。
-- 组合控件：Button、ProgressBar、ScrollView 等是 Scene 模板或 runtime 组合控件，不是基础显示节点。
+- 组合控件：Button、ProgressBar、ScrollView 等是 Scene 模板，不是基础显示节点。
 - 命令协议：`SceneCommand`、`validateSceneCommand`、`applySceneCommand`、`instantiateScene`。
 - Authoring document：`SceneDocument` 是 editor 和 Agent 修改 Scene 的 source of truth。
 
@@ -27,7 +27,7 @@
 
 ```txt
 packages/pixifact/src/runtime/    runtime foundation
-packages/pixifact/src/nodes/      runtime nodes and compound controls
+packages/pixifact/src/nodes/      runtime nodes and behavior components
 packages/pixifact/src/scene/      SceneSpec、DSL、instantiateScene、templates
 packages/pixifact/src/commands/   SceneCommand validate / apply / undo
 packages/pixifact/src/authoring/  SceneDocument、AI context、diff、memory、logic

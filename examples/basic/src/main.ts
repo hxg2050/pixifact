@@ -1,7 +1,6 @@
 import './styles.css';
 import {
     Application,
-    Button,
     Component,
     Flex,
     FlexDirection,
@@ -14,7 +13,7 @@ import {
     Label,
     LabelStyle,
     Layout,
-    ScrollView,
+    ScrollRect,
     Textarea,
 } from 'pixifact';
 
@@ -173,15 +172,39 @@ function makeCard(parent: Group, props: Partial<Group>, fill = 0xffffff) {
 }
 
 function makeButton(parent: Group, label: string, x: number, y: number, width: number, onTap: () => void) {
-    const button = GameObject.instantiate(Button, parent, {
+    const button = GameObject.instantiate(Group, parent, {
         x,
         y,
         width,
         height: 42,
-        value: label,
-        fontFamily: FONT,
     });
-    button.emitter.on('tap', onTap);
+    const background = GameObject.instantiate(Graphics, button);
+    drawPanel(background, width, 42, 10, 0x2563eb, 0x2563eb);
+    makeLabel(button, label, width / 2, 21, {
+        fill: 0xffffff,
+        fontFamily: FONT,
+        fontSize: 14,
+        fontWeight: '700',
+        anchorX: 0.5,
+        anchorY: 0.5,
+    });
+    button.display.eventMode = 'static';
+    button.display.cursor = 'pointer';
+    button.display.on('pointerover', () => drawPanel(background, width, 42, 10, 0x1d4ed8, 0x1d4ed8));
+    button.display.on('pointerout', () => drawPanel(background, width, 42, 10, 0x2563eb, 0x2563eb));
+    button.display.on('pointerdown', () => {
+        button.scaleX = 0.98;
+        button.scaleY = 0.98;
+    });
+    button.display.on('pointerup', () => {
+        button.scaleX = 1;
+        button.scaleY = 1;
+    });
+    button.display.on('pointerupoutside', () => {
+        button.scaleX = 1;
+        button.scaleY = 1;
+    });
+    button.display.on('pointertap', onTap);
     return button;
 }
 
@@ -252,14 +275,24 @@ GameObject.instantiate(Graphics, badge)
     .stroke({ width: 2, color: 0x0f172a, alpha: 0.16 });
 makeLabel(badge, 'GO', 16, 20, { fill: 0x0f172a, fontSize: 18, fontWeight: '800' });
 
-const scroll = GameObject.instantiate(ScrollView, shell, {
+const scroll = GameObject.instantiate(Group, shell, {
     x: 34,
     y: 122,
     width: 1052,
     height: 544,
+});
+const scrollMask = GameObject.instantiate(Graphics, scroll);
+scrollMask.rect(0, 0, scroll.width, scroll.height).fill(0xffffff);
+const content = GameObject.instantiate(Group, scroll, {
+    width: scroll.width,
+    height: 980,
+});
+content.display.mask = scrollMask.display;
+const scrollRect = scroll.addComponent(ScrollRect, {
+    viewport: scroll,
+    content,
     contentHeight: 980,
 });
-const content = scroll.content;
 
 const topGrid = GameObject.instantiate(Group, content, {
     x: 0,
@@ -283,7 +316,7 @@ topGrid.addComponent(GridLayout, {
 ].forEach((stat) => makeStatCard(topGrid, stat));
 
 const scrollCard = makeCard(content, { x: 792, y: 0, width: 260, height: 92 }, 0xfffbeb);
-makeLabel(scrollCard, 'ScrollView', 18, 16, { fontSize: 22, fontWeight: '800', fill: 0x92400e });
+makeLabel(scrollCard, 'ScrollRect', 18, 16, { fontSize: 22, fontWeight: '800', fill: 0x92400e });
 makeLabel(scrollCard, 'Wheel or drag this page.', 18, 52, { fill: 0x92400e, fontSize: 13 });
 
 const gridCard = makeCard(content, { x: 0, y: 122, width: 474, height: 260 }, 0xf8fafc);
@@ -395,7 +428,7 @@ makeButton(actionCard, 'Focus input', 316, 82, 130, () => {
 
 const lifecycleCard = makeCard(content, { x: 0, y: 584, width: 330, height: 170 }, 0xf0fdfa);
 makeLabel(lifecycleCard, 'Composite structure', 20, 20, { fontSize: 20, fontWeight: '800', fill: 0x134e4a });
-makeLabel(lifecycleCard, 'ScrollView is a Group subclass that owns mask, content, event handling, and a scrollbar.', 20, 56, {
+makeLabel(lifecycleCard, 'Scroll behavior is composed from Group, mask, content node, and ScrollRect.', 20, 56, {
     fill: 0x0f766e,
     fontSize: 13,
     wordWrap: true,
@@ -435,7 +468,5 @@ makeLabel(finalCard, 'This section sits below the initial viewport and confirms 
     wordWrapWidth: 860,
 });
 makeButton(finalCard, 'Back to top', 878, 52, 130, () => {
-    scroll.scrollTo(0);
+    scrollRect.scrollTo(0);
 });
-
-scroll.refreshContentHeight();

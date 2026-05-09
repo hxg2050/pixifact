@@ -1,6 +1,6 @@
 import { Container, Ticker } from 'pixi.js';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Application, Button, GameObject, Group, Input, Layout, ScrollView, Textarea } from 'pixifact';
+import { Application, GameObject, Group, Input, Layout, ScrollRect, Textarea } from 'pixifact';
 
 function setElementRect(element: Element, left: number, top: number) {
     vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({
@@ -400,163 +400,70 @@ describe('Textarea', () => {
     });
 });
 
-describe('Button', () => {
-    it('applies props before render and lays out its child nodes', () => {
-        const button = GameObject.instantiate(Button, undefined, {
-            width: 140,
-            height: 44,
-            value: 'Submit',
-        });
-
-        expect(button.width).toBe(140);
-        expect(button.height).toBe(44);
-        expect(button.background).toBeDefined();
-        expect(button.nineSliceImage).toBeDefined();
-        expect(button.label.value).toBe('Submit');
-        expect(button.content.x).toBe(70);
-        expect(button.content.y).toBe(22);
-        expect(button.content.display.pivot.x).toBe(70);
-        expect(button.content.display.pivot.y).toBe(22);
-        expect(button.nineSliceImage.width).toBe(140);
-        expect(button.nineSliceImage.height).toBe(44);
-        expect(button.display.eventMode).toBe('static');
-        expect(button.display.cursor).toBe('pointer');
-
-        GameObject.destroy(button);
-    });
-
-    it('emits press, release, and tap events from pointer interactions', () => {
-        const button = GameObject.instantiate(Button, undefined, {
-            width: 120,
-            height: 40,
-        });
-        const press = vi.fn();
-        const release = vi.fn();
-        const tap = vi.fn();
-        const event = {} as never;
-
-        button.emitter.on('press', press);
-        button.emitter.on('release', release);
-        button.emitter.on('tap', tap);
-
-        button.display.emit('pointerdown', event);
-        expect(button.scaleX).toBe(1);
-        expect(button.scaleY).toBe(1);
-        expect(button.content.scaleX).toBe(button.pressedScale);
-        expect(button.content.scaleY).toBe(button.pressedScale);
-        expect(press).toHaveBeenCalledWith(event);
-
-        button.display.emit('pointerup', event);
-        expect(button.content.scaleX).toBe(1);
-        expect(button.content.scaleY).toBe(1);
-        expect(release).toHaveBeenCalledWith(event);
-
-        button.display.emit('pointertap', event);
-        expect(tap).toHaveBeenCalledWith(event);
-
-        GameObject.destroy(button);
-    });
-
-    it('ignores pointer interactions while disabled', () => {
-        const button = GameObject.instantiate(Button, undefined, {
-            width: 120,
-            height: 40,
-            disabled: true,
-        });
-        const press = vi.fn();
-
-        button.emitter.on('press', press);
-        button.display.emit('pointerdown', {} as never);
-
-        expect(button.display.eventMode).toBe('none');
-        expect(button.display.cursor).toBe('default');
-        expect(button.scaleX).toBe(1);
-        expect(button.content.scaleX).toBe(1);
-        expect(press).not.toHaveBeenCalled();
-
-        GameObject.destroy(button);
-    });
-
-    it('removes Pixi event listeners on destroy', () => {
-        const button = GameObject.instantiate(Button, undefined, {
-            width: 120,
-            height: 40,
-        });
-
-        expect(button.display.listenerCount('pointerdown')).toBe(1);
-        expect(button.display.listenerCount('pointertap')).toBe(1);
-
-        GameObject.destroy(button);
-
-        expect(button.display.listenerCount('pointerdown')).toBe(0);
-        expect(button.display.listenerCount('pointertap')).toBe(0);
-    });
-});
-
-describe('ScrollView', () => {
+describe('ScrollRect', () => {
     it('clamps scrollY and moves content in the opposite direction', () => {
-        const scroll = GameObject.instantiate(ScrollView, undefined, {
+        const viewport = GameObject.instantiate(Group, undefined, {
             width: 200,
             height: 100,
+        });
+        const content = GameObject.instantiate(Group, viewport, { width: 200, height: 260 });
+        const scroll = viewport.addComponent(ScrollRect, {
+            viewport,
+            content,
             contentHeight: 260,
         });
 
         scroll.scrollTo(80);
-        expect(scroll.scrollY).toBe(80);
-        expect(scroll.content.y).toBe(-80);
+        expect(content.y).toBe(-80);
 
         scroll.scrollBy(300);
-        expect(scroll.scrollY).toBe(160);
-        expect(scroll.content.y).toBe(-160);
+        expect(content.y).toBe(-160);
 
         scroll.scrollTo(-40);
-        expect(scroll.scrollY).toBe(0);
-        expect(scroll.content.y).toBe(0);
+        expect(Object.is(content.y, -0) ? 0 : content.y).toBe(0);
 
-        GameObject.destroy(scroll);
+        GameObject.destroy(viewport);
     });
 
-    it('refreshes content height from children and reclamps after resize', () => {
-        const scroll = GameObject.instantiate(ScrollView, undefined, {
+    it('uses the game object as the viewport when no viewport ref is set', () => {
+        const viewport = GameObject.instantiate(Group, undefined, {
             width: 200,
             height: 100,
         });
-        GameObject.instantiate(Group, scroll.content, {
-            y: 20,
-            width: 100,
-            height: 140,
+        const content = GameObject.instantiate(Group, viewport, { width: 200, height: 180 });
+        const scroll = viewport.addComponent(ScrollRect, {
+            content,
+            contentHeight: 180,
         });
 
-        scroll.refreshContentHeight();
-        expect(scroll.contentHeight).toBe(160);
-        expect(scroll.maxScrollY).toBe(60);
+        expect(scroll.maxScrollY).toBe(80);
 
         scroll.scrollTo(80);
-        expect(scroll.scrollY).toBe(60);
+        expect(content.y).toBe(-80);
 
-        scroll.height = 140;
-        expect(scroll.maxScrollY).toBe(20);
-        expect(scroll.scrollY).toBe(20);
-        expect(scroll.content.y).toBe(-20);
-
-        GameObject.destroy(scroll);
+        GameObject.destroy(viewport);
     });
 
     it('removes Pixi event listeners on destroy', () => {
-        const scroll = GameObject.instantiate(ScrollView, undefined, {
+        const viewport = GameObject.instantiate(Group, undefined, {
             width: 200,
             height: 100,
+        });
+        const content = GameObject.instantiate(Group, viewport, { width: 200, height: 260 });
+        viewport.addComponent(ScrollRect, {
+            viewport,
+            content,
             contentHeight: 260,
         });
 
-        expect(scroll.display.listenerCount('wheel')).toBe(1);
-        expect(scroll.display.listenerCount('pointerdown')).toBe(1);
-        expect(scroll.display.listenerCount('globalpointermove')).toBe(1);
+        expect(viewport.display.listenerCount('wheel')).toBe(1);
+        expect(viewport.display.listenerCount('pointerdown')).toBe(1);
+        expect(viewport.display.listenerCount('globalpointermove')).toBe(1);
 
-        GameObject.destroy(scroll);
+        GameObject.destroy(viewport);
 
-        expect(scroll.display.listenerCount('wheel')).toBe(0);
-        expect(scroll.display.listenerCount('pointerdown')).toBe(0);
-        expect(scroll.display.listenerCount('globalpointermove')).toBe(0);
+        expect(viewport.display.listenerCount('wheel')).toBe(0);
+        expect(viewport.display.listenerCount('pointerdown')).toBe(0);
+        expect(viewport.display.listenerCount('globalpointermove')).toBe(0);
     });
 });

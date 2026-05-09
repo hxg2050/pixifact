@@ -19,7 +19,7 @@ Prompt / Agent -> SceneCommand -> Validate / Dry Run -> SceneDocument -> instant
 - 公开节点类型只有 `container`、`image`、`text`、`input`、`shape`。
 - 只有 `container` 可以包含子节点。
 - 所有节点都可以挂行为组件。
-- Button、ProgressBar、ScrollView 等作为 Scene 模板或组合控件，不作为基础显示节点。
+- Button、ProgressBar、ScrollView 等作为 Scene 模板，不作为基础显示节点。
 - `ui.TextGraphic`、`ui.ImageGraphic`、`ui.RoundedRectGraphic` 只是内部 runtime 实现细节，不是 authoring API。
 
 ## 目录
@@ -27,7 +27,7 @@ Prompt / Agent -> SceneCommand -> Validate / Dry Run -> SceneDocument -> instant
 ```txt
 packages/pixifact/              核心 Pixifact 包，包名为 pixifact
 packages/pixifact/src/runtime/  Application、GameObject、Component、布局、PixiJS bridge
-packages/pixifact/src/nodes/    runtime 节点和组合控件实现
+packages/pixifact/src/nodes/    runtime 节点和行为组件
 packages/pixifact/src/scene/    SceneSpec、DSL、Scene 实例化、Scene 模板
 packages/pixifact/src/commands/ SceneCommand 校验、应用、撤销基础
 packages/pixifact/src/authoring/SceneDocument、selection、diff、AI context、locks、actions、logic
