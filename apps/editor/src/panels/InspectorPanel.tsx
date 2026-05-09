@@ -26,7 +26,7 @@ import { refreshSceneDocument } from '../document/sceneDocumentController';
 import { useI18n } from '../i18n';
 import type { I18nKey } from '../i18n';
 import { editorDragDataTypes } from '../services/dragPayload';
-import { FieldRow, parseTextValue, selectedNodeId, useDocumentRevision } from './common';
+import { parseTextValue, selectedNodeId, useDocumentRevision } from './common';
 
 const nodePropLabelKeys: Record<'id' | 'key' | 'role' | 'name', I18nKey | undefined> = {
     id: undefined,
@@ -38,6 +38,14 @@ const nodePropLabelKeys: Record<'id' | 'key' | 'role' | 'name', I18nKey | undefi
 const fieldLabelKeys: Record<string, I18nKey> = {
     width: 'width',
     height: 'height',
+    mode: 'mode',
+    src: 'src',
+    tint: 'tint',
+    leftWidth: 'leftWidth',
+    rightWidth: 'rightWidth',
+    topHeight: 'topHeight',
+    bottomHeight: 'bottomHeight',
+    type: 'type',
     anchorX: 'anchorX',
     anchorY: 'anchorY',
     scaleX: 'scaleX',
@@ -72,6 +80,14 @@ const fieldLabelKeys: Record<string, I18nKey> = {
     placeholder: 'placeholder',
     multiline: 'multiline',
     textGraphic: 'textGraphic',
+    backgroundColor: 'backgroundColor',
+    borderColor: 'borderColor',
+    borderSize: 'borderSize',
+    textColor: 'textColor',
+    paddingLeft: 'paddingLeft',
+    paddingRight: 'paddingRight',
+    paddingTop: 'paddingTop',
+    paddingBottom: 'paddingBottom',
     viewport: 'viewport',
     content: 'content',
     contentHeight: 'contentHeight',
@@ -116,6 +132,36 @@ function parseFieldValue(type: string, value: string) {
 
 function componentLocator(component: InspectorComponentModel) {
     return component.id ?? component.type;
+}
+
+function nodeKindLabel(kind: InspectorNodeModel['kind'], t: Translate) {
+    switch (kind) {
+        case 'container':
+            return t('nodeKindContainer');
+        case 'image':
+            return t('nodeKindImage');
+        case 'text':
+            return t('nodeKindText');
+        case 'input':
+            return t('nodeKindInput');
+        case 'shape':
+            return t('nodeKindShape');
+    }
+}
+
+function displaySectionTitle(kind: InspectorNodeModel['kind'], t: Translate) {
+    switch (kind) {
+        case 'image':
+            return t('inspectorImageDisplay');
+        case 'text':
+            return t('inspectorTextDisplay');
+        case 'input':
+            return t('inspectorInputDisplay');
+        case 'shape':
+            return t('inspectorShapeDisplay');
+        case 'container':
+            return '';
+    }
 }
 
 interface EditableFieldRowProps {
@@ -418,8 +464,10 @@ export function InspectorPanel({ document, model }: { document: SceneDocument; m
         refreshSceneDocument();
     };
 
-    const nodeFields = [
+    const basicFields = [
         nodePropField('name', model.name, t),
+    ];
+    const advancedFields = [
         nodePropField('id', model.id, t),
         nodePropField('key', model.key, t),
         nodePropField('role', model.role, t),
@@ -431,12 +479,12 @@ export function InspectorPanel({ document, model }: { document: SceneDocument; m
             <section className="identity">
                 <span>{t('selectedNode')}</span>
                 <strong>{model.name ?? model.key ?? model.id}</strong>
-                <small>{model.id ?? model.key ?? selected}</small>
+                <small>{nodeKindLabel(model.kind, t)}</small>
             </section>
             <section className="inspectorSection">
-                <h3>Identity</h3>
+                <h3>{t('inspectorBasic')}</h3>
                 <div className="fieldStack">
-                    {nodeFields.map((field) => (
+                    {basicFields.map((field) => (
                         <EditableFieldRow
                             field={field}
                             key={field.key}
@@ -445,9 +493,22 @@ export function InspectorPanel({ document, model }: { document: SceneDocument; m
                         />
                     ))}
                 </div>
+                <details className="inspectorDetails">
+                    <summary>{t('advanced')}</summary>
+                    <div className="fieldStack">
+                        {advancedFields.map((field) => (
+                            <EditableFieldRow
+                                field={field}
+                                key={field.key}
+                                label={field.label}
+                                onCommit={(value) => commitNodeProp(field.key as 'id' | 'key' | 'role' | 'name', value)}
+                            />
+                        ))}
+                    </div>
+                </details>
             </section>
             <section className="inspectorSection">
-                <h3>Transform</h3>
+                <h3>{t('inspectorLayout')}</h3>
                 <div className="fieldGrid four">
                     {model.transform.map((field) => (
                         <EditableFieldRow
@@ -464,7 +525,7 @@ export function InspectorPanel({ document, model }: { document: SceneDocument; m
             </section>
             {model.display.map((display) => (
                 <section className="inspectorSection" key={display.type}>
-                    <h3>{display.displayName}</h3>
+                    <h3>{displaySectionTitle(model.kind, t)}</h3>
                     <div className="fieldStack">
                         {display.fields.map((field) => (
                             <EditableFieldRow
@@ -478,12 +539,17 @@ export function InspectorPanel({ document, model }: { document: SceneDocument; m
                     </div>
                 </section>
             ))}
-            {model.components.map((component) => (
-                <section className="inspectorSection" key={`${component.id ?? component.type}`}>
-                    <h3>{component.displayName}</h3>
-                    <div className="fieldStack">
-                        <FieldRow label="Type" value={component.type} />
-                        <FieldRow label={t('componentId')} value={component.id} />
+            <section className="inspectorSection addComponentSection">
+                <div className="sectionHeader">
+                    <h3>{t('inspectorComponents')}</h3>
+                    <button onClick={() => setComponentPickerOpen((open) => !open)} type="button">
+                        {t('add')}
+                    </button>
+                </div>
+                {model.components.length > 0 ? model.components.map((component) => (
+                    <div className="componentCard" key={`${component.id ?? component.type}`}>
+                        <h4>{component.displayName}</h4>
+                        <div className="fieldStack">
                         {component.fields.map((field) => (
                             <EditableFieldRow
                                 actions={document.actions}
@@ -501,16 +567,9 @@ export function InspectorPanel({ document, model }: { document: SceneDocument; m
                                 warning={designWarning(document, `${selected}.${componentLocator(component)}.${field.key}`, field.key, field.value)}
                             />
                         ))}
+                        </div>
                     </div>
-                </section>
-            ))}
-            <section className="inspectorSection addComponentSection">
-                <div className="sectionHeader">
-                    <h3>Components</h3>
-                    <button onClick={() => setComponentPickerOpen((open) => !open)} type="button">
-                        {t('add')}
-                    </button>
-                </div>
+                )) : <div className="emptyInline">{t('noComponents')}</div>}
                 {componentPickerOpen ? (
                     <div className="componentPicker">
                         {listPaletteComponents({
