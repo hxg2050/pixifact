@@ -191,3 +191,4 @@ bun run editor:gateway
 - 不要为了 UI 美化破坏 Alpha 核心流程测试。
 - 新增面板或服务时，优先复用现有 `SceneDocument`、command、serializer、validator。
 - 运行测试或构建后，避免提交 `apps/editor/dist`、`packages/pixifact/dist`、`test-results`、`apps/editor/src-tauri/target` 等临时产物。
+- 每次代码或文档改动完成并通过相关验证后，自动提交 tracked 变动；不要提交未跟踪文件，除非用户明确要求。

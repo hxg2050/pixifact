@@ -71,11 +71,7 @@ function createDockComponents(document: SceneDocument, revision: number) {
             <ViewportPanel {...props.params} document={params.document} revision={params.revision} />
         ),
         inspector: (props: IDockviewPanelProps<EditorPanelParams>) => (
-            <InspectorPanel
-                {...props.params}
-                document={params.document}
-                model={params.document.getInspectorModel()}
-            />
+            <InspectorPanel {...props.params} document={params.document} />
         ),
         ai: () => <AiPanel />,
     };
@@ -85,6 +81,14 @@ function SceneTreePanel({ document }: { document: SceneDocument }) {
     useDocumentRevision();
     const t = useI18n();
     const openedScenePath = useEditorStore((state) => state.openedScenePath);
+    if (!openedScenePath) {
+        return (
+            <div className="dockPanelSurface panelEmptyState">
+                <strong>{t('sceneEmptyTitle')}</strong>
+                <span>{t('sceneEmptyHint')}</span>
+            </div>
+        );
+    }
     const hierarchy = collectHierarchy(document.scene.root);
     const componentCount = hierarchy.reduce((total, item) => total + (item.node.components?.length ?? 0), 0);
 

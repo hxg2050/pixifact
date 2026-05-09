@@ -27,6 +27,7 @@ import { useI18n } from '../i18n';
 import type { I18nKey } from '../i18n';
 import { editorDragDataTypes } from '../services/dragPayload';
 import { parseTextValue, selectedNodeId, useDocumentRevision } from './common';
+import { useEditorStore } from '../editorStore';
 
 const nodePropLabelKeys: Record<'id' | 'key' | 'role' | 'name', I18nKey | undefined> = {
     id: undefined,
@@ -324,10 +325,12 @@ function paletteDisabledReason(item: PaletteComponentItem, t: Translate) {
         : undefined;
 }
 
-export function InspectorPanel({ document, model }: { document: SceneDocument; model?: InspectorNodeModel }) {
-    useDocumentRevision();
+export function InspectorPanel({ document }: { document: SceneDocument }) {
+    const revision = useDocumentRevision();
     const t = useI18n();
+    const openedScenePath = useEditorStore((state) => state.openedScenePath);
     const selected = selectedNodeId(document);
+    const model = document.getInspectorModel();
     const [error, setError] = useState<string>();
     const [componentPickerOpen, setComponentPickerOpen] = useState(false);
     const [actionText, setActionText] = useState(() => t('inspectorDefaultAction'));
@@ -336,18 +339,15 @@ export function InspectorPanel({ document, model }: { document: SceneDocument; m
         setError(undefined);
         setComponentPickerOpen(false);
         setActionText(t('inspectorDefaultAction'));
-    }, [selected, t]);
+    }, [revision, selected, t]);
 
-    if (!model) {
+    if (!openedScenePath || !selected || !model) {
         return (
-            <div className="panelBody emptyState">
-                {t('noNodeSelected')}
+            <div className="panelSurface inspectorSurface panelEmptyState">
+                <strong>{t('inspectorEmptyTitle')}</strong>
+                <span>{t('inspectorEmptyHint')}</span>
             </div>
         );
-    }
-
-    if (!selected) {
-        return null;
     }
 
     const applyCommand = (command: SceneCommand) => {

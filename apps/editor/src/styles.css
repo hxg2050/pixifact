@@ -530,6 +530,29 @@ textarea {
     background: var(--panel);
 }
 
+.panelEmptyState {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 6px;
+    padding: 24px;
+    text-align: center;
+}
+
+.panelEmptyState strong {
+    color: #334155;
+    font-size: 13px;
+    font-weight: 850;
+}
+
+.panelEmptyState span {
+    max-width: 240px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1.45;
+}
+
 .panelSurface[data-testid="resource-explorer"] {
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr);
