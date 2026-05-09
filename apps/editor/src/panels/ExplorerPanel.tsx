@@ -15,7 +15,11 @@ import { refreshSceneDocument } from '../document/sceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
 import type { I18nKey } from '../i18n';
-import { basicComponentLibrary } from '../services/basicComponentLibrary';
+import {
+    basicComponentLibrary,
+    basicNodeLibrary,
+    sceneTemplateLibrary,
+} from '../services/basicComponentLibrary';
 import {
     basicComponentDragPayload,
     componentDragPayload,
@@ -679,13 +683,34 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
                         className={openSection === 'library' ? 'accordionPanel open' : 'accordionPanel'}
                     >
                         <div className="accordionContent">
+                            <div className="libraryGroupTitle">{t('basicNodeLibrary')}</div>
                             <div className="fileTree basicLibraryTree">
-                                {basicComponentLibrary.map((item) => (
+                                {basicNodeLibrary.map((item) => (
                                     <DragSource
                                         as="button"
                                         className={[
                                             'fileRow',
                                             'basicComponent',
+                                            selectedPath === `library/basic/${item.kind}` ? 'selected' : '',
+                                        ].filter(Boolean).join(' ')}
+                                        data-basic-component={item.kind}
+                                        key={item.kind}
+                                        onClick={() => selectBasicComponent(item.kind)}
+                                        payload={basicComponentDragPayload(item.kind, t(item.nameKey))}
+                                        title={t(item.detailKey)}
+                                    >
+                                        <strong>{t(item.nameKey)}</strong>
+                                    </DragSource>
+                                ))}
+                            </div>
+                            <div className="libraryGroupTitle">{t('sceneTemplateLibrary')}</div>
+                            <div className="fileTree basicLibraryTree">
+                                {sceneTemplateLibrary.map((item) => (
+                                    <DragSource
+                                        as="button"
+                                        className={[
+                                            'fileRow',
+                                            'sceneTemplate',
                                             selectedPath === `library/basic/${item.kind}` ? 'selected' : '',
                                         ].filter(Boolean).join(' ')}
                                         data-basic-component={item.kind}

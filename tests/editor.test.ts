@@ -31,6 +31,7 @@ import {
     validateCommand,
 } from 'pixifact';
 import type { SceneSpec } from 'pixifact';
+import { createBasicComponentNode } from '../apps/editor/src/services/basicComponentLibrary';
 
 function createButtonScene(): SceneSpec {
     return scene('PrimaryButton',
@@ -996,5 +997,20 @@ describe('SceneDocument', () => {
         expect(runtime.components.get('scroll')).toBeInstanceOf(ScrollRect);
         expect(runtime.components.get('input')).toBeDefined();
         expect(runtime.components.get('button')).toBeInstanceOf(ButtonComponent);
+    });
+});
+
+describe('editor scene templates', () => {
+    it('creates Button as a container template instead of a base display node', () => {
+        const doc = new SceneDocument(createButtonScene());
+        const node = createBasicComponentNode(doc, 'button');
+
+        expect(node.kind).toBe('container');
+        if (node.kind !== 'container') {
+            throw new Error('Button template must create a container node.');
+        }
+        expect(node.components?.[0]?.type).toBe('ui.Button');
+        expect(node.components?.[0]?.props?.targetGraphic).toBe(`${node.key}Bg`);
+        expect(node.children?.map((child) => child.kind)).toEqual(['shape', 'text']);
     });
 });

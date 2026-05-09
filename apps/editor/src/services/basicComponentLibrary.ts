@@ -20,16 +20,20 @@ export interface BasicComponentItem {
     detail: string;
     nameKey: I18nKey;
     detailKey: I18nKey;
+    group: 'node' | 'template';
 }
 
 export const basicComponentLibrary: BasicComponentItem[] = [
-    { kind: 'container', name: '容器', detail: '可包含子节点', nameKey: 'basicGroupName', detailKey: 'basicGroupDetail' },
-    { kind: 'image', name: '图片', detail: 'Image 节点', nameKey: 'basicImageName', detailKey: 'basicImageDetail' },
-    { kind: 'text', name: '文字', detail: 'Text 节点', nameKey: 'basicTextName', detailKey: 'basicTextDetail' },
-    { kind: 'input', name: '输入', detail: 'Input 节点', nameKey: 'basicInputName', detailKey: 'basicInputDetail' },
-    { kind: 'shape', name: '形状', detail: 'Shape 节点', nameKey: 'basicShapeName', detailKey: 'basicShapeDetail' },
-    { kind: 'button', name: '按钮', detail: 'Scene 模板', nameKey: 'basicButtonName', detailKey: 'basicButtonDetail' },
+    { kind: 'container', name: '容器', detail: '可包含子节点', nameKey: 'basicGroupName', detailKey: 'basicGroupDetail', group: 'node' },
+    { kind: 'image', name: '图片', detail: 'Image 节点', nameKey: 'basicImageName', detailKey: 'basicImageDetail', group: 'node' },
+    { kind: 'text', name: '文字', detail: 'Text 节点', nameKey: 'basicTextName', detailKey: 'basicTextDetail', group: 'node' },
+    { kind: 'input', name: '输入', detail: 'Input 节点', nameKey: 'basicInputName', detailKey: 'basicInputDetail', group: 'node' },
+    { kind: 'shape', name: '形状', detail: 'Shape 节点', nameKey: 'basicShapeName', detailKey: 'basicShapeDetail', group: 'node' },
+    { kind: 'button', name: '按钮', detail: 'Scene 模板', nameKey: 'basicButtonName', detailKey: 'basicButtonDetail', group: 'template' },
 ];
+
+export const basicNodeLibrary = basicComponentLibrary.filter((item) => item.group === 'node');
+export const sceneTemplateLibrary = basicComponentLibrary.filter((item) => item.group === 'template');
 
 function nodeKeyBase(kind: BasicComponentKind) {
     switch (kind) {
