@@ -128,10 +128,10 @@ bun run build
 bun run example:build
 ```
 
-项目级 BDD / TDD 规范见：
+项目级测试策略、BDD 和 TDD 规范见：
 
 ```txt
-docs/BDD_TDD.md
+docs/TESTING.md
 ```
 
 ## Codex Skills
