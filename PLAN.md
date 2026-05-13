@@ -63,6 +63,12 @@ apps/editor/src-tauri/            Tauri host
 
 优先运行最小相关验证。
 
+详细 BDD / TDD 分层、场景和改动类型到测试的映射见：
+
+```txt
+docs/BDD_TDD.md
+```
+
 ```bash
 bun run test
 ```

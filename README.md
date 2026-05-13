@@ -128,6 +128,12 @@ bun run build
 bun run example:build
 ```
 
+项目级 BDD / TDD 规范见：
+
+```txt
+docs/BDD_TDD.md
+```
+
 ## Codex Skills
 
 仓库维护的 Codex skill 位于：
