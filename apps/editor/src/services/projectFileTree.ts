@@ -329,11 +329,11 @@ export async function readProjectFileBytes(projectTree: ProjectFileTreeNode, fil
 }
 
 export async function openProjectCodeFile(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
-    await openHostCodeFile(ensureProjectRootPath(projectTree), file.path);
+    await openHostCodeFile(ensureProjectRootPath(projectTree), projectFileRelativePath(projectTree, file));
 }
 
 export async function openProjectDefaultFile(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
-    await openHostDefaultFile(ensureProjectRootPath(projectTree), file.path);
+    await openHostDefaultFile(ensureProjectRootPath(projectTree), projectFileRelativePath(projectTree, file));
 }
 
 function projectFileTreeFromHost(

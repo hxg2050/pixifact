@@ -10,6 +10,8 @@ import {
     findFileByPath,
     mergeExpandedFolderPaths,
     nearestExistingPath,
+    openProjectCodeFile,
+    openProjectDefaultFile,
     projectFileKind,
     projectFileRelativePath,
     renameProjectEntry,
@@ -225,6 +227,8 @@ const host = vi.hoisted(() => {
             }
             return new TextEncoder().encode(node.content);
         }),
+        openHostCodeFile: vi.fn(async () => {}),
+        openHostDefaultFile: vi.fn(async () => {}),
         writeProjectFileText: vi.fn(async (_projectRootPath: string, filePath: string, content: string) => {
             const node = getNode(filePath);
             if (node.kind !== 'file') {
@@ -239,8 +243,8 @@ vi.mock('../apps/editor/src/services/hostBridge', () => ({
     createHostProjectDirectory: host.createProjectDirectory,
     createHostProjectFile: host.createProjectFile,
     deleteHostProjectEntry: host.deleteProjectEntry,
-    openHostCodeFile: vi.fn(),
-    openHostDefaultFile: vi.fn(),
+    openHostCodeFile: host.openHostCodeFile,
+    openHostDefaultFile: host.openHostDefaultFile,
     pickHostProjectFolder: vi.fn(),
     readHostProjectFileBytes: host.readProjectFileBytes,
     readHostProjectFileText: host.readProjectFileText,
@@ -457,6 +461,28 @@ describe('project file tree service', () => {
 
         expect(projectFileRelativePath(tree, tree)).toBe('');
         expect(projectFileRelativePath(tree, logic!)).toBe('scripts/logic.ts');
+    });
+
+    it('opens host files by project-relative path without reading their content', async () => {
+        host.reset({
+            scripts: host.directory({
+                'logic.ts': host.file('const secret = true;'),
+            }),
+            assets: host.directory({
+                'atlas.png': host.file('png-bytes'),
+            }),
+        });
+        const tree = await readHostTree();
+        const logic = findFileByPath(tree, 'GameProject/scripts/logic.ts');
+        const atlas = findFileByPath(tree, 'GameProject/assets/atlas.png');
+
+        await openProjectCodeFile(tree, logic!);
+        await openProjectDefaultFile(tree, atlas!);
+
+        expect(host.openHostCodeFile).toHaveBeenCalledWith('/tmp/GameProject', 'scripts/logic.ts');
+        expect(host.openHostDefaultFile).toHaveBeenCalledWith('/tmp/GameProject', 'assets/atlas.png');
+        expect(host.readProjectFileText).not.toHaveBeenCalled();
+        expect(host.readProjectFileBytes).not.toHaveBeenCalled();
     });
 
     it('saves the current editor document back to an opened scene file', async () => {
