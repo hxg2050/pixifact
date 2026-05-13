@@ -1,10 +1,77 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { container, scene, text } from 'pixifact';
+import type { SceneCommand } from 'pixifact';
 import { createMcpRequestHandler } from '../packages/pixifact-mcp/src/pixifact-mcp-server';
+import {
+    getSceneDocument,
+    resetSceneDocument,
+} from '../apps/editor/src/document/sceneDocumentController';
+import { useEditorStore } from '../apps/editor/src/editorStore';
+import { createLiveEditorToolHandlers } from '../apps/editor/src/mcp/liveEditorClient';
 
 const tempRoots: string[] = [];
+
+const host = vi.hoisted(() => {
+    function hostTree() {
+        return {
+            id: 'GameProject',
+            name: 'GameProject',
+            path: 'GameProject',
+            kind: 'folder',
+            depth: 0,
+            systemPath: '/tmp/GameProject',
+            children: [{
+                id: 'GameProject/scenes',
+                name: 'scenes',
+                path: 'GameProject/scenes',
+                kind: 'folder',
+                depth: 1,
+                systemPath: '/tmp/GameProject/scenes',
+                children: [
+                    {
+                        id: 'GameProject/scenes/Menu.scene',
+                        name: 'Menu.scene',
+                        path: 'GameProject/scenes/Menu.scene',
+                        kind: 'scene',
+                        depth: 2,
+                        systemPath: '/tmp/GameProject/scenes/Menu.scene',
+                    },
+                    {
+                        id: 'GameProject/scenes/Other.scene',
+                        name: 'Other.scene',
+                        path: 'GameProject/scenes/Other.scene',
+                        kind: 'scene',
+                        depth: 2,
+                        systemPath: '/tmp/GameProject/scenes/Other.scene',
+                    },
+                ],
+            }],
+        };
+    }
+
+    return {
+        hostTree,
+        readHostProjectFileTree: vi.fn(async () => hostTree()),
+        writeHostProjectFileText: vi.fn(async () => {}),
+    };
+});
+
+vi.mock('../apps/editor/src/services/hostBridge', () => ({
+    createHostProjectDirectory: vi.fn(),
+    createHostProjectFile: vi.fn(),
+    deleteHostProjectEntry: vi.fn(),
+    openHostCodeFile: vi.fn(),
+    openHostDefaultFile: vi.fn(),
+    pickHostProjectFolder: vi.fn(),
+    readHostProjectFileBytes: vi.fn(),
+    readHostProjectFileText: vi.fn(),
+    readHostProjectFileTree: host.readHostProjectFileTree,
+    renameHostProjectEntry: vi.fn(),
+    writeHostProjectFileText: host.writeHostProjectFileText,
+}));
 
 interface ToolContentResult {
     content: Array<{
@@ -86,6 +153,22 @@ function parseToolResult(response: Awaited<ReturnType<ReturnType<typeof createMc
     return JSON.parse(text);
 }
 
+function liveProjectTree() {
+    const tree = host.hostTree();
+    return {
+        ...tree,
+        projectRootPath: '/tmp/GameProject',
+        children: tree.children?.map((folder) => ({
+            ...folder,
+            projectRootPath: '/tmp/GameProject',
+            children: folder.children?.map((file) => ({
+                ...file,
+                projectRootPath: '/tmp/GameProject',
+            })),
+        })),
+    };
+}
+
 afterEach(() => {
     for (const root of tempRoots.splice(0)) {
         fs.rmSync(root, { recursive: true, force: true });
@@ -93,6 +176,11 @@ afterEach(() => {
 });
 
 describe('Pixifact MCP server', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        localStorage.clear();
+    });
+
     it('lists tools through the MCP tools/list method', async () => {
         const handle = createMcpRequestHandler();
         const response = await handle(request('tools/list'));
@@ -206,5 +294,68 @@ describe('Pixifact MCP server', () => {
                 scenePath: 'current.scene',
             },
         });
+    });
+
+    it('applies live editor commands to the current SceneDocument and saves the opened Scene', async () => {
+        resetSceneDocument();
+        const document = getSceneDocument();
+        document.load(scene('Menu',
+            container('Root', {
+                id: 'root',
+                key: 'root',
+                children: [
+                    text('Label', {
+                        key: 'menuLabel',
+                        value: 'Start',
+                        color: 0xffffff,
+                        fontSize: 14,
+                    }),
+                ],
+            }),
+        ));
+        document.setSelection({ type: 'node', node: 'menuLabel' });
+        document.dirty = false;
+        useEditorStore.setState({
+            projectName: 'GameProject',
+            projectTree: liveProjectTree(),
+            selectedProjectFilePath: 'GameProject/scenes/Menu.scene',
+            openedScenePath: 'GameProject/scenes/Menu.scene',
+            expandedProjectFolders: ['GameProject', 'GameProject/scenes'],
+            expandedHierarchyNodesByScene: {},
+            prompt: '创建一个背包界面，四列三行，每个格子有图标、数量和 Use 按钮。',
+            language: 'zh-CN',
+        });
+
+        const handlers = createLiveEditorToolHandlers();
+        const command: SceneCommand = {
+            op: 'setNodeData',
+            node: 'menuLabel',
+            field: 'text',
+            prop: 'value',
+            value: 'Continue',
+        };
+        const result = await handlers.apply_commands({
+            projectRoot: '/unused/project/root',
+            scenePath: 'GameProject/scenes/Menu.scene',
+            commands: [command],
+        });
+        const savedContent = host.writeHostProjectFileText.mock.calls[0]?.[2] as string;
+
+        expect(result).toMatchObject({
+            ok: true,
+            live: true,
+            saved: true,
+            scenePath: 'GameProject/scenes/Menu.scene',
+        });
+        expect(document.scene.root.children?.[0].text?.value).toBe('Continue');
+        expect(document.dirty).toBe(false);
+        expect((document.preview?.components.get('menuLabel') as { text?: string } | undefined)?.text).toBe('Continue');
+        expect(host.writeHostProjectFileText).toHaveBeenCalledWith(
+            '/tmp/GameProject',
+            'GameProject/scenes/Menu.scene',
+            expect.any(String),
+        );
+        expect(JSON.parse(savedContent).root.children[0].text.value).toBe('Continue');
+        expect(host.writeHostProjectFileText.mock.calls.some((call) => call[1] === 'GameProject/scenes/Other.scene')).toBe(false);
     });
 });
