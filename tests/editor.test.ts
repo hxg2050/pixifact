@@ -14,6 +14,8 @@ import {
     createLogicGraph,
     createRuntimeActions,
     createUseInventoryItemFlow,
+    image,
+    input,
     progressBarScene,
     scrollViewScene,
     component,
@@ -154,6 +156,94 @@ describe('SceneDocument', () => {
 
         expect(doc.preview?.nodes.get('submitButtonLabel')).toBeDefined();
         doc.destroy();
+    });
+
+    it('builds node-specific inspector display fields', () => {
+        const doc = new SceneDocument(scene('InspectorFields',
+            container('Root', {
+                key: 'root',
+                children: [
+                    text('Title', {
+                        key: 'title',
+                        value: 'Hello',
+                        color: 0x111827,
+                        fontSize: 18,
+                    }),
+                    image('Hero', {
+                        key: 'hero',
+                        mode: 'sprite',
+                        src: 'assets/hero.png',
+                        tint: 0xffffff,
+                    }),
+                    shape('Panel', {
+                        key: 'panel',
+                        type: 'roundedRect',
+                        color: 0xffffff,
+                        radius: 8,
+                    }),
+                    input('Name', {
+                        key: 'nameInput',
+                        value: 'Player',
+                        backgroundColor: 0xffffff,
+                        borderColor: 0x94a3b8,
+                    }),
+                ],
+            }),
+        ));
+
+        doc.setSelection({ type: 'node', node: 'title' });
+        expect(doc.getInspectorModel()?.display[0].fields.map((field) => field.key)).toEqual([
+            'value',
+            'color',
+            'fontSize',
+            'fontFamily',
+            'fontWeight',
+            'center',
+        ]);
+        expect(doc.getInspectorModel()?.display[0].fields.some((field) => field.key === 'src' || field.key === 'radius')).toBe(false);
+
+        doc.setSelection({ type: 'node', node: 'hero' });
+        expect(doc.getInspectorModel()?.display[0].fields.map((field) => field.key)).toEqual([
+            'mode',
+            'src',
+            'tint',
+            'leftWidth',
+            'rightWidth',
+            'topHeight',
+            'bottomHeight',
+        ]);
+        expect(doc.getInspectorModel()?.display[0].fields.some((field) => field.key === 'value' || field.key === 'radius')).toBe(false);
+
+        doc.setSelection({ type: 'node', node: 'panel' });
+        expect(doc.getInspectorModel()?.display[0].fields.map((field) => field.key)).toEqual([
+            'type',
+            'color',
+            'fillAlpha',
+            'radius',
+            'strokeColor',
+            'strokeWidth',
+            'strokeAlpha',
+        ]);
+        expect(doc.getInspectorModel()?.display[0].fields.some((field) => field.key === 'src')).toBe(false);
+
+        doc.setSelection({ type: 'node', node: 'nameInput' });
+        expect(doc.getInspectorModel()?.display[0].fields.map((field) => field.key)).toEqual([
+            'value',
+            'backgroundColor',
+            'borderColor',
+            'borderSize',
+            'textColor',
+            'fontSize',
+            'fontFamily',
+            'paddingLeft',
+            'paddingRight',
+            'paddingTop',
+            'paddingBottom',
+        ]);
+        expect(doc.getInspectorModel()?.display[0].fields.some((field) => field.key === 'src' || field.key === 'radius')).toBe(false);
+
+        doc.setSelection({ type: 'node', node: 'root' });
+        expect(doc.getInspectorModel()?.display).toEqual([]);
     });
 
     it('adds and removes components through commands', () => {

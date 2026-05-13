@@ -412,6 +412,24 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
         refreshSceneDocument();
     };
 
+    const toggleDisplayLock = (field: InspectorFieldModel) => {
+        if (model.kind === 'container') {
+            return;
+        }
+        const lock = {
+            target: 'nodeData' as const,
+            node: selected,
+            field: model.kind,
+            prop: field.key,
+        };
+        if (isLocked(document.locks, lock)) {
+            document.removeLock(lock);
+        } else {
+            document.addLock({ ...lock, reason: 'Inspector lock' });
+        }
+        refreshSceneDocument();
+    };
+
     const addComponent = (item: PaletteComponentItem) => {
         const disabledReason = paletteDisabledReason(item, t);
         if (disabledReason) {
@@ -532,7 +550,14 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
                                 field={field}
                                 key={field.key}
                                 label={displayFieldLabel(field, t)}
+                                locked={isLocked(document.locks, {
+                                    target: 'nodeData',
+                                    node: selected,
+                                    field: model.kind,
+                                    prop: field.key,
+                                })}
                                 onCommit={(value) => commitDisplayProp(field, value)}
+                                onToggleLock={() => toggleDisplayLock(field)}
                                 warning={designWarning(document, `${selected}.${model.kind}.${field.key}`, field.key, field.value)}
                             />
                         ))}
