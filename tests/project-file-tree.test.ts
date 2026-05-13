@@ -10,11 +10,13 @@ import {
     findFileByPath,
     mergeExpandedFolderPaths,
     nearestExistingPath,
+    openSceneFile,
     openProjectCodeFile,
     openProjectDefaultFile,
     projectFileKind,
     projectFileRelativePath,
     renameProjectEntry,
+    saveOpenedSceneFile,
     saveSceneFile,
 } from '../apps/editor/src/services/projectFileTree';
 import { createSceneInstanceNode } from '../apps/editor/src/services/sceneInstance';
@@ -510,6 +512,47 @@ describe('project file tree service', () => {
                 key: 'savedButtonRoot',
             },
         });
+    });
+
+    it('opens, edits, previews and saves a Scene file session', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file(JSON.stringify(scene('Button', container('Root', {
+                    key: 'buttonRoot',
+                    children: [
+                        text('Label', {
+                            key: 'buttonLabel',
+                            value: 'Start',
+                            color: 0xffffff,
+                            fontSize: 14,
+                        }),
+                    ],
+                })))),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+        const document = new SceneDocument(scene('Empty', container('Empty', { key: 'emptyRoot' })));
+
+        const opened = await openSceneFile(tree, sceneFile!, document);
+        const result = document.apply({
+            op: 'setNodeData',
+            node: 'buttonLabel',
+            field: 'text',
+            prop: 'value',
+            value: 'Continue',
+        });
+        const saved = await saveOpenedSceneFile(tree, opened.openedScenePath, document);
+        const content = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene');
+
+        expect(opened.openedScenePath).toBe('GameProject/scenes/Button.scene');
+        expect(opened.selection).toEqual({ type: 'node', node: 'buttonRoot' });
+        expect(result.ok).toBe(true);
+        expect(document.scene.root.children?.[0].text?.value).toBe('Continue');
+        expect((document.preview?.components.get('buttonLabel') as { text?: string } | undefined)?.text).toBe('Continue');
+        expect(saved).toBe(true);
+        expect(document.dirty).toBe(false);
+        expect(JSON.parse(content).root.children[0].text.value).toBe('Continue');
     });
 
     it('creates an embedded scene instance node with isolated locators', () => {

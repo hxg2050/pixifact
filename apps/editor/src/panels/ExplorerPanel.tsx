@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { SceneDocument, SceneSpec } from 'pixifact';
+import type { SceneDocument } from 'pixifact';
 import {
     Button,
     DragSource,
@@ -30,19 +30,19 @@ import {
     collectFolderPaths,
     componentTypeFromPath,
     countProjectFileTree,
+    createAndOpenSceneFile,
     createFolder,
-    createSceneFile,
     deleteProjectEntry,
     containingDirectory,
+    openSceneFile,
     openProjectCodeFile,
     openProjectDefaultFile,
     readProjectFileBytes,
-    readProjectFileText,
     refreshProjectFileTree,
     renameProjectEntry,
 } from '../services/projectFileTree';
 import { hostErrorMessage } from '../services/hostBridge';
-import { getNodeLocator, useDocumentRevision } from './common';
+import { useDocumentRevision } from './common';
 
 interface ImportMetaWithEnv extends ImportMeta {
     env?: Record<string, string | boolean | undefined>;
@@ -137,10 +137,6 @@ function canOpenWithDefaultApp(file: ProjectFileTreeNode) {
     return file.kind === 'asset' || file.kind === 'doc' || file.kind === 'unknown';
 }
 
-function rootLocator(scene: SceneSpec) {
-    return getNodeLocator(scene.root);
-}
-
 async function loadSceneFile(document: SceneDocument, file: ProjectFileTreeNode, t: Translate) {
     const projectTree = useEditorStore.getState().projectTree;
     if (!projectTree) {
@@ -150,10 +146,8 @@ async function loadSceneFile(document: SceneDocument, file: ProjectFileTreeNode,
     if (document.dirty && currentPath !== file.path && !window.confirm(t('discardDirtySceneConfirm'))) {
         return false;
     }
-    const content = await readProjectFileText(projectTree, file);
-    document.load(content);
-    document.setSelection({ type: 'node', node: rootLocator(document.scene) });
-    useEditorStore.getState().setOpenedScene(file.path);
+    const opened = await openSceneFile(projectTree, file, document);
+    useEditorStore.getState().setOpenedScene(opened.openedScenePath);
     refreshSceneDocument();
     return true;
 }
@@ -364,14 +358,11 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
             return;
         }
 
-        const created = await createSceneFile(directory, name);
-        const refreshedTree = await refreshProjectFileTree(projectTree);
-        refreshProject(refreshedTree, { selectPath: created.path, expandPaths: [directory.path] });
-        document.load(created.content);
-        document.setSelection({ type: 'node', node: rootLocator(document.scene) });
-        setOpenedScene(created.path);
+        const session = await createAndOpenSceneFile(projectTree, directory, name, document);
+        refreshProject(session.refreshedTree, { selectPath: session.created.path, expandPaths: [directory.path] });
+        setOpenedScene(session.openedScenePath);
         setNewSceneName('');
-        setActionText(t('sceneCreatedAndOpened', { file: created.fileName }));
+        setActionText(t('sceneCreatedAndOpened', { file: session.created.fileName }));
         refreshSceneDocument();
     };
 

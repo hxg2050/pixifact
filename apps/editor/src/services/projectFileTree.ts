@@ -316,6 +316,57 @@ export async function saveSceneFile(projectTree: ProjectFileTreeNode, path: stri
     return true;
 }
 
+function documentRootLocator(document: SceneDocument) {
+    const root = document.scene.root;
+    return root.key ?? root.id ?? root.name ?? 'root';
+}
+
+export async function openSceneFile(
+    projectTree: ProjectFileTreeNode,
+    file: ProjectFileTreeNode,
+    document: SceneDocument,
+) {
+    const content = await readProjectFileText(projectTree, file);
+    document.load(content);
+    document.setSelection({ type: 'node', node: documentRootLocator(document) });
+    return {
+        openedScenePath: file.path,
+        scene: document.scene,
+        selection: document.selection,
+    };
+}
+
+export async function createAndOpenSceneFile(
+    projectTree: ProjectFileTreeNode,
+    directory: ProjectFileTreeNode,
+    name: string,
+    document: SceneDocument,
+) {
+    const created = await createSceneFile(directory, name);
+    const refreshedTree = await refreshProjectFileTree(projectTree);
+    document.load(created.content);
+    document.setSelection({ type: 'node', node: documentRootLocator(document) });
+
+    return {
+        created,
+        refreshedTree,
+        openedScenePath: created.path,
+        scene: document.scene,
+        selection: document.selection,
+    };
+}
+
+export async function saveOpenedSceneFile(
+    projectTree: ProjectFileTreeNode,
+    openedScenePath: string | undefined,
+    document: SceneDocument,
+) {
+    if (!openedScenePath) {
+        return false;
+    }
+    return saveSceneFile(projectTree, openedScenePath, document);
+}
+
 export async function refreshProjectFileTree(projectTree: ProjectFileTreeNode) {
     return projectFileTreeFromHost(await readHostProjectFileTree(ensureProjectRootPath(projectTree)));
 }
