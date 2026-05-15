@@ -258,7 +258,7 @@ function EditableFieldRow({
                     },
                 }}
                 onChange={(nextValue) => setDraft(Number.isNaN(nextValue) ? '' : String(nextValue))}
-                value={draft.trim() === '' ? undefined : Number(draft)}
+                value={draft.trim() === '' ? NaN : Number(draft)}
             />
         );
     } else {
