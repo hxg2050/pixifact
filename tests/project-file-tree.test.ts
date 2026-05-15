@@ -1,7 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SceneDocument, buttonScene, container, scene, shape, text } from 'pixifact';
+import type { SceneCommand } from 'pixifact';
+import {
+    getSceneDocument,
+    resetSceneDocument,
+} from '../apps/editor/src/document/sceneDocumentController';
+import { useEditorStore } from '../apps/editor/src/editorStore';
+import { createLiveEditorToolHandlers } from '../apps/editor/src/mcp/liveEditorClient';
 import {
     collectFolderPaths,
+    createAndOpenSceneFile,
     componentTypeFromPath,
     countProjectFileTree,
     createFolder,
@@ -263,7 +271,19 @@ async function readHostTree() {
 describe('project file tree service', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        localStorage.clear();
+        resetSceneDocument();
         host.reset();
+        useEditorStore.setState({
+            language: 'zh-CN',
+            projectName: '模拟项目',
+            projectTree: undefined,
+            selectedProjectFilePath: undefined,
+            openedScenePath: undefined,
+            expandedProjectFolders: [],
+            expandedHierarchyNodesByScene: {},
+            prompt: '创建一个背包界面，四列三行，每个格子有图标、数量和 Use 按钮。',
+        });
     });
 
     it('normalizes Pixifact scene asset names', () => {
@@ -553,6 +573,83 @@ describe('project file tree service', () => {
         expect(saved).toBe(true);
         expect(document.dirty).toBe(false);
         expect(JSON.parse(content).root.children[0].text.value).toBe('Continue');
+    });
+
+    it('creates and opens a Scene, applies live MCP commands, updates preview and saves', async () => {
+        host.reset({
+            scenes: host.directory(),
+        });
+        const tree = await readHostTree();
+        const scenes = findFileByPath(tree, 'GameProject/scenes');
+        const document = getSceneDocument();
+
+        const opened = await createAndOpenSceneFile(tree, scenes!, 'status panel', document);
+        useEditorStore.setState({
+            projectName: opened.refreshedTree.name,
+            projectTree: opened.refreshedTree,
+            selectedProjectFilePath: opened.openedScenePath,
+            openedScenePath: opened.openedScenePath,
+            expandedProjectFolders: ['GameProject', 'GameProject/scenes'],
+            expandedHierarchyNodesByScene: {},
+            prompt: '把当前 Scene 改成状态面板。',
+            language: 'zh-CN',
+        });
+
+        const command: SceneCommand = {
+            op: 'createNode',
+            parent: 'statusPanelRoot',
+            node: text('StatusLabel', {
+                id: 'statusLabel',
+                key: 'statusLabel',
+                value: 'Ready',
+                color: 0xffffff,
+                fontSize: 18,
+                x: 16,
+                y: 20,
+                width: 160,
+                height: 28,
+            }),
+        };
+        const handlers = createLiveEditorToolHandlers();
+        const dryRun = await handlers.dry_run_commands({
+            scenePath: opened.openedScenePath,
+            commands: [command],
+        });
+
+        expect(opened.created.path).toBe('GameProject/scenes/StatusPanel.scene');
+        expect(opened.selection).toEqual({ type: 'node', node: 'statusPanelRoot' });
+        expect(dryRun).toMatchObject({
+            ok: true,
+            live: true,
+            diffs: [{
+                target: 'statusPanelRoot.statusLabel',
+                before: undefined,
+            }],
+        });
+        expect(document.scene.root.children).toEqual([]);
+        expect(host.writeProjectFileText).not.toHaveBeenCalled();
+
+        const applied = await handlers.apply_commands({
+            scenePath: opened.openedScenePath,
+            commands: [command],
+        });
+        const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/StatusPanel.scene');
+
+        expect(applied).toMatchObject({
+            ok: true,
+            live: true,
+            saved: true,
+            scenePath: 'GameProject/scenes/StatusPanel.scene',
+        });
+        expect(document.scene.root.children?.[0].key).toBe('statusLabel');
+        expect((document.preview?.components.get('statusLabel') as { text?: string } | undefined)?.text).toBe('Ready');
+        expect(document.dirty).toBe(false);
+        expect(host.writeProjectFileText).toHaveBeenCalledWith(
+            '/tmp/GameProject',
+            'GameProject/scenes/StatusPanel.scene',
+            expect.any(String),
+        );
+        expect(JSON.parse(saved).root.children[0].text.value).toBe('Ready');
     });
 
     it('creates an embedded scene instance node with isolated locators', () => {
