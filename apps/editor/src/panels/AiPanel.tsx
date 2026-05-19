@@ -16,7 +16,7 @@ export function AiPanel() {
                 <strong>{t('agentSetupTitle')}</strong>
                 <ol>
                     <li>
-                        <span>{t('agentStepStartMcp')}</span>
+                        <span>{t('agentStepStartCli')}</span>
                         <code>{fileCommand}</code>
                     </li>
                     <li>

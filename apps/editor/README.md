@@ -182,7 +182,7 @@ bun run editor:frontend:build
 ## UI 文案和按钮原则
 
 - 主要使用中文，但不要为了中文而中文。
-- 保留 `AI-first`、`Prompt`、`Dry Run`、`Diff`、`Memory`、`Mock`、`Remote`、`MCP`、`Agent`、`ID`、`Key`、`Type`、`Scene`、`TS` 等术语。
+- 保留 `AI-first`、`Prompt`、`Dry Run`、`Diff`、`Memory`、`Mock`、`Remote`、`CLI`、`Agent`、`ID`、`Key`、`Type`、`Scene`、`TS` 等术语。
 - 工具动作可用 SVG 图标或图标 + 短文本。
 - 决策动作保留文字，例如生成、预演、应用、拒绝、保存动作。
 - 纯图标按钮必须提供 `aria-label` 和 `title`。
