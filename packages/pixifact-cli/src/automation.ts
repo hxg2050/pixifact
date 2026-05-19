@@ -23,6 +23,14 @@ interface ToolInput {
     commands?: unknown;
 }
 
+interface CommandFailureDetails {
+    commandIndex?: number;
+    op?: SceneCommand['op'];
+    node?: string;
+    target?: string;
+    hint?: string;
+}
+
 type DetailedNode = NodeSpec & {
     locator: string;
     depth: number;
@@ -74,6 +82,89 @@ function assertCommands(value: unknown): SceneCommand[] {
         throw new Error('commands must be an array.');
     }
     return value as SceneCommand[];
+}
+
+export function hintForCliError(error: string) {
+    if (error.includes('inside projectRoot')) {
+        return 'Use a project-relative scene path that stays inside projectRoot.';
+    }
+    if (error.includes('was not found')) {
+        return 'Re-run scene get or node inspect to refresh locators before regenerating the command.';
+    }
+    if (error.includes('Only container nodes')) {
+        return 'Choose a container node as the parent, or create a container template before adding children.';
+    }
+    if (error.includes('does not exist')) {
+        return 'Verify that the field belongs to the target node or component schema before retrying.';
+    }
+    if (error.includes('expects')) {
+        return 'Check the target schema and send a value with the expected type.';
+    }
+    return undefined;
+}
+
+function nodeLocatorFromSpec(node: NodeSpec) {
+    return node.id ?? node.key ?? node.name ?? '';
+}
+
+function commandNode(command: SceneCommand) {
+    switch (command.op) {
+        case 'createNode':
+            return nodeLocatorFromSpec(command.node);
+        case 'batch':
+            return undefined;
+        default:
+            return command.node;
+    }
+}
+
+function commandTarget(command: SceneCommand) {
+    switch (command.op) {
+        case 'setNodeProp':
+            return `${command.node}.${command.prop}`;
+        case 'setTransform':
+            return `${command.node}.transform`;
+        case 'setNodeData':
+            return `${command.node}.${command.field}.${command.prop}`;
+        case 'setComponentProp':
+            return `${command.node}.${command.component}.${command.prop}`;
+        case 'addComponent':
+            return `${command.node}.components.${command.component.id ?? command.component.type}`;
+        case 'removeComponent':
+            return `${command.node}.components.${command.component}`;
+        case 'createNode':
+            return `${command.parent ?? 'root'}.children`;
+        case 'deleteNode':
+            return command.node;
+        case 'reparentNode':
+            return `${command.node}.parent`;
+        case 'reorderNode':
+            return `${command.node}.index`;
+        case 'batch':
+            return 'batch.commands';
+    }
+}
+
+function commandFailureDetails(commands: SceneCommand[], results: CommandResult[], error: string | undefined): CommandFailureDetails {
+    const failedResultIndex = results.findIndex((result) => !result.ok);
+    const commandIndex = failedResultIndex >= 0
+        ? failedResultIndex
+        : Math.min(results.length, commands.length - 1);
+    const command = commands[commandIndex];
+
+    if (!command) {
+        return {
+            hint: error ? hintForCliError(error) : undefined,
+        };
+    }
+
+    return {
+        commandIndex,
+        op: command.op,
+        node: commandNode(command),
+        target: commandTarget(command),
+        hint: error ? hintForCliError(error) : undefined,
+    };
 }
 
 function isInside(root: string, target: string) {
@@ -297,6 +388,7 @@ export function createPixifactAutomation() {
             return {
                 ok: result.ok,
                 error: result.error,
+                ...(!result.ok ? commandFailureDetails(proposal.commands, result.results, result.error) : {}),
                 diffs: result.diffs,
                 warnings: result.warnings,
                 results: result.results,
@@ -325,6 +417,7 @@ export function createPixifactAutomation() {
                 return {
                     ok: false,
                     error: dryRun.error,
+                    ...commandFailureDetails(commands, dryRun.results, dryRun.error),
                     diffs: dryRun.diffs,
                     warnings: dryRun.warnings,
                     results: dryRun.results,
@@ -339,6 +432,7 @@ export function createPixifactAutomation() {
                     return {
                         ok: false,
                         error: result.error,
+                        ...commandFailureDetails(commands, results, result.error),
                         results,
                     };
                 }
@@ -369,6 +463,7 @@ export function createPixifactAutomation() {
                     return {
                         ok: false,
                         error: result.error,
+                        ...commandFailureDetails(commands, results, result.error),
                         results,
                     };
                 }

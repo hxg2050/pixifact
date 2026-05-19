@@ -120,13 +120,14 @@ Agent 生成的 `commands.json` 必须是数组：
 
 ## 6. 失败处理
 
-如果 dry-run 或 apply 失败：
+如果 dry-run、validate 或 apply 失败：
 
-1. 读取错误 JSON 中的 `error` 和 `results`。
+1. 读取错误 JSON 中的 `error`、`commandIndex`、`op`、`node`、`target`、`hint` 和 `results`。
 2. 不直接改文件。
-3. 重新读取 Scene 或 inspect 相关节点。
-4. 修正 `SceneCommand[]`。
-5. 再次 dry-run。
+3. 用 `commandIndex` 定位失败命令，用 `target` 判断失败字段或父子关系。
+4. 重新读取 Scene 或 inspect 相关节点。
+5. 根据 `hint` 修正 `SceneCommand[]`。
+6. 再次 dry-run。
 
 典型失败：
 

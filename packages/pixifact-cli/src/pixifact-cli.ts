@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises';
-import { createPixifactAutomation } from './automation';
+import { createPixifactAutomation, hintForCliError } from './automation';
 import { createLiveBridgeServer } from './liveBridgeServer';
 
 type Automation = ReturnType<typeof createPixifactAutomation>;
@@ -17,6 +17,11 @@ interface CliResult {
     exitCode: number;
     stdout: string;
     stderr: string;
+}
+
+interface CliJsonResult {
+    ok?: boolean;
+    [key: string]: unknown;
 }
 
 interface ParsedArgs {
@@ -89,6 +94,12 @@ async function readCommands(flags: Record<string, string | true>, input: string 
 
 function jsonLine(value: unknown) {
     return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function isFailedResult(value: unknown): value is CliJsonResult {
+    return typeof value === 'object'
+        && value !== null
+        && (value as CliJsonResult).ok === false;
 }
 
 async function executeFileCommand(positionals: string[], flags: Record<string, string | true>, automation: Automation, input: string | NodeJS.ReadableStream | undefined) {
@@ -196,6 +207,13 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                 options.input,
             )
             : await executeFileCommand(parsed.positionals, parsed.flags, automation, options.input);
+        if (isFailedResult(result)) {
+            return {
+                exitCode: 1,
+                stdout: '',
+                stderr: jsonLine(result),
+            };
+        }
         return {
             exitCode: 0,
             stdout: jsonLine(result),
@@ -208,6 +226,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
             stderr: jsonLine({
                 ok: false,
                 error: error instanceof Error ? error.message : String(error),
+                hint: hintForCliError(error instanceof Error ? error.message : String(error)),
             }),
         };
     } finally {

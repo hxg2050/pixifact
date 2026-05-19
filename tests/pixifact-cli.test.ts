@@ -243,6 +243,116 @@ describe('Pixifact CLI', () => {
         expect(result.json.ok).toBe(true);
     });
 
+    it('returns structured command metadata when dry-run fails', async () => {
+        const projectRoot = createTempProject();
+        const command = {
+            op: 'setNodeData',
+            node: 'missingLabel',
+            field: 'text',
+            prop: 'value',
+            value: 'Continue',
+        };
+        const commandsPath = writeCommands(projectRoot, [command]);
+
+        const result = await runCli([
+            'commands',
+            'dry-run',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'button.scene',
+            '--commands',
+            commandsPath,
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe('');
+        expect(result.json).toMatchObject({
+            ok: false,
+            error: 'Node "missingLabel" was not found.',
+            commandIndex: 0,
+            op: 'setNodeData',
+            node: 'missingLabel',
+            target: 'missingLabel.text.value',
+        });
+        expect(result.json.hint).toContain('node inspect');
+    });
+
+    it('returns structured command metadata when validate fails under a leaf node', async () => {
+        const projectRoot = createTempProject();
+        const command = {
+            op: 'createNode',
+            parent: 'label',
+            node: {
+                kind: 'text',
+                key: 'childLabel',
+                name: 'Child',
+                text: {
+                    value: 'Child',
+                },
+            },
+        };
+        const commandsPath = writeCommands(projectRoot, [command]);
+
+        const result = await runCli([
+            'commands',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'button.scene',
+            '--commands',
+            commandsPath,
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            error: 'Only container nodes can contain child nodes.',
+            commandIndex: 0,
+            op: 'createNode',
+            node: 'childLabel',
+            target: 'label.children',
+        });
+        expect(result.json.hint).toContain('container');
+    });
+
+    it('returns structured command metadata when apply dry-run rejects an invalid field', async () => {
+        const projectRoot = createTempProject();
+        const command = {
+            op: 'setNodeData',
+            node: 'label',
+            field: 'text',
+            prop: 'missingProp',
+            value: 'Continue',
+        };
+        const commandsPath = writeCommands(projectRoot, [command]);
+
+        const result = await runCli([
+            'commands',
+            'apply',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'button.scene',
+            '--commands',
+            commandsPath,
+        ]);
+        const saved = JSON.parse(fs.readFileSync(path.join(projectRoot, 'button.scene'), 'utf8'));
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            error: 'Node data prop "missingProp" does not exist on text.',
+            commandIndex: 0,
+            op: 'setNodeData',
+            node: 'label',
+            target: 'label.text.missingProp',
+        });
+        expect(result.json.hint).toContain('field belongs');
+        expect(saved.root.children[0].text.value).toBe('Start');
+    });
+
     it('rejects file paths outside the project root', async () => {
         const projectRoot = createTempProject();
 
@@ -260,6 +370,7 @@ describe('Pixifact CLI', () => {
             ok: false,
         });
         expect(result.json.error).toContain('inside projectRoot');
+        expect(result.json.hint).toContain('project-relative');
     });
 
     it('routes live commands to the live editor bridge when connected', async () => {
