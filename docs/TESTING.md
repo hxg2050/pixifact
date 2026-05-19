@@ -5,7 +5,7 @@ Pixifact 的测试文档分为 BDD 和 TDD 两部分：
 - [BDD.md](./BDD.md)：产品行为、验收场景、当前测试缺口和优先级。
 - [TDD.md](./TDD.md)：测试边界、测试地图、Red / Green / Refactor 流程、需求类型到测试的映射和验证命令。
 
-CLI 替换 MCP 的迁移计划见 [CLI_MIGRATION.md](./CLI_MIGRATION.md)。
+CLI 使用说明见 [CLI_MIGRATION.md](./CLI_MIGRATION.md)，Agent 固定流程见 [AGENT_CLI_WORKFLOW.md](./AGENT_CLI_WORKFLOW.md)。
 
 工作顺序固定为：
 

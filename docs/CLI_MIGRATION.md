@@ -1,18 +1,19 @@
-# Pixifact CLI Migration
+# Pixifact CLI
 
-本文档定义从 MCP 入口迁移到 Pixifact CLI 的目标形态、迁移步骤和验证边界。
+Pixifact 已经从 stdio MCP server 迁移到本地 CLI。CLI 是外部 Agent 操作 Pixifact 项目的主入口，只负责参数解析、JSON 输入输出和调用受控能力；真实修改继续走 `SceneCommand`、`dryRunProposal()` 和 `SceneDocument.apply()`。
 
-CLI 是外部 Agent 操作 Pixifact 项目的主入口。它只负责参数解析、输入输出和调用受控能力；真实项目修改必须继续走 `SceneCommand`、`dryRunProposal()` 和 `SceneDocument.apply()`。
+## 1. 当前状态
 
-## 1. 目标
+- 主入口：`bun run pixifact -- ...`
+- CLI 包：`packages/pixifact-cli/`
+- Editor live bridge：`apps/editor/src/agent/`
+- 文件模式：直接读写 `projectRoot + scenePath` 指定的 `.scene` 或 `pixifact.aiEditorProject`。
+- Live mode：通过 `ws://127.0.0.1:8791/pixifact-agent` 操作当前打开的 editor `SceneDocument`。
+- 旧 MCP server 已删除，不保留旧协议兼容层、别名或 deprecation shim。
 
-- 用本地 CLI 替换 stdio MCP server。
-- CLI 默认输出 JSON，便于 Codex、Claude Code 和脚本消费。
-- 文件模式直接操作 `projectRoot + scenePath` 指定的 `.scene` 或 `pixifact.aiEditorProject`。
-- Live Editor 模式通过本机 websocket bridge 操作当前打开的 `SceneDocument`。
-- 不为旧 MCP 协议新增兼容层、别名或 deprecation shim。
+## 2. 文件模式
 
-## 2. 目标命令
+文件模式不要求启动 editor。所有路径都必须留在 `projectRoot` 内部。
 
 ```bash
 bun run pixifact -- summary --project-root /path/to/project
@@ -42,9 +43,24 @@ bun run pixifact -- commands validate \
   --commands commands.json
 ```
 
-`--commands -` 表示从 stdin 读取 `SceneCommand[]`。
+`--commands -` 表示从 stdin 读取 `SceneCommand[]`：
 
-Live Editor 命令：
+```bash
+cat commands.json | bun run pixifact -- commands dry-run \
+  --project-root /path/to/project \
+  --scene scenes/main.scene \
+  --commands -
+```
+
+## 3. Live Mode
+
+Live mode 要求桌面 editor 已启动，并且已打开项目 / Scene。
+
+```bash
+bun run desktop
+```
+
+然后在另一个终端执行：
 
 ```bash
 bun run pixifact -- live scene get
@@ -54,97 +70,63 @@ bun run pixifact -- live commands apply --commands commands.json
 bun run pixifact -- live commands validate --commands commands.json
 ```
 
-失败时 CLI 输出错误 JSON，并返回非 0 exit code。
+Live mode 会操作当前打开的 `SceneDocument`，刷新 editor preview，并在 apply 成功后保存当前 Scene。
 
-## 3. 模块迁移
+## 4. Command Payload
 
-第一步先改名和抽离共享能力：
-
-```txt
-packages/pixifact-cli/
-  src/automation.ts
-  src/liveBridge.ts
-  src/liveBridgeServer.ts
-  src/pixifact-cli.ts
-```
-
-迁移来源：
-
-- `packages/pixifact-mcp/src/editorAutomation.ts` -> `packages/pixifact-cli/src/automation.ts`
-- `packages/pixifact-mcp/src/liveBridge.ts` -> `packages/pixifact-cli/src/liveBridge.ts`
-- `packages/pixifact-mcp/src/liveBridgeServer.ts` -> `packages/pixifact-cli/src/liveBridgeServer.ts`
-
-`automation.ts` 保留以下能力：
-
-- `getProjectSummary`
-- `getScene`
-- `inspectNode`
-- `dryRunCommands`
-- `applyCommands`
-- `validateCommands`
-
-CLI 入口只调用这些方法，不直接读写 Scene 节点字段。
-
-## 4. Editor 迁移
-
-Editor 侧目录从 MCP 心智迁移到 Agent / CLI 心智：
-
-```txt
-apps/editor/src/mcp/ -> apps/editor/src/agent/
-```
-
-目标：
-
-- `liveEditorClient.ts` 继续接收 live bridge 请求。
-- 请求名称保持与 CLI action 对齐，例如 `scene.get`、`commands.apply`。
-- 当前打开的 Scene 只能通过 `SceneDocument` 修改。
-- UI 文案从 “MCP tools” 改为 “CLI / Agent commands”。
-
-## 5. Package Scripts
-
-新增根脚本：
+`commands.json` 必须是 `SceneCommand[]`。示例：
 
 ```json
-{
-  "pixifact": "bun packages/pixifact-cli/src/pixifact-cli.ts"
-}
+[
+  {
+    "op": "setNodeData",
+    "node": "submitButtonLabel",
+    "field": "text",
+    "prop": "value",
+    "value": "Continue"
+  }
+]
 ```
 
-MCP 入口完成迁移后删除：
+CLI 不接受自由文本修改请求。Agent 必须先把意图转换成结构化 `SceneCommand[]`。
 
-```json
-{
-  "editor:mcp": "bun packages/pixifact-mcp/src/pixifact-mcp-server.ts"
-}
-```
+## 5. 输出和错误
 
-## 6. TDD 顺序
+- 成功时 stdout 输出 JSON，exit code 为 0。
+- 失败时 stderr 输出错误 JSON，exit code 非 0。
+- dry-run 不写文件，也不修改 editor 当前 Scene。
+- apply 会先执行同一批命令的 dry-run；dry-run 失败则不写文件。
+- path guard 会拒绝 `projectRoot` 外的 scene 路径。
 
-1. 新增 `tests/pixifact-cli.test.ts`，先覆盖文件模式。
-2. 实现 `summary`、`scene get`、`node inspect`。
-3. 实现 `commands dry-run`、`commands apply`、`commands validate`。
-4. 覆盖 path guard、stdin commands、错误 JSON 和 exit code。
-5. 迁移 live bridge routing 测试。
-6. 删除 MCP server 测试和旧协议文档引用。
+## 6. Agent 约束
 
-最小验证：
+Agent 使用 CLI 时必须遵守：
+
+- 先读上下文，再写命令：`summary` -> `scene get` -> 必要时 `node inspect`。
+- 只生成 `SceneCommand[]`，不直接编辑 `.scene` JSON。
+- 先 `commands dry-run`，确认 `ok: true` 后再 `commands apply`。
+- 使用稳定 locator：节点用 `key` / `id`，组件用 `id`，文件用 project-relative path。
+- 对 live editor 的修改只通过 `bun run pixifact -- live ...`。
+
+更完整的 Agent 操作流程见 [AGENT_CLI_WORKFLOW.md](./AGENT_CLI_WORKFLOW.md)。
+
+## 7. 验证
+
+CLI 相关最小验证：
 
 ```bash
 bunx --no-install vitest run tests/pixifact-cli.test.ts
 ```
 
-跨 editor 文案或 live bridge 改动后再运行：
+跨 editor live bridge 或 UI 文案时：
 
 ```bash
-bunx --no-install vitest run tests/editor.test.ts tests/project-file-tree.test.ts tests/pixifact-cli.test.ts
+bunx --no-install vitest run tests/project-file-tree.test.ts tests/pixifact-cli.test.ts
 bun run editor:frontend:build
 ```
 
-## 7. Definition of Done
+完整验证：
 
-- CLI 覆盖 MCP 现有工具的等价行为。
-- dry-run 不写文件，apply 才写回 `.scene`。
-- `projectRoot` path guard 保持有效。
-- Live Editor 模式能操作当前打开的 `SceneDocument` 并刷新 editor。
-- 文档、BDD 和 TDD 不再把 MCP 作为 Agent 主入口。
-- 旧 MCP server 代码和脚本被删除。
+```bash
+bun run test
+```
