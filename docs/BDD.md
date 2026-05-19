@@ -437,7 +437,7 @@ Feature: Scene templates
     And instantiate 后 scroll 行为可工作
 ```
 
-落地方式：`tests/editor.test.ts` + `tests/ui.test.ts`。
+落地方式：已由 `tests/editor.test.ts` 覆盖 Button / ProgressBar / ScrollView 的 container template 结构和 editor template library 入口；由 `tests/ui.test.ts` 覆盖 `ScrollRect` 的滚动行为与事件清理。
 
 ### P1：AI proposal repair loop 面向 CLI / gateway 的一致性
 
