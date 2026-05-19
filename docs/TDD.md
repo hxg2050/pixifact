@@ -107,6 +107,7 @@ bunx --no-install vitest run tests/editor.test.ts tests/unity-ui.test.ts
 必须先覆盖：
 
 - 数据流从 UI event 转成 `SceneCommand`。
+- 节点类型专属 display 字段由 `InspectorModel` 过滤：`text` 不展示 image / shape 字段，`input` 不展示 image / shape 字段，`container` 不展示 display data。
 - `SceneDocument` 是唯一 project data source。
 - Zustand 只保存 UI 偏好。
 - 纯图标按钮有 `aria-label` 和 `title`。

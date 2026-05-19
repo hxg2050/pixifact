@@ -408,7 +408,7 @@ Feature: Live editor CLI bridge
 
 落地方式：扩展 live bridge server / editor automation 的测试替身，覆盖 connected path 的参数和副作用。
 
-### P1：Inspector 节点类型专属字段
+### 已覆盖：Inspector 节点类型专属字段
 
 目标场景：
 
@@ -421,7 +421,7 @@ Feature: Node-specific Inspector
     And 不展示 image.src 或 shape.radius
 ```
 
-落地方式：先测 `InspectorModel`，必要时补 panel test。
+落地方式：已由 `tests/editor.test.ts` 的 `builds node-specific inspector display fields` 覆盖 `text/image/input/shape/container` 的字段过滤。
 
 ### P1：Scene 模板库扩充
 

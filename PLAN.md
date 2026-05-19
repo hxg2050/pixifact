@@ -50,13 +50,13 @@ apps/editor/src-tauri/            Tauri host
 - [x] 编辑器创建项、Hierarchy、Inspector、Viewport 基于 Scene 语义工作。
 - [x] CLI 命令使用 `scenePath` 和 `SceneCommand`。
 - [x] AI context 只暴露 Scene 节点和行为组件 schema。
+- [x] Inspector 按公开节点类型展示专属字段，不暴露内部 runtime authoring 组件。
 
 ## 5. 下一阶段
 
 - [ ] 将 editor 主流程从 Alpha proposal 审查器继续收敛为 Agent / CLI first 工作流。
 - [ ] 继续优化桌面版本机能力：文件打开、外部程序、代码跳转。
 - [ ] 扩充 Scene 模板库：Button、ProgressBar、ScrollView、常用 HUD 组合。
-- [ ] 让 Inspector 更贴近具体节点类型，而不是暴露内部 runtime 实现。
 - [ ] 增加 `.scene` 创建、保存、CLI 修改和 editor 预览的 E2E 覆盖。
 
 ## 6. 验证策略
