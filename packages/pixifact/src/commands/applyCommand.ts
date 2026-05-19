@@ -8,6 +8,93 @@ export type CommandResult =
     | { ok: true; command: SceneCommand; inverse: SceneCommand }
     | { ok: false; command: SceneCommand; error: string };
 
+export interface CommandFailureDetails {
+    commandIndex?: number;
+    op?: SceneCommand['op'];
+    node?: string;
+    target?: string;
+    hint?: string;
+}
+
+export function hintForCommandError(error: string) {
+    if (error.includes('inside projectRoot')) {
+        return 'Use a project-relative scene path that stays inside projectRoot.';
+    }
+    if (error.includes('was not found')) {
+        return 'Re-run scene get or node inspect to refresh locators before regenerating the command.';
+    }
+    if (error.includes('Only container nodes')) {
+        return 'Choose a container node as the parent, or create a container template before adding children.';
+    }
+    if (error.includes('does not exist')) {
+        return 'Verify that the field belongs to the target node or component schema before retrying.';
+    }
+    if (error.includes('expects')) {
+        return 'Check the target schema and send a value with the expected type.';
+    }
+    return undefined;
+}
+
+function commandNode(command: SceneCommand) {
+    switch (command.op) {
+        case 'createNode':
+            return nodeLocator(command.node);
+        case 'batch':
+            return undefined;
+        default:
+            return command.node;
+    }
+}
+
+function commandTarget(command: SceneCommand) {
+    switch (command.op) {
+        case 'setNodeProp':
+            return `${command.node}.${command.prop}`;
+        case 'setTransform':
+            return `${command.node}.transform`;
+        case 'setNodeData':
+            return `${command.node}.${command.field}.${command.prop}`;
+        case 'setComponentProp':
+            return `${command.node}.${command.component}.${command.prop}`;
+        case 'addComponent':
+            return `${command.node}.components.${command.component.id ?? command.component.type}`;
+        case 'removeComponent':
+            return `${command.node}.components.${command.component}`;
+        case 'createNode':
+            return `${command.parent ?? 'root'}.children`;
+        case 'deleteNode':
+            return command.node;
+        case 'reparentNode':
+            return `${command.node}.parent`;
+        case 'reorderNode':
+            return `${command.node}.index`;
+        case 'batch':
+            return 'batch.commands';
+    }
+}
+
+export function commandFailureDetails(commands: SceneCommand[], results: CommandResult[], error: string | undefined): CommandFailureDetails {
+    const failedResultIndex = results.findIndex((result) => !result.ok);
+    const commandIndex = failedResultIndex >= 0
+        ? failedResultIndex
+        : Math.min(results.length, commands.length - 1);
+    const command = commands[commandIndex];
+
+    if (!command) {
+        return {
+            hint: error ? hintForCommandError(error) : undefined,
+        };
+    }
+
+    return {
+        commandIndex,
+        op: command.op,
+        node: commandNode(command),
+        target: commandTarget(command),
+        hint: error ? hintForCommandError(error) : undefined,
+    };
+}
+
 function applySetTransform(scene: SceneSpec, command: Extract<SceneCommand, { op: 'setTransform' }>): SceneCommand {
     const located = findNode(scene, command.node)!;
     const previous: Record<string, unknown> = {};

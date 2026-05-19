@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
-import { createPixifactAutomation, hintForCliError } from './automation';
+import { createPixifactAutomation } from './automation';
+import { hintForCommandError } from 'pixifact';
 import { createLiveBridgeServer } from './liveBridgeServer';
 
 type Automation = ReturnType<typeof createPixifactAutomation>;
@@ -226,7 +227,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
             stderr: jsonLine({
                 ok: false,
                 error: error instanceof Error ? error.message : String(error),
-                hint: hintForCliError(error instanceof Error ? error.message : String(error)),
+                hint: hintForCommandError(error instanceof Error ? error.message : String(error)),
             }),
         };
     } finally {

@@ -137,6 +137,38 @@ function liveProjectTree() {
     };
 }
 
+function openLiveMenuScene() {
+    resetSceneDocument();
+    const document = getSceneDocument();
+    document.load(scene('Menu',
+        container('Root', {
+            id: 'root',
+            key: 'root',
+            children: [
+                text('Label', {
+                    key: 'menuLabel',
+                    value: 'Start',
+                    color: 0xffffff,
+                    fontSize: 14,
+                }),
+            ],
+        }),
+    ));
+    document.setSelection({ type: 'node', node: 'menuLabel' });
+    document.dirty = false;
+    useEditorStore.setState({
+        projectName: 'GameProject',
+        projectTree: liveProjectTree(),
+        selectedProjectFilePath: 'GameProject/scenes/Menu.scene',
+        openedScenePath: 'GameProject/scenes/Menu.scene',
+        expandedProjectFolders: ['GameProject', 'GameProject/scenes'],
+        expandedHierarchyNodesByScene: {},
+        prompt: '创建一个背包界面，四列三行，每个格子有图标、数量和 Use 按钮。',
+        language: 'zh-CN',
+    });
+    return document;
+}
+
 afterEach(() => {
     for (const root of tempRoots.splice(0)) {
         fs.rmSync(root, { recursive: true, force: true });
@@ -400,35 +432,7 @@ describe('Pixifact CLI', () => {
     });
 
     it('applies live editor commands to the current SceneDocument and saves the opened Scene', async () => {
-        resetSceneDocument();
-        const document = getSceneDocument();
-        document.load(scene('Menu',
-            container('Root', {
-                id: 'root',
-                key: 'root',
-                children: [
-                    text('Label', {
-                        key: 'menuLabel',
-                        value: 'Start',
-                        color: 0xffffff,
-                        fontSize: 14,
-                    }),
-                ],
-            }),
-        ));
-        document.setSelection({ type: 'node', node: 'menuLabel' });
-        document.dirty = false;
-        useEditorStore.setState({
-            projectName: 'GameProject',
-            projectTree: liveProjectTree(),
-            selectedProjectFilePath: 'GameProject/scenes/Menu.scene',
-            openedScenePath: 'GameProject/scenes/Menu.scene',
-            expandedProjectFolders: ['GameProject', 'GameProject/scenes'],
-            expandedHierarchyNodesByScene: {},
-            prompt: '创建一个背包界面，四列三行，每个格子有图标、数量和 Use 按钮。',
-            language: 'zh-CN',
-        });
-
+        const document = openLiveMenuScene();
         const handlers = createLiveEditorActionHandlers();
         const command: SceneCommand = {
             op: 'setNodeData',
@@ -458,5 +462,106 @@ describe('Pixifact CLI', () => {
         );
         expect(JSON.parse(savedContent).root.children[0].text.value).toBe('Continue');
         expect(host.writeHostProjectFileText.mock.calls.some((call) => call[1] === 'GameProject/scenes/Other.scene')).toBe(false);
+    });
+
+    it('returns structured command metadata when live dry-run fails', async () => {
+        openLiveMenuScene();
+        const handlers = createLiveEditorActionHandlers();
+        const command: SceneCommand = {
+            op: 'setNodeData',
+            node: 'missingLabel',
+            field: 'text',
+            prop: 'value',
+            value: 'Continue',
+        };
+
+        const result = await handlers['commands.dryRun']({
+            commands: [command],
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            live: true,
+            error: 'Node "missingLabel" was not found.',
+            commandIndex: 0,
+            op: 'setNodeData',
+            node: 'missingLabel',
+            target: 'missingLabel.text.value',
+        });
+        expect(result.hint).toContain('node inspect');
+    });
+
+    it('returns structured command metadata when live validate fails under a leaf node', async () => {
+        openLiveMenuScene();
+        const handlers = createLiveEditorActionHandlers();
+        const command: SceneCommand = {
+            op: 'createNode',
+            parent: 'menuLabel',
+            node: text('Child', {
+                key: 'childLabel',
+                value: 'Child',
+            }),
+        };
+
+        const result = await handlers['commands.validate']({
+            commands: [command],
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            live: true,
+            error: 'Only container nodes can contain child nodes.',
+            commandIndex: 0,
+            op: 'createNode',
+            node: 'childLabel',
+            target: 'menuLabel.children',
+        });
+        expect(result.hint).toContain('container');
+    });
+
+    it('returns non-zero CLI result when live apply fails validation', async () => {
+        const command: SceneCommand = {
+            op: 'setNodeData',
+            node: 'menuLabel',
+            field: 'text',
+            prop: 'missingProp',
+            value: 'Continue',
+        };
+        const result = await executePixifactCli([
+            'live',
+            'commands',
+            'apply',
+            '--commands',
+            '-',
+        ], {
+            input: JSON.stringify([command]),
+            liveBridge: {
+                connected: true,
+                stop: () => {},
+                callAction: async () => ({
+                    ok: false,
+                    live: true,
+                    error: 'Node data prop "missingProp" does not exist on text.',
+                    commandIndex: 0,
+                    op: 'setNodeData',
+                    node: 'menuLabel',
+                    target: 'menuLabel.text.missingProp',
+                    hint: 'Verify that the field belongs to the target node or component schema before retrying.',
+                }),
+            },
+        });
+        const parsed = JSON.parse(result.stderr);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe('');
+        expect(parsed).toMatchObject({
+            ok: false,
+            live: true,
+            commandIndex: 0,
+            op: 'setNodeData',
+            node: 'menuLabel',
+            target: 'menuLabel.text.missingProp',
+        });
+        expect(parsed.hint).toContain('field belongs');
     });
 });

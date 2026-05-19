@@ -1,4 +1,4 @@
-import { applyCommand, dryRunProposal } from 'pixifact';
+import { applyCommand, commandFailureDetails, dryRunProposal } from 'pixifact';
 import type { CommandResult, SceneCommand, NodeSpec, SceneSpec } from 'pixifact';
 import {
     getSceneDocument,
@@ -266,6 +266,7 @@ export function createLiveEditorActionHandlers() {
                 ok: result.ok,
                 live: true,
                 error: result.error,
+                ...(!result.ok ? commandFailureDetails(result.proposal.commands, result.results, result.error) : {}),
                 diffs: result.diffs,
                 warnings: result.warnings,
                 results: result.results,
@@ -285,6 +286,7 @@ export function createLiveEditorActionHandlers() {
                     ok: false,
                     live: true,
                     error: dryRun.error,
+                    ...commandFailureDetails(commands, dryRun.results, dryRun.error),
                     diffs: dryRun.diffs,
                     warnings: dryRun.warnings,
                     results: dryRun.results,
@@ -301,6 +303,7 @@ export function createLiveEditorActionHandlers() {
                         ok: false,
                         live: true,
                         error: result.error,
+                        ...commandFailureDetails(commands, results, result.error),
                         results,
                     };
                 }
@@ -337,6 +340,7 @@ export function createLiveEditorActionHandlers() {
                         ok: false,
                         live: true,
                         error: result.error,
+                        ...commandFailureDetails(commands, results, result.error),
                         results,
                     };
                 }
