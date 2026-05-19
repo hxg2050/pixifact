@@ -2,7 +2,7 @@
 
 Pixifact 是一个独立的 2D UI + 轻场景开发框架。PixiJS 是底层渲染实现，Pixifact 对外暴露 Scene、节点、行为组件、Command 和 authoring document 语义。
 
-编辑器、MCP server 和外部 Agent 都是 Pixifact 语义层的使用方。当前桌面编辑器位于 `apps/editor/`，用于搭建 UI / 基础场景、预览 AI 或 Agent 生成结果、手动调整，并通过 MCP 向 Codex、Claude Code 等工具开放受控编辑能力。
+编辑器、Pixifact CLI 和外部 Agent 都是 Pixifact 语义层的使用方。当前桌面编辑器位于 `apps/editor/`，用于搭建 UI / 基础场景、预览 AI 或 Agent 生成结果、手动调整，并通过 CLI 向 Codex、Claude Code 等工具开放受控编辑能力。
 
 [English](./README.en.md)
 
@@ -31,11 +31,11 @@ packages/pixifact/src/nodes/    runtime 节点和行为组件
 packages/pixifact/src/scene/    SceneSpec、DSL、Scene 实例化、Scene 模板
 packages/pixifact/src/commands/ SceneCommand 校验、应用、撤销基础
 packages/pixifact/src/authoring/SceneDocument、selection、diff、AI context、locks、actions、logic
-packages/pixifact-mcp/          MCP server，依赖 pixifact，不依赖桌面编辑器
+packages/pixifact-cli/          Pixifact CLI，依赖 pixifact，不依赖桌面编辑器
 apps/editor/                    Pixifact 桌面编辑器 React / Vite 前端
 apps/editor/src-tauri/          Tauri desktop host
 examples/                       runtime 示例
-tests/                          单元测试、编辑器测试、MCP 测试
+tests/                          单元测试、编辑器测试、CLI 测试
 sample-projects/                样例 Pixifact 项目
 skills/                         本仓库维护的 Codex skills
 ```
@@ -63,15 +63,15 @@ bun run desktop:build
 
 开发和打包桌面版需要 Rust / Cargo。最终安装桌面 App 的用户不需要配置 Bun 或 Rust 环境。
 
-## MCP
+## CLI
 
-启动 MCP server：
+读取项目摘要：
 
 ```bash
-bun run editor:mcp
+bun run pixifact -- summary --project-root /path/to/project
 ```
 
-MCP tools 读写 `SceneCommand` 和 `.scene` / `pixifact.aiEditorProject` 文件。Live Editor 连接存在时会操作当前打开的编辑器；没有连接时会直接读写本地项目文件。
+CLI 命令读写 `SceneCommand` 和 `.scene` / `pixifact.aiEditorProject` 文件。Live mode 会操作当前打开的编辑器；文件模式会直接读写本地项目文件。
 
 ## AI Gateway
 
@@ -104,7 +104,7 @@ import { applySceneCommand, validateSceneCommand } from 'pixifact/commands';
 import { container, scene, shape, text, instantiateScene } from 'pixifact/scene';
 ```
 
-根入口 `pixifact` 也会导出公开语义层，方便 editor、MCP 和测试直接使用。
+根入口 `pixifact` 也会导出公开语义层，方便 editor、CLI 和测试直接使用。
 
 ## 验证
 

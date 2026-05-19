@@ -20,8 +20,8 @@ import { SummaryBar } from './panels/SummaryBar';
 import { ViewportPanel } from './panels/ViewportPanel';
 import { collectHierarchy, useDocumentRevision } from './panels/common';
 import { openProjectFolder, saveSceneFile } from './services/projectFileTree';
-import { startLiveEditorMcpClient } from './mcp/liveEditorClient';
-import { pixifactMcpBridgeUrl } from './mcp/liveBridge';
+import { startLiveEditorAgentClient } from './agent/liveEditorClient';
+import { pixifactAgentBridgeUrl } from './agent/liveBridge';
 import 'dockview/dist/styles/dockview.css';
 
 interface EditorPanelParams {
@@ -205,7 +205,7 @@ export function EditorApp() {
         }
     }, [language]);
 
-    useEffect(() => startLiveEditorMcpClient(), []);
+    useEffect(() => startLiveEditorAgentClient(), []);
 
     const resetDocument = useCallback(() => {
         resetSceneDocument();
@@ -321,11 +321,11 @@ export function EditorApp() {
                     <WelcomePage onOpenFolder={() => void openFolder()} />
                 )}
             </main>
-            <footer className="mcpStatusBar" aria-label={t('agentStatusTitle')} data-testid="mcp-status-bar">
+            <footer className="agentStatusBar" aria-label={t('agentStatusTitle')} data-testid="agent-status-bar">
                 <div>
                     <span>{t('agentBridge')}</span>
-                    <strong>bun run editor:mcp</strong>
-                    <small>{pixifactMcpBridgeUrl}</small>
+                    <strong>bun run pixifact -- live</strong>
+                    <small>{pixifactAgentBridgeUrl}</small>
                 </div>
                 <div>
                     <span>{t('agentEditorTarget')}</span>

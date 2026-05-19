@@ -27,7 +27,7 @@ Pixifact editor 使用 Scene 作为统一 UI / 轻场景资产。一个 `.scene`
 - `name`：Scene 资产名。
 - `root`：Scene 根节点，必须是 `container`。
 - `root.name`：根节点在层级和 Inspector 中的显示名。
-- `root.key`：稳定引用 key，供 command、AI proposal、MCP 和运行时绑定使用。
+- `root.key`：稳定引用 key，供 command、AI proposal、CLI 和运行时绑定使用。
 - `root.transform`：根节点的逻辑尺寸和变换。
 - `root.components` / `root.children`：节点组件和子节点。
 
@@ -64,7 +64,7 @@ Scene 文件名、资产名和 root key 保持一致的派生关系：
 
 - 打开 `.scene` 文件。
 - 新建 `.scene` 文件。
-- 在 Inspector / MCP / Agent 中修改当前 Scene。
+- 在 Inspector / CLI / Agent 中修改当前 Scene。
 - 保存当前 Scene 回原文件。
 - 运行时通过 `instantiateScene()` 实例化为 runtime tree。
 

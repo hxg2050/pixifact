@@ -242,7 +242,7 @@ function walkFiles(root: string, directory: string, depth: number, maxDepth: num
     }
 }
 
-export function createEditorAutomation() {
+export function createPixifactAutomation() {
     return {
         getProjectSummary(input: unknown) {
             const args = assertRecord(input, 'input') as ToolInput;
@@ -282,9 +282,9 @@ export function createEditorAutomation() {
             const args = assertRecord(input, 'input') as ToolInput;
             const editable = loadEditableDocument(args.projectRoot, args.scenePath);
             const proposal = {
-                id: 'mcp-dry-run',
-                prompt: 'MCP dry run',
-                explanation: 'Commands submitted through MCP.',
+                id: 'cli-dry-run',
+                prompt: 'CLI dry run',
+                explanation: 'Commands submitted through Pixifact CLI.',
                 commands: assertCommands(args.commands),
                 annotations: [],
                 risks: [],
@@ -309,9 +309,9 @@ export function createEditorAutomation() {
             const editable = loadEditableDocument(args.projectRoot, args.scenePath);
             const commands = assertCommands(args.commands);
             const proposal = {
-                id: 'mcp-apply',
-                prompt: 'MCP apply',
-                explanation: 'Commands submitted through MCP.',
+                id: 'cli-apply',
+                prompt: 'CLI apply',
+                explanation: 'Commands submitted through Pixifact CLI.',
                 commands,
                 annotations: [],
                 risks: [],

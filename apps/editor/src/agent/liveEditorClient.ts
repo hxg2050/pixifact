@@ -10,7 +10,7 @@ import {
     saveSceneFile,
 } from '../services/projectFileTree';
 import {
-    pixifactMcpBridgeUrl,
+    pixifactAgentBridgeUrl,
     type LiveBridgeClientMessage,
     type LiveBridgeRequestMessage,
     type LiveBridgeServerMessage,
@@ -186,9 +186,9 @@ async function saveCurrentScene() {
 function dryRunCurrentCommands(commands: SceneCommand[]) {
     const document = getSceneDocument();
     const proposal = {
-        id: 'mcp-live-dry-run',
-        prompt: 'MCP live dry run',
-        explanation: 'Commands submitted through MCP live bridge.',
+        id: 'cli-live-dry-run',
+        prompt: 'CLI live dry run',
+        explanation: 'Commands submitted through Pixifact CLI live bridge.',
         commands,
         annotations: [],
         risks: [],
@@ -200,9 +200,9 @@ function dryRunCurrentCommands(commands: SceneCommand[]) {
     });
 }
 
-export function createLiveEditorToolHandlers() {
+export function createLiveEditorActionHandlers() {
     return {
-        async get_project_summary(input: unknown) {
+        async summary(input: unknown) {
             assertRecord(input, 'input');
             const store = useEditorStore.getState();
             if (!store.projectTree) {
@@ -225,7 +225,7 @@ export function createLiveEditorToolHandlers() {
             };
         },
 
-        async get_scene(input: unknown) {
+        async 'scene.get'(input: unknown) {
             const args = assertRecord(input, 'input') as ToolInput;
             if (!matchesCurrentScene(args)) {
                 throw new Error('The requested Scene is not the currently open Scene in the editor.');
@@ -243,7 +243,7 @@ export function createLiveEditorToolHandlers() {
             };
         },
 
-        async inspect_node(input: unknown) {
+        async 'node.inspect'(input: unknown) {
             const args = assertRecord(input, 'input') as ToolInput;
             if (!matchesCurrentScene(args)) {
                 throw new Error('The requested Scene is not the currently open Scene in the editor.');
@@ -256,7 +256,7 @@ export function createLiveEditorToolHandlers() {
             return node;
         },
 
-        async dry_run_commands(input: unknown) {
+        async 'commands.dryRun'(input: unknown) {
             const args = assertRecord(input, 'input') as ToolInput;
             if (!matchesCurrentScene(args)) {
                 throw new Error('The requested Scene is not the currently open Scene in the editor.');
@@ -273,7 +273,7 @@ export function createLiveEditorToolHandlers() {
             };
         },
 
-        async apply_commands(input: unknown) {
+        async 'commands.apply'(input: unknown) {
             const args = assertRecord(input, 'input') as ToolInput;
             if (!matchesCurrentScene(args)) {
                 throw new Error('The requested Scene is not the currently open Scene in the editor.');
@@ -319,7 +319,7 @@ export function createLiveEditorToolHandlers() {
             };
         },
 
-        async validate_commands(input: unknown) {
+        async 'commands.validate'(input: unknown) {
             const args = assertRecord(input, 'input') as ToolInput;
             if (!matchesCurrentScene(args)) {
                 throw new Error('The requested Scene is not the currently open Scene in the editor.');
@@ -350,7 +350,7 @@ export function createLiveEditorToolHandlers() {
     };
 }
 
-export function startLiveEditorMcpClient() {
+export function startLiveEditorAgentClient() {
     if (typeof window === 'undefined') {
         return () => {};
     }
@@ -358,7 +358,7 @@ export function startLiveEditorMcpClient() {
     let socket: WebSocket | undefined;
     let stopped = false;
     let reconnectTimer: number | undefined;
-    const handlers = createLiveEditorToolHandlers();
+    const handlers = createLiveEditorActionHandlers();
 
     function send(message: LiveBridgeClientMessage) {
         if (socket?.readyState === WebSocket.OPEN) {
@@ -367,13 +367,13 @@ export function startLiveEditorMcpClient() {
     }
 
     async function handleRequest(message: LiveBridgeRequestMessage) {
-        const handler = handlers[message.tool as keyof typeof handlers];
+        const handler = handlers[message.action as keyof typeof handlers];
         if (!handler) {
             send({
                 type: 'response',
                 id: message.id,
                 ok: false,
-                error: `Unknown tool "${message.tool}".`,
+                error: `Unknown action "${message.action}".`,
             });
             return;
         }
@@ -407,7 +407,7 @@ export function startLiveEditorMcpClient() {
     }
 
     function connect() {
-        socket = new WebSocket(pixifactMcpBridgeUrl);
+        socket = new WebSocket(pixifactAgentBridgeUrl);
         socket.addEventListener('open', () => {
             send({
                 type: 'hello',

@@ -4,13 +4,13 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { container, scene, text } from 'pixifact';
 import type { SceneCommand } from 'pixifact';
-import { createMcpRequestHandler } from '../packages/pixifact-mcp/src/pixifact-mcp-server';
+import { executePixifactCli } from '../packages/pixifact-cli/src/pixifact-cli';
 import {
     getSceneDocument,
     resetSceneDocument,
 } from '../apps/editor/src/document/sceneDocumentController';
 import { useEditorStore } from '../apps/editor/src/editorStore';
-import { createLiveEditorToolHandlers } from '../apps/editor/src/mcp/liveEditorClient';
+import { createLiveEditorActionHandlers } from '../apps/editor/src/agent/liveEditorClient';
 
 const tempRoots: string[] = [];
 
@@ -73,43 +73,13 @@ vi.mock('../apps/editor/src/services/hostBridge', () => ({
     writeHostProjectFileText: host.writeHostProjectFileText,
 }));
 
-interface ToolContentResult {
-    content: Array<{
-        type: 'text';
-        text: string;
-    }>;
-    isError?: boolean;
-}
-
-interface ToolListResult {
-    tools: Array<{
-        name: string;
-    }>;
-}
-
-function assertToolContentResult(value: unknown): ToolContentResult {
-    expect(value).toMatchObject({
-        content: [{
-            type: 'text',
-        }],
-    });
-    return value as ToolContentResult;
-}
-
-function assertToolListResult(value: unknown): ToolListResult {
-    expect(value).toMatchObject({
-        tools: expect.any(Array),
-    });
-    return value as ToolListResult;
-}
-
 function createTempProject() {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-mcp-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-cli-'));
     tempRoots.push(root);
     const scene = {
         version: 1,
         type: 'scene',
-        name: 'MCP Button',
+        name: 'CLI Button',
         root: {
             kind: 'container',
             id: 'root',
@@ -137,20 +107,18 @@ function createTempProject() {
     return root;
 }
 
-function request(method: string, params?: unknown, id = 1) {
-    return {
-        jsonrpc: '2.0',
-        id,
-        method,
-        params,
-    };
+function writeCommands(root: string, commands: unknown) {
+    const commandsPath = path.join(root, 'commands.json');
+    fs.writeFileSync(commandsPath, JSON.stringify(commands), 'utf8');
+    return commandsPath;
 }
 
-function parseToolResult(response: Awaited<ReturnType<ReturnType<typeof createMcpRequestHandler>>>) {
-    expect(response).toBeDefined();
-    const result = assertToolContentResult(response!.result);
-    const text = result.content[0].text;
-    return JSON.parse(text);
+async function runCli(argv: string[], input?: string) {
+    const result = await executePixifactCli(argv, { input });
+    return {
+        ...result,
+        json: JSON.parse(result.stdout || result.stderr),
+    };
 }
 
 function liveProjectTree() {
@@ -175,25 +143,22 @@ afterEach(() => {
     }
 });
 
-describe('Pixifact MCP server', () => {
+describe('Pixifact CLI', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         localStorage.clear();
     });
 
-    it('lists tools through the MCP tools/list method', async () => {
-        const handle = createMcpRequestHandler();
-        const response = await handle(request('tools/list'));
-        expect(response).toBeDefined();
-        const result = assertToolListResult(response!.result);
+    it('outputs a project summary as JSON', async () => {
+        const projectRoot = createTempProject();
+        const result = await runCli(['summary', '--project-root', projectRoot]);
 
-        expect(result.tools.map((tool) => tool.name)).toContain('apply_commands');
-        expect(result.tools.map((tool) => tool.name)).toContain('dry_run_commands');
+        expect(result.exitCode).toBe(0);
+        expect(result.json.scenes).toContain('button.scene');
     });
 
     it('dry-runs commands without writing the Scene file', async () => {
         const projectRoot = createTempProject();
-        const handle = createMcpRequestHandler();
         const command = {
             op: 'setNodeData',
             node: 'label',
@@ -201,20 +166,23 @@ describe('Pixifact MCP server', () => {
             prop: 'value',
             value: 'Continue',
         };
+        const commandsPath = writeCommands(projectRoot, [command]);
 
-        const response = await handle(request('tools/call', {
-            name: 'dry_run_commands',
-            arguments: {
-                projectRoot,
-                scenePath: 'button.scene',
-                commands: [command],
-            },
-        }));
-        const result = parseToolResult(response);
+        const result = await runCli([
+            'commands',
+            'dry-run',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'button.scene',
+            '--commands',
+            commandsPath,
+        ]);
         const saved = JSON.parse(fs.readFileSync(path.join(projectRoot, 'button.scene'), 'utf8'));
 
-        expect(result.ok).toBe(true);
-        expect(result.diffs[0]).toMatchObject({
+        expect(result.exitCode).toBe(0);
+        expect(result.json.ok).toBe(true);
+        expect(result.json.diffs[0]).toMatchObject({
             target: 'label.text.value',
             before: 'Start',
             after: 'Continue',
@@ -224,7 +192,34 @@ describe('Pixifact MCP server', () => {
 
     it('applies commands through SceneDocument and saves the Scene file', async () => {
         const projectRoot = createTempProject();
-        const handle = createMcpRequestHandler();
+        const command = {
+            op: 'setNodeData',
+            node: 'label',
+            field: 'text',
+            prop: 'value',
+            value: 'Continue',
+        };
+        const commandsPath = writeCommands(projectRoot, [command]);
+
+        const result = await runCli([
+            'commands',
+            'apply',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'button.scene',
+            '--commands',
+            commandsPath,
+        ]);
+        const saved = JSON.parse(fs.readFileSync(path.join(projectRoot, 'button.scene'), 'utf8'));
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json.ok).toBe(true);
+        expect(saved.root.children[0].text.value).toBe('Continue');
+    });
+
+    it('reads commands from stdin', async () => {
+        const projectRoot = createTempProject();
         const command = {
             op: 'setNodeData',
             node: 'label',
@@ -233,66 +228,63 @@ describe('Pixifact MCP server', () => {
             value: 'Continue',
         };
 
-        const response = await handle(request('tools/call', {
-            name: 'apply_commands',
-            arguments: {
-                projectRoot,
-                scenePath: 'button.scene',
-                commands: [command],
-            },
-        }));
-        const result = parseToolResult(response);
-        const saved = JSON.parse(fs.readFileSync(path.join(projectRoot, 'button.scene'), 'utf8'));
+        const result = await runCli([
+            'commands',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'button.scene',
+            '--commands',
+            '-',
+        ], JSON.stringify([command]));
 
-        expect(result.ok).toBe(true);
-        expect(saved.root.children[0].text.value).toBe('Continue');
+        expect(result.exitCode).toBe(0);
+        expect(result.json.ok).toBe(true);
     });
 
     it('rejects file paths outside the project root', async () => {
         const projectRoot = createTempProject();
-        const handle = createMcpRequestHandler();
 
-        const response = await handle(request('tools/call', {
-            name: 'get_scene',
-            arguments: {
-                projectRoot,
-                scenePath: '../outside.scene',
-            },
-        }));
+        const result = await runCli([
+            'scene',
+            'get',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            '../outside.scene',
+        ]);
 
-        expect(response).toBeDefined();
-        const result = assertToolContentResult(response!.result);
-        expect(result.isError).toBe(true);
-        expect(result.content[0].text).toContain('inside projectRoot');
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+        });
+        expect(result.json.error).toContain('inside projectRoot');
     });
 
-    it('routes tool calls to the live editor bridge when connected', async () => {
-        const handle = createMcpRequestHandler({
+    it('routes live commands to the live editor bridge when connected', async () => {
+        const result = await executePixifactCli([
+            'live',
+            'scene',
+            'get',
+        ], {
             liveBridge: {
                 connected: true,
-                callTool: async (tool, args) => ({
+                stop: () => {},
+                callAction: async (action, args) => ({
                     live: true,
-                    tool,
+                    action,
                     args,
                 }),
             },
         });
+        const parsed = JSON.parse(result.stdout);
 
-        const response = await handle(request('tools/call', {
-            name: 'get_scene',
-            arguments: {
-                projectRoot: '/unused',
-                scenePath: 'current.scene',
-            },
-        }));
-        const result = parseToolResult(response);
-
-        expect(result).toMatchObject({
+        expect(result.exitCode).toBe(0);
+        expect(parsed).toMatchObject({
             live: true,
-            tool: 'get_scene',
-            args: {
-                scenePath: 'current.scene',
-            },
+            action: 'scene.get',
+            args: {},
         });
     });
 
@@ -326,7 +318,7 @@ describe('Pixifact MCP server', () => {
             language: 'zh-CN',
         });
 
-        const handlers = createLiveEditorToolHandlers();
+        const handlers = createLiveEditorActionHandlers();
         const command: SceneCommand = {
             op: 'setNodeData',
             node: 'menuLabel',
@@ -334,9 +326,7 @@ describe('Pixifact MCP server', () => {
             prop: 'value',
             value: 'Continue',
         };
-        const result = await handlers.apply_commands({
-            projectRoot: '/unused/project/root',
-            scenePath: 'GameProject/scenes/Menu.scene',
+        const result = await handlers['commands.apply']({
             commands: [command],
         });
         const savedContent = host.writeHostProjectFileText.mock.calls[0]?.[2] as string;

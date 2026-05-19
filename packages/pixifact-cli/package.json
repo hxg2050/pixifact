@@ -1,11 +1,11 @@
 {
-  "name": "pixifact-mcp",
+  "name": "pixifact-cli",
   "version": "0.1.3",
-  "description": "MCP server for Pixifact Scene automation.",
+  "description": "CLI for Pixifact Scene automation.",
   "type": "module",
   "private": true,
   "scripts": {
-    "start": "bun src/pixifact-mcp-server.ts"
+    "start": "bun src/pixifact-cli.ts"
   },
   "dependencies": {
     "pixifact": "workspace:*"

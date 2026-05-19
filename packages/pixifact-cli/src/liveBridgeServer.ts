@@ -1,6 +1,6 @@
 import {
-    pixifactMcpBridgePath,
-    pixifactMcpBridgePort,
+    pixifactAgentBridgePath,
+    pixifactAgentBridgePort,
     type LiveBridgeClientMessage,
     type LiveBridgeRequestMessage,
     type LiveBridgeResponseMessage,
@@ -45,10 +45,11 @@ function responseError(message: LiveBridgeResponseMessage) {
 }
 
 export function createLiveBridgeServer(options: LiveBridgeServerOptions = {}) {
-    const port = options.port ?? pixifactMcpBridgePort;
+    const port = options.port ?? pixifactAgentBridgePort;
     const requestTimeoutMs = options.requestTimeoutMs ?? 30000;
     let editor: BunServerSocket | undefined;
     const pending = new Map<string, PendingRequest>();
+    const connectionWaiters = new Set<() => void>();
     let nextRequestId = 0;
 
     function rejectPending(error: Error) {
@@ -64,7 +65,7 @@ export function createLiveBridgeServer(options: LiveBridgeServerOptions = {}) {
         port,
         fetch(request, server) {
             const url = new URL(request.url);
-            if (url.pathname !== pixifactMcpBridgePath) {
+            if (url.pathname !== pixifactAgentBridgePath) {
                 return new Response('Not found.', { status: 404 });
             }
             if (server.upgrade(request)) {
@@ -77,6 +78,10 @@ export function createLiveBridgeServer(options: LiveBridgeServerOptions = {}) {
                 const message = JSON.parse(String(data)) as LiveBridgeClientMessage;
                 if (message.type === 'hello' && message.role === 'editor') {
                     editor = socket;
+                    for (const resolve of connectionWaiters) {
+                        resolve();
+                    }
+                    connectionWaiters.clear();
                     return;
                 }
                 if (message.type !== 'response') {
@@ -108,7 +113,24 @@ export function createLiveBridgeServer(options: LiveBridgeServerOptions = {}) {
             return editor !== undefined;
         },
 
-        async callTool(tool: string, args: unknown) {
+        async waitForConnection(timeoutMs = 3000) {
+            if (editor) {
+                return;
+            }
+            return new Promise<void>((resolve, reject) => {
+                const timer = setTimeout(() => {
+                    connectionWaiters.delete(done);
+                    reject(new Error('No live Pixifact editor is connected.'));
+                }, timeoutMs);
+                function done() {
+                    clearTimeout(timer);
+                    resolve();
+                }
+                connectionWaiters.add(done);
+            });
+        },
+
+        async callAction(action: string, args: unknown) {
             if (!editor) {
                 throw new Error('No live Pixifact editor is connected.');
             }
@@ -116,13 +138,13 @@ export function createLiveBridgeServer(options: LiveBridgeServerOptions = {}) {
             const message: LiveBridgeRequestMessage = {
                 type: 'request',
                 id,
-                tool,
+                action,
                 arguments: args,
             };
             return new Promise((resolve, reject) => {
                 const timer = setTimeout(() => {
                     pending.delete(id);
-                    reject(new Error(`Live editor tool "${tool}" timed out.`));
+                    reject(new Error(`Live editor action "${action}" timed out.`));
                 }, requestTimeoutMs);
                 pending.set(id, {
                     resolve,

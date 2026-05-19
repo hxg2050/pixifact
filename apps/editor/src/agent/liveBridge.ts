@@ -1,6 +1,6 @@
-export const pixifactMcpBridgePort = 8791;
-export const pixifactMcpBridgePath = '/pixifact-editor';
-export const pixifactMcpBridgeUrl = `ws://127.0.0.1:${pixifactMcpBridgePort}${pixifactMcpBridgePath}`;
+export const pixifactAgentBridgePort = 8791;
+export const pixifactAgentBridgePath = '/pixifact-agent';
+export const pixifactAgentBridgeUrl = `ws://127.0.0.1:${pixifactAgentBridgePort}${pixifactAgentBridgePath}`;
 
 export type LiveBridgeRole = 'editor';
 
@@ -12,7 +12,7 @@ export interface LiveBridgeHelloMessage {
 export interface LiveBridgeRequestMessage {
     type: 'request';
     id: string;
-    tool: string;
+    action: string;
     arguments: unknown;
 }
 

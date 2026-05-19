@@ -2,8 +2,8 @@ import { useI18n } from '../i18n';
 
 export function AiPanel() {
     const t = useI18n();
-    const bridgeCommand = 'bun run editor:mcp';
-    const clientCommand = 'codex mcp add pixifact -- bun /Users/youxia/work/github/pixif/apps/editor/src/mcp/pixifact-mcp-server.ts';
+    const fileCommand = 'bun run pixifact -- scene get --project-root <project> --scene <scene>';
+    const liveCommand = 'bun run pixifact -- live scene get';
 
     return (
         <div className="aiSurface agentSurface">
@@ -17,11 +17,11 @@ export function AiPanel() {
                 <ol>
                     <li>
                         <span>{t('agentStepStartMcp')}</span>
-                        <code>{bridgeCommand}</code>
+                        <code>{fileCommand}</code>
                     </li>
                     <li>
                         <span>{t('agentStepRegisterClient')}</span>
-                        <code>{clientCommand}</code>
+                        <code>{liveCommand}</code>
                     </li>
                     <li>
                         <span>{t('agentStepUseExternal')}</span>
@@ -32,8 +32,8 @@ export function AiPanel() {
             <section className="agentTools">
                 <strong>{t('agentToolsTitle')}</strong>
                 <div>
-                    {['get_scene', 'inspect_node', 'dry_run_commands', 'apply_commands', 'validate_commands'].map((tool) => (
-                        <code key={tool}>{tool}</code>
+                    {['summary', 'scene get', 'node inspect', 'commands dry-run', 'commands apply', 'commands validate'].map((command) => (
+                        <code key={command}>{command}</code>
                     ))}
                 </div>
                 <p>{t('agentToolsRule')}</p>

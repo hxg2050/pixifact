@@ -6,7 +6,7 @@ import {
     resetSceneDocument,
 } from '../apps/editor/src/document/sceneDocumentController';
 import { useEditorStore } from '../apps/editor/src/editorStore';
-import { createLiveEditorToolHandlers } from '../apps/editor/src/mcp/liveEditorClient';
+import { createLiveEditorActionHandlers } from '../apps/editor/src/agent/liveEditorClient';
 import {
     collectFolderPaths,
     createAndOpenSceneFile,
@@ -575,7 +575,7 @@ describe('project file tree service', () => {
         expect(JSON.parse(content).root.children[0].text.value).toBe('Continue');
     });
 
-    it('creates and opens a Scene, applies live MCP commands, updates preview and saves', async () => {
+    it('creates and opens a Scene, applies live CLI commands, updates preview and saves', async () => {
         host.reset({
             scenes: host.directory(),
         });
@@ -610,8 +610,8 @@ describe('project file tree service', () => {
                 height: 28,
             }),
         };
-        const handlers = createLiveEditorToolHandlers();
-        const dryRun = await handlers.dry_run_commands({
+        const handlers = createLiveEditorActionHandlers();
+        const dryRun = await handlers['commands.dryRun']({
             scenePath: opened.openedScenePath,
             commands: [command],
         });
@@ -629,7 +629,7 @@ describe('project file tree service', () => {
         expect(document.scene.root.children).toEqual([]);
         expect(host.writeProjectFileText).not.toHaveBeenCalled();
 
-        const applied = await handlers.apply_commands({
+        const applied = await handlers['commands.apply']({
             scenePath: opened.openedScenePath,
             commands: [command],
         });
