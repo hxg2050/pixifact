@@ -7,7 +7,7 @@
 ## 1. 测试原则
 
 - 先写行为，再写实现：新需求先补一个最小失败测试或一个可执行验收场景。
-- 测试公共语义层：优先覆盖 `pixifact` public exports、`SceneDocument`、`SceneCommand`、editor services、MCP request handler 和 gateway core。
+- 测试公共语义层：优先覆盖 `pixifact` public exports、`SceneDocument`、`SceneCommand`、editor services、CLI entrypoint 和 gateway core。
 - 不为旧 API 写兼容测试：项目处于开发阶段，不新增 legacy path、alias、fallback 或 deprecation shim。
 - 不测试静默默认值：除非需求明确，测试应让错误自然暴露，并断言真实失败原因。
 - 不让 UI state 成为项目数据源：测试必须确认项目数据来自 `SceneDocument` 或 `.scene` 文件，而不是 Zustand 副本。
@@ -24,7 +24,7 @@
 | `tests/editor.test.ts` | authoring semantic layer | `SceneDocument`、commands、undo/redo、dry-run、diff、locks、memory、logic、AI proposal |
 | `tests/editor-store.test.ts` | editor UI store | Zustand 只持久化轻量偏好，不保存 project data / secrets |
 | `tests/project-file-tree.test.ts` | desktop project file service | `.scene` 创建保存、文件树分类、重命名、删除、scene instance key isolation |
-| `tests/pixifact-mcp-server.test.ts` | MCP server | tools list、get/dry-run/apply、path guard、live bridge routing |
+| `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene get、node inspect、commands dry-run/apply/validate、path guard、live bridge routing、exit code |
 | `tests/ai-gateway-adapter.test.ts` | gateway protocol shell | proposal response、auth、invalid request、invalid model proposal |
 | `tests/ai-gateway-config.test.ts` | gateway config | local defaults、env token、model adapter env mapping |
 | `tests/ai-model-adapter.test.ts` | upstream model adapter | Chat Completions / Responses body、URL normalize、secret handling、retry、timeout |
@@ -47,7 +47,7 @@
    - DOM-backed node：`tests/ui.test.ts`
    - editor 文件树 / host service：`tests/project-file-tree.test.ts`
    - editor store：`tests/editor-store.test.ts`
-   - MCP：`tests/pixifact-mcp-server.test.ts`
+   - CLI / Agent：`tests/pixifact-cli.test.ts`
    - gateway / model：`tests/ai-*.test.ts`
 
 3. Red
@@ -78,12 +78,12 @@
 - `dryRunCommands` 返回 diff 且不改源 Scene。
 - `SceneDocument.apply` 设置 dirty，写入 undo stack。
 - undo / redo 恢复状态。
-- 如果 MCP 暴露该命令，补 `dry_run_commands` 和 `apply_commands` 文件模式测试。
+- 如果 CLI 暴露该命令，补 `commands dry-run` 和 `commands apply` 文件模式测试。
 
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/editor.test.ts tests/pixifact-mcp-server.test.ts
+bunx --no-install vitest run tests/editor.test.ts tests/pixifact-cli.test.ts
 ```
 
 ### 新增 Scene 模板
@@ -138,21 +138,22 @@ bun run build
 bun run example:build
 ```
 
-### 修改 MCP
+### 修改 CLI / Agent 入口
 
 必须先覆盖：
 
-- tools/list schema。
+- `summary`、`scene get`、`node inspect`、`commands dry-run`、`commands apply`、`commands validate`。
 - live bridge connected 和 file mode 两条路径。
 - `projectRoot` path guard。
 - dry-run 不写文件。
 - apply 写回 `.scene`。
-- 错误作为 MCP tool content 返回，不用 process crash 表达用户错误。
+- `--commands` 支持文件和 stdin。
+- 错误输出 JSON，并返回非 0 exit code。
 
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/pixifact-mcp-server.test.ts
+bunx --no-install vitest run tests/pixifact-cli.test.ts
 ```
 
 ### 修改 AI Gateway / Model Adapter
@@ -195,7 +196,7 @@ bunx --no-install vitest run tests/ai-gateway-adapter.test.ts tests/ai-gateway-c
 - `describe` 使用模块或行为边界，例如 `describe('SceneDocument')`。
 - `it` 使用英文、现在时、可读行为描述，例如 `it('dry-runs commands without writing the Scene file')`。
 - 中文产品文案在断言中保留中文，例如 `expect(error).toContain('未通过 Pixifact 校验')`。
-- 一个测试只验证一个行为主轴；跨 editor / MCP / file / runtime 的大闭环用集成测试，不把所有细节塞进单元测试。
+- 一个测试只验证一个行为主轴；跨 editor / CLI / file / runtime 的大闭环用集成测试，不把所有细节塞进单元测试。
 
 ## 7. 最小验证速查
 

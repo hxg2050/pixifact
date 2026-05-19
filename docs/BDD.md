@@ -7,7 +7,7 @@
 ## 1. BDD 原则
 
 - 先描述用户或 Agent 行为，再决定实现方式。
-- 场景必须绑定 Pixifact 真实边界：`SceneSpec`、`SceneDocument`、`SceneCommand`、MCP、Gateway、Runtime。
+- 场景必须绑定 Pixifact 真实边界：`SceneSpec`、`SceneDocument`、`SceneCommand`、CLI、Gateway、Runtime。
 - 行为验收必须包含成功路径和关键失败状态。
 - 不为旧 API、旧路径、旧协议或旧数据格式写兼容场景。
 - 行为描述使用稳定 locator：Scene 节点用 `key` / `id`，组件用 `id`，文件用 project-relative path。
@@ -64,7 +64,7 @@ TDD 入口：`tests/editor.test.ts` 的 non-container child rejection。
 
 ## 3. Command / Document 层
 
-Command / Document 层是 editor、MCP 和 Agent 的共同修改入口。
+Command / Document 层是 editor、CLI 和 Agent 的共同修改入口。
 
 ### BDD-CMD-001 Dry Run 必须产生 diff 且不修改源 Scene
 
@@ -80,7 +80,7 @@ Feature: Command dry-run
     And 源 Scene 文案仍是 "Submit"
 ```
 
-TDD 入口：`tests/editor.test.ts` 的 `dryRunCommands` / `dryRunProposal`；MCP 文件模式对应 `tests/pixifact-mcp-server.test.ts`。
+TDD 入口：`tests/editor.test.ts` 的 `dryRunCommands` / `dryRunProposal`；CLI 文件模式对应 `tests/pixifact-cli.test.ts`。
 
 ### BDD-CMD-002 Apply 必须经过 SceneDocument 并支持 undo / redo
 
@@ -236,75 +236,76 @@ Feature: Component drag-and-drop
 
 TDD 入口：`tests/project-file-tree.test.ts` 的 component path classification；新增拖拽行为时用 service / panel test。
 
-## 6. MCP / Agent 层
+## 6. CLI / Agent 层
 
-MCP 是外部 Agent 的主入口。没有 live editor 时操作项目文件；有 live editor 时转发给 live bridge。
+CLI 是外部 Agent 的主入口。没有 live editor 时操作项目文件；live 模式下转发给 editor bridge。
 
-### BDD-MCP-001 MCP 暴露工具列表
+### BDD-CLI-001 CLI 输出项目摘要
 
 ```gherkin
-Feature: MCP tools
-  Scenario: Agent 请求 tools/list
-    When MCP server 收到 tools/list
-    Then 返回 apply_commands
-    And 返回 dry_run_commands
-    And 返回 get_scene
+Feature: Pixifact CLI summary
+  Scenario: Agent 请求项目摘要
+    Given projectRoot 下存在 scenes/Button.scene
+    When Agent 执行 pixifact summary
+    Then CLI 返回 JSON
+    And scenes 包含 "scenes/Button.scene"
 ```
 
-TDD 入口：`tests/pixifact-mcp-server.test.ts`。
+TDD 入口：`tests/pixifact-cli.test.ts`。
 
-### BDD-MCP-002 dry_run_commands 不写文件
+### BDD-CLI-002 commands dry-run 不写文件
 
 ```gherkin
-Feature: MCP dry run
+Feature: Pixifact CLI dry run
   Scenario: Agent 预演修改文件模式 Scene
     Given projectRoot 下有 "button.scene"
-    When Agent 调用 dry_run_commands
-    Then 返回 diffs
+    When Agent 执行 pixifact commands dry-run
+    Then CLI 返回 diffs
     And 磁盘上的 button.scene 内容不变
 ```
 
-TDD 入口：`tests/pixifact-mcp-server.test.ts`。
+TDD 入口：`tests/pixifact-cli.test.ts`。
 
-### BDD-MCP-003 apply_commands 写回 `.scene`
+### BDD-CLI-003 commands apply 写回 `.scene`
 
 ```gherkin
-Feature: MCP apply
+Feature: Pixifact CLI apply
   Scenario: Agent 应用合法命令
     Given projectRoot 下有 "button.scene"
-    When Agent 调用 apply_commands
-    Then MCP 使用 SceneDocument 应用命令
+    When Agent 执行 pixifact commands apply
+    Then CLI 使用 SceneDocument 应用命令
     And 保存后的 ".scene" 包含新值
 ```
 
-TDD 入口：`tests/pixifact-mcp-server.test.ts`。
+TDD 入口：`tests/pixifact-cli.test.ts`。
 
-### BDD-MCP-004 MCP 拒绝 projectRoot 外路径
+### BDD-CLI-004 CLI 拒绝 projectRoot 外路径
 
 ```gherkin
-Feature: MCP path guard
+Feature: Pixifact CLI path guard
   Scenario: Agent 读取 "../outside.scene"
     Given projectRoot 指向当前项目
-    When Agent 调用 get_scene with scenePath "../outside.scene"
-    Then 返回 isError true
+    When Agent 执行 pixifact scene get with --scene "../outside.scene"
+    Then CLI 返回非 0 exit code
+    And stdout 或 stderr 包含错误 JSON
     And 错误说明文件必须在 projectRoot 内
 ```
 
-TDD 入口：`tests/pixifact-mcp-server.test.ts`。
+TDD 入口：`tests/pixifact-cli.test.ts`。
 
-### BDD-MCP-005 Live editor 优先路由
+### BDD-CLI-005 Live editor 路由
 
 ```gherkin
 Feature: Live editor bridge
   Scenario: Live editor 已连接
     Given liveBridge.connected 为 true
-    When Agent 调用 get_scene
-    Then MCP 不读取磁盘文件
-    And 将 tool call 路由到 liveBridge.callTool
-    And 参数不包含 projectRoot
+    When Agent 执行 pixifact live scene get
+    Then CLI 不读取磁盘文件
+    And 将 request 路由到 liveBridge.callTool
+    And 参数不包含 projectRoot 或 scenePath
 ```
 
-TDD 入口：`tests/pixifact-mcp-server.test.ts`。
+TDD 入口：`tests/pixifact-cli.test.ts`。
 
 ## 7. AI Gateway 层
 
@@ -372,35 +373,35 @@ TDD 入口：`tests/ai-model-adapter.test.ts`。
 
 ## 8. 当前测试缺口和优先级
 
-### P0：`.scene` 创建、打开、保存、MCP 修改、editor 预览的端到端覆盖
+### P0：`.scene` 创建、打开、保存、CLI 修改、editor 预览的端到端覆盖
 
 目标场景：
 
 ```gherkin
 Feature: Scene edit loop
-  Scenario: 用户从文件树打开 Scene，Agent 通过 MCP 修改，editor preview 更新并保存
+  Scenario: 用户从文件树打开 Scene，Agent 通过 CLI 修改，editor preview 更新并保存
     Given desktop editor 打开一个项目
     And 文件树中存在 scenes/Button.scene
     When 用户打开 Button.scene
-    And Agent 通过 MCP dry-run 修改 label
+    And Agent 通过 pixifact commands dry-run 修改 label
     And 用户 review diff 并 apply
     Then SceneDocument 更新
     And Viewport preview 更新
     And 保存后磁盘 ".scene" 包含新 label
 ```
 
-落地方式：先补 service / MCP / document 集成测试；桌面主流程后续通过 Tauri host 自动化或手动验证，不恢复浏览器版 editor E2E。
+落地方式：先补 service / CLI / document 集成测试；桌面主流程后续通过 Tauri host 自动化或手动验证，不恢复浏览器版 editor E2E。
 
-### P0：Live MCP bridge 和 SceneDocument 的真实联动
+### P0：Live CLI bridge 和 SceneDocument 的真实联动
 
 目标场景：
 
 ```gherkin
-Feature: Live editor MCP bridge
-  Scenario: MCP 调用 connected editor 的当前 Scene
+Feature: Live editor CLI bridge
+  Scenario: CLI 调用 connected editor 的当前 Scene
     Given editor 当前打开 Menu.scene
     And live bridge connected
-    When Agent 调用 apply_commands
+    When Agent 执行 pixifact live commands apply
     Then 命令应用到当前 SceneDocument
     And 不写未打开的磁盘文件
 ```
@@ -438,7 +439,7 @@ Feature: Scene templates
 
 落地方式：`tests/editor.test.ts` + `tests/ui.test.ts`。
 
-### P1：AI proposal repair loop 面向 MCP / gateway 的一致性
+### P1：AI proposal repair loop 面向 CLI / gateway 的一致性
 
 目标场景：
 
@@ -451,7 +452,7 @@ Feature: Agent repair loop
     And 第二次 proposal 通过 dry-run 后才 apply
 ```
 
-落地方式：当前 `executeAiPrompt` 已有基础测试；后续要补 MCP/gateway path 的一致性。
+落地方式：当前 `executeAiPrompt` 已有基础测试；后续要补 CLI/gateway path 的一致性。
 
 ### P2：桌面 host 文件能力
 
