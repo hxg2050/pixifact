@@ -19,6 +19,15 @@
 bun run pixifact -- summary --project-root /path/to/project
 ```
 
+如果目标 Scene 不存在，先创建标准 `.scene`：
+
+```bash
+bun run pixifact -- scene create \
+  --project-root /path/to/project \
+  --scene scenes/Login.scene \
+  --name Login
+```
+
 选择目标 Scene 后读取完整上下文：
 
 ```bash
@@ -143,6 +152,7 @@ Agent 生成的 `commands.json` 必须是数组：
 ```txt
 使用 Pixifact CLI 修改当前 Scene。
 先运行 summary / scene get 获取上下文。
+如果目标 Scene 不存在，先运行 scene create。
 如果需要定位节点，运行 node inspect。
 生成 SceneCommand[]，保存为 commands.json。
 必须先 commands dry-run，只有 ok: true 后才能 commands apply。

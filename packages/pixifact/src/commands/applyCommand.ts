@@ -20,6 +20,9 @@ export function hintForCommandError(error: string) {
     if (error.includes('inside projectRoot')) {
         return 'Use a project-relative scene path that stays inside projectRoot.';
     }
+    if (error.includes('already exists')) {
+        return 'Choose a different scene path or inspect the existing file before writing.';
+    }
     if (error.includes('was not found')) {
         return 'Re-run scene get or node inspect to refresh locators before regenerating the command.';
     }

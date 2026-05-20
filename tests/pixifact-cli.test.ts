@@ -189,6 +189,93 @@ describe('Pixifact CLI', () => {
         expect(result.json.scenes).toContain('button.scene');
     });
 
+    it('creates a new Scene file with a container root', async () => {
+        const projectRoot = createTempProject();
+        fs.mkdirSync(path.join(projectRoot, 'scenes'));
+
+        const result = await runCli([
+            'scene',
+            'create',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Login.scene',
+            '--name',
+            'Login',
+        ]);
+        const saved = JSON.parse(fs.readFileSync(path.join(projectRoot, 'scenes/Login.scene'), 'utf8'));
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json).toMatchObject({
+            ok: true,
+            scenePath: 'scenes/Login.scene',
+            summary: {
+                name: 'Login',
+                nodeCount: 1,
+            },
+        });
+        expect(saved).toMatchObject({
+            version: 1,
+            type: 'scene',
+            name: 'Login',
+            root: {
+                kind: 'container',
+                id: 'root',
+                key: 'root',
+                name: 'Root',
+                children: [],
+            },
+        });
+    });
+
+    it('does not overwrite an existing Scene file', async () => {
+        const projectRoot = createTempProject();
+
+        const result = await runCli([
+            'scene',
+            'create',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'button.scene',
+            '--name',
+            'Existing',
+        ]);
+        const saved = JSON.parse(fs.readFileSync(path.join(projectRoot, 'button.scene'), 'utf8'));
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe('');
+        expect(result.json).toMatchObject({
+            ok: false,
+            error: 'Scene file already exists.',
+        });
+        expect(result.json.hint).toContain('different scene path');
+        expect(saved.name).toBe('CLI Button');
+    });
+
+    it('rejects Scene creation outside the project root', async () => {
+        const projectRoot = createTempProject();
+
+        const result = await runCli([
+            'scene',
+            'create',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            '../Login.scene',
+            '--name',
+            'Login',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+        });
+        expect(result.json.error).toContain('inside projectRoot');
+        expect(result.json.hint).toContain('project-relative');
+        expect(fs.existsSync(path.resolve(projectRoot, '../Login.scene'))).toBe(false);
+    });
+
     it('dry-runs commands without writing the Scene file', async () => {
         const projectRoot = createTempProject();
         const command = {

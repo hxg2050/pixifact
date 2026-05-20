@@ -119,6 +119,14 @@ async function executeFileCommand(positionals: string[], flags: Record<string, s
         });
     }
 
+    if (area === 'scene' && action === 'create') {
+        return automation.createScene({
+            projectRoot: requireFlag(flags, 'project-root'),
+            scenePath: requireFlag(flags, 'scene'),
+            name: requireFlag(flags, 'name'),
+        });
+    }
+
     if (area === 'node' && action === 'inspect') {
         return automation.inspectNode({
             projectRoot: requireFlag(flags, 'project-root'),
@@ -185,6 +193,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                 stdout: jsonLine({
                     commands: [
                         'summary',
+                        'scene create',
                         'scene get',
                         'node inspect',
                         'commands dry-run',

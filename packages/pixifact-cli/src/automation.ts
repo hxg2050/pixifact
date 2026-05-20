@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { applyCommand, commandFailureDetails, dryRunProposal, SceneDocument } from 'pixifact';
+import { applyCommand, commandFailureDetails, container, dryRunProposal, scene, SceneDocument } from 'pixifact';
 import type { CommandResult, SceneCommand, SceneSpec, NodeSpec } from 'pixifact';
 import type { SceneProjectState } from 'pixifact';
 
@@ -21,6 +21,7 @@ interface ToolInput {
     scenePath?: unknown;
     node?: unknown;
     commands?: unknown;
+    name?: unknown;
 }
 
 type DetailedNode = NodeSpec & {
@@ -96,6 +97,20 @@ function readJsonFile(filePath: string): unknown {
 
 function writeJsonFile(filePath: string, value: unknown) {
     fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+}
+
+function writeNewJsonFile(filePath: string, value: unknown) {
+    try {
+        fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, {
+            encoding: 'utf8',
+            flag: 'wx',
+        });
+    } catch (error) {
+        if (isRecord(error) && error.code === 'EEXIST') {
+            throw new Error('Scene file already exists.');
+        }
+        throw error;
+    }
 }
 
 function isProjectState(value: unknown): value is SceneProjectState {
@@ -264,6 +279,27 @@ export function createPixifactAutomation() {
                 sourceType: editable.isProjectFile ? 'project' : 'scene',
                 scene: editable.document.scene,
                 summary: summarizeScene(editable.document.scene),
+            };
+        },
+
+        createScene(input: unknown) {
+            const args = assertRecord(input, 'input') as ToolInput;
+            const { root, target } = resolveProjectPath(args.projectRoot, args.scenePath);
+            const sceneName = assertString(args.name, 'name');
+            const nextScene = scene(sceneName, container('Root', {
+                id: 'root',
+                key: 'root',
+                width: 320,
+                height: 180,
+                children: [],
+            }));
+
+            writeNewJsonFile(target, nextScene);
+            return {
+                ok: true,
+                scenePath: path.relative(root, target),
+                scene: nextScene,
+                summary: summarizeScene(nextScene),
             };
         },
 
