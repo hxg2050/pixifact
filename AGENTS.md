@@ -11,7 +11,7 @@
 
 ## 项目概览
 
-Pixifact 是面向 AI 游戏开发的 2D UI + 轻场景资产系统。PixiJS 只作为底层渲染实现；Codex、Claude Code 等外部 Agent 通过 Pixifact CLI 使用 Scene 语义层，编辑器负责预览、审查和人工微调。
+Pixifact 是面向 AI 完整游戏开发的 Scene / UI / 轻场景与项目资产管理层。PixiJS 只作为底层渲染实现；Codex、Claude Code 等外部 Agent 通过 Pixifact CLI 使用 Scene 语义层，编辑器负责预览、审查、资产浏览和人工微调。
 
 当前仓库包含：
 
@@ -36,6 +36,8 @@ Pixifact 是面向 AI 游戏开发的 2D UI + 轻场景资产系统。PixiJS 只
 - 当前 Alpha proposal 必须能 dry-run、review diff、apply、reject；后续产品方向是 Agent / CLI-first 的审查、预览和 repair loop。
 - JSON 是资产格式，不作为主要编辑入口。
 - 不引入 Monaco，不做内嵌代码编辑器。
+- Editor 可以做项目资产浏览、轻量预览、资源引用和校验，但不编辑图片、音频、脚本等源资源。
+- 双击具体资源调用系统默认程序；打开脚本调用外部代码编辑器。
 
 ## Scene 规则
 

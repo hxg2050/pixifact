@@ -2,7 +2,7 @@
 
 正式 editor 当前按 Dockview 桌面界面固化为五个核心面板：
 
-- `ExplorerPanel.tsx`：文件系统入口，展示项目文件、图片预览说明、Scene 双击打开、Component 文件拖拽数据。
+- `ExplorerPanel.tsx`：文件系统入口，展示项目文件、轻量资源预览说明、Scene 双击打开、具体资源双击系统默认程序打开、脚本外部编辑器打开、Component 文件拖拽数据。
 - `HierarchyPanel.tsx`：只展示当前打开 Scene 的节点树。
 - `ViewportPanel.tsx`：运行时 preview。
 - `InspectorPanel.tsx`：节点类型专属属性编辑、属性级 lock、底部 Add Component 和 Component 文件拖拽添加。

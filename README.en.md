@@ -1,6 +1,6 @@
 # Pixifact
 
-Pixifact is a 2D UI and lightweight scene asset system for AI-assisted game development. PixiJS is the rendering implementation underneath; Pixifact exposes Scene, node, behavior component, command, and authoring document semantics.
+Pixifact is a Scene, UI, lightweight scene, and project asset management layer for AI-assisted full game development. PixiJS is the rendering implementation underneath; Pixifact exposes Scene, node, behavior component, command, and authoring document semantics.
 
 Codex, Claude Code, and similar coding agents are the primary AI entry points. Pixifact CLI is the controlled tool layer those agents use to operate on Scenes; the desktop editor lives in `apps/editor/` and is used to preview, review, and manually refine agent-produced Scene changes; the runtime loads `.scene` assets in the game.
 
@@ -78,6 +78,16 @@ The full agent workflow is documented in:
 ```txt
 docs/AGENT_CLI_WORKFLOW.md
 ```
+
+## Project Asset Boundary
+
+Pixifact Editor provides project asset browsing, lightweight previews, resource references, and validation. It does not edit source assets.
+
+- Scene files open and edit inside the Editor.
+- Images, audio, fonts, data files, and similar assets can have lightweight previews for content and path checks.
+- Double-clicking a concrete asset opens it with the system default application.
+- Script files are not edited inside the Editor; opening a script delegates to an external code editor.
+- Codex / Claude Code still owns full game code development. Pixifact owns the visual Scene, UI, lightweight scene, and resource-reference layer.
 
 ## AI Gateway
 

@@ -12,7 +12,7 @@ apps/editor/src-tauri/
 Codex / Claude Code -> Pixifact CLI -> Dry Run -> Diff Review -> Apply -> Editor Preview -> Manual Refine
 ```
 
-Pixifact 不把 editor 内置聊天作为主要 AI 路径。Codex、Claude Code 等外部 coding agent 是用户的 AI 入口；CLI 是 Agent 的工具接口；Editor 是审查台和可视化工作台。
+Pixifact 不把 editor 内置聊天作为主要 AI 路径。Codex、Claude Code 等外部 coding agent 是用户的 AI 入口；CLI 是 Agent 的工具接口；Editor 是审查台、可视化工作台和轻量项目资产浏览器。
 
 ## 启动
 
@@ -71,6 +71,16 @@ Editor 使用 Scene 作为统一 UI / 轻场景资产。格式、命名规则和
 ```txt
 apps/editor/SCENE.md
 ```
+
+## 项目资产浏览
+
+Editor 可以浏览项目文件、轻量预览资源、管理 Scene 引用和展示校验状态，但不编辑源资源。
+
+- `.scene` 文件在 Editor 内打开和编辑。
+- 图片、音频、字体、数据文件等资源只做轻量预览。
+- 双击具体资源调用系统默认程序查看。
+- 脚本文件不在 Editor 内编辑；打开脚本时调用外部代码编辑器。
+- 资源修改由系统默认程序、专业资源工具或外部代码编辑器完成。
 
 ## Remote AI / Gateway
 
