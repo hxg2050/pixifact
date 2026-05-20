@@ -320,7 +320,7 @@ Feature: Pixifact CLI template add
   Scenario: Agent 应用按钮模板
     Given projectRoot 下有 "button.scene"
     When Agent 执行 pixifact template add apply with kind "button"
-    Then CLI 先 dry-run 再通过 SceneDocument.apply 写回
+    Then CLI 先 dry-run 再写回文件模式 Scene
     And 保存后的 ".scene" 包含 Button container template
 
   Scenario: Agent 在 live editor 中应用模板

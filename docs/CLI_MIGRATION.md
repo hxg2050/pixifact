@@ -1,6 +1,6 @@
 # Pixifact CLI
 
-Pixifact 已经从 stdio MCP server 迁移到本地 CLI。CLI 是外部 Agent 操作 Pixifact 项目的主入口，只负责参数解析、JSON 输入输出和调用受控能力；真实修改继续走 `SceneCommand`、`dryRunProposal()` 和 `SceneDocument.apply()`。
+Pixifact 已经从 stdio MCP server 迁移到本地 CLI。CLI 是外部 Agent 操作 Pixifact 项目的主入口，只负责参数解析、JSON 输入输出和调用受控能力；真实修改继续走 `SceneCommand` 和 `dryRunProposal()`。live editor 模式应用命令时继续使用当前打开的 `SceneDocument`。
 
 ## 1. 当前状态
 
@@ -157,7 +157,7 @@ bun run pixifact -- live template add apply \
 规则：
 
 - `dry-run` 不写文件，只返回展开后的 `commands`、`diffs` 和预演 Scene。
-- `apply` 会先 dry-run，成功后通过 `SceneDocument.apply()` 写回 `.scene`。
+- `apply` 会先 dry-run，成功后把 dry-run 产出的 Scene 写回 `.scene`。live editor 模式会通过当前打开的 `SceneDocument` 应用并刷新 preview。
 - `live template add` 不需要 `project-root` 或 `scene`，操作当前 editor 打开的 `SceneDocument`，apply 成功后刷新 preview 并保存当前 Scene。
 - 模板失败时使用和 `commands` 一致的错误 JSON：`ok: false`、`error`、`commandIndex`、`op`、`node`、`target`、`hint`。
 - 模板参数只负责生成结构化命令，不允许自由文本直接改 Scene。

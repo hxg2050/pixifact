@@ -165,11 +165,14 @@ function loadEditableDocument(projectRoot: unknown, scenePath: unknown): Editabl
     };
 }
 
-function saveEditableDocument(editable: EditableDocument) {
+function saveEditableScene(editable: EditableDocument, scene: SceneSpec) {
     if (editable.isProjectFile) {
-        writeJsonFile(editable.target, editable.document.getState());
+        writeJsonFile(editable.target, {
+            ...editable.document.getState(),
+            scene,
+        });
     } else {
-        writeJsonFile(editable.target, editable.document.scene);
+        writeJsonFile(editable.target, scene);
     }
 }
 
@@ -394,27 +397,15 @@ export function createPixifactAutomation() {
                 };
             }
 
-            const results: CommandResult[] = [];
-            for (const command of commands) {
-                const result = editable.document.apply(command, 'ai');
-                results.push(result);
-                if (!result.ok) {
-                    return {
-                        ok: false,
-                        error: result.error,
-                        ...commandFailureDetails(commands, results, result.error),
-                        results,
-                    };
-                }
-            }
-            saveEditableDocument(editable);
+            const nextScene = dryRun.scene as SceneSpec;
+            saveEditableScene(editable, nextScene);
             return {
                 ok: true,
                 scenePath: path.relative(editable.projectRoot, editable.target),
                 diffs: dryRun.diffs,
                 warnings: dryRun.warnings,
-                results,
-                summary: summarizeScene(editable.document.scene),
+                results: dryRun.results,
+                summary: summarizeScene(nextScene),
             };
         },
 

@@ -1,35 +1,68 @@
-# Pixifact Basic Game Sample
+# Basic Game Sample
 
-这是一个给 Pixifact AI-first 游戏编辑器使用的基础项目样例。
+这是一个重新创建的 Pixifact 示例项目，用来验证当前 CLI 文件模式和 editor 打开 `.scene` 的基础流程。
 
-## 打开方式
+## 内容
 
-1. 启动编辑器：
+- `scenes/Main.scene`：主场景，包含背景、标题、生命值条和登录表单。
+- `commands/setup-main-scene.json`：用于把新建空 Scene 扩展为当前示例画面的 `SceneCommand[]`。
+
+## 查看项目
 
 ```bash
-bun run desktop
+bun run pixifact -- summary \
+  --project-root sample-projects/basic-game
 ```
 
-也可以使用桌面入口别名 `bun run editor`。
-
-2. 点击顶部 `打开文件夹`。
-3. 选择本目录。
-4. 双击 `.scene` 文件进入编辑。
-
-导入后会看到一个 960x540 的基础游戏 HUD：
-
-- 顶部状态栏
-- 玩家信息
-- 金币统计
-- 任务提示
-- 开始战斗按钮
-- 背包按钮
-- 底部三个技能按钮
-
-## 目录说明
-
-```txt
-*.scene   Scene 资产
-assets/   图片和资源目录
-scripts/  逻辑脚本目录
+```bash
+bun run pixifact -- scene get \
+  --project-root sample-projects/basic-game \
+  --scene scenes/Main.scene
 ```
+
+## 复现创建流程
+
+下面的命令用于从空的 `scenes/Main.scene` 复现当前示例。`commands/setup-main-scene.json` 会创建固定 key 的节点，不是幂等更新；如果 `Main.scene` 已经包含这些节点，重复 apply 会因为节点 ID 已存在而失败。
+
+先创建标准 Scene：
+
+```bash
+bun run pixifact -- scene create \
+  --project-root sample-projects/basic-game \
+  --scene scenes/Main.scene \
+  --name BasicGame
+```
+
+添加登录模板：
+
+```bash
+bun run pixifact -- template add apply \
+  --project-root sample-projects/basic-game \
+  --scene scenes/Main.scene \
+  --kind loginForm \
+  --parent root \
+  --key login \
+  --label 开始游戏
+```
+
+预演并应用主场景命令：
+
+```bash
+bun run pixifact -- commands dry-run \
+  --project-root sample-projects/basic-game \
+  --scene scenes/Main.scene \
+  --commands sample-projects/basic-game/commands/setup-main-scene.json
+```
+
+```bash
+bun run pixifact -- commands apply \
+  --project-root sample-projects/basic-game \
+  --scene scenes/Main.scene \
+  --commands sample-projects/basic-game/commands/setup-main-scene.json
+```
+
+## 规则
+
+- 不直接编辑 `.scene` JSON。
+- 修改 Scene 时使用 `SceneCommand[]`，并先 dry-run。
+- 常见 UI 结构优先使用 `template add`。

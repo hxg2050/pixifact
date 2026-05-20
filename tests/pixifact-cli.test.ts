@@ -309,7 +309,7 @@ describe('Pixifact CLI', () => {
         expect(saved.root.children[0].text.value).toBe('Start');
     });
 
-    it('applies commands through SceneDocument and saves the Scene file', async () => {
+    it('applies commands after dry-run and saves the Scene file', async () => {
         const projectRoot = createTempProject();
         const command = {
             op: 'setNodeData',
@@ -372,7 +372,7 @@ describe('Pixifact CLI', () => {
         expect(saved.root.children.some((node: { key?: string }) => node.key === 'login')).toBe(false);
     });
 
-    it('applies template add through SceneDocument and saves the Scene file', async () => {
+    it('applies template add after dry-run and saves the Scene file', async () => {
         const projectRoot = createTempProject();
 
         const result = await runCli([
@@ -411,6 +411,37 @@ describe('Pixifact CLI', () => {
             type: 'ui.Button',
         });
         expect(button.children.find((node: { key?: string }) => node.key === 'submitLabel').text.value).toBe('登录');
+    });
+
+    it('applies input templates in file mode without a DOM document', async () => {
+        const projectRoot = createTempProject();
+        const originalDocument = globalThis.document;
+        vi.stubGlobal('document', undefined);
+
+        const result = await runCli([
+            'template',
+            'add',
+            'apply',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'button.scene',
+            '--kind',
+            'loginForm',
+            '--parent',
+            'root',
+            '--key',
+            'login',
+        ]).finally(() => {
+            vi.stubGlobal('document', originalDocument);
+        });
+        const saved = JSON.parse(fs.readFileSync(path.join(projectRoot, 'button.scene'), 'utf8'));
+        const form = saved.root.children.find((node: { key?: string }) => node.key === 'login');
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json.ok).toBe(true);
+        expect(form.kind).toBe('container');
+        expect(form.children.some((node: { kind?: string; key?: string }) => node.kind === 'input' && node.key === 'loginUsername')).toBe(true);
     });
 
     it('rejects unknown template kinds with structured error JSON', async () => {

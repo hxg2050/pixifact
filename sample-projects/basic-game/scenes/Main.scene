@@ -1,0 +1,268 @@
+{
+  "version": 1,
+  "type": "scene",
+  "name": "BasicGame",
+  "root": {
+    "id": "root",
+    "key": "root",
+    "name": "Root",
+    "kind": "container",
+    "transform": {
+      "width": 960,
+      "height": 540
+    },
+    "children": [
+      {
+        "id": "stageBg",
+        "key": "stageBg",
+        "name": "舞台背景",
+        "kind": "shape",
+        "transform": {
+          "width": 960,
+          "height": 540
+        },
+        "shape": {
+          "type": "rect",
+          "color": 15792881
+        }
+      },
+      {
+        "id": "gameTitle",
+        "key": "gameTitle",
+        "role": "scene-title",
+        "name": "标题",
+        "kind": "text",
+        "transform": {
+          "x": 72,
+          "y": 64,
+          "width": 360,
+          "height": 48
+        },
+        "text": {
+          "value": "Basic Game",
+          "color": 1120295,
+          "fontSize": 32,
+          "fontWeight": "800"
+        }
+      },
+      {
+        "id": "gameHint",
+        "key": "gameHint",
+        "role": "scene-copy",
+        "name": "说明",
+        "kind": "text",
+        "transform": {
+          "x": 72,
+          "y": 124,
+          "width": 360,
+          "height": 52
+        },
+        "text": {
+          "value": "Fresh sample project created through Pixifact CLI.",
+          "color": 4755695,
+          "fontSize": 18
+        }
+      },
+      {
+        "id": "healthBar",
+        "key": "healthBar",
+        "role": "progress-bar",
+        "name": "生命值",
+        "kind": "container",
+        "transform": {
+          "x": 72,
+          "y": 214,
+          "width": 240,
+          "height": 20
+        },
+        "components": [
+          {
+            "id": "healthBarProgress",
+            "type": "ui.ProgressBar",
+            "props": {
+              "value": 0.75,
+              "min": 0,
+              "max": 1,
+              "fillNode": "healthBarFill"
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "healthBarBg",
+            "key": "healthBarBg",
+            "name": "背景",
+            "kind": "shape",
+            "transform": {
+              "width": 240,
+              "height": 20
+            },
+            "shape": {
+              "type": "roundedRect",
+              "color": 14804726,
+              "radius": 10
+            }
+          },
+          {
+            "id": "healthBarFill",
+            "key": "healthBarFill",
+            "name": "填充",
+            "kind": "shape",
+            "transform": {
+              "width": 180,
+              "height": 20
+            },
+            "shape": {
+              "type": "roundedRect",
+              "color": 2270430,
+              "radius": 10
+            }
+          }
+        ]
+      },
+      {
+        "id": "login",
+        "key": "login",
+        "role": "login-form",
+        "name": "登录表单",
+        "kind": "container",
+        "transform": {
+          "x": 340,
+          "y": 150,
+          "width": 280,
+          "height": 220
+        },
+        "children": [
+          {
+            "id": "loginCard",
+            "key": "loginCard",
+            "name": "背景",
+            "kind": "shape",
+            "transform": {
+              "width": 280,
+              "height": 220
+            },
+            "shape": {
+              "type": "roundedRect",
+              "color": 16777215,
+              "radius": 10,
+              "strokeColor": 13358561,
+              "strokeWidth": 1
+            }
+          },
+          {
+            "id": "loginTitle",
+            "key": "loginTitle",
+            "name": "标题",
+            "kind": "text",
+            "transform": {
+              "x": 24,
+              "y": 20,
+              "width": 232,
+              "height": 32
+            },
+            "text": {
+              "value": "开始游戏",
+              "color": 1120295,
+              "fontSize": 24,
+              "fontWeight": "700"
+            }
+          },
+          {
+            "id": "loginUsername",
+            "key": "loginUsername",
+            "name": "用户名",
+            "kind": "input",
+            "transform": {
+              "x": 24,
+              "y": 72,
+              "width": 232,
+              "height": 36
+            },
+            "input": {
+              "value": "",
+              "backgroundColor": 16777215,
+              "borderColor": 9741240,
+              "borderSize": 1,
+              "fontSize": 16
+            }
+          },
+          {
+            "id": "loginPassword",
+            "key": "loginPassword",
+            "name": "密码",
+            "kind": "input",
+            "transform": {
+              "x": 24,
+              "y": 120,
+              "width": 232,
+              "height": 36
+            },
+            "input": {
+              "value": "",
+              "backgroundColor": 16777215,
+              "borderColor": 9741240,
+              "borderSize": 1,
+              "fontSize": 16
+            }
+          },
+          {
+            "id": "loginSubmit",
+            "key": "loginSubmit",
+            "role": "button",
+            "name": "提交按钮",
+            "kind": "container",
+            "transform": {
+              "x": 24,
+              "y": 172,
+              "width": 232,
+              "height": 36
+            },
+            "components": [
+              {
+                "id": "loginSubmitButton",
+                "type": "ui.Button",
+                "props": {
+                  "targetGraphic": "loginSubmitBg"
+                }
+              }
+            ],
+            "children": [
+              {
+                "id": "loginSubmitBg",
+                "key": "loginSubmitBg",
+                "name": "背景",
+                "kind": "shape",
+                "transform": {
+                  "width": 232,
+                  "height": 36
+                },
+                "shape": {
+                  "type": "roundedRect",
+                  "color": 2450411,
+                  "radius": 6
+                }
+              },
+              {
+                "id": "loginSubmitLabel",
+                "key": "loginSubmitLabel",
+                "name": "文字",
+                "kind": "text",
+                "transform": {
+                  "width": 232,
+                  "height": 36
+                },
+                "text": {
+                  "value": "开始游戏",
+                  "color": 16777215,
+                  "fontSize": 14,
+                  "center": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
