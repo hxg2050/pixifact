@@ -63,6 +63,28 @@ bun run pixifact -- commands apply \
   --commands commands.json
 ```
 
+创建常见 UI 结构时优先用 template macro，避免手写大量重复 `createNode`：
+
+```bash
+bun run pixifact -- template add dry-run \
+  --project-root /path/to/project \
+  --scene scenes/Login.scene \
+  --kind loginForm \
+  --parent root \
+  --key login
+```
+
+dry-run 通过后再 apply：
+
+```bash
+bun run pixifact -- template add apply \
+  --project-root /path/to/project \
+  --scene scenes/Login.scene \
+  --kind loginForm \
+  --parent root \
+  --key login
+```
+
 ## 3. Live Editor 流程
 
 Live mode 用于操作当前打开的 editor Scene。先确认 editor 已启动并打开目标 Scene。
@@ -144,6 +166,7 @@ Agent 生成的 `commands.json` 必须是数组：
 - `Only container nodes can contain child nodes.`：把子节点挂到了非 container 节点。
 - `Node data prop "..." does not exist`：字段不属于该节点类型。
 - `filePath must stay inside projectRoot.`：scene 路径越界。
+- `Unknown template kind "..."`：模板类型不在 CLI 支持列表中。
 
 ## 7. 推荐提示模板
 
@@ -153,6 +176,7 @@ Agent 生成的 `commands.json` 必须是数组：
 使用 Pixifact CLI 修改当前 Scene。
 先运行 summary / scene get 获取上下文。
 如果目标 Scene 不存在，先运行 scene create。
+如果要创建常见结构，优先运行 template add dry-run/apply。
 如果需要定位节点，运行 node inspect。
 生成 SceneCommand[]，保存为 commands.json。
 必须先 commands dry-run，只有 ok: true 后才能 commands apply。

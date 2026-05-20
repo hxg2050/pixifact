@@ -307,6 +307,25 @@ Feature: Live editor bridge
 
 TDD 入口：`tests/pixifact-cli.test.ts`。
 
+### BDD-CLI-006 template add 展开 Scene 模板
+
+```gherkin
+Feature: Pixifact CLI template add
+  Scenario: Agent 使用模板添加登录表单
+    Given projectRoot 下有 "login.scene"
+    When Agent 执行 pixifact template add dry-run with kind "loginForm"
+    Then CLI 返回展开后的 SceneCommand[]
+    And 磁盘上的 login.scene 内容不变
+
+  Scenario: Agent 应用按钮模板
+    Given projectRoot 下有 "button.scene"
+    When Agent 执行 pixifact template add apply with kind "button"
+    Then CLI 先 dry-run 再通过 SceneDocument.apply 写回
+    And 保存后的 ".scene" 包含 Button container template
+```
+
+TDD 入口：`tests/pixifact-cli.test.ts`。
+
 ## 7. AI Gateway 层
 
 Gateway 只返回结构化 proposal，不直接修改项目。

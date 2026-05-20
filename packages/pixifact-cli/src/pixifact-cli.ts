@@ -36,6 +36,11 @@ const commandActions = {
     validate: 'commands.validate',
 } as const;
 
+const templateAddActions = {
+    'dry-run': 'template.add.dryRun',
+    apply: 'template.add.apply',
+} as const;
+
 function parseArgs(argv: string[]): ParsedArgs {
     const positionals: string[] = [];
     const flags: Record<string, string | true> = {};
@@ -104,7 +109,7 @@ function isFailedResult(value: unknown): value is CliJsonResult {
 }
 
 async function executeFileCommand(positionals: string[], flags: Record<string, string | true>, automation: Automation, input: string | NodeJS.ReadableStream | undefined) {
-    const [area, action] = positionals;
+    const [area, action, subaction] = positionals;
 
     if (area === 'summary' && action === undefined) {
         return automation.getProjectSummary({
@@ -149,6 +154,21 @@ async function executeFileCommand(positionals: string[], flags: Record<string, s
             return automation.applyCommands(args);
         }
         return automation.validateCommands(args);
+    }
+
+    if (area === 'template' && action === 'add' && subaction in templateAddActions) {
+        const args = {
+            projectRoot: requireFlag(flags, 'project-root'),
+            scenePath: requireFlag(flags, 'scene'),
+            kind: requireFlag(flags, 'kind'),
+            parent: flags.parent,
+            key: requireFlag(flags, 'key'),
+            label: flags.label,
+        };
+        if (subaction === 'dry-run') {
+            return automation.dryRunTemplateAdd(args);
+        }
+        return automation.applyTemplateAdd(args);
     }
 
     throw new Error(`Unknown Pixifact CLI command "${positionals.join(' ')}".`);
@@ -199,6 +219,8 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'commands dry-run',
                         'commands apply',
                         'commands validate',
+                        'template add dry-run',
+                        'template add apply',
                         'live scene get',
                         'live commands apply',
                     ],

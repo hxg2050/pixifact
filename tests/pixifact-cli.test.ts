@@ -337,6 +337,110 @@ describe('Pixifact CLI', () => {
         expect(saved.root.children[0].text.value).toBe('Continue');
     });
 
+    it('dry-runs template add without writing the Scene file', async () => {
+        const projectRoot = createTempProject();
+
+        const result = await runCli([
+            'template',
+            'add',
+            'dry-run',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'button.scene',
+            '--kind',
+            'loginForm',
+            '--parent',
+            'root',
+            '--key',
+            'login',
+        ]);
+        const saved = JSON.parse(fs.readFileSync(path.join(projectRoot, 'button.scene'), 'utf8'));
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json.ok).toBe(true);
+        expect(result.json.commands[0]).toMatchObject({
+            op: 'createNode',
+            parent: 'root',
+            node: {
+                key: 'login',
+                role: 'login-form',
+                kind: 'container',
+            },
+        });
+        expect(result.json.scene.root.children.some((node: { key?: string }) => node.key === 'login')).toBe(true);
+        expect(saved.root.children.some((node: { key?: string }) => node.key === 'login')).toBe(false);
+    });
+
+    it('applies template add through SceneDocument and saves the Scene file', async () => {
+        const projectRoot = createTempProject();
+
+        const result = await runCli([
+            'template',
+            'add',
+            'apply',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'button.scene',
+            '--kind',
+            'button',
+            '--parent',
+            'root',
+            '--key',
+            'submit',
+            '--label',
+            '登录',
+        ]);
+        const saved = JSON.parse(fs.readFileSync(path.join(projectRoot, 'button.scene'), 'utf8'));
+        const button = saved.root.children.find((node: { key?: string }) => node.key === 'submit');
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json.ok).toBe(true);
+        expect(result.json.commands[0]).toMatchObject({
+            op: 'createNode',
+            parent: 'root',
+            node: {
+                key: 'submit',
+                role: 'button',
+                kind: 'container',
+            },
+        });
+        expect(button.components[0]).toMatchObject({
+            id: 'submitButton',
+            type: 'ui.Button',
+        });
+        expect(button.children.find((node: { key?: string }) => node.key === 'submitLabel').text.value).toBe('登录');
+    });
+
+    it('rejects unknown template kinds with structured error JSON', async () => {
+        const projectRoot = createTempProject();
+
+        const result = await runCli([
+            'template',
+            'add',
+            'dry-run',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'button.scene',
+            '--kind',
+            'unknown',
+            '--parent',
+            'root',
+            '--key',
+            'unknown',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe('');
+        expect(result.json).toMatchObject({
+            ok: false,
+            error: 'Unknown template kind "unknown".',
+        });
+        expect(result.json.hint).toContain('button, progressBar, scrollView, loginForm');
+    });
+
     it('reads commands from stdin', async () => {
         const projectRoot = createTempProject();
         const command = {

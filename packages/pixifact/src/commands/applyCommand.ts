@@ -23,6 +23,9 @@ export function hintForCommandError(error: string) {
     if (error.includes('already exists')) {
         return 'Choose a different scene path or inspect the existing file before writing.';
     }
+    if (error.includes('Unknown template kind')) {
+        return 'Use one of: button, progressBar, scrollView, loginForm.';
+    }
     if (error.includes('was not found')) {
         return 'Re-run scene get or node inspect to refresh locators before regenerating the command.';
     }
