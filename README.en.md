@@ -1,8 +1,8 @@
 # Pixifact
 
-Pixifact is a standalone 2D UI and lightweight scene development framework. PixiJS is the rendering implementation underneath; Pixifact exposes Scene, node, behavior component, command, and authoring document semantics.
+Pixifact is a 2D UI and lightweight scene asset system for AI-assisted game development. PixiJS is the rendering implementation underneath; Pixifact exposes Scene, node, behavior component, command, and authoring document semantics.
 
-The editor, MCP server, and external agents all consume the Pixifact semantic layer. The desktop editor lives in `apps/editor/`; it is used to build UI / lightweight scenes, preview AI or agent output, refine manually, and expose controlled editing tools to Codex, Claude Code, and similar agents through MCP.
+Codex, Claude Code, and similar coding agents are the primary AI entry points. Pixifact CLI is the controlled tool layer those agents use to operate on Scenes; the desktop editor lives in `apps/editor/` and is used to preview, review, and manually refine agent-produced Scene changes; the runtime loads `.scene` assets in the game.
 
 [中文](./README.md)
 
@@ -11,7 +11,7 @@ The editor, MCP server, and external agents all consume the Pixifact semantic la
 Pixifact uses a Godot-style unified `Scene` asset model. It does not use a Unity-style split between Scene resources and Prefab resources.
 
 ```txt
-Prompt / Agent -> SceneCommand -> Validate / Dry Run -> SceneDocument -> instantiateScene -> Runtime Preview
+Codex / Claude Code -> Pixifact CLI -> SceneCommand -> Validate / Dry Run -> SceneDocument -> Editor Preview -> Runtime
 ```
 
 - `.scene` files store `SceneSpec`.
@@ -31,11 +31,11 @@ packages/pixifact/src/nodes/    runtime nodes and compound controls
 packages/pixifact/src/scene/    SceneSpec, DSL, Scene instantiation, Scene templates
 packages/pixifact/src/commands/ SceneCommand validation, application, undo foundation
 packages/pixifact/src/authoring/SceneDocument, selection, diff, AI context, locks, actions, logic
-packages/pixifact-mcp/          MCP server; depends on pixifact, not on the desktop editor
+packages/pixifact-cli/          Pixifact CLI; depends on pixifact, not on the desktop editor
 apps/editor/                    Pixifact desktop editor React / Vite frontend
 apps/editor/src-tauri/          Tauri desktop host
 examples/                       runtime examples
-tests/                          unit, editor, and MCP tests
+tests/                          unit, editor, and CLI tests
 sample-projects/                sample Pixifact projects
 skills/                         repository-owned Codex skills
 ```
@@ -63,15 +63,21 @@ bun run desktop:build
 
 Desktop development and packaging require Rust / Cargo. Users who install the packaged desktop app do not need Bun or Rust.
 
-## MCP
+## CLI
 
-Start the MCP server:
+The CLI is the primary entry point for external agents operating on Pixifact projects. Pixifact does not treat built-in chat as the main AI path; agents should read context, generate structured `SceneCommand[]`, dry-run, then apply after validation succeeds.
 
 ```bash
-bun run editor:mcp
+bun run pixifact -- summary --project-root /path/to/project
 ```
 
-The MCP tools read and write `SceneCommand` changes against `.scene` or `pixifact.aiEditorProject` files. With a Live Editor connection, tools operate on the open editor; without it, they read and write local project files directly.
+CLI commands read and write `SceneCommand` changes against `.scene` or `pixifact.aiEditorProject` files. Live mode operates on the currently open editor; file mode reads and writes local project files directly.
+
+The full agent workflow is documented in:
+
+```txt
+docs/AGENT_CLI_WORKFLOW.md
+```
 
 ## AI Gateway
 
@@ -104,7 +110,7 @@ import { applySceneCommand, validateSceneCommand } from 'pixifact/commands';
 import { container, scene, shape, text, instantiateScene } from 'pixifact/scene';
 ```
 
-The root `pixifact` entry also exports the public semantic layer for editor, MCP, and tests.
+The root `pixifact` entry also exports the public semantic layer for editor, CLI, and tests.
 
 ## Verification
 

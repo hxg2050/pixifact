@@ -1,13 +1,15 @@
 # Pixifact Scene Migration Plan
 
-本文档记录当前 Pixifact 最终目标和迁移状态。项目已经从 editor-only 目标收敛为 `pixifact` framework + editor + CLI：核心包提供 Scene 语义，编辑器和 Agent 都通过相同命令协议修改 Scene。
+本文档记录当前 Pixifact 最终目标和迁移状态。项目已经从 editor-only 目标收敛为面向 AI 游戏开发的 `pixifact` framework + CLI + editor + runtime：核心包提供 Scene 语义，外部 Agent 通过 CLI 修改 Scene，编辑器负责预览、审查和人工微调。
 
 ## 1. 最终定位
 
-- Pixifact 是独立的 2D UI + 轻场景开发框架。
+- Pixifact 是面向 AI 游戏开发的 2D UI + 轻场景资产系统。
 - PixiJS 只作为底层渲染实现，不作为用户 authoring 心智。
-- 编辑器用于搭建 UI / 基础场景、预览 AI 生成结果和手动调整。
-- CLI 将 Pixifact Scene 能力开放给 Codex、Claude Code 等 Agent。
+- Codex、Claude Code 等 coding agent 是主要 AI 入口。
+- CLI 是 Agent 操作 Pixifact Scene 的主入口。
+- 编辑器用于预览、审查 Agent 生成结果和手动调整。
+- Runtime 在游戏中加载 `.scene`。
 - 资产模型统一为 Godot-style `Scene`，不做 Scene + Prefab 双资源体系。
 
 ## 2. Public Model
@@ -55,7 +57,7 @@ apps/editor/src-tauri/            Tauri host
 
 ## 5. 下一阶段
 
-- [ ] 将 editor 主流程从 Alpha proposal 审查器继续收敛为 Agent / CLI first 工作流。
+- [ ] 将 editor 主流程从 Alpha proposal 审查器继续收敛为 Agent / CLI-first 审查和预览工作流。
 - [ ] 继续优化桌面版本机能力：文件打开、外部程序、代码跳转。
 - [ ] 扩充 Scene 模板库：常用 HUD 组合。
 - [ ] 增加 `.scene` 创建、保存、CLI 修改和 editor 预览的 E2E 覆盖。

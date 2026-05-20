@@ -4,19 +4,22 @@
 
 项目重新定义：
 
-- Pixifact 是 editor-first 项目，核心产品是 `apps/editor/`。
+- Pixifact 是面向 AI 游戏开发的 2D UI + 轻场景资产系统，不是 editor-first 项目。
+- Codex、Claude Code 等 coding agent 是主要 AI 入口；Pixifact 不把内置聊天作为主要用户入口。
+- Pixifact CLI 是外部 Agent 操作 Scene 的主入口。
+- `apps/editor/` 是预览、审查和人工微调工具，不是主要 AI 对话入口。
 - 当前产品交付方向是 Tauri 桌面版；不再启动或维护独立浏览器编辑器入口。
 - `src/` 下的 runtime、Scene、Command、SceneDocument、AI proposal 等能力是编辑器基础设施。
-- 后续路线不再以通用 PixiJS framework 为中心，新增底层能力必须服务编辑器工作流、Scene 实例化、Viewport 预览、Command 应用或导出。
+- 后续路线不再以通用 PixiJS framework 为中心，新增底层能力必须服务 CLI / Agent 工作流、编辑器预览审查、Scene 实例化、Viewport 预览、Command 应用或导出。
 
 核心结论：
 
 - 编辑器是产品级应用，目录固定为 `apps/editor`。
 - 桌面 host 位于 `apps/editor/src-tauri/`，负责本机文件系统、外部程序打开、窗口和打包。
 - `examples` 只放 runtime 示例，不承载编辑器产品。
-- AI-first 是第一原则，自然语言是主要创作入口。
-- AI 对用户表现为“发送即执行”，不暴露手动预演和应用按钮。
-- AI 内部必须走结构化 command、validation、错误反馈、自动修正循环，直到命令合法后才写入项目。
+- AI-first 是第一原则，但自然语言入口在 Codex / Claude Code 等外部 coding agent 中。
+- Editor 对用户表现为 Agent 结果的预览、审查和人工微调工具。
+- Agent 必须通过 CLI 走结构化 command、validation、dry-run、错误反馈和修正循环，直到命令合法后才写入项目。
 - 开发者通过属性级 Lock、Inspector、Undo、Memory 和项目结构约束控制最终结果。
 - 不内嵌代码编辑器，不使用 Monaco，不把 JSON textarea 作为主要交互。
 - SceneDocument、SceneSpec、Command 和 runtime preview 是真正的编辑闭环。
@@ -34,7 +37,33 @@ Pixifact Editor 的正式产品形态是本地桌面应用：
 
 ## 0. 最终方案快照
 
-本节是当前对话确认后的最终产品方向。后续如果旧章节仍出现 `Dry Run`、`Apply`、单独 `Component Palette` 等历史设计，以本节为准。
+本节是当前对话确认后的最终产品方向。后续如果旧章节仍出现内置 AI 对话作为主入口、`Prompt -> Send -> Auto apply`、MCP-first 或单独 `Component Palette` 等历史设计，以本节为准。
+
+### 0.0 AI / Agent 入口
+
+Pixifact 的主要 AI 入口不是 editor 内置聊天，而是 Codex、Claude Code 等外部 coding agent。
+
+主路径：
+
+```txt
+Codex / Claude Code
+  -> Pixifact CLI
+  -> SceneCommand
+  -> Validate / Dry Run
+  -> SceneDocument
+  -> Editor Preview / Diff Review
+  -> Manual Refine
+  -> Runtime loads .scene
+```
+
+职责边界：
+
+- 外部 Agent：理解用户需求、读取项目上下文、生成 `SceneCommand[]`、根据 dry-run 错误修正。
+- Pixifact CLI：提供 Agent 可调用的项目摘要、Scene 读取、节点检查、模板展开、dry-run、validate 和 apply。
+- Editor：打开项目和 Scene，显示 viewport、层级、Inspector、Diff / proposal 状态，并支持人工微调。
+- Runtime：在游戏中加载 `.scene`。
+
+Editor 可以保留 gateway / proposal 样例作为验证工具，但不作为第一优先用户路径。
 
 ### 0.1 主界面
 
@@ -46,7 +75,7 @@ Pixifact Editor 的正式产品形态是本地桌面应用：
 - 预制体：只展示当前打开 Scene 的节点树，不单独罗列 Scene 列表。
 - Viewport：预览和选择当前 Scene 节点。
 - Inspector：查看和编辑选中节点属性。
-- AI 对话：自然语言入口。
+- Agent：CLI 连接状态、Agent 操作指引、proposal / diff 状态。
 
 资源模型只保留 `Scene` 一种 UI 资源模型：
 
@@ -92,27 +121,27 @@ Inspector 是属性和 Component 挂载入口：
   - 从文件系统面板拖动 Component 文件到 Inspector 底部空白区域添加。
 - 重复添加同一个不允许重复的 Component 时必须提示并拒绝。
 
-### 0.5 AI 对话
+### 0.5 Agent / CLI
 
-AI 面板像对话框，而不是 proposal 审核器。
+Agent 面板不是主要聊天入口，而是外部 Agent 和 CLI 工作流的状态面板。
 
 用户交互：
 
-- 输入需求。
-- 点击 `发送`。
-- 不显示 `生成`、`预演`、`应用` 按钮。
-- AI 完成后直接把合法结果应用到模拟项目或真实项目。
+- 用户在 Codex / Claude Code 中输入需求。
+- Agent 通过 Pixifact CLI 读取上下文、生成 `SceneCommand[]`、dry-run、apply。
+- Editor 显示 live bridge 状态、当前 Scene、Viewport、Diff / proposal 状态。
+- 用户在 Editor 中确认结果并进行人工微调。
 
 内部执行：
 
 ```txt
-User Prompt
-  -> buildAiContext(SceneDocument)
-  -> AI 生成 SceneCommand[]
-  -> validateCommand
-  -> 如果失败，把错误反馈给 AI
-  -> AI 修正 SceneCommand[]
-  -> 重复直到合法或达到最大修正次数
+User Prompt in Codex / Claude Code
+  -> Agent runs pixifact summary / scene get / node inspect
+  -> Agent generates SceneCommand[]
+  -> pixifact commands dry-run / validate
+  -> if failed, Agent reads error JSON and fixes SceneCommand[]
+  -> repeat until valid
+  -> pixifact commands apply
   -> SceneDocument.apply(command)
   -> Viewport / Inspector / 节点树刷新
   -> 记录可回滚历史和失败修正轨迹
@@ -126,7 +155,7 @@ User Prompt
 - Component 不允许重复添加。
 - Command schema 不合法。
 
-用户不需要手动参与每轮修正，但可以看到最终执行结果和关键修正轨迹。
+用户不需要手动参与每轮修正，但可以在 Editor 看到最终执行结果和关键修正轨迹。
 
 ### 0.6 代码边界
 
@@ -213,8 +242,8 @@ Pixifact AI-first Game Editor
 
 ```txt
 一个面向游戏 UI、交互和轻量玩法逻辑的 AI-first 编辑器。
-设计师用自然语言描述目标，AI 生成可编辑的 Scene / runtime 组件树；
-开发者通过可视化审查、属性锁定、命令回放和项目记忆保持工程控制权。
+用户在 Codex / Claude Code 中描述目标，Agent 通过 Pixifact CLI 生成可编辑的 Scene / runtime 组件树；
+开发者通过 Editor 的可视化审查、属性锁定、命令回放和项目记忆保持工程控制权。
 ```
 
 这不是传统 UI 编辑器，也不是在传统编辑器旁边加一个 AI 聊天框。
@@ -222,10 +251,10 @@ Pixifact AI-first Game Editor
 它的主创作方式是：
 
 ```txt
-Prompt -> Send -> Command validation -> AI repair loop -> Auto apply -> Manual refine -> Memory
+Codex / Claude Code -> Pixifact CLI -> Command validation -> Dry Run -> Agent repair loop -> Apply -> Editor preview -> Manual refine
 ```
 
-编辑器本质上是 AI 的受控沙箱：
+Pixifact 本质上是外部 Agent 的受控 Scene 工具层：
 
 - AI 可以理解当前项目结构、组件 schema、设计 token、事件、逻辑图和偏好记忆。
 - AI 的输出必须被转成结构化 command。
@@ -427,7 +456,7 @@ bun run build
 ```
 
 以上命令已通过；浏览器 Playwright E2E 已停止维护，后续主流程验证应走 Tauri 桌面 host 或桌面自动化。
-正式 `apps/editor/` 已采用 Dockview 面板结构，后续应迁移到发送即执行和 repair loop。
+正式 `apps/editor/` 已采用 Dockview 面板结构，后续应迁移到 Agent / CLI-first 的审查、预览和 repair loop。
 
 ### 4.2 已有核心底座
 
