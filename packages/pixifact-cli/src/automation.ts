@@ -2,17 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
     applyCommand,
-    buttonScene,
     commandFailureDetails,
     container,
+    createSceneTemplateCommands,
     dryRunProposal,
-    input,
-    progressBarScene,
     scene,
     SceneDocument,
-    scrollViewScene,
-    shape,
-    text,
 } from 'pixifact';
 import type { CommandResult, SceneCommand, SceneSpec, NodeSpec } from 'pixifact';
 import type { SceneProjectState } from 'pixifact';
@@ -247,126 +242,13 @@ function summarizeScene(scene: SceneSpec) {
     };
 }
 
-function loginFormNode(options: { key: string; label?: string }): NodeSpec {
-    const key = options.key;
-    return container('登录表单', {
-        id: key,
-        key,
-        role: 'login-form',
-        x: 40,
-        y: 28,
-        width: 280,
-        height: 220,
-        children: [
-            shape('背景', {
-                id: `${key}Card`,
-                key: `${key}Card`,
-                width: 280,
-                height: 220,
-                type: 'roundedRect',
-                color: 0xffffff,
-                radius: 10,
-                strokeColor: 0xcbd5e1,
-                strokeWidth: 1,
-            }),
-            text('标题', {
-                id: `${key}Title`,
-                key: `${key}Title`,
-                x: 24,
-                y: 20,
-                width: 232,
-                height: 32,
-                value: options.label ?? '登录',
-                color: 0x111827,
-                fontSize: 24,
-                fontWeight: '700',
-            }),
-            input('用户名', {
-                id: `${key}Username`,
-                key: `${key}Username`,
-                x: 24,
-                y: 72,
-                width: 232,
-                height: 36,
-                value: '',
-                backgroundColor: 0xffffff,
-                borderColor: 0x94a3b8,
-                borderSize: 1,
-                fontSize: 16,
-            }),
-            input('密码', {
-                id: `${key}Password`,
-                key: `${key}Password`,
-                x: 24,
-                y: 120,
-                width: 232,
-                height: 36,
-                value: '',
-                backgroundColor: 0xffffff,
-                borderColor: 0x94a3b8,
-                borderSize: 1,
-                fontSize: 16,
-            }),
-            buttonScene('提交按钮', {
-                id: `${key}Submit`,
-                key: `${key}Submit`,
-                x: 24,
-                y: 172,
-                width: 232,
-                height: 36,
-                label: options.label ?? '登录',
-                color: 0x2563eb,
-                radius: 6,
-            }),
-        ],
-    });
-}
-
-function createTemplateNode(args: ToolInput): NodeSpec {
-    const kind = assertString(args.kind, 'kind');
-    const key = assertString(args.key, 'key');
-    const label = optionalString(args.label);
-
-    switch (kind) {
-        case 'button':
-            return buttonScene(label ?? '按钮', {
-                id: key,
-                key,
-                width: 120,
-                height: 36,
-                label: label ?? '按钮',
-                color: 0x2563eb,
-                radius: 6,
-            });
-        case 'progressBar':
-            return progressBarScene(label ?? '进度条', {
-                id: key,
-                key,
-                width: 180,
-                height: 18,
-                value: 0.5,
-            });
-        case 'scrollView':
-            return scrollViewScene(label ?? '滚动视图', {
-                id: key,
-                key,
-                width: 220,
-                height: 160,
-                contentHeight: 320,
-            });
-        case 'loginForm':
-            return loginFormNode({ key, label });
-        default:
-            throw new Error(`Unknown template kind "${kind}".`);
-    }
-}
-
 function templateCommands(args: ToolInput): SceneCommand[] {
-    return [{
-        op: 'createNode',
+    return createSceneTemplateCommands({
+        kind: assertString(args.kind, 'kind'),
         parent: optionalString(args.parent),
-        node: createTemplateNode(args),
-    }];
+        key: assertString(args.key, 'key'),
+        label: optionalString(args.label),
+    });
 }
 
 function walkFiles(root: string, directory: string, depth: number, maxDepth: number, results: ProjectFileSummary[]) {

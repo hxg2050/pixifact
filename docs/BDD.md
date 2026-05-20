@@ -322,6 +322,13 @@ Feature: Pixifact CLI template add
     When Agent 执行 pixifact template add apply with kind "button"
     Then CLI 先 dry-run 再通过 SceneDocument.apply 写回
     And 保存后的 ".scene" 包含 Button container template
+
+  Scenario: Agent 在 live editor 中应用模板
+    Given editor 当前打开 Menu.scene
+    When Agent 执行 pixifact live template add apply with kind "button"
+    Then 命令应用到当前 SceneDocument
+    And Viewport preview 刷新
+    And 当前打开的 Scene 被保存
 ```
 
 TDD 入口：`tests/pixifact-cli.test.ts`。

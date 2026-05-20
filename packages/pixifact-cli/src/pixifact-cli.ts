@@ -182,7 +182,7 @@ async function executeLiveCommand(positionals: string[], flags: Record<string, s
         throw new Error('No live Pixifact editor is connected.');
     }
 
-    const [area, action] = positionals;
+    const [area, action, subaction] = positionals;
     if (area === 'summary' && action === undefined) {
         return bridge.callAction('summary', {});
     }
@@ -197,6 +197,14 @@ async function executeLiveCommand(positionals: string[], flags: Record<string, s
     if (area === 'commands' && action in commandActions) {
         return bridge.callAction(commandActions[action as keyof typeof commandActions], {
             commands: await readCommands(flags, input),
+        });
+    }
+    if (area === 'template' && action === 'add' && subaction in templateAddActions) {
+        return bridge.callAction(templateAddActions[subaction as keyof typeof templateAddActions], {
+            kind: requireFlag(flags, 'kind'),
+            parent: flags.parent,
+            key: requireFlag(flags, 'key'),
+            label: flags.label,
         });
     }
 
@@ -223,6 +231,8 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'template add apply',
                         'live scene get',
                         'live commands apply',
+                        'live template add dry-run',
+                        'live template add apply',
                     ],
                 }),
                 stderr: '',

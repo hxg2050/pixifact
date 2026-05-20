@@ -1,7 +1,7 @@
 import type { SceneCommand } from "../commands";
 import type { NodeSpec } from "./spec";
-import { buttonScene } from "./nodesDsl";
-import { container, shape, text } from "./dsl";
+import { buttonScene, progressBarScene, scrollViewScene } from "./nodesDsl";
+import { container, input, shape, text } from "./dsl";
 
 export interface InventoryTemplateOptions {
     parent?: string;
@@ -133,5 +133,135 @@ export function createInventoryPanelCommands(options: InventoryTemplateOptions =
         op: 'createNode',
         parent: options.parent,
         node: inventoryPanelNode(options),
+    }];
+}
+
+export type SceneTemplateKind = 'button' | 'progressBar' | 'scrollView' | 'loginForm';
+
+export interface SceneTemplateAddOptions {
+    kind: SceneTemplateKind | string;
+    parent?: string;
+    key: string;
+    label?: string;
+}
+
+function loginFormNode(options: { key: string; label?: string }): NodeSpec {
+    const key = options.key;
+    return container('登录表单', {
+        id: key,
+        key,
+        role: 'login-form',
+        x: 40,
+        y: 28,
+        width: 280,
+        height: 220,
+        children: [
+            shape('背景', {
+                id: `${key}Card`,
+                key: `${key}Card`,
+                width: 280,
+                height: 220,
+                type: 'roundedRect',
+                color: 0xffffff,
+                radius: 10,
+                strokeColor: 0xcbd5e1,
+                strokeWidth: 1,
+            }),
+            text('标题', {
+                id: `${key}Title`,
+                key: `${key}Title`,
+                x: 24,
+                y: 20,
+                width: 232,
+                height: 32,
+                value: options.label ?? '登录',
+                color: 0x111827,
+                fontSize: 24,
+                fontWeight: '700',
+            }),
+            input('用户名', {
+                id: `${key}Username`,
+                key: `${key}Username`,
+                x: 24,
+                y: 72,
+                width: 232,
+                height: 36,
+                value: '',
+                backgroundColor: 0xffffff,
+                borderColor: 0x94a3b8,
+                borderSize: 1,
+                fontSize: 16,
+            }),
+            input('密码', {
+                id: `${key}Password`,
+                key: `${key}Password`,
+                x: 24,
+                y: 120,
+                width: 232,
+                height: 36,
+                value: '',
+                backgroundColor: 0xffffff,
+                borderColor: 0x94a3b8,
+                borderSize: 1,
+                fontSize: 16,
+            }),
+            buttonScene('提交按钮', {
+                id: `${key}Submit`,
+                key: `${key}Submit`,
+                x: 24,
+                y: 172,
+                width: 232,
+                height: 36,
+                label: options.label ?? '登录',
+                color: 0x2563eb,
+                radius: 6,
+            }),
+        ],
+    });
+}
+
+export function sceneTemplateNode(options: SceneTemplateAddOptions): NodeSpec {
+    switch (options.kind) {
+        case 'button':
+            return buttonScene(options.label ?? '按钮', {
+                id: options.key,
+                key: options.key,
+                width: 120,
+                height: 36,
+                label: options.label ?? '按钮',
+                color: 0x2563eb,
+                radius: 6,
+            });
+        case 'progressBar':
+            return progressBarScene(options.label ?? '进度条', {
+                id: options.key,
+                key: options.key,
+                width: 180,
+                height: 18,
+                value: 0.5,
+            });
+        case 'scrollView':
+            return scrollViewScene(options.label ?? '滚动视图', {
+                id: options.key,
+                key: options.key,
+                width: 220,
+                height: 160,
+                contentHeight: 320,
+            });
+        case 'loginForm':
+            return loginFormNode({
+                key: options.key,
+                label: options.label,
+            });
+        default:
+            throw new Error(`Unknown template kind "${options.kind}".`);
+    }
+}
+
+export function createSceneTemplateCommands(options: SceneTemplateAddOptions): SceneCommand[] {
+    return [{
+        op: 'createNode',
+        parent: options.parent,
+        node: sceneTemplateNode(options),
     }];
 }

@@ -89,6 +89,8 @@ bun run pixifact -- live node inspect --node heroTitle
 bun run pixifact -- live commands dry-run --commands commands.json
 bun run pixifact -- live commands apply --commands commands.json
 bun run pixifact -- live commands validate --commands commands.json
+bun run pixifact -- live template add dry-run --kind loginForm --parent root --key login
+bun run pixifact -- live template add apply --kind button --parent root --key submit --label 登录
 ```
 
 Live mode 会操作当前打开的 `SceneDocument`，刷新 editor preview，并在 apply 成功后保存当前 Scene。
@@ -139,12 +141,24 @@ bun run pixifact -- template add apply \
   --parent root \
   --key submit \
   --label 登录
+
+bun run pixifact -- live template add dry-run \
+  --kind loginForm \
+  --parent root \
+  --key login
+
+bun run pixifact -- live template add apply \
+  --kind button \
+  --parent root \
+  --key submit \
+  --label 登录
 ```
 
 规则：
 
 - `dry-run` 不写文件，只返回展开后的 `commands`、`diffs` 和预演 Scene。
 - `apply` 会先 dry-run，成功后通过 `SceneDocument.apply()` 写回 `.scene`。
+- `live template add` 不需要 `project-root` 或 `scene`，操作当前 editor 打开的 `SceneDocument`，apply 成功后刷新 preview 并保存当前 Scene。
 - 模板失败时使用和 `commands` 一致的错误 JSON：`ok: false`、`error`、`commandIndex`、`op`、`node`、`target`、`hint`。
 - 模板参数只负责生成结构化命令，不允许自由文本直接改 Scene。
 

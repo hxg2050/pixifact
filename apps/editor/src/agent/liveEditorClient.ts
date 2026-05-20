@@ -1,4 +1,4 @@
-import { applyCommand, commandFailureDetails, dryRunProposal } from 'pixifact';
+import { applyCommand, commandFailureDetails, createSceneTemplateCommands, dryRunProposal } from 'pixifact';
 import type { CommandResult, SceneCommand, NodeSpec, SceneSpec } from 'pixifact';
 import {
     getSceneDocument,
@@ -21,6 +21,10 @@ interface ToolInput {
     scenePath?: unknown;
     node?: unknown;
     commands?: unknown;
+    kind?: unknown;
+    parent?: unknown;
+    key?: unknown;
+    label?: unknown;
 }
 
 interface ProjectFileSummary {
@@ -76,6 +80,19 @@ function assertCommands(value: unknown): SceneCommand[] {
         throw new Error('commands must be an array.');
     }
     return value as SceneCommand[];
+}
+
+function optionalString(value: unknown) {
+    return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+}
+
+function templateCommands(args: ToolInput): SceneCommand[] {
+    return createSceneTemplateCommands({
+        kind: assertString(args.kind, 'kind'),
+        parent: optionalString(args.parent),
+        key: assertString(args.key, 'key'),
+        label: optionalString(args.label),
+    });
 }
 
 function getNodeLocator(node: NodeSpec) {
@@ -349,6 +366,77 @@ export function createLiveEditorActionHandlers() {
                 ok: true,
                 live: true,
                 results,
+            };
+        },
+
+        async 'template.add.dryRun'(input: unknown) {
+            const args = assertRecord(input, 'input') as ToolInput;
+            if (!matchesCurrentScene(args)) {
+                throw new Error('The requested Scene is not the currently open Scene in the editor.');
+            }
+            const commands = templateCommands(args);
+            const result = dryRunCurrentCommands(commands);
+            return {
+                ok: result.ok,
+                live: true,
+                error: result.error,
+                ...(!result.ok ? commandFailureDetails(commands, result.results, result.error) : {}),
+                commands,
+                diffs: result.diffs,
+                warnings: result.warnings,
+                results: result.results,
+                scene: result.scene,
+            };
+        },
+
+        async 'template.add.apply'(input: unknown) {
+            const args = assertRecord(input, 'input') as ToolInput;
+            if (!matchesCurrentScene(args)) {
+                throw new Error('The requested Scene is not the currently open Scene in the editor.');
+            }
+            const commands = templateCommands(args);
+            const dryRun = dryRunCurrentCommands(commands);
+            if (!dryRun.ok) {
+                return {
+                    ok: false,
+                    live: true,
+                    error: dryRun.error,
+                    ...commandFailureDetails(commands, dryRun.results, dryRun.error),
+                    commands,
+                    diffs: dryRun.diffs,
+                    warnings: dryRun.warnings,
+                    results: dryRun.results,
+                };
+            }
+
+            const document = getSceneDocument();
+            const results: CommandResult[] = [];
+            for (const command of commands) {
+                const result = document.apply(command, 'ai');
+                results.push(result);
+                if (!result.ok) {
+                    return {
+                        ok: false,
+                        live: true,
+                        error: result.error,
+                        ...commandFailureDetails(commands, results, result.error),
+                        commands,
+                        results,
+                    };
+                }
+            }
+            refreshSceneDocument();
+            const saved = await saveCurrentScene();
+            return {
+                ok: true,
+                live: true,
+                saved,
+                scenePath: useEditorStore.getState().openedScenePath,
+                commands,
+                diffs: dryRun.diffs,
+                warnings: dryRun.warnings,
+                results,
+                summary: summarizeScene(document.scene),
             };
         },
     };

@@ -115,6 +115,20 @@ bun run pixifact -- live commands apply --commands commands.json
 
 Live apply 成功后会刷新 editor preview，并保存当前打开的 Scene。
 
+Live mode 中也可以使用 template macro：
+
+```bash
+bun run pixifact -- live template add dry-run \
+  --kind loginForm \
+  --parent root \
+  --key login
+
+bun run pixifact -- live template add apply \
+  --kind loginForm \
+  --parent root \
+  --key login
+```
+
 ## 4. 命令生成规范
 
 Agent 生成的 `commands.json` 必须是数组：

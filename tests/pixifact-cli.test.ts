@@ -655,6 +655,103 @@ describe('Pixifact CLI', () => {
         expect(host.writeHostProjectFileText.mock.calls.some((call) => call[1] === 'GameProject/scenes/Other.scene')).toBe(false);
     });
 
+    it('dry-runs live template add without changing the current SceneDocument', async () => {
+        const document = openLiveMenuScene();
+        const handlers = createLiveEditorActionHandlers();
+
+        const result = await handlers['template.add.dryRun']({
+            kind: 'loginForm',
+            parent: 'root',
+            key: 'login',
+        });
+
+        expect(result).toMatchObject({
+            ok: true,
+            live: true,
+            commands: [{
+                op: 'createNode',
+                parent: 'root',
+                node: {
+                    key: 'login',
+                    role: 'login-form',
+                },
+            }],
+        });
+        expect(result.scene.root.children.some((node: { key?: string }) => node.key === 'login')).toBe(true);
+        expect(document.scene.root.children?.some((node) => node.key === 'login')).toBe(false);
+    });
+
+    it('applies live template add to the current SceneDocument and saves the opened Scene', async () => {
+        const document = openLiveMenuScene();
+        const handlers = createLiveEditorActionHandlers();
+
+        const result = await handlers['template.add.apply']({
+            kind: 'button',
+            parent: 'root',
+            key: 'submit',
+            label: '登录',
+        });
+        const savedContent = host.writeHostProjectFileText.mock.calls[0]?.[2] as string;
+        const button = document.scene.root.children?.find((node) => node.key === 'submit');
+
+        expect(result).toMatchObject({
+            ok: true,
+            live: true,
+            saved: true,
+            commands: [{
+                op: 'createNode',
+                parent: 'root',
+                node: {
+                    key: 'submit',
+                    role: 'button',
+                },
+            }],
+        });
+        expect(button?.kind).toBe('container');
+        expect(button?.components?.[0].type).toBe('ui.Button');
+        expect(button?.children?.find((node) => node.key === 'submitLabel')?.text?.value).toBe('登录');
+        expect(JSON.parse(savedContent).root.children.some((node: { key?: string }) => node.key === 'submit')).toBe(true);
+    });
+
+    it('routes live template add through the live editor bridge', async () => {
+        const result = await executePixifactCli([
+            'live',
+            'template',
+            'add',
+            'dry-run',
+            '--kind',
+            'loginForm',
+            '--parent',
+            'root',
+            '--key',
+            'login',
+        ], {
+            liveBridge: {
+                connected: true,
+                stop: () => {},
+                callAction: async (action, args) => ({
+                    ok: true,
+                    live: true,
+                    action,
+                    args,
+                }),
+            },
+        });
+        const parsed = JSON.parse(result.stdout);
+
+        expect(result.exitCode).toBe(0);
+        expect(parsed).toMatchObject({
+            ok: true,
+            live: true,
+            action: 'template.add.dryRun',
+            args: {
+                kind: 'loginForm',
+                parent: 'root',
+                key: 'login',
+            },
+        });
+    });
+
     it('returns structured command metadata when live dry-run fails', async () => {
         openLiveMenuScene();
         const handlers = createLiveEditorActionHandlers();

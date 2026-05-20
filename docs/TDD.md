@@ -145,7 +145,7 @@ bun run example:build
 
 - `summary`、`scene get`、`node inspect`、`commands dry-run`、`commands apply`、`commands validate`。
 - `scene create` 创建标准 `.scene` 且不覆盖已有文件。
-- `template add dry-run/apply` 将短参数展开为 `SceneCommand[]`，并复用 dry-run / apply 语义。
+- 文件模式和 live mode 的 `template add dry-run/apply` 将短参数展开为 `SceneCommand[]`，并复用 dry-run / apply 语义。
 - live bridge connected 和 file mode 两条路径。
 - `projectRoot` path guard。
 - dry-run 不写文件。
