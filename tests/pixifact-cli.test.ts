@@ -107,6 +107,14 @@ function createTempProject() {
     return root;
 }
 
+function createEmptyTempProject() {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-cli-'));
+    tempRoots.push(root);
+    fs.mkdirSync(path.join(root, 'scenes'), { recursive: true });
+    fs.mkdirSync(path.join(root, 'commands'), { recursive: true });
+    return root;
+}
+
 function writeCommands(root: string, commands: unknown) {
     const commandsPath = path.join(root, 'commands.json');
     fs.writeFileSync(commandsPath, JSON.stringify(commands), 'utf8');
@@ -442,6 +450,74 @@ describe('Pixifact CLI', () => {
         expect(result.json.ok).toBe(true);
         expect(form.kind).toBe('container');
         expect(form.children.some((node: { kind?: string; key?: string }) => node.kind === 'input' && node.key === 'loginUsername')).toBe(true);
+    });
+
+    it('recreates the basic game sample through the file-mode CLI workflow', async () => {
+        const projectRoot = createEmptyTempProject();
+        const commandsPath = path.join(projectRoot, 'commands/setup-main-scene.json');
+        fs.copyFileSync(path.resolve('sample-projects/basic-game/commands/setup-main-scene.json'), commandsPath);
+
+        const createResult = await runCli([
+            'scene',
+            'create',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Main.scene',
+            '--name',
+            'BasicGame',
+        ]);
+        const templateResult = await runCli([
+            'template',
+            'add',
+            'apply',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Main.scene',
+            '--kind',
+            'loginForm',
+            '--parent',
+            'root',
+            '--key',
+            'login',
+            '--label',
+            '开始游戏',
+        ]);
+        const dryRunResult = await runCli([
+            'commands',
+            'dry-run',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Main.scene',
+            '--commands',
+            commandsPath,
+        ]);
+        const applyResult = await runCli([
+            'commands',
+            'apply',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Main.scene',
+            '--commands',
+            commandsPath,
+        ]);
+        const expected = JSON.parse(fs.readFileSync(path.resolve('sample-projects/basic-game/scenes/Main.scene'), 'utf8'));
+        const saved = JSON.parse(fs.readFileSync(path.join(projectRoot, 'scenes/Main.scene'), 'utf8'));
+
+        expect(createResult.exitCode).toBe(0);
+        expect(templateResult.exitCode).toBe(0);
+        expect(dryRunResult.exitCode).toBe(0);
+        expect(applyResult.exitCode).toBe(0);
+        expect(dryRunResult.json.scene).toEqual(expected);
+        expect(saved).toEqual(expected);
+        expect(applyResult.json.summary).toMatchObject({
+            name: 'BasicGame',
+            nodeCount: 15,
+            componentCount: 2,
+        });
     });
 
     it('rejects unknown template kinds with structured error JSON', async () => {
