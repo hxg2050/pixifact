@@ -236,6 +236,72 @@ Feature: Component drag-and-drop
 
 TDD 入口：`tests/project-file-tree.test.ts` 的 component path classification；新增拖拽行为时用 service / panel test。
 
+### BDD-EDITOR-005 预览只实例化当前 Scene
+
+```gherkin
+Feature: Scene preview
+  Scenario: 用户预览当前 HUD Scene
+    Given editor 当前打开 "scenes/Hud.scene"
+    When Viewport 重建 preview
+    Then editor 使用 SceneDocument 当前 Scene 实例化 runtime tree
+    And 不启动项目 run command
+    And 不打开浏览器
+    And runtime tree 不成为保存来源
+```
+
+TDD 入口：`tests/editor.test.ts` 的 `SceneDocument.rebuildPreview`；React 行为需要时补 panel test。
+
+### BDD-EDITOR-006 运行按钮启动真实游戏项目
+
+```gherkin
+Feature: Game run
+  Scenario: 用户运行配置好的游戏项目
+    Given projectRoot 下存在合法 "pixifact.project.json"
+    And run.command 是 "bun"
+    And run.args 是 ["run", "dev"]
+    And run.cwd 是 "."
+    And run.url 是 "http://localhost:5173"
+    When 用户点击运行
+    Then editor 通过 Tauri host 启动 run command
+    And cwd 解析在 projectRoot 内
+    And 运行状态变为 "启动中" 或 "运行中"
+    And editor 记录 stdout / stderr 日志摘要
+    And 使用系统默认浏览器打开 run.url
+    And SceneDocument 不被运行进程替换为数据源
+```
+
+TDD 入口：新增 run config / run service 测试；host command 用 mock 覆盖进程参数、日志和 URL 打开请求。
+
+### BDD-EDITOR-007 运行失败展示错误且不修改 Scene
+
+```gherkin
+Feature: Game run failure
+  Scenario: run command 启动失败
+    Given projectRoot 下存在 "pixifact.project.json"
+    And run.command 指向不存在的命令
+    When 用户点击运行
+    Then editor 显示运行失败
+    And 日志包含 host error 或 exit code
+    And 不写入 ".scene"
+    And 不改变 SceneDocument dirty 状态
+```
+
+TDD 入口：run service failure path；hostBridge mock 返回 spawn error。
+
+### BDD-EDITOR-008 停止只终止本次由 Editor 启动的进程
+
+```gherkin
+Feature: Game run stop
+  Scenario: 用户停止运行中的游戏
+    Given editor 已通过运行按钮启动一个 game process
+    When 用户点击停止
+    Then editor 调用 Tauri host stop with run session id
+    And 运行状态变为 "已停止"
+    And 不影响不是由本次 editor run 启动的外部进程
+```
+
+TDD 入口：run service session tracking；host command mock 覆盖 stop 参数。
+
 ## 6. CLI / Agent 层
 
 CLI 是外部 Agent 的主入口。没有 live editor 时操作项目文件；live 模式下转发给 editor bridge。
@@ -333,6 +399,21 @@ Feature: Pixifact CLI template add
 
 TDD 入口：`tests/pixifact-cli.test.ts`。
 
+### BDD-CLI-007 CLI summary 暴露项目运行配置摘要
+
+```gherkin
+Feature: Pixifact CLI project summary
+  Scenario: Agent 请求完整游戏项目摘要
+    Given projectRoot 下存在 "pixifact.project.json"
+    And 配置包含 run.command、run.args 和 scenes.hud
+    When Agent 执行 pixifact summary
+    Then CLI 返回 scenes 列表
+    And 返回 run 配置摘要
+    And 不执行 run command
+```
+
+TDD 入口：`tests/pixifact-cli.test.ts` 或项目配置 service 测试；summary 只读配置，不启动进程。
+
 ## 7. AI Gateway 层
 
 Gateway 只返回结构化 proposal，不直接修改项目。
@@ -398,6 +479,42 @@ Feature: Model adapter repair prompt
 TDD 入口：`tests/ai-model-adapter.test.ts`。
 
 ## 8. 当前测试缺口和优先级
+
+### P0：运行真实游戏项目的 MVP 闭环
+
+目标场景：
+
+```gherkin
+Feature: Run configured game project
+  Scenario: 用户从 Editor 启动完整示例游戏
+    Given desktop editor 打开 sample-projects/space-hud-game
+    And 项目包含 pixifact.project.json
+    And 项目包含 scenes/Hud.scene
+    When 用户打开 Hud.scene
+    And 用户点击运行
+    Then Editor 启动项目 run command
+    And 系统默认浏览器打开配置 URL
+    And 游戏加载 Hud.scene
+    And 玩家操作会更新 HP、Score、Wave 或 Time
+```
+
+落地方式：先补 project config parser、run service 和 host command mock 测试；最终闭环使用 Tauri 手动验证或桌面自动化，不恢复浏览器版 editor E2E。
+
+### P0：完整示例游戏项目
+
+目标场景：
+
+```gherkin
+Feature: Space HUD sample game
+  Scenario: 示例游戏加载 Pixifact Scene
+    Given sample-projects/space-hud-game 安装依赖后可运行
+    When run command 启动游戏
+    Then 游戏创建真实 gameplay loop
+    And runtime 加载 MainMenu.scene、Hud.scene 和 GameOver.scene
+    And Hud.scene 中的 HP、Score、Wave 或 Time 节点随游戏状态变化
+```
+
+落地方式：新增 sample project 构建测试或最小 smoke test；runtime 集成缺口先在示例中暴露，再回补 public API。
 
 ### P0：`.scene` 创建、打开、保存、CLI 修改、editor 预览的端到端覆盖
 

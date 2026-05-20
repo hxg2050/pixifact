@@ -7,6 +7,8 @@ Pixifact 的测试文档分为 BDD 和 TDD 两部分：
 
 CLI 使用说明见 [CLI_MIGRATION.md](./CLI_MIGRATION.md)，Agent 固定流程见 [AGENT_CLI_WORKFLOW.md](./AGENT_CLI_WORKFLOW.md)。
 
+运行真实游戏的 MVP 闭环和完整示例项目计划见 [RUN_MVP_PLAN.md](./RUN_MVP_PLAN.md)。
+
 工作顺序固定为：
 
 1. 先用 BDD 明确用户或 Agent 行为、系统边界和失败状态。

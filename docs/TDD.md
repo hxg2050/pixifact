@@ -24,6 +24,8 @@
 | `tests/editor.test.ts` | authoring semantic layer | `SceneDocument`、commands、undo/redo、dry-run、diff、locks、memory、logic、AI proposal |
 | `tests/editor-store.test.ts` | editor UI store | Zustand 只持久化轻量偏好，不保存 project data / secrets |
 | `tests/project-file-tree.test.ts` | desktop project file service | `.scene` 创建保存、文件树分类、重命名、删除、scene instance key isolation |
+| `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
+| `tests/editor-run-service.test.ts` | editor run service / host bridge | 运行状态、spawn 参数、stdout / stderr 摘要、停止 session、失败状态 |
 | `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene get、node inspect、commands dry-run/apply/validate、path guard、live bridge routing、exit code |
 | `tests/ai-gateway-adapter.test.ts` | gateway protocol shell | proposal response、auth、invalid request、invalid model proposal |
 | `tests/ai-gateway-config.test.ts` | gateway config | local defaults、env token、model adapter env mapping |
@@ -46,6 +48,8 @@
    - runtime、布局、生命周期：`tests/core.test.ts`
    - DOM-backed node：`tests/ui.test.ts`
    - editor 文件树 / host service：`tests/project-file-tree.test.ts`
+   - project run config：`tests/project-run-config.test.ts`
+   - editor run service：`tests/editor-run-service.test.ts`
    - editor store：`tests/editor-store.test.ts`
    - CLI / Agent：`tests/pixifact-cli.test.ts`
    - gateway / model：`tests/ai-*.test.ts`
@@ -157,6 +161,48 @@ bun run example:build
 
 ```bash
 bunx --no-install vitest run tests/pixifact-cli.test.ts
+```
+
+### 新增或修改运行功能
+
+必须先覆盖：
+
+- `pixifact.project.json` 解析合法配置。
+- 缺少配置、JSON 错误、缺少 `run.command` 时返回明确错误。
+- `run.cwd` 必须留在 projectRoot 内。
+- `run.command` 和 `run.args` 以数组形式传给 host，不经过 shell 拼接。
+- 点击运行时创建 run session，并进入启动中 / 运行中状态。
+- stdout / stderr 被收集为日志摘要。
+- 配置 `run.url` 时请求系统默认浏览器打开 URL。
+- run command 启动失败或非 0 退出时进入失败状态，并保留错误摘要。
+- stop 只使用本次 run session id，不按命令名杀进程。
+- 运行进程不修改 `SceneDocument`，不成为项目数据源。
+
+验证命令：
+
+```bash
+bunx --no-install vitest run tests/project-run-config.test.ts tests/editor-run-service.test.ts
+bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
+bun run editor:frontend:build
+```
+
+### 新增完整示例游戏
+
+必须先覆盖：
+
+- `sample-projects/space-hud-game/pixifact.project.json` 符合 run config schema。
+- 示例项目包含 `scenes/MainMenu.scene`、`scenes/Hud.scene`、`scenes/GameOver.scene`。
+- 示例代码通过 Pixifact runtime 加载 `.scene`，不把 Scene 当普通 JSON mock。
+- Hud binding 能把 gameplay state 写入 HP、Score、Wave / Time 等节点。
+- 示例项目 build 通过。
+- Editor run service 可以读取示例项目 run 配置并生成正确 spawn 参数。
+
+验证命令：
+
+```bash
+bunx --no-install vitest run tests/project-run-config.test.ts tests/editor-run-service.test.ts
+bun run build
+cd sample-projects/space-hud-game && bun run build
 ```
 
 ### 修改 AI Gateway / Model Adapter
