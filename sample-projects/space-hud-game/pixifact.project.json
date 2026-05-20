@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "Space HUD Game",
+  "scenes": {
+    "mainMenu": "scenes/MainMenu.scene",
+    "hud": "scenes/Hud.scene",
+    "gameOver": "scenes/GameOver.scene"
+  },
+  "run": {
+    "command": "bun",
+    "args": ["run", "dev"],
+    "cwd": ".",
+    "url": "http://localhost:5174"
+  }
+}

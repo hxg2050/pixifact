@@ -8,6 +8,9 @@ import {
     dryRunProposal,
     scene,
     SceneDocument,
+    parsePixifactProjectConfig,
+    pixifactProjectConfigFileName,
+    summarizePixifactProjectConfig,
 } from 'pixifact';
 import type { CommandResult, SceneCommand, SceneSpec, NodeSpec } from 'pixifact';
 import type { SceneProjectState } from 'pixifact';
@@ -105,6 +108,14 @@ function resolveProjectPath(projectRoot: unknown, filePath: unknown = '.') {
 
 function readJsonFile(filePath: string): unknown {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function readPixifactProjectSummary(root: string) {
+    const configPath = path.join(root, pixifactProjectConfigFileName);
+    if (!fs.existsSync(configPath)) {
+        return undefined;
+    }
+    return summarizePixifactProjectConfig(parsePixifactProjectConfig(readJsonFile(configPath)));
 }
 
 function writeJsonFile(filePath: string, value: unknown) {
@@ -296,6 +307,7 @@ export function createPixifactAutomation() {
                 projectRoot: root,
                 files,
                 scenes: files.filter((file) => file.kind === 'scene').map((file) => file.path),
+                project: readPixifactProjectSummary(root),
             };
         },
 

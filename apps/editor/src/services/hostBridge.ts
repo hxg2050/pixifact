@@ -103,3 +103,39 @@ export async function openHostCodeFile(projectRootPath: string, filePath: string
 export async function openHostDefaultFile(projectRootPath: string, filePath: string) {
     await invokeHost<void>('open_default_file', { projectRootPath, filePath });
 }
+
+export interface HostRunProcessOutput {
+    sessionId: string;
+}
+
+export interface HostRunProcessStatus {
+    sessionId: string;
+    running: boolean;
+    exitCode?: number | null;
+    stdout: string[];
+    stderr: string[];
+}
+
+export async function startHostRunProcess(
+    projectRootPath: string,
+    command: string,
+    args: string[],
+    cwd: string,
+    url?: string,
+) {
+    return invokeHost<HostRunProcessOutput>('start_run_process', {
+        projectRootPath,
+        command,
+        args,
+        cwd,
+        url,
+    });
+}
+
+export async function getHostRunProcessStatus(sessionId: string) {
+    return invokeHost<HostRunProcessStatus>('get_run_process_status', { sessionId });
+}
+
+export async function stopHostRunProcess(sessionId: string) {
+    return invokeHost<HostRunProcessStatus>('stop_run_process', { sessionId });
+}

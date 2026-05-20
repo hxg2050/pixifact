@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "type": "scene",
+  "name": "GameOver",
+  "root": {
+    "kind": "container",
+    "name": "GameOver",
+    "key": "gameOverRoot",
+    "transform": {
+      "width": 960,
+      "height": 540
+    },
+    "children": [
+      {
+        "kind": "shape",
+        "key": "gameOverPanel",
+        "name": "结束面板",
+        "transform": {
+          "x": 300,
+          "y": 164,
+          "width": 360,
+          "height": 210
+        },
+        "shape": {
+          "type": "roundedRect",
+          "color": 1118481,
+          "fillAlpha": 0.9,
+          "radius": 18,
+          "strokeColor": 16729157,
+          "strokeWidth": 2
+        }
+      },
+      {
+        "kind": "text",
+        "key": "gameOverTitle",
+        "name": "结束标题",
+        "transform": {
+          "x": 300,
+          "y": 204,
+          "width": 360,
+          "height": 48
+        },
+        "text": {
+          "value": "GAME OVER",
+          "color": 16729157,
+          "fontSize": 34,
+          "fontWeight": "900",
+          "center": true
+        }
+      },
+      {
+        "kind": "text",
+        "key": "finalScore",
+        "name": "最终分数",
+        "transform": {
+          "x": 300,
+          "y": 274,
+          "width": 360,
+          "height": 34
+        },
+        "text": {
+          "value": "Refresh to restart",
+          "color": 16777215,
+          "fontSize": 20,
+          "fontWeight": "700",
+          "center": true
+        }
+      }
+    ]
+  }
+}

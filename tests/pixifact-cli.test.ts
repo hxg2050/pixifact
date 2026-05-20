@@ -197,6 +197,39 @@ describe('Pixifact CLI', () => {
         expect(result.json.scenes).toContain('button.scene');
     });
 
+    it('includes pixifact project run config in summary without running it', async () => {
+        const projectRoot = createTempProject();
+        fs.writeFileSync(path.join(projectRoot, 'pixifact.project.json'), JSON.stringify({
+            version: 1,
+            name: 'Space HUD Game',
+            scenes: {
+                hud: 'button.scene',
+            },
+            run: {
+                command: 'bun',
+                args: ['run', 'dev'],
+                cwd: '.',
+                url: 'http://localhost:5173',
+            },
+        }), 'utf8');
+
+        const result = await runCli(['summary', '--project-root', projectRoot]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json.project).toEqual({
+            name: 'Space HUD Game',
+            scenes: {
+                hud: 'button.scene',
+            },
+            run: {
+                command: 'bun',
+                args: ['run', 'dev'],
+                cwd: '.',
+                url: 'http://localhost:5173',
+            },
+        });
+    });
+
     it('creates a new Scene file with a container root', async () => {
         const projectRoot = createTempProject();
         fs.mkdirSync(path.join(projectRoot, 'scenes'));

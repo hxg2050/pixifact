@@ -20,6 +20,13 @@ import { SummaryBar } from './panels/SummaryBar';
 import { ViewportPanel } from './panels/ViewportPanel';
 import { collectHierarchy, useDocumentRevision } from './panels/common';
 import { openProjectFolder, saveSceneFile } from './services/projectFileTree';
+import {
+    createReadyRunStatus,
+    refreshEditorRunStatus,
+    startEditorRun,
+    stopEditorRun,
+} from './services/editorRunService';
+import type { EditorRunStatus } from './services/editorRunService';
 import { startLiveEditorAgentClient } from './agent/liveEditorClient';
 import { pixifactAgentBridgeUrl } from './agent/liveBridge';
 import 'dockview/dist/styles/dockview.css';
@@ -184,6 +191,11 @@ export function EditorApp() {
     const dockApiRef = useRef<DockviewApi | undefined>(undefined);
     const [saveStatusKey, setSaveStatusKey] = useState<'closed' | 'treeLoaded' | 'noScene' | 'savedFile'>('closed');
     const [savedFileName, setSavedFileName] = useState('');
+    const [runStatus, setRunStatus] = useState<EditorRunStatus>({
+        state: 'unconfigured',
+        stdout: [],
+        stderr: [],
+    });
     const components = useMemo(() => createDockComponents(document, revision), [document, revision]);
     const hasProject = Boolean(projectTree);
     const saveStatus = useMemo(() => {
@@ -206,6 +218,41 @@ export function EditorApp() {
     }, [language]);
 
     useEffect(() => startLiveEditorAgentClient(), []);
+
+    useEffect(() => {
+        if (!projectTree) {
+            setRunStatus({
+                state: 'unconfigured',
+                stdout: [],
+                stderr: [],
+            });
+            return;
+        }
+        void createReadyRunStatus(projectTree)
+            .then(setRunStatus)
+            .catch((error) => setRunStatus({
+                state: 'failed',
+                error: error instanceof Error ? error.message : String(error),
+                stdout: [],
+                stderr: [],
+            }));
+    }, [projectTree]);
+
+    useEffect(() => {
+        if (!runStatus.sessionId || !['starting', 'running'].includes(runStatus.state)) {
+            return;
+        }
+        const interval = window.setInterval(() => {
+            void refreshEditorRunStatus(runStatus)
+                .then(setRunStatus)
+                .catch((error) => setRunStatus((current) => ({
+                    ...current,
+                    state: 'failed',
+                    error: error instanceof Error ? error.message : String(error),
+                })));
+        }, 1200);
+        return () => window.clearInterval(interval);
+    }, [runStatus]);
 
     const resetDocument = useCallback(() => {
         resetSceneDocument();
@@ -242,6 +289,36 @@ export function EditorApp() {
             refreshSceneDocument();
         }
     }, [document, openedScenePath, projectTree]);
+    const runProject = useCallback(async () => {
+        if (!projectTree) {
+            return;
+        }
+        try {
+            setRunStatus((current) => ({
+                ...current,
+                state: 'starting',
+                error: undefined,
+            }));
+            setRunStatus(await startEditorRun(projectTree, document.dirty));
+        } catch (error) {
+            setRunStatus((current) => ({
+                ...current,
+                state: 'failed',
+                error: error instanceof Error ? error.message : String(error),
+            }));
+        }
+    }, [document.dirty, projectTree]);
+    const stopRun = useCallback(async () => {
+        try {
+            setRunStatus(await stopEditorRun(runStatus));
+        } catch (error) {
+            setRunStatus((current) => ({
+                ...current,
+                state: 'failed',
+                error: error instanceof Error ? error.message : String(error),
+            }));
+        }
+    }, [runStatus]);
 
     const handleDockReady = useCallback((event: DockviewReadyEvent) => {
         dockApiRef.current = event.api;
@@ -253,6 +330,7 @@ export function EditorApp() {
             <span>{document.scene.name}.scene</span>
             <span className={document.dirty ? 'statusPill dirty' : 'statusPill saved'}>{document.dirty ? t('dirtyUnsaved') : t('saved')}</span>
             <span data-testid="save-status">{saveStatus}</span>
+            <span>{t(`runState_${runStatus.state}`)}</span>
             <span>AI Ready</span>
             <SummaryBar document={document} />
         </>
@@ -296,7 +374,18 @@ export function EditorApp() {
                     {hasProject ? (
                         <div className="topActionGroup">
                             <Button icon="eye">{t('preview')}</Button>
-                            <Button icon="play" variant="primary">{t('run')}</Button>
+                            {runStatus.state === 'running' || runStatus.state === 'starting' ? (
+                                <Button icon="square" onPress={() => void stopRun()} variant="danger">{t('stopRun')}</Button>
+                            ) : (
+                                <Button
+                                    disabled={runStatus.state === 'unconfigured'}
+                                    icon="play"
+                                    onPress={() => void runProject()}
+                                    variant="primary"
+                                >
+                                    {t('run')}
+                                </Button>
+                            )}
                         </div>
                     ) : null}
                     <div className="languageControl">
@@ -323,6 +412,11 @@ export function EditorApp() {
             </main>
             <footer className="agentStatusBar" aria-label={t('agentStatusTitle')} data-testid="agent-status-bar">
                 <div>
+                    <span>{t('runStatusTitle')}</span>
+                    <strong>{t(`runState_${runStatus.state}`)}</strong>
+                    <small>{runStatus.error ?? runStatus.stderr.at(-1) ?? runStatus.stdout.at(-1) ?? runStatus.command ?? t('runLogEmpty')}</small>
+                </div>
+                <div>
                     <span>{t('agentBridge')}</span>
                     <strong>bun run pixifact -- live</strong>
                     <small>{pixifactAgentBridgeUrl}</small>
@@ -331,11 +425,6 @@ export function EditorApp() {
                     <span>{t('agentEditorTarget')}</span>
                     <strong>{document.scene.name}</strong>
                     <small>{openedScenePath ?? t('unboundSceneFile')}</small>
-                </div>
-                <div>
-                    <span>{t('agentProjectState')}</span>
-                    <strong>{projectTree ? t('agentProjectOpened') : t('agentProjectNotOpened')}</strong>
-                    <small>{projectTree?.projectRootPath ?? projectTree?.path ?? t('projectOpenHint')}</small>
                 </div>
             </footer>
         </div>
