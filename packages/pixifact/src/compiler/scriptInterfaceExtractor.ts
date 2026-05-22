@@ -68,6 +68,10 @@ export function extractSceneScriptInterface(source: string, fileName = 'scene-sc
     throw new Error('No @scene decorator found.');
 }
 
+export function emitSceneScriptInterfaceDescriptor(source: string, fileName = 'scene-script.ts') {
+    return `${JSON.stringify(extractSceneScriptInterface(source, fileName), null, 2)}\n`;
+}
+
 function sceneDecorator(node: ts.ClassDeclaration) {
     const decorator = decorators(node).find((item) => decoratorName(item) === 'scene');
     if (!decorator) {
@@ -76,6 +80,14 @@ function sceneDecorator(node: ts.ClassDeclaration) {
     const args = decoratorArguments(decorator);
     if (args.length !== 1) {
         throw new Error('@scene requires exactly one argument.');
+    }
+    if (ts.isObjectLiteralExpression(args[0])) {
+        const options = objectLiteralValue(args[0], '@scene argument');
+        const scene = options.scene;
+        if (typeof scene !== 'string') {
+            throw new Error('@scene requires string scene.');
+        }
+        return scene;
     }
     return stringLiteralValue(args[0], '@scene argument');
 }

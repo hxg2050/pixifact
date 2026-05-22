@@ -224,6 +224,8 @@ packages/pixifact/src/compiler/
 - `parseSceneTemplate(source)`：解析受限 XML 到 typed Scene AST。
 - `compileSceneTemplateToTs(template)`：生成最小 PixiJS TS mount function。
 - `extractSceneScriptInterface(source)`：静态提取 `@scene/@prop/@event/@slot`。
+- `emitSceneScriptInterfaceDescriptor(source)`：输出稳定 JSON descriptor。
+- `scene/prop/event/slot`：no-op 装饰器 API，可被真实 Scene Script import，metadata 仍以静态提取为准。
 
 测试：
 
@@ -261,8 +263,7 @@ sample-projects/space-hud-game/src/Button.ts
 
 优先继续做“最小闭环”，不要大迁移：
 
-1. 定义装饰器 API 的空实现导出，保证用户脚本可以真实 import `scene/prop/event/slot`。
-2. 生成 interface descriptor 文件，例如 `Button.scene.interface.json`。
-3. 让 `.scene` 去掉 `<Interface>`，只保留模板结构和 script 绑定。
-4. 用一个 `Button.scene + Button.ts + MainMenu.scene` 样例串起 parse / extract / compile。
-5. 再讨论 editor hierarchy / inspector 如何接入 descriptor。
+1. 生成 interface descriptor 文件，例如 `Button.scene.interface.json`。
+2. 让 `.scene` 去掉 `<Interface>`，只保留模板结构和 script 绑定。
+3. 用一个 `Button.scene + Button.ts + MainMenu.scene` 样例串起 parse / extract / compile。
+4. 再讨论 editor hierarchy / inspector 如何接入 descriptor。

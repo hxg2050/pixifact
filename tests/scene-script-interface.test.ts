@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { extractSceneScriptInterface } from 'pixifact/compiler';
+import {
+    emitSceneScriptInterfaceDescriptor,
+    event,
+    extractSceneScriptInterface,
+    prop,
+    scene,
+    slot,
+} from 'pixifact/compiler';
 
 describe('scene script interface extractor', () => {
     it('extracts scene public contract from narrow TypeScript decorators', () => {
@@ -53,7 +60,7 @@ describe('scene script interface extractor', () => {
 
     it('supports explicit event and slot names', () => {
         const contract = extractSceneScriptInterface(`
-            @scene('./Panel.scene')
+            @scene({ scene: './Panel.scene' })
             export class Panel {
                 @event({ name: 'close' })
                 handleClose() {}
@@ -73,6 +80,54 @@ describe('scene script interface extractor', () => {
                 multiple: true,
             },
         });
+    });
+
+    it('emits a stable JSON descriptor for editor and AI consumption', () => {
+        const descriptor = emitSceneScriptInterfaceDescriptor(`
+            @scene('./Button.scene')
+            export class Button {
+                @prop({ type: 'string', default: 'Button' })
+                accessor label = 'Button';
+
+                @event()
+                onClick() {}
+
+                @slot({ multiple: false })
+                icon!: unknown;
+            }
+        `);
+
+        expect(JSON.parse(descriptor)).toEqual({
+            scene: './Button.scene',
+            className: 'Button',
+            interface: {
+                props: {
+                    label: {
+                        type: 'string',
+                        default: 'Button',
+                    },
+                },
+                events: {
+                    click: {
+                        type: 'action',
+                    },
+                },
+                slots: {
+                    icon: {
+                        multiple: false,
+                    },
+                },
+            },
+        });
+        expect(descriptor.endsWith('\n')).toBe(true);
+    });
+
+    it('exports no-op decorator factories for real scene scripts', () => {
+        expect(typeof scene('./Button.scene')).toBe('function');
+        expect(typeof scene({ scene: './Button.scene' })).toBe('function');
+        expect(typeof prop({ type: 'string', default: 'Button' })).toBe('function');
+        expect(typeof event()).toBe('function');
+        expect(typeof slot({ multiple: false })).toBe('function');
     });
 
     it('rejects non-literal decorator options', () => {
