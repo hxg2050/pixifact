@@ -146,7 +146,7 @@ class CompileContext {
 
     #compileSlottedNode(node: SceneTemplateNode, slotTarget: string, actionsParameter: string) {
         if (node.kind === 'slotOutlet') {
-            throw new Error(`Cannot place SlotOutlet inside ${slotTarget}.`);
+            throw new Error(`Cannot place <slot> inside ${slotTarget}.`);
         }
         if (node.kind === 'sceneInstance') {
             const variable = node.key || this.#anonymousName(node.type);

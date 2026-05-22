@@ -16,7 +16,7 @@ describe('Pixifact scene compiler spike', () => {
                 <Graphics key="background" shape="roundRect" width="180" height="52" radius="8" fill="#4169e1" />
                 <Text key="label" text="Button" x="72" y="16" fontSize="16" fill="#ffffff" />
                 <Container key="iconHost" x="20" y="14">
-                  <SlotOutlet name="icon" />
+                  <slot name="icon" />
                 </Container>
               </Container>
             </Scene>
@@ -55,7 +55,7 @@ describe('Pixifact scene compiler spike', () => {
                 <Graphics key="background" shape="roundRect" width="180" height="52" radius="8" fill="#4169e1" />
                 <Text key="label" text="Button" x="72" y="16" fontSize="16" fill="#ffffff" />
                 <Container key="iconHost" x="20" y="14">
-                  <SlotOutlet name="icon" />
+                  <slot name="icon" />
                 </Container>
               </Container>
             </Scene>

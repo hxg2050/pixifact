@@ -60,7 +60,7 @@ Pixifact 自己只保留 authoring / compiler 语义：
 - Scene Script 绑定
 - public contract
 - Scene Instance
-- Slot / SlotOutlet
+- Slot / `<slot>`
 - props / events / slots
 - Inspector schema
 - AI command / diff / dry-run
@@ -107,7 +107,7 @@ TextInput.ts
     <Graphics key="background" shape="roundRect" width="180" height="52" radius="8" fill="#4169e1" />
     <Text key="label" text="Button" x="72" y="16" fontSize="16" fill="#ffffff" />
     <Container key="iconHost" x="20" y="14">
-      <SlotOutlet name="icon" />
+      <slot name="icon" />
     </Container>
   </Container>
 </Scene>
@@ -350,7 +350,7 @@ slots = 外部可插入内容的公开挂载点
 
 ```xml
 <Container key="contentHost">
-  <SlotOutlet name="default" />
+  <slot />
 </Container>
 ```
 

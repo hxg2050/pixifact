@@ -101,10 +101,10 @@ function parseInterface(element: XmlElement | undefined): SceneTemplateInterface
 }
 
 function parseTemplateNode(element: XmlElement): SceneTemplateNode {
-    if (element.name === 'SlotOutlet') {
+    if (element.name === 'slot') {
         const node: SlotOutletTemplateNode = {
             kind: 'slotOutlet',
-            name: requiredAttribute(element, 'name'),
+            name: element.attributes.name || 'default',
         };
         return node;
     }
