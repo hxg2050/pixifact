@@ -3,22 +3,14 @@ import { event, prop, scene, slot } from 'pixifact/compiler';
 import { mountButtonScene } from '../generated/Button.scene.generated';
 import type { ButtonParts } from '../generated/Button.scene.generated';
 
-export interface ButtonSlots {
-    icon: Container;
-}
-
 @scene('./scenes/Button.scene')
 export class Button extends Container {
-    readonly slots: ButtonSlots;
     readonly #parts: ButtonParts;
     #clickHandler?: () => void;
 
     constructor() {
         super();
         this.#parts = mountButtonScene(this);
-        this.slots = {
-            icon: this.#parts.iconHost,
-        };
         this.eventMode = 'static';
         this.cursor = 'pointer';
         this.on('pointertap', () => {
@@ -49,9 +41,7 @@ export class Button extends Container {
     }
 
     @slot({ multiple: false })
-    get icon() {
-        return this.slots.icon;
-    }
+    declare readonly icon: Container;
 
     setIconGraphic(graphic: Graphics) {
         graphic.rotation = Math.PI / 4;

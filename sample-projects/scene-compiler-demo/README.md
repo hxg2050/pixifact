@@ -7,6 +7,7 @@
 - `@scene`、`@prop`、`@event`、`@slot` 描述 public contract。
 - Button / Panel 是 `.scene + script`，不是 Pixifact runtime component。
 - Panel 通过 slots 接收外部内容；Button 对外只暴露 label / click / icon slot。
+- 外部用 `mount(target, child, slot?)` 投放 slot 内容，不访问内部 slot host。
 
 运行：
 

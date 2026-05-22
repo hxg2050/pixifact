@@ -1,5 +1,6 @@
 import './styles.css';
 import { Application, Container, Graphics, Text } from 'pixi.js';
+import { mount } from 'pixifact/compiler';
 import { Button } from './scenes/Button';
 import { Panel } from './scenes/Panel';
 
@@ -37,7 +38,7 @@ const bodyText = new Text({
         wordWrapWidth: 440,
     },
 });
-panel.slots.default.addChild(bodyText);
+mount(panel, bodyText);
 
 const button = new Button();
 button.label = 'Start';
@@ -45,9 +46,9 @@ button.onClick(() => {
     button.label = button.label === undefined ? 'Started' : 'Started';
     bodyText.text = 'Click handled through Button public event.\nThe parent scene never touches Button internals.';
 });
-panel.slots.footer.addChild(button);
+mount(panel, button, 'footer');
 
 const playIcon = new Graphics();
 playIcon.roundRect(0, 0, 18, 18, 4).fill(0xffffff);
 button.setIconGraphic(playIcon);
-button.slots.icon.addChild(playIcon);
+mount(button, playIcon, 'icon');

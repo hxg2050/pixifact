@@ -1,4 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
+import { registerSlot } from 'pixifact/compiler';
 
 export type ButtonParts = {
     root: Container;
@@ -18,6 +19,7 @@ export function mountButtonScene(root: Container): ButtonParts {
     const iconHost = new Container();
     iconHost.position.set(18, 14);
     root.addChild(iconHost);
+    registerSlot(root, 'icon', iconHost);
 
     const labelText = new Text({
         text: 'Button',
