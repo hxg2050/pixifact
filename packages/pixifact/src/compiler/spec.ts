@@ -83,8 +83,8 @@ export interface SceneScriptInterface {
     interface: SceneTemplateInterface;
 }
 
-export type SceneClassDecorator = <T extends abstract new (...args: never[]) => unknown>(target: T, context?: ClassDecoratorContext<T>) => T | void;
-export type SceneMemberDecorator = (target: unknown, context?: ClassMemberDecoratorContext) => void;
+export type SceneClassDecorator = ClassDecorator;
+export type SceneMemberDecorator = PropertyDecorator & MethodDecorator;
 
 export interface SceneDecoratorOptions {
     scene: string;

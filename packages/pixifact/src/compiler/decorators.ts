@@ -25,5 +25,5 @@ export function slot(_options: SceneSlotDecoratorOptions = {}): SceneMemberDecor
     return noopMemberDecorator;
 }
 
-const noopClassDecorator: SceneClassDecorator = () => undefined;
-const noopMemberDecorator: SceneMemberDecorator = () => undefined;
+const noopClassDecorator = (() => undefined) as SceneClassDecorator;
+const noopMemberDecorator = (() => undefined) as SceneMemberDecorator;
