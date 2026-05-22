@@ -1,6 +1,7 @@
 export * from './runtime/index'
 export * from './nodes/index'
 export * from './scene/index'
+export * from './compiler/index'
 export * from './authoring/index'
 export * from './commands/index'
 export * from 'eventemitter3'
