@@ -76,3 +76,9 @@ export interface CompileSceneTemplateOptions {
     functionName?: string;
     actionsParameter?: string;
 }
+
+export interface SceneScriptInterface {
+    scene: string;
+    className: string;
+    interface: SceneTemplateInterface;
+}
