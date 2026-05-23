@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "compile:scenes": "bun scripts/compile-scenes.ts",
+    "compile:scenes": "cd ../.. && bun run pixifact -- compile-scenes --project-root sample-projects/scene-compiler-demo",
     "dev": "bun run compile:scenes && vite . --host 127.0.0.1 --port 5175 --strictPort",
     "build": "bun run compile:scenes && vite build . --config vite.config.ts"
   },

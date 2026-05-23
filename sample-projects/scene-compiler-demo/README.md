@@ -25,4 +25,4 @@ bun run build
 ```
 
 `dev` / `build` 会先执行 `bun run compile:scenes`，把 `scenes/*.scene` 生成到 `src/generated/`，并为绑定脚本生成 `*.scene.interface.json`。
-实际扫描和生成逻辑由 `pixifact/compiler-node` 的 `compileScenes()` 提供；本示例的 `scripts/compile-scenes.ts` 只是项目本地入口。
+实际扫描和生成逻辑由 `pixifact/compiler-node` 的 `compileScenes()` 提供；本示例通过 Pixifact CLI 的 `compile-scenes` 命令调用它。

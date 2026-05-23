@@ -235,7 +235,7 @@ packages/pixifact/src/compiler/
 - `parseSceneTemplate(source)`：解析受限 XML 到 typed Scene AST。
 - `compileSceneTemplateToTs(template)`：生成最小 PixiJS TS mount function，可注册到 runtime scene registry。
 - `pixifact/compiler-node` 提供 `compileScenes(options)`：扫描项目 `scenes/*.scene`，生成 `src/generated/*.scene.generated.ts`、`*.scene.interface.json` 与 registry 入口。
-- `sample-projects/scene-compiler-demo/scripts/compile-scenes.ts`：demo 本地薄入口，只调用 `compileScenes({ projectRoot })`。
+- Pixifact CLI 提供 `compile-scenes` 命令，内部调用 `compileScenes({ projectRoot })`。
 - `extractSceneScriptInterface(source)`：静态提取 `@scene/@prop/@event/@slot/@part`。
 - `emitSceneScriptInterfaceDescriptor(source)`：输出稳定 JSON descriptor。
 - `scene/part/prop/event/slot`：装饰器 API；`@scene` 可在普通 TS 环境中挂载已注册 `.scene`。

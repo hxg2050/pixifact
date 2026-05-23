@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import { createPixifactAutomation } from './automation';
 import { hintForCommandError } from 'pixifact';
+import { compileScenes } from 'pixifact/compiler-node';
 import { createLiveBridgeServer } from './liveBridgeServer';
 
 type Automation = ReturnType<typeof createPixifactAutomation>;
@@ -111,6 +112,15 @@ function isFailedResult(value: unknown): value is CliJsonResult {
 async function executeFileCommand(positionals: string[], flags: Record<string, string | true>, automation: Automation, input: string | NodeJS.ReadableStream | undefined) {
     const [area, action, subaction] = positionals;
 
+    if (area === 'compile-scenes' && action === undefined) {
+        const projectRoot = typeof flags['project-root'] === 'string' ? flags['project-root'] : process.cwd();
+        await compileScenes({ projectRoot });
+        return {
+            ok: true,
+            projectRoot,
+        };
+    }
+
     if (area === 'summary' && action === undefined) {
         return automation.getProjectSummary({
             projectRoot: requireFlag(flags, 'project-root'),
@@ -220,6 +230,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                 exitCode: 0,
                 stdout: jsonLine({
                     commands: [
+                        'compile-scenes',
                         'summary',
                         'scene create',
                         'scene get',
