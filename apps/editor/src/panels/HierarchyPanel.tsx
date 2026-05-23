@@ -8,6 +8,7 @@ import {
     addCompilerSceneNode,
     createCompilerPixiTemplateNode,
     type CompilerSceneAddablePixiType,
+    deleteCompilerSceneNode,
     compilerSceneNodeLocator,
     getCompilerSceneDocument,
     selectCompilerSceneNode,
@@ -230,6 +231,10 @@ function canAddCompilerSceneNode(item: CompilerHierarchyTreeNode | undefined) {
         return true;
     }
     return item.node.kind === 'pixi' && item.node.type === 'Container';
+}
+
+function canDeleteCompilerSceneNode(item: CompilerHierarchyTreeNode | undefined) {
+    return Boolean(item && item.node !== 'scene' && item.node.kind !== 'slot' && item.node.kind !== 'slotOutlet');
 }
 
 function findCompilerHierarchyItem(items: TreeViewItem<CompilerHierarchyTreeNode>[], locator: string): CompilerHierarchyTreeNode | undefined {
@@ -919,12 +924,24 @@ export function CompilerSceneHierarchyTree() {
         ? treeItems[0]?.item
         : findCompilerHierarchyItem(treeItems, selected);
     const canAddNode = canAddCompilerSceneNode(selectedItem);
+    const canDeleteNode = canDeleteCompilerSceneNode(selectedItem);
 
     const addPixiNode = (type: CompilerSceneAddablePixiType) => {
         if (!canAddNode) {
             return;
         }
         const result = addCompilerSceneNode(selected, createCompilerPixiTemplateNode(compilerDocument.template, type));
+        if (!result.ok) {
+            setError(result.error);
+            return;
+        }
+        setError(undefined);
+    };
+    const deleteSelectedNode = () => {
+        if (!canDeleteNode) {
+            return;
+        }
+        const result = deleteCompilerSceneNode(selected);
         if (!result.ok) {
             setError(result.error);
             return;
@@ -948,6 +965,9 @@ export function CompilerSceneHierarchyTree() {
                     </button>
                     <button disabled={!canAddNode} onClick={() => addPixiNode('Graphics')} title="Add Graphics" type="button">
                         Graphics
+                    </button>
+                    <button disabled={!canDeleteNode} onClick={deleteSelectedNode} title="Delete selected node" type="button">
+                        <SystemIcon name="trash" />
                     </button>
                 </div>
             </div>

@@ -8,6 +8,7 @@ import {
 import {
     addCompilerSceneNode,
     createCompilerPixiTemplateNode,
+    deleteCompilerSceneNode,
     getCompilerSceneDocument,
     resetCompilerSceneDocument,
     updateCompilerSceneNode,
@@ -908,6 +909,101 @@ describe('project file tree service', () => {
 
         expect(result.ok).toBe(false);
         expect(getCompilerSceneDocument()?.template.children).toHaveLength(1);
+        expect(getCompilerSceneDocument()?.dirty).toBe(false);
+    });
+
+    it('deletes compiler nodes from root, Container children, and Scene slots', async () => {
+        host.reset({
+            scenes: host.directory({
+                'MainMenu.scene': host.file(`
+                    <Scene name="MainMenu">
+                      <Text id="titleText" text="Title" />
+                      <Container id="content">
+                        <Graphics id="background" />
+                      </Container>
+                      <Panel id="settingsPanel" scene="scenes/Panel.scene">
+                        <Text slot="footer" id="footerText" text="Footer" />
+                      </Panel>
+                    </Scene>
+                `),
+                'Panel.scene': host.file('<Scene name="Panel" />'),
+            }),
+            src: host.directory({
+                generated: host.directory({
+                    'Panel.scene.interface.json': host.file(JSON.stringify({
+                        scene: './scenes/Panel.scene',
+                        className: 'Panel',
+                        interface: {
+                            props: {},
+                            events: {},
+                            slots: {
+                                footer: {},
+                            },
+                        },
+                        parts: {},
+                    })),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/MainMenu.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        const rootResult = deleteCompilerSceneNode('0:titleText');
+        const childResult = deleteCompilerSceneNode('0:content/0:background');
+        const slotChildResult = deleteCompilerSceneNode('1:settingsPanel/slot:footer/0:footerText');
+
+        const compilerDocument = getCompilerSceneDocument();
+        expect(rootResult).toEqual({ ok: true, selection: { type: 'scene' } });
+        expect(childResult).toEqual({ ok: true, selection: { type: 'node', node: '0:content' } });
+        expect(slotChildResult).toEqual({ ok: true, selection: { type: 'node', node: '1:settingsPanel/slot:footer' } });
+        expect(compilerDocument?.template.children).toHaveLength(2);
+        expect(compilerDocument?.template.children[0]).toMatchObject({
+            kind: 'pixi',
+            id: 'content',
+            children: [],
+        });
+        expect(compilerDocument?.template.children[1]).toMatchObject({
+            kind: 'sceneInstance',
+            slots: {
+                footer: [],
+            },
+        });
+        expect(compilerDocument?.selection).toEqual({ type: 'node', node: '1:settingsPanel/slot:footer' });
+        expect(compilerDocument?.dirty).toBe(true);
+    });
+
+    it('does not delete compiler slots or slot outlets', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Panel.scene': host.file(`
+                    <Scene name="Panel">
+                      <Container id="footerHost">
+                        <slot name="footer" />
+                      </Container>
+                    </Scene>
+                `),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Panel.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        const slotResult = deleteCompilerSceneNode('0:footerHost/slot:footer');
+        const slotOutletResult = deleteCompilerSceneNode('0:footerHost/0:slot:footer');
+
+        expect(slotResult.ok).toBe(false);
+        expect(slotOutletResult.ok).toBe(false);
+        expect(getCompilerSceneDocument()?.template.children[0]).toMatchObject({
+            kind: 'pixi',
+            id: 'footerHost',
+            children: [{
+                kind: 'slotOutlet',
+                name: 'footer',
+            }],
+        });
         expect(getCompilerSceneDocument()?.dirty).toBe(false);
     });
 

@@ -176,6 +176,37 @@ export function addCompilerSceneNode(parentLocator: string, node: CompilerSceneT
     };
 }
 
+export function deleteCompilerSceneNode(locator: string) {
+    if (!document) {
+        return {
+            ok: false as const,
+            error: '未打开 Compiler Scene。',
+        };
+    }
+
+    const template = structuredClone(document.template);
+    const deleted = removeCompilerSceneNode(template.children, locator, { type: 'scene' });
+    if (!deleted) {
+        return {
+            ok: false as const,
+            error: '当前选择不能删除。',
+        };
+    }
+
+    document = {
+        ...document,
+        template,
+        selection: deleted.selection,
+        dirty: true,
+    };
+    emitCompilerSceneUpdate();
+
+    return {
+        ok: true as const,
+        selection: deleted.selection,
+    };
+}
+
 export function markCompilerSceneSaved() {
     if (!document) {
         return;
@@ -294,6 +325,42 @@ function insertCompilerSceneNode(
                 const inserted = insertCompilerSceneNode(children, parentLocator, node, `${nodeLocator}/slot:${slot}`);
                 if (inserted) {
                     return inserted;
+                }
+            }
+        }
+    }
+    return undefined;
+}
+
+function removeCompilerSceneNode(
+    nodes: CompilerSceneTemplateNode[],
+    locator: string,
+    parentSelection: CompilerSceneSelection,
+    path = '',
+): { selection: CompilerSceneSelection } | undefined {
+    for (const [index, node] of nodes.entries()) {
+        const nodePath = path ? `${path}/${index}` : String(index);
+        const nodeLocator = compilerSceneNodeLocator(node, nodePath);
+        if (nodeLocator === locator) {
+            if (node.kind === 'slotOutlet') {
+                return undefined;
+            }
+            nodes.splice(index, 1);
+            return { selection: parentSelection };
+        }
+        if (node.kind === 'pixi') {
+            const removed = removeCompilerSceneNode(node.children, locator, { type: 'node', node: nodeLocator }, nodeLocator);
+            if (removed) {
+                return removed;
+            }
+            continue;
+        }
+        if (node.kind === 'sceneInstance') {
+            for (const [slot, children] of Object.entries(node.slots)) {
+                const slotLocator = `${nodeLocator}/slot:${slot}`;
+                const removed = removeCompilerSceneNode(children, locator, { type: 'node', node: slotLocator }, slotLocator);
+                if (removed) {
+                    return removed;
                 }
             }
         }
