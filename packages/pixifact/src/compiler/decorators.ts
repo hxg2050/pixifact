@@ -54,7 +54,7 @@ export function scene(options: string | SceneDecoratorOptions): SceneClassDecora
                         (this as Record<string, unknown>)[property] = propOptions.default;
                     }
                 }
-                const ready = (this as { childrenCreated?: () => void }).childrenCreated;
+                const ready = (this as { onSceneReady?: () => void }).onSceneReady;
                 if (ready) {
                     ready.call(this);
                 }

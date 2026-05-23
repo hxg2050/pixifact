@@ -102,7 +102,7 @@ export class Button extends Container {
     this.labelText.text = value;
   }
 
-  childrenCreated() {
+  onSceneReady() {
     this.eventMode = 'static';
   }
 
@@ -114,7 +114,7 @@ export class Button extends Container {
 }
 ```
 
-`@scene` 当前已具备普通 TS 运行时能力：它会在用户 constructor 执行后挂载已注册的 `.scene`，绑定 `@part` 和 `@slot`，应用 `@prop` 默认值，然后调用 `childrenCreated()`。因此 constructor 中不要访问 `@part`；需要访问内部节点的初始化逻辑放在 `childrenCreated()`。
+`@scene` 当前已具备普通 TS 运行时能力：它会在用户 constructor 执行后挂载已注册的 `.scene`，绑定 `@part` 和 `@slot`，应用 `@prop` 默认值，然后调用 `onSceneReady()`。因此 constructor 中不要访问 `@part`；需要访问内部节点的初始化逻辑放在 `onSceneReady()`。
 
 工具链仍可静态提取装饰器生成 interface descriptor。Editor / AI / Inspector 读取生成后的 descriptor，不直接执行用户代码，也不在运行时解析 TS。
 

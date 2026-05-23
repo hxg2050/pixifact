@@ -11,7 +11,7 @@ export class Button extends Container {
 
     #clickHandler?: () => void;
 
-    childrenCreated() {
+    onSceneReady() {
         this.eventMode = 'static';
         this.cursor = 'pointer';
         this.on('pointertap', () => {
