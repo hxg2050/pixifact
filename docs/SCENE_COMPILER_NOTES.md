@@ -163,15 +163,17 @@ TextInput.ts
 hud.score = value;
 ```
 
-## Scene Script
+## Scene Script 强制绑定
 
-每个 `.scene` 可以绑定一个对应的 TypeScript 脚本。
+后续规则应收敛为：每个 `.scene` 必须绑定一个对应的 TypeScript 脚本。
 
 - `.scene` 描述完整的可视化结构。
 - 脚本继承 PixiJS `Container`。
 - 脚本可以定义自定义属性、方法和事件入口。
 - `.scene` 编译出的内部结构只由对应脚本访问和操作。
 - 对外部调用方来说，一个 Scene 实例是完整且独立的对象，例如一个按钮、面板或 HUD。
+- 新建 `.scene` 时编辑器应自动生成同名脚本。
+- 无脚本 `.scene` 不再作为长期支持的主形态；打开时提示迁移，编译时失败。
 
 示意：
 
@@ -180,6 +182,31 @@ scenes/Button.scene
 src/scenes/Button.ts
 src/generated/pixifact/Button.scene.generated.ts
 ```
+
+`.scene` 和脚本做双向声明：
+
+```xml
+<Scene name="Button" script="src/scenes/Button.ts" class="Button" width="180" height="52">
+</Scene>
+```
+
+```ts
+import { Container } from 'pixi.js';
+import { scene } from 'pixifact/compiler';
+
+@scene('scenes/Button.scene')
+export class Button extends Container {
+  onMounted() {}
+}
+```
+
+绑定规则：
+
+- `.scene` 的 `script` 使用项目根相对路径，例如 `src/scenes/Button.ts`。
+- 脚本的 `@scene()` 使用项目根相对路径，例如 `scenes/Button.scene`。
+- `.scene` 的 `class` 必须等于被 `@scene` 装饰的导出类名。
+- 两边不一致时 compiler 报错。
+- compiler 可以从任意一边定位另一边，但会校验双向一致性。
 
 外部使用时只面对脚本公开 API：
 
@@ -202,6 +229,57 @@ public contract  对外暴露的 props / events / slots
 ```
 
 contract 不应只从 TS 脚本 getter / setter 中推断。Editor 和 AI 需要在不执行 TS 的情况下稳定理解接口。
+
+但 public contract 的权威来源应是脚本装饰器，而不是 `.scene` 中手写的 `Interface`。用户不应同时维护两份信息。
+
+```txt
+Button.ts decorators -> compiler -> Button.scene <Interface>
+权威来源               同步结果     给 editor / AI / Scene Instance 快速读取
+```
+
+脚本示意：
+
+```ts
+import { Container, Text } from 'pixi.js';
+import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
+
+@scene('scenes/Button.scene')
+export class Button extends Container {
+  @part()
+  declare protected labelText: Text;
+
+  @prop({ type: 'string', default: 'Button' })
+  set label(value: string) {
+    this.labelText.text = value;
+  }
+
+  @event()
+  readonly click = createEvent();
+
+  @slot()
+  declare readonly icon: Container;
+
+  onMounted() {}
+}
+```
+
+同步后的 `.scene` 可以包含只读快照：
+
+```xml
+<Interface>
+  <Prop name="label" type="string" default="Button" />
+  <Event name="click" />
+  <Slot name="icon" />
+</Interface>
+```
+
+规则：
+
+- 有脚本时，compiler 从脚本装饰器提取 `props / events / slots / parts`。
+- `.scene <Interface>` 是 compiler 同步结果，供 editor / AI / other Scene 快速读取。
+- 保存/编译时脚本装饰器覆盖 `.scene <Interface>`。
+- Editor 默认只读展示 Public Contract，不作为日常编辑入口。
+- 脚本和 `.scene <Interface>` 不一致时，脚本赢。
 
 示意：
 

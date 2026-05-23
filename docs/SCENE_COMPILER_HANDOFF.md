@@ -73,9 +73,46 @@ compiler output
 hud.score = value;
 ```
 
-## Scene Script 和 Interface
+## Scene Script 强制绑定
 
-每个 `.scene` 可以绑定一个 TypeScript 脚本。脚本继承 PixiJS `Container`。
+后续规则收敛为：每个 `.scene` 必须绑定一个 TypeScript 脚本。脚本继承 PixiJS `Container`，是这个 Scene 的公开 API 权威来源。
+
+绑定采用双向声明：
+
+```xml
+<Scene name="Button" script="src/scenes/Button.ts" class="Button" width="180" height="52">
+</Scene>
+```
+
+```ts
+import { Container } from 'pixi.js';
+import { scene } from 'pixifact/compiler';
+
+@scene('scenes/Button.scene')
+export class Button extends Container {
+  onMounted() {}
+}
+```
+
+约定：
+
+- `.scene` 的 `script` 使用项目根相对路径，例如 `src/scenes/Button.ts`。
+- 脚本的 `@scene()` 使用项目根相对路径，例如 `scenes/Button.scene`。
+- `.scene` 的 `class` 必须等于被 `@scene` 装饰的导出类名。
+- 两边不一致时 compiler 报错。
+- 新建 `.scene` 时编辑器应自动生成配套脚本。
+- 打开或编译无脚本 `.scene` 时应提示迁移或直接失败。
+
+## Interface 来源
+
+`props / events / slots / parts` 不要求用户同时改 `.scene` 和脚本。脚本装饰器是单一权威源，`.scene <Interface>` 是 compiler 同步出来的只读快照。
+
+```txt
+Button.ts decorators -> compiler -> Button.scene <Interface>
+权威来源               同步结果     给 editor / AI / Scene Instance 快速读取
+```
+
+脚本示例：
 
 ```ts
 export class Button extends Container {
@@ -126,6 +163,8 @@ export class Button extends Container {
 - 只支持字面量参数。
 - 不支持动态表达式，例如 `@prop(makeSchema())`。
 - 装饰器是作者体验；生成后的 interface descriptor 是工具链契约。
+- 有脚本时，保存/编译会用脚本装饰器覆盖 `.scene <Interface>`。
+- Editor 中 Public Contract 默认只读显示；不作为日常手写入口。
 
 ## Scene Instance
 
