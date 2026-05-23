@@ -424,6 +424,18 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
     const t = useI18n();
     const openedScenePath = useEditorStore((state) => state.openedScenePath);
     const compilerDocument = getCompilerSceneDocument();
+    const selected = selectedNodeId(document);
+    const model = document.getInspectorModel();
+    const [error, setError] = useState<string>();
+    const [componentPickerOpen, setComponentPickerOpen] = useState(false);
+    const [actionText, setActionText] = useState(() => t('inspectorDefaultAction'));
+
+    useEffect(() => {
+        setError(undefined);
+        setComponentPickerOpen(false);
+        setActionText(t('inspectorDefaultAction'));
+    }, [revision, selected, t]);
+
     if (openedScenePath && compilerDocument?.scenePath === openedScenePath) {
         const publicInterface = compilerDocument.descriptor?.interface ?? compilerDocument.template.interface;
         const selectedCompiler = compilerDocument.selection.type === 'node'
@@ -488,17 +500,6 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
             </div>
         );
     }
-    const selected = selectedNodeId(document);
-    const model = document.getInspectorModel();
-    const [error, setError] = useState<string>();
-    const [componentPickerOpen, setComponentPickerOpen] = useState(false);
-    const [actionText, setActionText] = useState(() => t('inspectorDefaultAction'));
-
-    useEffect(() => {
-        setError(undefined);
-        setComponentPickerOpen(false);
-        setActionText(t('inspectorDefaultAction'));
-    }, [revision, selected, t]);
 
     if (!openedScenePath || !selected || !model) {
         return (
