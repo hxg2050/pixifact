@@ -233,14 +233,19 @@ function compilerField(key: string, value: unknown, type?: string): InspectorFie
     };
 }
 
+function compilerTransformFields(node: SelectedCompilerItem): InspectorFieldModel[] {
+    if (!node || node.kind === 'slotGroup' || node.kind === 'slotOutlet') {
+        return [];
+    }
+    return compilerTransformProps.map((key) => compilerField(key, node.props[key]));
+}
+
 function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: CompilerSceneTemplateInterface): InspectorFieldModel[] {
     if (!node || node.kind === 'slotGroup' || node.kind === 'slotOutlet') {
         return [];
     }
     if (node.kind === 'sceneInstance' && sceneInterface) {
-        const transformFields = compilerTransformProps.map((key) => compilerField(key, node.props[key]));
-        const publicFields = Object.entries(sceneInterface.props).map(([key, contract]) => compilerField(key, node.props[key] ?? contract.default, contract.type));
-        return [...transformFields, ...publicFields];
+        return Object.entries(sceneInterface.props).map(([key, contract]) => compilerField(key, node.props[key] ?? contract.default, contract.type));
     }
     const typeKeys = node.kind === 'pixi' && node.type === 'Text'
         ? ['text', 'fontSize', 'fontWeight', 'fill']
@@ -249,10 +254,9 @@ function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: Compile
             : [];
     const keys = [
         ...new Set([
-            ...compilerTransformProps,
             ...typeKeys,
             ...Object.keys(node.props),
-        ]),
+        ].filter((key) => !compilerTransformProps.includes(key))),
     ];
     return keys.map((key) => compilerField(key, node.props[key]));
 }
@@ -530,6 +534,7 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
             : selectedCompiler?.kind === 'slotOutlet'
                 ? [selectedCompiler.name]
                 : [];
+        const compilerTransformEditorFields = compilerTransformFields(selectedCompiler);
         const compilerPropEditorFields = compilerPropFields(selectedCompiler, selectedSceneInterface);
         const compilerEventEditorFields = compilerEventFields(selectedCompiler, selectedSceneInterface);
         const compilerSelection = compilerDocument.selection.type === 'node'
@@ -589,39 +594,77 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
                     </div>
                 </section>
                 {selectedCompiler ? (
-                    <section className="inspectorSection">
-                        <h3>Selected</h3>
-                        <div className="fieldStack">
-                            {'id' in selectedCompiler ? (
-                                <EditableFieldRow
-                                    field={compilerField('id', selectedCompiler.id)}
-                                    label="id"
-                                    onCommit={commitCompilerId}
-                                />
-                            ) : null}
-                            {'type' in selectedCompiler ? <FieldRow label="type" value={selectedCompiler.type} /> : null}
-                            {selectedCompiler.kind === 'sceneInstance' ? <FieldRow label="scene" value={selectedCompiler.scene} /> : null}
-                            {selectedCompiler.kind === 'slotOutlet' ? <FieldRow label="slot" value={selectedCompiler.name} /> : null}
-                            {selectedCompiler.kind === 'slotGroup' ? <FieldRow label="slot" value={selectedCompiler.name} /> : null}
-                            {compilerPropEditorFields.map((field) => (
-                                <EditableFieldRow
-                                    field={field}
-                                    key={field.key}
-                                    label={field.label}
-                                    onCommit={(value) => commitCompilerProp(field.key, value)}
-                                />
-                            ))}
-                            {compilerEventEditorFields.map((field) => (
-                                <EditableFieldRow
-                                    field={field}
-                                    key={`event:${field.key}`}
-                                    label={field.label}
-                                    onCommit={(value) => commitCompilerEvent(field.key, value)}
-                                />
-                            ))}
-                            {selectedSlots.length ? <FieldRow label="slots" value={selectedSlots.join(', ')} /> : null}
-                        </div>
-                    </section>
+                    <>
+                        <section className="inspectorSection">
+                            <h3>Identity</h3>
+                            <div className="fieldStack">
+                                {'id' in selectedCompiler ? (
+                                    <EditableFieldRow
+                                        field={compilerField('id', selectedCompiler.id)}
+                                        label="id"
+                                        onCommit={commitCompilerId}
+                                    />
+                                ) : null}
+                                {'type' in selectedCompiler ? <FieldRow label="type" value={selectedCompiler.type} /> : null}
+                                {selectedCompiler.kind === 'sceneInstance' ? <FieldRow label="scene" value={selectedCompiler.scene} /> : null}
+                                {selectedCompiler.kind === 'slotOutlet' ? <FieldRow label="slot" value={selectedCompiler.name} /> : null}
+                                {selectedCompiler.kind === 'slotGroup' ? <FieldRow label="slot" value={selectedCompiler.name} /> : null}
+                            </div>
+                        </section>
+                        {compilerTransformEditorFields.length ? (
+                            <section className="inspectorSection">
+                                <h3>Transform</h3>
+                                <div className="fieldStack">
+                                    {compilerTransformEditorFields.map((field) => (
+                                        <EditableFieldRow
+                                            field={field}
+                                            key={field.key}
+                                            label={field.label}
+                                            onCommit={(value) => commitCompilerProp(field.key, value)}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                        ) : null}
+                        {compilerPropEditorFields.length ? (
+                            <section className="inspectorSection">
+                                <h3>Props</h3>
+                                <div className="fieldStack">
+                                    {compilerPropEditorFields.map((field) => (
+                                        <EditableFieldRow
+                                            field={field}
+                                            key={field.key}
+                                            label={field.label}
+                                            onCommit={(value) => commitCompilerProp(field.key, value)}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                        ) : null}
+                        {compilerEventEditorFields.length ? (
+                            <section className="inspectorSection">
+                                <h3>Events</h3>
+                                <div className="fieldStack">
+                                    {compilerEventEditorFields.map((field) => (
+                                        <EditableFieldRow
+                                            field={field}
+                                            key={`event:${field.key}`}
+                                            label={field.label}
+                                            onCommit={(value) => commitCompilerEvent(field.key, value)}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                        ) : null}
+                        {selectedSlots.length ? (
+                            <section className="inspectorSection">
+                                <h3>Slots</h3>
+                                <div className="fieldStack">
+                                    <FieldRow label="slots" value={selectedSlots.join(', ')} />
+                                </div>
+                            </section>
+                        ) : null}
+                    </>
                 ) : null}
             </div>
         );
