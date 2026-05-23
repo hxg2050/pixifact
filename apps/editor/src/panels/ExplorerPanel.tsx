@@ -22,7 +22,6 @@ import type { I18nKey } from '../i18n';
 import {
     nodeTemplateLibrary,
     baseNodeLibrary,
-    compositeTemplateLibrary,
 } from '../services/nodeTemplateLibrary';
 import {
     nodeTemplateDragPayload,
@@ -702,26 +701,6 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
                                         className={[
                                             'fileRow',
                                             'nodeTemplate',
-                                            selectedPath === `library/template/node/${item.kind}` ? 'selected' : '',
-                                        ].filter(Boolean).join(' ')}
-                                        data-node-template={item.kind}
-                                        key={item.kind}
-                                        onClick={() => selectNodeTemplate(item.kind)}
-                                        payload={nodeTemplateDragPayload(item.kind, t(item.nameKey))}
-                                        title={t(item.detailKey)}
-                                    >
-                                        <strong>{t(item.nameKey)}</strong>
-                                    </DragSource>
-                                ))}
-                            </div>
-                            <div className="libraryGroupTitle">{t('compositeTemplateLibrary')}</div>
-                            <div className="fileTree nodeTemplateLibraryTree">
-                                {compositeTemplateLibrary.map((item) => (
-                                    <DragSource
-                                        as="button"
-                                        className={[
-                                            'fileRow',
-                                            'compositeTemplate',
                                             selectedPath === `library/template/node/${item.kind}` ? 'selected' : '',
                                         ].filter(Boolean).join(' ')}
                                         data-node-template={item.kind}

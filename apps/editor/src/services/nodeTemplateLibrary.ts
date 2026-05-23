@@ -1,10 +1,7 @@
 import {
-    buttonScene,
     container,
     image,
     input,
-    progressBarScene,
-    scrollViewScene,
     shape,
     text,
 } from 'pixifact';
@@ -14,7 +11,7 @@ import { editorDragDataTypes } from './dragPayload';
 
 export const nodeTemplateDragDataType = editorDragDataTypes.nodeTemplate;
 
-export type NodeTemplateKind = 'container' | 'button' | 'progressBar' | 'scrollView' | 'text' | 'image' | 'input' | 'shape';
+export type NodeTemplateKind = 'container' | 'text' | 'image' | 'input' | 'shape';
 
 export interface NodeTemplateItem {
     kind: NodeTemplateKind;
@@ -22,31 +19,20 @@ export interface NodeTemplateItem {
     detail: string;
     nameKey: I18nKey;
     detailKey: I18nKey;
-    group: 'node' | 'template';
 }
 
 export const nodeTemplateLibrary: NodeTemplateItem[] = [
-    { kind: 'container', name: '容器', detail: '可包含子节点', nameKey: 'basicGroupName', detailKey: 'basicGroupDetail', group: 'node' },
-    { kind: 'image', name: '图片', detail: 'Image 节点', nameKey: 'basicImageName', detailKey: 'basicImageDetail', group: 'node' },
-    { kind: 'text', name: '文字', detail: 'Text 节点', nameKey: 'basicTextName', detailKey: 'basicTextDetail', group: 'node' },
-    { kind: 'input', name: '输入', detail: 'Input 节点', nameKey: 'basicInputName', detailKey: 'basicInputDetail', group: 'node' },
-    { kind: 'shape', name: '形状', detail: 'Shape 节点', nameKey: 'basicShapeName', detailKey: 'basicShapeDetail', group: 'node' },
-    { kind: 'button', name: '按钮', detail: 'Scene 模板', nameKey: 'basicButtonName', detailKey: 'basicButtonDetail', group: 'template' },
-    { kind: 'progressBar', name: '进度条', detail: 'Scene 模板', nameKey: 'basicProgressBarName', detailKey: 'basicProgressBarDetail', group: 'template' },
-    { kind: 'scrollView', name: '滚动视图', detail: 'Scene 模板', nameKey: 'basicScrollViewName', detailKey: 'basicScrollViewDetail', group: 'template' },
+    { kind: 'container', name: '容器', detail: '可包含子节点', nameKey: 'basicGroupName', detailKey: 'basicGroupDetail' },
+    { kind: 'image', name: '图片', detail: 'Image 节点', nameKey: 'basicImageName', detailKey: 'basicImageDetail' },
+    { kind: 'text', name: '文字', detail: 'Text 节点', nameKey: 'basicTextName', detailKey: 'basicTextDetail' },
+    { kind: 'input', name: '输入', detail: 'Input 节点', nameKey: 'basicInputName', detailKey: 'basicInputDetail' },
+    { kind: 'shape', name: '形状', detail: 'Shape 节点', nameKey: 'basicShapeName', detailKey: 'basicShapeDetail' },
 ];
 
-export const baseNodeLibrary = nodeTemplateLibrary.filter((item) => item.group === 'node');
-export const compositeTemplateLibrary = nodeTemplateLibrary.filter((item) => item.group === 'template');
+export const baseNodeLibrary = nodeTemplateLibrary;
 
 function nodeKeyBase(kind: NodeTemplateKind) {
     switch (kind) {
-        case 'button':
-            return 'button';
-        case 'progressBar':
-            return 'progressBar';
-        case 'scrollView':
-            return 'scrollView';
         case 'text':
             return 'text';
         case 'image':
@@ -81,7 +67,7 @@ function nextNodeKey(document: SceneDocument, kind: NodeTemplateKind) {
     let index = 1;
     let key = `${base}${index}`;
 
-    while (keys.has(key) || (kind === 'button' && keys.has(`${key}Label`))) {
+    while (keys.has(key)) {
         index += 1;
         key = `${base}${index}`;
     }
@@ -93,29 +79,6 @@ export function createNodeTemplateNode(document: SceneDocument, kind: NodeTempla
     const { key, index } = nextNodeKey(document, kind);
 
     switch (kind) {
-        case 'button':
-            return buttonScene(`按钮${index}`, {
-                key,
-                width: 120,
-                height: 36,
-                label: '按钮',
-                color: 0x2563eb,
-                radius: 6,
-            });
-        case 'progressBar':
-            return progressBarScene(`进度条${index}`, {
-                key,
-                width: 180,
-                height: 18,
-                value: 0.5,
-            });
-        case 'scrollView':
-            return scrollViewScene(`滚动视图${index}`, {
-                key,
-                width: 220,
-                height: 160,
-                contentHeight: 320,
-            });
         case 'text':
             return text(`文字${index}`, {
                 key,

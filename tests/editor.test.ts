@@ -16,8 +16,6 @@ import {
     createUseInventoryItemFlow,
     image,
     input,
-    progressBarScene,
-    scrollViewScene,
     component,
     container,
     createInventoryPanelCommands,
@@ -1093,55 +1091,18 @@ describe('SceneDocument', () => {
 });
 
 describe('editor scene templates', () => {
-    it('creates Button as a container template instead of a base display node', () => {
+    it('adds only base nodes through the editor template library', () => {
         const doc = new SceneDocument(createButtonScene());
-        const node = createNodeTemplateNode(doc, 'button');
+        const group = createNodeTemplateNode(doc, 'container');
+        const label = createNodeTemplateNode(doc, 'text');
+        const sprite = createNodeTemplateNode(doc, 'image');
+        const field = createNodeTemplateNode(doc, 'input');
+        const box = createNodeTemplateNode(doc, 'shape');
 
-        expect(node.kind).toBe('container');
-        if (node.kind !== 'container') {
-            throw new Error('Button template must create a container node.');
-        }
-        expect(node.components?.[0]?.type).toBe('ui.Button');
-        expect(node.components?.[0]?.props?.targetGraphic).toBe(`${node.key}Bg`);
-        expect(node.children?.map((child) => child.kind)).toEqual(['shape', 'text']);
-    });
-
-    it('creates ProgressBar and ScrollView as container templates', () => {
-        const progressBar = progressBarScene('Progress', { key: 'loading', value: 0.25 });
-        const scrollView = scrollViewScene('List', { key: 'list', contentHeight: 320 });
-
-        expect(progressBar.kind).toBe('container');
-        expect(progressBar.components?.[0]).toMatchObject({
-            id: 'loadingProgress',
-            type: 'ui.ProgressBar',
-            props: {
-                value: 0.25,
-                fillNode: 'loadingFill',
-            },
-        });
-        expect(progressBar.children?.map((child) => child.kind)).toEqual(['shape', 'shape']);
-
-        expect(scrollView.kind).toBe('container');
-        expect(scrollView.components?.[0]).toMatchObject({
-            id: 'listScroll',
-            type: 'ui.ScrollRect',
-            props: {
-                viewport: 'listViewport',
-                content: 'listContent',
-                contentHeight: 320,
-            },
-        });
-        expect(scrollView.children?.map((child) => child.kind)).toEqual(['shape', 'container']);
-    });
-
-    it('adds ProgressBar and ScrollView through the editor template library', () => {
-        const doc = new SceneDocument(createButtonScene());
-        const progressBar = createNodeTemplateNode(doc, 'progressBar');
-        const scrollView = createNodeTemplateNode(doc, 'scrollView');
-
-        expect(progressBar.kind).toBe('container');
-        expect(progressBar.components?.[0]?.type).toBe('ui.ProgressBar');
-        expect(scrollView.kind).toBe('container');
-        expect(scrollView.components?.[0]?.type).toBe('ui.ScrollRect');
+        expect(group.kind).toBe('container');
+        expect(label.kind).toBe('text');
+        expect(sprite.kind).toBe('image');
+        expect(field.kind).toBe('input');
+        expect(box.kind).toBe('shape');
     });
 });

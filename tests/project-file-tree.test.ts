@@ -899,7 +899,6 @@ describe('project file tree service', () => {
         expect(compilerPixiTypeFromNodeTemplate('text')).toBe('Text');
         expect(compilerPixiTypeFromNodeTemplate('shape')).toBe('Graphics');
         expect(compilerPixiTypeFromNodeTemplate('input')).toBeUndefined();
-        expect(compilerPixiTypeFromNodeTemplate('button')).toBeUndefined();
     });
 
     it('adds dropped compiler Scene files to root, Container children, and Scene slots', async () => {
