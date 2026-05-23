@@ -8,6 +8,7 @@ import {
 import {
     compilerSceneNodeLocator,
     getCompilerSceneDocument,
+    updateCompilerSceneTemplate,
     updateCompilerSceneNode,
 } from '../document/compilerSceneDocumentController';
 import {
@@ -631,6 +632,42 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
             : undefined;
         const canEditCompilerNode = compilerSelection && selectedCompiler && selectedCompiler.kind !== 'slot' && selectedCompiler.kind !== 'slotOutlet';
         const canEditCompilerSlotOutlet = compilerSelection && selectedCompiler?.kind === 'slotOutlet';
+        const commitCompilerSceneName = (value: unknown) => {
+            updateCompilerSceneTemplate({ name: typeof value === 'string' ? value : '' });
+        };
+        const commitCompilerSceneProp = (key: string, value: unknown) => {
+            if (typeof value === 'object') {
+                return;
+            }
+            updateCompilerSceneTemplate({
+                props: {
+                    [key]: value as string | number | boolean | undefined,
+                },
+            });
+        };
+        const commitCompilerSceneScriptPath = (value: unknown) => {
+            const path = typeof value === 'string' ? value : '';
+            updateCompilerSceneTemplate({
+                script: path
+                    ? {
+                        path,
+                        className: compilerDocument.template.script?.className ?? compilerDocument.template.name,
+                    }
+                    : undefined,
+            });
+        };
+        const commitCompilerSceneScriptClass = (value: unknown) => {
+            if (!compilerDocument.template.script?.path) {
+                return;
+            }
+            const className = typeof value === 'string' ? value : '';
+            updateCompilerSceneTemplate({
+                script: {
+                    path: compilerDocument.template.script.path,
+                    className: className || compilerDocument.template.name,
+                },
+            });
+        };
         const commitCompilerId = (value: unknown) => {
             if (!canEditCompilerNode) {
                 return;
@@ -676,9 +713,32 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                 <section className="inspectorSection">
                     <h3>Scene</h3>
                     <div className="fieldStack">
-                        <FieldRow label="name" value={compilerDocument.template.name} />
-                        <FieldRow label="script" value={compilerDocument.template.script?.path ?? 'none'} />
-                        <FieldRow label="class" value={compilerDocument.template.script?.className ?? 'none'} />
+                        <EditableFieldRow
+                            field={compilerField('name', compilerDocument.template.name)}
+                            label="name"
+                            onCommit={commitCompilerSceneName}
+                        />
+                        <EditableFieldRow
+                            field={compilerField('width', compilerDocument.template.props.width)}
+                            label="width"
+                            onCommit={(value) => commitCompilerSceneProp('width', value)}
+                        />
+                        <EditableFieldRow
+                            field={compilerField('height', compilerDocument.template.props.height)}
+                            label="height"
+                            onCommit={(value) => commitCompilerSceneProp('height', value)}
+                        />
+                        <EditableFieldRow
+                            field={compilerField('script', compilerDocument.template.script?.path)}
+                            label="script"
+                            onCommit={commitCompilerSceneScriptPath}
+                        />
+                        <EditableFieldRow
+                            field={compilerField('class', compilerDocument.template.script?.className ?? compilerDocument.template.name)}
+                            label="class"
+                            locked={!compilerDocument.template.script?.path}
+                            onCommit={commitCompilerSceneScriptClass}
+                        />
                         <FieldRow label="path" value={compilerDocument.scenePath} />
                     </div>
                 </section>

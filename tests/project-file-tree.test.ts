@@ -15,6 +15,7 @@ import {
     getCompilerSceneDocument,
     moveCompilerSceneNode,
     resetCompilerSceneDocument,
+    updateCompilerSceneTemplate,
     updateCompilerSceneNode,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
 import type { CompilerSceneDocument } from '../apps/editor/src/document/compilerSceneDocumentController';
@@ -840,6 +841,45 @@ describe('project file tree service', () => {
         expect(compilerDocument?.dirty).toBe(true);
     });
 
+    it('updates compiler Scene root metadata in memory', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file('<Scene name="Button" width="120" height="40" />'),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        updateCompilerSceneTemplate({
+            name: 'PrimaryButton',
+            props: {
+                width: 180,
+                height: 52,
+            },
+            script: {
+                path: '../src/scenes/Button.ts',
+                className: 'Button',
+            },
+        });
+
+        const compilerDocument = getCompilerSceneDocument();
+
+        expect(compilerDocument?.template).toMatchObject({
+            name: 'PrimaryButton',
+            script: {
+                path: '../src/scenes/Button.ts',
+                className: 'Button',
+            },
+            props: {
+                width: 180,
+                height: 52,
+            },
+        });
+        expect(compilerDocument?.dirty).toBe(true);
+    });
+
     it('adds compiler Pixi nodes to root, Container children, and Scene slots', async () => {
         host.reset({
             scenes: host.directory({
@@ -1572,6 +1612,17 @@ describe('project file tree service', () => {
         const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
 
         await openCompilerSceneFile(tree, sceneFile!);
+        updateCompilerSceneTemplate({
+            name: 'PrimaryButton',
+            props: {
+                width: 180,
+                height: 52,
+            },
+            script: {
+                path: '../src/scenes/Button.ts',
+                className: 'Button',
+            },
+        });
         updateCompilerSceneNode('1:labelText', {
             id: 'titleText',
             props: {
@@ -1594,6 +1645,7 @@ describe('project file tree service', () => {
         expect(getCompilerSceneDocument()?.dirty).toBe(false);
 
         const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene');
+        expect(saved).toContain('<Scene name="PrimaryButton" script="../src/scenes/Button.ts" class="Button" width="180" height="52">');
         expect(saved).toContain('<Text id="titleText" text="Start" x="40" y="10" fontSize="16" fill="#ffffff" pivotX="8" pivotY="4" skewX="0.1" skewY="0.2" alpha="0.9" eventMode="static" cursor="pointer" label="title" />');
     });
 

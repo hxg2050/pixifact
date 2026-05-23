@@ -1,4 +1,4 @@
-import type { SceneTemplate, SceneTemplateInterface, SceneTemplateValue } from '../../../../packages/pixifact/src/compiler/spec';
+import type { SceneTemplate, SceneTemplateInterface, SceneTemplateScript, SceneTemplateValue } from '../../../../packages/pixifact/src/compiler/spec';
 import { pixiSceneNodeAcceptsChildren, pixiSceneNodeDefaults } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import type { PixiSceneNodeType } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import type {
@@ -76,6 +76,36 @@ export function selectCompilerSceneNode(node: string) {
     document = {
         ...document,
         selection: { type: 'node', node },
+    };
+    emitCompilerSceneUpdate();
+}
+
+export function updateCompilerSceneTemplate(updates: {
+    name?: string;
+    props?: Record<string, SceneTemplateValue | undefined>;
+    script?: SceneTemplateScript | undefined;
+}) {
+    if (!document) {
+        return;
+    }
+    const template = structuredClone(document.template);
+    if (updates.name !== undefined) {
+        template.name = updates.name;
+    }
+    if ('script' in updates) {
+        template.script = updates.script;
+    }
+    for (const [key, value] of Object.entries(updates.props ?? {})) {
+        if (value === undefined) {
+            delete template.props[key];
+        } else {
+            template.props[key] = value;
+        }
+    }
+    document = {
+        ...document,
+        template,
+        dirty: true,
     };
     emitCompilerSceneUpdate();
 }
