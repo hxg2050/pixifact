@@ -115,7 +115,8 @@ interface SelectedCompilerSlot {
 
 type SelectedCompilerItem = CompilerSceneTemplateNode | SelectedCompilerSlot | undefined;
 
-const compilerTransformProps = ['x', 'y', 'width', 'height'];
+const compilerTransformProps = ['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation'];
+const compilerDisplayProps = ['alpha', 'visible', 'zIndex'];
 
 function selectedCompilerNode(nodes: readonly CompilerSceneTemplateNode[], locator: string, path = ''): CompilerSceneTemplateNode | undefined {
     for (const [index, node] of nodes.entries()) {
@@ -196,8 +197,11 @@ function partNames(descriptor: CompilerSceneScriptInterface | undefined) {
 }
 
 function compilerFieldType(key: string, value: unknown) {
-    if (['x', 'y', 'width', 'height', 'radius', 'fontSize'].includes(key)) {
+    if (['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation', 'alpha', 'zIndex', 'radius', 'fontSize'].includes(key)) {
         return 'number';
+    }
+    if (['visible'].includes(key)) {
+        return 'boolean';
     }
     if (['fill', 'tint'].includes(key)) {
         return 'color';
@@ -240,6 +244,13 @@ function compilerTransformFields(node: SelectedCompilerItem): InspectorFieldMode
     return compilerTransformProps.map((key) => compilerField(key, node.props[key]));
 }
 
+function compilerDisplayFields(node: SelectedCompilerItem): InspectorFieldModel[] {
+    if (!node || node.kind === 'slotGroup' || node.kind === 'slotOutlet') {
+        return [];
+    }
+    return compilerDisplayProps.map((key) => compilerField(key, node.props[key]));
+}
+
 function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: CompilerSceneTemplateInterface): InspectorFieldModel[] {
     if (!node || node.kind === 'slotGroup' || node.kind === 'slotOutlet') {
         return [];
@@ -256,7 +267,7 @@ function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: Compile
         ...new Set([
             ...typeKeys,
             ...Object.keys(node.props),
-        ].filter((key) => !compilerTransformProps.includes(key))),
+        ].filter((key) => !compilerTransformProps.includes(key) && !compilerDisplayProps.includes(key))),
     ];
     return keys.map((key) => compilerField(key, node.props[key]));
 }
@@ -535,6 +546,7 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
                 ? [selectedCompiler.name]
                 : [];
         const compilerTransformEditorFields = compilerTransformFields(selectedCompiler);
+        const compilerDisplayEditorFields = compilerDisplayFields(selectedCompiler);
         const compilerPropEditorFields = compilerPropFields(selectedCompiler, selectedSceneInterface);
         const compilerEventEditorFields = compilerEventFields(selectedCompiler, selectedSceneInterface);
         const compilerSelection = compilerDocument.selection.type === 'node'
@@ -616,6 +628,21 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
                                 <h3>Transform</h3>
                                 <div className="fieldStack">
                                     {compilerTransformEditorFields.map((field) => (
+                                        <EditableFieldRow
+                                            field={field}
+                                            key={field.key}
+                                            label={field.label}
+                                            onCommit={(value) => commitCompilerProp(field.key, value)}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                        ) : null}
+                        {compilerDisplayEditorFields.length ? (
+                            <section className="inspectorSection">
+                                <h3>Display</h3>
+                                <div className="fieldStack">
+                                    {compilerDisplayEditorFields.map((field) => (
                                         <EditableFieldRow
                                             field={field}
                                             key={field.key}

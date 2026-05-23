@@ -8,8 +8,8 @@ import type {
     SceneTemplateValue,
 } from './spec';
 
-const transformProps = new Set(['x', 'y', 'width', 'height']);
-const pixiProps = new Set(['alpha', 'visible', 'eventMode', 'cursor', 'label']);
+const transformProps = new Set(['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation']);
+const pixiProps = new Set(['alpha', 'visible', 'eventMode', 'cursor', 'label', 'zIndex']);
 
 export function compileSceneTemplateToTs(template: SceneTemplate, options: CompileSceneTemplateOptions = {}) {
     const context = new CompileContext(template, options);
@@ -144,6 +144,7 @@ class CompileContext {
         this.#lines.push(`  const ${variable} = ${this.#constructPixiNode(node)};`);
         this.#applyNodeId(variable, node.id);
         this.#applyPixiProps(variable, node.props);
+        this.#applyParentSorting(parent, node.props);
         this.#lines.push(`  ${parent}.addChild(${variable});`);
         for (const child of node.children) {
             this.#compileNode(child, variable, actionsParameter);
@@ -158,6 +159,7 @@ class CompileContext {
             this.#runtimeImports.add('connectSceneEvent');
             this.#lines.push(`  connectSceneEvent(${variable}.${name}, ${JSON.stringify(action)}, root, ${actionsParameter});`);
         }
+        this.#applyParentSorting(parent, node.props);
         this.#lines.push(`  ${parent}.addChild(${variable});`);
         for (const [slot, children] of Object.entries(node.slots)) {
             for (const child of children) {
@@ -229,6 +231,14 @@ class CompileContext {
         if (props.height !== undefined && props.shape === undefined) {
             this.#lines.push(`  ${variable}.height = ${this.#value(props.height)};`);
         }
+        const scaleX = props.scaleX;
+        const scaleY = props.scaleY;
+        if (scaleX !== undefined || scaleY !== undefined) {
+            this.#lines.push(`  ${variable}.scale.set(${this.#value(scaleX ?? 1)}, ${this.#value(scaleY ?? 1)});`);
+        }
+        if (props.rotation !== undefined) {
+            this.#lines.push(`  ${variable}.rotation = ${this.#value(props.rotation)};`);
+        }
         if (!instance && props.shape !== undefined) {
             this.#drawGraphics(variable, props);
         }
@@ -256,6 +266,12 @@ class CompileContext {
     #applyNodeId(variable: string, id: string | undefined) {
         if (id) {
             this.#lines.push(`  ${variable}.label = ${JSON.stringify(id)};`);
+        }
+    }
+
+    #applyParentSorting(parent: string, props: Record<string, SceneTemplateValue>) {
+        if (props.zIndex !== undefined) {
+            this.#lines.push(`  ${parent}.sortableChildren = true;`);
         }
     }
 

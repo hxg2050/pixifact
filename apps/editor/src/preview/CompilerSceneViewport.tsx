@@ -44,8 +44,8 @@ interface RenderContext {
 
 const previewWidth = 960;
 const previewHeight = 540;
-const transformProps = new Set(['x', 'y', 'width', 'height']);
-const pixiProps = new Set(['alpha', 'visible', 'eventMode', 'cursor', 'label']);
+const transformProps = new Set(['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation']);
+const pixiProps = new Set(['alpha', 'visible', 'eventMode', 'cursor', 'label', 'zIndex']);
 const textStyleProps = new Set(['fontSize', 'fontFamily', 'fontWeight', 'fill']);
 
 function numericProp(value: SceneTemplateValue | undefined, defaultValue: number) {
@@ -157,6 +157,14 @@ function applyNodeProps(target: Container, props: Record<string, SceneTemplateVa
     if (props.height !== undefined && props.shape === undefined) {
         target.height = numericProp(props.height, 0);
     }
+    const scaleX = props.scaleX;
+    const scaleY = props.scaleY;
+    if (scaleX !== undefined || scaleY !== undefined) {
+        target.scale.set(numericProp(scaleX, 1), numericProp(scaleY, 1));
+    }
+    if (props.rotation !== undefined) {
+        target.rotation = numericProp(props.rotation, 0);
+    }
     if (!instance && props.shape !== undefined) {
         applyGraphics(target, props);
     }
@@ -201,7 +209,11 @@ async function renderChildren(
             slots.set(child.name, parent);
             continue;
         }
-        parent.addChild(await renderNode(child, context, slots, nodes, context.locatorPath ? `${context.locatorPath}/${index}` : String(index)));
+        const display = await renderNode(child, context, slots, nodes, context.locatorPath ? `${context.locatorPath}/${index}` : String(index));
+        if (child.props.zIndex !== undefined) {
+            parent.sortableChildren = true;
+        }
+        parent.addChild(display);
     }
 }
 

@@ -763,6 +763,12 @@ describe('project file tree service', () => {
                 y: 36,
                 width: 188,
                 height: 48,
+                scaleX: 1.2,
+                scaleY: 0.9,
+                rotation: 0.25,
+                alpha: 0.8,
+                visible: true,
+                zIndex: 10,
                 label: 'Continue',
                 disabled: true,
             },
@@ -781,6 +787,12 @@ describe('project file tree service', () => {
                 y: 36,
                 width: 188,
                 height: 48,
+                scaleX: 1.2,
+                scaleY: 0.9,
+                rotation: 0.25,
+                alpha: 0.8,
+                visible: true,
+                zIndex: 10,
                 label: 'Continue',
                 disabled: true,
             },
@@ -843,6 +855,12 @@ describe('project file tree service', () => {
                 y: 36,
                 width: 188,
                 height: 48,
+                scaleX: 1.2,
+                scaleY: 0.9,
+                rotation: 0.25,
+                alpha: 0.8,
+                visible: true,
+                zIndex: 10,
                 label: 'Continue',
                 disabled: true,
             },
@@ -855,7 +873,7 @@ describe('project file tree service', () => {
         expect(await saveCompilerSceneFile(tree, 'GameProject/scenes/MainMenu.scene', compilerDocument!)).toBe(true);
 
         const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/MainMenu.scene');
-        expect(saved).toContain('<Button id="startButton" scene="scenes/Button.scene" label="Continue" x="24" y="36" width="188" height="48" disabled="true" @click="resumeGame" />');
+        expect(saved).toContain('<Button id="startButton" scene="scenes/Button.scene" label="Continue" x="24" y="36" width="188" height="48" scaleX="1.2" scaleY="0.9" rotation="0.25" alpha="0.8" visible="true" zIndex="10" disabled="true" @click="resumeGame" />');
     });
 
     it('creates and opens a Scene, applies live CLI commands, updates preview and saves', async () => {

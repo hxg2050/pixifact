@@ -107,7 +107,7 @@ describe('Pixifact scene compiler spike', () => {
     it('keeps scene instances opaque and compiles only their public props, events, and slot children', () => {
         const template = parseSceneTemplate(`
             <Scene name="MainMenu">
-              <Button id="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">
+              <Button id="startButton" scene="scenes/Button.scene" x="390" y="300" scaleX="1.2" scaleY="0.9" rotation="0.25" alpha="0.8" visible="true" zIndex="10" label="Start" @click="startGame">
                 <Sprite slot="icon" id="playIcon" texture="assets/icons/play.png" />
               </Button>
             </Scene>
@@ -122,6 +122,12 @@ describe('Pixifact scene compiler spike', () => {
                 props: {
                     x: 390,
                     y: 300,
+                    scaleX: 1.2,
+                    scaleY: 0.9,
+                    rotation: 0.25,
+                    alpha: 0.8,
+                    visible: true,
+                    zIndex: 10,
                     label: 'Start',
                 },
                 events: {
@@ -151,6 +157,12 @@ describe('Pixifact scene compiler spike', () => {
         expect(code).toContain('export function mountMainMenuScene(root: Container, actions: Record<string, () => void> = {}) {');
         expect(code).toContain('const startButton = new Button();');
         expect(code).toContain('startButton.position.set(390, 300);');
+        expect(code).toContain('startButton.scale.set(1.2, 0.9);');
+        expect(code).toContain('startButton.rotation = 0.25;');
+        expect(code).toContain('startButton.alpha = 0.8;');
+        expect(code).toContain('startButton.visible = true;');
+        expect(code).toContain('startButton.zIndex = 10;');
+        expect(code).toContain('root.sortableChildren = true;');
         expect(code).toContain('startButton.label = "Start";');
         expect(code).toContain('connectSceneEvent(startButton.click, "startGame", root, actions);');
         expect(code).toContain('root.addChild(startButton);');
