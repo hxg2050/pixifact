@@ -26,6 +26,7 @@ export function extractSceneScriptInterface(source: string, fileName = 'scene-sc
         const props: Record<string, SceneTemplatePropContract> = {};
         const events: Record<string, SceneTemplateEventContract> = {};
         const slots: Record<string, SceneTemplateSlotContract> = {};
+        const parts: Record<string, string> = {};
 
         for (const member of statement.members) {
             const name = memberName(member.name);
@@ -50,6 +51,11 @@ export function extractSceneScriptInterface(source: string, fileName = 'scene-sc
             if (slot) {
                 slots[typeof slot.name === 'string' ? slot.name : name] = {};
             }
+
+            const part = memberDecoratorOptions(member, 'part');
+            if (part) {
+                parts[name] = typeof part.id === 'string' ? part.id : name;
+            }
         }
 
         return {
@@ -60,6 +66,7 @@ export function extractSceneScriptInterface(source: string, fileName = 'scene-sc
                 events,
                 slots,
             },
+            parts,
         };
     }
 

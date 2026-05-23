@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
+    connectSceneEvent,
     compileSceneTemplateToTs,
     mount,
     parseSceneTemplate,
@@ -150,7 +151,7 @@ describe('Pixifact scene compiler spike', () => {
         expect(code).toContain('const startButton = new Button();');
         expect(code).toContain('startButton.position.set(390, 300);');
         expect(code).toContain('startButton.label = "Start";');
-        expect(code).toContain('startButton.click.connect(actions.startGame);');
+        expect(code).toContain('connectSceneEvent(startButton.click, "startGame", root, actions);');
         expect(code).toContain('root.addChild(startButton);');
         expect(code).toContain('const playIcon = Sprite.from("assets/icons/play.png");');
         expect(code).toContain('mount(startButton, playIcon, "icon");');
@@ -222,6 +223,31 @@ describe('Pixifact scene compiler spike', () => {
         expect(button.icon.children[0]).toBe(icon);
     });
 
+    it('connects scene events to actions or root script methods', () => {
+        const event = createEvent();
+        const root = {
+            started: false,
+            startGame() {
+                this.started = true;
+            },
+        };
+
+        connectSceneEvent(event, 'startGame', root);
+        event.emit();
+
+        expect(root.started).toBe(true);
+
+        let actionCalled = false;
+        connectSceneEvent(event, 'externalAction', root, {
+            externalAction() {
+                actionCalled = true;
+            },
+        });
+        event.emit();
+
+        expect(actionCalled).toBe(true);
+    });
+
     it('rejects duplicate ids in a scene template', () => {
         expect(() => parseSceneTemplate(`
             <Scene name="DuplicateIds">
@@ -237,19 +263,63 @@ describe('Pixifact scene compiler spike', () => {
         const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
         try {
             await mkdir(join(root, 'scenes'));
+            await mkdir(join(root, 'src', 'scenes'), { recursive: true });
             await writeFile(join(root, 'scenes', 'Button.scene'), `
                 <Scene name="Button" script="../src/scenes/Button.ts" class="Button" width="120" height="40">
                   <Text id="labelText" text="Button" />
                 </Scene>
             `);
+            await writeFile(join(root, 'src', 'scenes', 'Button.ts'), `
+                import { Container, Text } from 'pixi.js';
+                import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
+
+                @scene('./scenes/Button.scene')
+                export class Button extends Container {
+                    @part()
+                    protected declare labelText: Text;
+
+                    @prop({ type: 'string', default: 'Button' })
+                    accessor label = 'Button';
+
+                    @event()
+                    readonly click = createEvent();
+
+                    @slot()
+                    icon!: Container;
+                }
+            `);
 
             await compileScenes({ projectRoot: root });
 
             const generated = await readFile(join(root, 'src', 'generated', 'Button.scene.generated.ts'), 'utf8');
+            const descriptor = await readFile(join(root, 'src', 'generated', 'Button.scene.interface.json'), 'utf8');
             const registry = await readFile(join(root, 'src', 'generated', 'scenes.generated.ts'), 'utf8');
 
             expect(generated).toContain('registerScene("./scenes/Button.scene"');
             expect(generated).toContain('export function mountButtonScene(root: Container)');
+            expect(JSON.parse(descriptor)).toEqual({
+                scene: './scenes/Button.scene',
+                className: 'Button',
+                interface: {
+                    props: {
+                        label: {
+                            type: 'string',
+                            default: 'Button',
+                        },
+                    },
+                    events: {
+                        click: {
+                            type: 'action',
+                        },
+                    },
+                    slots: {
+                        icon: {},
+                    },
+                },
+                parts: {
+                    labelText: 'labelText',
+                },
+            });
             expect(registry).toBe("import './Button.scene.generated';\n");
         } finally {
             await rm(root, { recursive: true, force: true });

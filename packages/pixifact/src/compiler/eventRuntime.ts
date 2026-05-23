@@ -7,6 +7,8 @@ export interface SceneEvent<TPayload = void> {
     emit(...args: TPayload extends void ? [] : [TPayload]): void;
 }
 
+export type SceneActions = Record<string, (() => void) | undefined>;
+
 export function createEvent<TPayload = void>(): SceneEvent<TPayload> {
     const listeners = new Set<SceneEventListener<TPayload>>();
 
@@ -23,4 +25,25 @@ export function createEvent<TPayload = void>(): SceneEvent<TPayload> {
             }
         },
     };
+}
+
+export function connectSceneEvent(
+    event: SceneEvent,
+    actionName: string,
+    owner: object,
+    actions: SceneActions = {},
+) {
+    const action = actions[actionName];
+    if (action) {
+        return event.connect(action);
+    }
+
+    const ownerAction = (owner as Record<string, unknown>)[actionName];
+    if (typeof ownerAction === 'function') {
+        return event.connect(() => {
+            ownerAction.call(owner);
+        });
+    }
+
+    throw new Error(`Scene action "${actionName}" was not found.`);
 }

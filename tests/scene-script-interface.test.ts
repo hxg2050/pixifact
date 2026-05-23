@@ -12,8 +12,8 @@ import {
 describe('scene script interface extractor', () => {
     it('extracts scene public contract from narrow TypeScript decorators', () => {
         const contract = extractSceneScriptInterface(`
-            import { Container } from 'pixi.js';
-            import { event, prop, scene, slot } from 'pixifact/compiler';
+            import { Container, Text } from 'pixi.js';
+            import { event, part, prop, scene, slot } from 'pixifact/compiler';
 
             @scene('./Button.scene')
             export class Button extends Container {
@@ -25,6 +25,12 @@ describe('scene script interface extractor', () => {
 
                 @event()
                 readonly click = createEvent();
+
+                @part()
+                protected declare labelText: Text;
+
+                @part({ id: 'iconHost' })
+                protected declare iconContainer: Container;
 
                 @slot()
                 icon!: Container;
@@ -53,6 +59,10 @@ describe('scene script interface extractor', () => {
                 slots: {
                     icon: {},
                 },
+            },
+            parts: {
+                labelText: 'labelText',
+                iconContainer: 'iconHost',
             },
         });
     });
@@ -113,6 +123,7 @@ describe('scene script interface extractor', () => {
                     icon: {},
                 },
             },
+            parts: {},
         });
         expect(descriptor.endsWith('\n')).toBe(true);
     });

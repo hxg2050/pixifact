@@ -1,7 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { Button } from "../scenes/Button";
 import { Panel } from "../scenes/Panel";
-import { mount, registerScene } from 'pixifact/compiler';
+import { connectSceneEvent, mount, registerScene } from 'pixifact/compiler';
 
 export type MainMenuParts = {
   root: Container;
@@ -28,7 +28,7 @@ export function mountMainMenuScene(root: Container, actions: Record<string, () =
   mount(settingsPanel, bodyText, "default");
   const startButton = new Button();
   startButton.label = "Start";
-  startButton.click.connect(actions.startGame);
+  connectSceneEvent(startButton.click, "startGame", root, actions);
   const playIcon = new Graphics();
   playIcon.label = "playIcon";
   playIcon.roundRect(0, 0, 18, 18, 4).fill(16777215);

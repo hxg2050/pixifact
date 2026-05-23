@@ -1,0 +1,20 @@
+{
+  "scene": "./scenes/Panel.scene",
+  "className": "Panel",
+  "interface": {
+    "props": {
+      "title": {
+        "type": "string",
+        "default": "Panel"
+      }
+    },
+    "events": {},
+    "slots": {
+      "content": {},
+      "footer": {}
+    }
+  },
+  "parts": {
+    "titleText": "titleText"
+  }
+}

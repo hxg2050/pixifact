@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { SceneTemplate, SceneTemplateNode } from './spec';
+import { emitSceneScriptInterfaceDescriptor } from './scriptInterfaceExtractor';
 import { parseSceneTemplate } from './templateParser';
 import { compileSceneTemplateToTs } from './typescriptCompiler';
 
@@ -43,6 +44,15 @@ export async function compileScenes(options: CompileScenesOptions) {
         });
 
         await writeFile(path.join(generatedDir, outputFile), code);
+        if (template.script) {
+            const scriptPath = path.resolve(scenesDir, template.script.path);
+            const scriptSource = await readFile(scriptPath, 'utf8');
+            const interfaceFile = `${path.basename(file, '.scene')}.scene.interface.json`;
+            await writeFile(
+                path.join(generatedDir, interfaceFile),
+                emitSceneScriptInterfaceDescriptor(scriptSource, scriptPath),
+            );
+        }
         registryImports.push(`import './${outputFile.replace(/\.ts$/, '')}';`);
     }
 

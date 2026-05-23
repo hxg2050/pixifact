@@ -83,6 +83,7 @@ export interface SceneScriptInterface {
     scene: string;
     className: string;
     interface: SceneTemplateInterface;
+    parts: Record<string, string>;
 }
 
 export type SceneClassDecorator = ClassDecorator;

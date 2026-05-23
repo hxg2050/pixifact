@@ -1,0 +1,13 @@
+{
+  "scene": "./scenes/MainMenu.scene",
+  "className": "MainMenu",
+  "interface": {
+    "props": {},
+    "events": {},
+    "slots": {}
+  },
+  "parts": {
+    "bodyText": "bodyText",
+    "startButton": "startButton"
+  }
+}

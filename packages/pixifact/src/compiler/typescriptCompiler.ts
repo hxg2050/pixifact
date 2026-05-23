@@ -155,7 +155,8 @@ class CompileContext {
         this.#lines.push(`  const ${variable} = new ${node.type}();`);
         this.#applyPixiProps(variable, node.props, true);
         for (const [name, action] of Object.entries(node.events)) {
-            this.#lines.push(`  ${variable}.${name}.connect(${actionsParameter}.${action});`);
+            this.#runtimeImports.add('connectSceneEvent');
+            this.#lines.push(`  connectSceneEvent(${variable}.${name}, ${JSON.stringify(action)}, root, ${actionsParameter});`);
         }
         this.#lines.push(`  ${parent}.addChild(${variable});`);
         for (const [slot, children] of Object.entries(node.slots)) {
@@ -176,7 +177,8 @@ class CompileContext {
             this.#lines.push(`  const ${variable} = new ${node.type}();`);
             this.#applyPixiProps(variable, node.props, true);
             for (const [name, action] of Object.entries(node.events)) {
-                this.#lines.push(`  ${variable}.${name}.connect(${actionsParameter}.${action});`);
+                this.#runtimeImports.add('connectSceneEvent');
+                this.#lines.push(`  connectSceneEvent(${variable}.${name}, ${JSON.stringify(action)}, root, ${actionsParameter});`);
             }
             for (const [slot, children] of Object.entries(node.slots)) {
                 for (const child of children) {
