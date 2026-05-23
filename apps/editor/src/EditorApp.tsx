@@ -26,6 +26,7 @@ import { collectHierarchy, useCompilerSceneRevision, useDocumentRevision } from 
 import { openProjectFolder, saveCompilerSceneFile, saveSceneFile } from './services/projectFileTree';
 import type { CompilerSceneTemplateNode } from './services/projectFileTree';
 import {
+    compileCompilerScenes,
     createReadyRunStatus,
     refreshEditorRunStatus,
     startEditorRun,
@@ -235,8 +236,9 @@ export function EditorApp() {
     const projectTree = useEditorStore((state) => state.projectTree);
     const openedScenePath = useEditorStore((state) => state.openedScenePath);
     const dockApiRef = useRef<DockviewApi | undefined>(undefined);
-    const [saveStatusKey, setSaveStatusKey] = useState<'closed' | 'treeLoaded' | 'noScene' | 'savedFile'>('closed');
+    const [saveStatusKey, setSaveStatusKey] = useState<'closed' | 'treeLoaded' | 'noScene' | 'savedFile' | 'compiledFile' | 'compileFailed'>('closed');
     const [savedFileName, setSavedFileName] = useState('');
+    const [saveError, setSaveError] = useState('');
     const [runStatus, setRunStatus] = useState<EditorRunStatus>({
         state: 'unconfigured',
         stdout: [],
@@ -256,10 +258,14 @@ export function EditorApp() {
                 return t('saveStatusNoScene');
             case 'savedFile':
                 return t('saveStatusSavedFile', { file: savedFileName });
+            case 'compiledFile':
+                return t('saveStatusCompiledFile', { file: savedFileName });
+            case 'compileFailed':
+                return t('saveStatusCompileFailed', { error: saveError });
             case 'closed':
                 return t('saveStatusClosed');
         }
-    }, [saveStatusKey, savedFileName, t]);
+    }, [saveStatusKey, savedFileName, saveError, t]);
 
     useEffect(() => {
         if (dockApiRef.current) {
@@ -337,7 +343,13 @@ export function EditorApp() {
             const saved = await saveCompilerSceneFile(projectTree, openedScenePath, compilerDocument);
             if (saved) {
                 setSavedFileName(openedScenePath.split('/').pop() ?? openedScenePath);
-                setSaveStatusKey('savedFile');
+                try {
+                    await compileCompilerScenes(projectTree);
+                    setSaveStatusKey('compiledFile');
+                } catch (error) {
+                    setSaveError(error instanceof Error ? error.message : String(error));
+                    setSaveStatusKey('compileFailed');
+                }
             }
             return;
         }

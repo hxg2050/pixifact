@@ -38,6 +38,13 @@ export class EditorRunServiceError extends Error {
     }
 }
 
+export class CompilerSceneBuildError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'CompilerSceneBuildError';
+    }
+}
+
 function projectRootPath(projectTree: ProjectFileTreeNode) {
     const root = projectTree.projectRootPath ?? projectTree.systemPath;
     if (!root) {
@@ -116,6 +123,24 @@ export async function startEditorRun(projectTree: ProjectFileTreeNode, dirty: bo
         projectName: config.name,
         command: [run.command, ...run.args].join(' '),
     }, status.running ? 'running' : status.exitCode === 0 ? 'stopped' : 'failed');
+}
+
+export async function compileCompilerScenes(projectTree: ProjectFileTreeNode) {
+    const output = await startHostRunProcess(
+        projectRootPath(projectTree),
+        'bun',
+        ['run', 'compile:scenes'],
+        '.',
+    );
+    let status = await getHostRunProcessStatus(output.sessionId);
+    while (status.running) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        status = await getHostRunProcessStatus(output.sessionId);
+    }
+    if (status.exitCode !== 0) {
+        throw new CompilerSceneBuildError(status.stderr.at(-1) ?? `Compiler Scene 编译失败：${status.exitCode}`);
+    }
+    return status;
 }
 
 export async function refreshEditorRunStatus(status: EditorRunStatus): Promise<EditorRunStatus> {

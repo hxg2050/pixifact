@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectFileTreeNode } from '../apps/editor/src/services/projectFileTree';
 import {
+    compileCompilerScenes,
+    CompilerSceneBuildError,
     createReadyRunStatus,
     startEditorRun,
     stopEditorRun,
@@ -109,6 +111,44 @@ describe('editor run service', () => {
             sessionId: 'run-1',
             stdout: ['ready'],
         });
+    });
+
+    it('compiles compiler scenes through the project compile script', async () => {
+        host.getHostRunProcessStatus.mockResolvedValueOnce({
+            sessionId: 'run-1',
+            running: false,
+            exitCode: 0,
+            stdout: ['compiled'],
+            stderr: [],
+        });
+
+        const status = await compileCompilerScenes(projectTree());
+
+        expect(host.startHostRunProcess).toHaveBeenCalledWith(
+            '/tmp/SpaceGame',
+            'bun',
+            ['run', 'compile:scenes'],
+            '.',
+        );
+        expect(status).toMatchObject({
+            exitCode: 0,
+            stdout: ['compiled'],
+        });
+    });
+
+    it('surfaces compiler scene build failures', async () => {
+        host.getHostRunProcessStatus.mockResolvedValueOnce({
+            sessionId: 'run-1',
+            running: false,
+            exitCode: 1,
+            stdout: [],
+            stderr: ['compile failed'],
+        });
+
+        const promise = compileCompilerScenes(projectTree());
+
+        await expect(promise).rejects.toThrow(CompilerSceneBuildError);
+        await expect(promise).rejects.toThrow('compile failed');
     });
 
     it('requires dirty scenes to be saved before running', async () => {
