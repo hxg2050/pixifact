@@ -33,7 +33,7 @@ import {
     validateCommand,
 } from 'pixifact';
 import type { SceneSpec } from 'pixifact';
-import { createNodeTemplateNode } from '../apps/editor/src/services/nodeTemplateLibrary';
+import { createNodeTemplateNode, pixiNodeTemplateLibrary, pixiNodeTypeFromTemplateKind } from '../apps/editor/src/services/nodeTemplateLibrary';
 
 function createButtonScene(): SceneSpec {
     return scene('PrimaryButton',
@@ -1104,5 +1104,20 @@ describe('editor scene templates', () => {
         expect(sprite.kind).toBe('image');
         expect(field.kind).toBe('input');
         expect(box.kind).toBe('shape');
+    });
+
+    it('builds compiler Pixi node templates from schema types', () => {
+        expect(pixiNodeTemplateLibrary.map((item) => [item.kind, item.name])).toEqual([
+            ['pixi-container', 'Container'],
+            ['pixi-sprite', 'Sprite'],
+            ['pixi-nine-slice-sprite', 'NineSliceSprite'],
+            ['pixi-tiling-sprite', 'TilingSprite'],
+            ['pixi-text', 'Text'],
+            ['pixi-bitmap-text', 'BitmapText'],
+            ['pixi-html-text', 'HTMLText'],
+            ['pixi-graphics', 'Graphics'],
+        ]);
+        expect(pixiNodeTypeFromTemplateKind('pixi-nine-slice-sprite')).toBe('NineSliceSprite');
+        expect(pixiNodeTypeFromTemplateKind('pixi-html-text')).toBe('HTMLText');
     });
 });

@@ -6,21 +6,15 @@ import {
     text,
 } from 'pixifact';
 import type { SceneDocument, NodeSpec } from 'pixifact';
+import { pixiSceneAddableNodeTypes } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
+import type { PixiSceneNodeType } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import type { I18nKey } from '../i18n';
 import { editorDragDataTypes } from './dragPayload';
 
 export const nodeTemplateDragDataType = editorDragDataTypes.nodeTemplate;
 
 export type LegacyNodeTemplateKind = 'container' | 'text' | 'image' | 'input' | 'shape';
-export type PixiNodeTemplateKind =
-    | 'pixi-container'
-    | 'pixi-sprite'
-    | 'pixi-nine-slice-sprite'
-    | 'pixi-tiling-sprite'
-    | 'pixi-text'
-    | 'pixi-bitmap-text'
-    | 'pixi-html-text'
-    | 'pixi-graphics';
+export type PixiNodeTemplateKind = `pixi-${string}`;
 export type NodeTemplateKind = LegacyNodeTemplateKind | PixiNodeTemplateKind;
 
 export interface NodeTemplateItem {
@@ -41,16 +35,40 @@ export const nodeTemplateLibrary: NodeTemplateItem[] = [
 
 export const baseNodeLibrary = nodeTemplateLibrary;
 
-export const pixiNodeTemplateLibrary: NodeTemplateItem[] = [
-    { kind: 'pixi-container', name: 'Container', detail: 'PixiJS Container', nameKey: 'pixiContainerName', detailKey: 'pixiContainerDetail' },
-    { kind: 'pixi-sprite', name: 'Sprite', detail: 'PixiJS Sprite', nameKey: 'pixiSpriteName', detailKey: 'pixiSpriteDetail' },
-    { kind: 'pixi-nine-slice-sprite', name: 'NineSliceSprite', detail: 'PixiJS NineSliceSprite', nameKey: 'pixiNineSliceSpriteName', detailKey: 'pixiNineSliceSpriteDetail' },
-    { kind: 'pixi-tiling-sprite', name: 'TilingSprite', detail: 'PixiJS TilingSprite', nameKey: 'pixiTilingSpriteName', detailKey: 'pixiTilingSpriteDetail' },
-    { kind: 'pixi-text', name: 'Text', detail: 'PixiJS Text', nameKey: 'pixiTextName', detailKey: 'pixiTextDetail' },
-    { kind: 'pixi-bitmap-text', name: 'BitmapText', detail: 'PixiJS BitmapText', nameKey: 'pixiBitmapTextName', detailKey: 'pixiBitmapTextDetail' },
-    { kind: 'pixi-html-text', name: 'HTMLText', detail: 'PixiJS HTMLText', nameKey: 'pixiHtmlTextName', detailKey: 'pixiHtmlTextDetail' },
-    { kind: 'pixi-graphics', name: 'Graphics', detail: 'PixiJS Graphics', nameKey: 'pixiGraphicsName', detailKey: 'pixiGraphicsDetail' },
-];
+export const pixiNodeTemplateLibrary: NodeTemplateItem[] = pixiSceneAddableNodeTypes.map((type) => ({
+    kind: pixiNodeTemplateKind(type),
+    name: type,
+    detail: `PixiJS ${type}`,
+    nameKey: pixiNodeTemplateNameKey(type),
+    detailKey: pixiNodeTemplateDetailKey(type),
+}));
+
+const pixiNodeTypesByTemplateKind = new Map<PixiNodeTemplateKind, PixiSceneNodeType>(
+    pixiSceneAddableNodeTypes.map((type) => [pixiNodeTemplateKind(type), type]),
+);
+
+export function pixiNodeTemplateKind(type: PixiSceneNodeType): PixiNodeTemplateKind {
+    return `pixi-${type
+        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
+        .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+        .toLowerCase()}`;
+}
+
+export function pixiNodeTypeFromTemplateKind(kind: string) {
+    return pixiNodeTypesByTemplateKind.get(kind as PixiNodeTemplateKind);
+}
+
+function pixiNodeTemplateI18nName(type: PixiSceneNodeType) {
+    return type.replace(/^HTML/, 'Html');
+}
+
+function pixiNodeTemplateNameKey(type: PixiSceneNodeType): I18nKey {
+    return `pixi${pixiNodeTemplateI18nName(type)}Name` as I18nKey;
+}
+
+function pixiNodeTemplateDetailKey(type: PixiSceneNodeType): I18nKey {
+    return `pixi${pixiNodeTemplateI18nName(type)}Detail` as I18nKey;
+}
 
 function nodeKeyBase(kind: NodeTemplateKind) {
     switch (kind) {

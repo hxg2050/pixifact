@@ -5,7 +5,8 @@ import type {
     CompilerSceneScriptInterface,
     CompilerSceneTemplateNode,
 } from '../services/projectFileTree';
-import type { NodeTemplateKind, PixiNodeTemplateKind } from '../services/nodeTemplateLibrary';
+import { pixiNodeTypeFromTemplateKind } from '../services/nodeTemplateLibrary';
+import type { NodeTemplateKind } from '../services/nodeTemplateLibrary';
 import type { SceneToolKind } from '../services/sceneToolLibrary';
 
 export type CompilerSceneAddablePixiType = PixiSceneNodeType;
@@ -118,30 +119,9 @@ export function createCompilerPixiTemplateNode(template: SceneTemplate, type: Co
     };
 }
 
-function compilerPixiTypeFromPixiNodeTemplate(kind: PixiNodeTemplateKind): CompilerSceneAddablePixiType {
-    switch (kind) {
-        case 'pixi-container':
-            return 'Container';
-        case 'pixi-sprite':
-            return 'Sprite';
-        case 'pixi-nine-slice-sprite':
-            return 'NineSliceSprite';
-        case 'pixi-tiling-sprite':
-            return 'TilingSprite';
-        case 'pixi-text':
-            return 'Text';
-        case 'pixi-bitmap-text':
-            return 'BitmapText';
-        case 'pixi-html-text':
-            return 'HTMLText';
-        case 'pixi-graphics':
-            return 'Graphics';
-    }
-}
-
 export function compilerPixiTypeFromNodeTemplate(kind: NodeTemplateKind): CompilerSceneAddablePixiType | undefined {
     if (kind.startsWith('pixi-')) {
-        return compilerPixiTypeFromPixiNodeTemplate(kind as PixiNodeTemplateKind);
+        return pixiNodeTypeFromTemplateKind(kind);
     }
     if (kind === 'container') {
         return 'Container';
