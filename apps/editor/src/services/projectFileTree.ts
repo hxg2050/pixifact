@@ -3,6 +3,7 @@ import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/t
 import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
 import type {
     SceneScriptInterface,
+    SceneTemplate,
     SceneTemplateInterface,
     SceneTemplateNode,
 } from '../../../../packages/pixifact/src/compiler/spec';
@@ -23,7 +24,7 @@ import {
     writeHostProjectFileText,
 } from './hostBridge';
 import type { HostProjectFileTreeNode } from './hostBridge';
-import { sceneAssetName, sceneFileName, sceneRootKey } from './sceneNaming';
+import { sceneAssetName, sceneFileName } from './sceneNaming';
 
 export type ProjectFileKind = 'folder' | 'scene' | 'script' | 'component' | 'asset' | 'doc' | 'unknown';
 export const sceneDragDataType = editorDragDataTypes.scene;
@@ -198,22 +199,21 @@ export function mergeExpandedFolderPaths(
     return [...next];
 }
 
-export function createBlankScene(name: string) {
+export function createBlankCompilerScene(name: string): SceneTemplate {
     const assetName = sceneAssetName(name);
     return {
-        version: 1,
-        type: 'scene' as const,
+        version: 2,
         name: assetName,
-        root: {
-            kind: 'container' as const,
-            name: assetName,
-            key: sceneRootKey(assetName),
-            transform: {
-                width: 320,
-                height: 180,
-            },
-            children: [],
+        props: {
+            width: 960,
+            height: 540,
         },
+        interface: {
+            props: {},
+            events: {},
+            slots: {},
+        },
+        children: [],
     };
 }
 
@@ -226,7 +226,7 @@ export async function createSceneFile(directory: ProjectFileTreeNode, name: stri
         throw new ProjectFileOperationError(`已存在 ${fileName}。`);
     }
 
-    const content = JSON.stringify(createBlankScene(name), null, 2);
+    const content = serializeSceneTemplate(createBlankCompilerScene(name));
     await createHostProjectFile(ensureProjectRootPath(directory), directory.path, fileName, content);
 
     return {
@@ -388,19 +388,16 @@ export async function createAndOpenSceneFile(
     projectTree: ProjectFileTreeNode,
     directory: ProjectFileTreeNode,
     name: string,
-    document: SceneDocument,
 ) {
     const created = await createSceneFile(directory, name);
     const refreshedTree = await refreshProjectFileTree(projectTree);
-    document.load(created.content);
-    document.setSelection({ type: 'node', node: documentRootLocator(document) });
+    const createdFile = findFileByPath(refreshedTree, created.path);
 
+    const opened = await openCompilerSceneFile(refreshedTree, createdFile!);
     return {
         created,
         refreshedTree,
-        openedScenePath: created.path,
-        scene: document.scene,
-        selection: document.selection,
+        ...opened,
     };
 }
 

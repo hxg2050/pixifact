@@ -393,7 +393,7 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
             return;
         }
 
-        const session = await createAndOpenSceneFile(projectTree, directory, name, document);
+        const session = await createAndOpenSceneFile(projectTree, directory, name);
         refreshProject(session.refreshedTree, { selectPath: session.created.path, expandPaths: [directory.path] });
         setOpenedScene(session.openedScenePath);
         setNewSceneName('');

@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SceneDocument, buttonScene, container, scene, shape, text } from 'pixifact';
-import type { SceneCommand } from 'pixifact';
 import { parseSceneTemplate, pixiSceneFieldSchema, pixiSceneNodeDefaults, pixiSceneNodePropGroups, pixiSceneNodePropKeys } from 'pixifact/compiler';
 import {
     getSceneDocument,
@@ -20,7 +19,6 @@ import {
 } from '../apps/editor/src/document/compilerSceneDocumentController';
 import type { CompilerSceneDocument } from '../apps/editor/src/document/compilerSceneDocumentController';
 import { useEditorStore } from '../apps/editor/src/editorStore';
-import { createLiveEditorActionHandlers } from '../apps/editor/src/agent/liveEditorClient';
 import { buildCompilerHierarchyTreeItems } from '../apps/editor/src/panels/HierarchyPanel';
 import {
     collectFolderPaths,
@@ -374,16 +372,21 @@ describe('project file tree service', () => {
         const refreshed = await readHostTree();
 
         expect(created.path).toBe('GameProject/scenes/MenuPanel.scene');
-        expect(JSON.parse(created.content)).toMatchObject({
-            version: 1,
-            type: 'scene',
+        expect(parseSceneTemplate(created.content)).toMatchObject({
+            version: 2,
             name: 'MenuPanel',
-            root: {
-                kind: 'container',
-                name: 'MenuPanel',
-                key: 'menuPanelRoot',
+            props: {
+                width: 960,
+                height: 540,
             },
+            interface: {
+                props: {},
+                events: {},
+                slots: {},
+            },
+            children: [],
         });
+        expect(created.content).toBe('<Scene name="MenuPanel" width="960" height="540">\n</Scene>\n');
         expect(refreshed.children?.[0].children?.[0].name).toBe('MenuPanel.scene');
     });
 
@@ -1635,81 +1638,40 @@ describe('project file tree service', () => {
         expect(saved).toContain('<Button id="startButton" scene="scenes/Button.scene" label="Continue" x="24" y="36" width="188" height="48" scaleX="1.2" scaleY="0.9" rotation="0.25" alpha="0.8" visible="true" zIndex="10" disabled="true" @click="resumeGame" />');
     });
 
-    it('creates and opens a Scene, applies live CLI commands, updates preview and saves', async () => {
+    it('creates and opens a compiler Scene and saves it as XML', async () => {
         host.reset({
             scenes: host.directory(),
         });
         const tree = await readHostTree();
         const scenes = findFileByPath(tree, 'GameProject/scenes');
-        const document = getSceneDocument();
 
-        const opened = await createAndOpenSceneFile(tree, scenes!, 'status panel', document);
-        useEditorStore.setState({
-            projectName: opened.refreshedTree.name,
-            projectTree: opened.refreshedTree,
-            selectedProjectFilePath: opened.openedScenePath,
-            openedScenePath: opened.openedScenePath,
-            expandedProjectFolders: ['GameProject', 'GameProject/scenes'],
-            expandedHierarchyNodesByScene: {},
-            prompt: '把当前 Scene 改成状态面板。',
-            language: 'zh-CN',
-        });
-
-        const command: SceneCommand = {
-            op: 'createNode',
-            parent: 'statusPanelRoot',
-            node: text('StatusLabel', {
-                id: 'statusLabel',
-                key: 'statusLabel',
-                value: 'Ready',
-                color: 0xffffff,
-                fontSize: 18,
-                x: 16,
-                y: 20,
-                width: 160,
-                height: 28,
-            }),
-        };
-        const handlers = createLiveEditorActionHandlers();
-        const dryRun = await handlers['commands.dryRun']({
-            scenePath: opened.openedScenePath,
-            commands: [command],
-        });
+        const opened = await createAndOpenSceneFile(tree, scenes!, 'status panel');
+        const compilerDocument = getCompilerSceneDocument();
 
         expect(opened.created.path).toBe('GameProject/scenes/StatusPanel.scene');
-        expect(opened.selection).toEqual({ type: 'node', node: 'statusPanelRoot' });
-        expect(dryRun).toMatchObject({
-            ok: true,
-            live: true,
-            diffs: [{
-                target: 'statusPanelRoot.statusLabel',
-                before: undefined,
-            }],
+        expect(opened.openedScenePath).toBe('GameProject/scenes/StatusPanel.scene');
+        expect(opened.template).toEqual(compilerDocument?.template);
+        expect(compilerDocument?.scenePath).toBe('GameProject/scenes/StatusPanel.scene');
+        expect(compilerDocument?.template).toMatchObject({
+            version: 2,
+            name: 'StatusPanel',
+            props: {
+                width: 960,
+                height: 540,
+            },
+            children: [],
         });
-        expect(document.scene.root.children).toEqual([]);
         expect(host.writeProjectFileText).not.toHaveBeenCalled();
 
-        const applied = await handlers['commands.apply']({
-            scenePath: opened.openedScenePath,
-            commands: [command],
-        });
-        const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/StatusPanel.scene');
+        expect(await saveCompilerSceneFile(opened.refreshedTree, opened.openedScenePath, compilerDocument!)).toBe(true);
 
-        expect(applied).toMatchObject({
-            ok: true,
-            live: true,
-            saved: true,
-            scenePath: 'GameProject/scenes/StatusPanel.scene',
-        });
-        expect(document.scene.root.children?.[0].key).toBe('statusLabel');
-        expect((document.preview?.components.get('statusLabel') as { text?: string } | undefined)?.text).toBe('Ready');
-        expect(document.dirty).toBe(false);
+        const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/StatusPanel.scene');
         expect(host.writeProjectFileText).toHaveBeenCalledWith(
             '/tmp/GameProject',
             'GameProject/scenes/StatusPanel.scene',
-            expect.any(String),
+            '<Scene name="StatusPanel" width="960" height="540">\n</Scene>\n',
         );
-        expect(JSON.parse(saved).root.children[0].text.value).toBe('Ready');
+        expect(parseSceneTemplate(saved).name).toBe('StatusPanel');
     });
 
     it('creates an embedded scene instance node with isolated locators', () => {
