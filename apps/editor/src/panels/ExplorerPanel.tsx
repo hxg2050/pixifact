@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { SceneDocument } from 'pixifact';
-import { closeCompilerSceneDocument } from '../document/compilerSceneDocumentController';
+import {
+    closeCompilerSceneDocument,
+    getCompilerSceneDocument,
+} from '../document/compilerSceneDocumentController';
 import {
     Button,
     DragSource,
@@ -45,7 +48,7 @@ import {
     renameProjectEntry,
 } from '../services/projectFileTree';
 import { hostErrorMessage } from '../services/hostBridge';
-import { useDocumentRevision } from './common';
+import { useCompilerSceneRevision, useDocumentRevision } from './common';
 
 interface ImportMetaWithEnv extends ImportMeta {
     env?: Record<string, string | boolean | undefined>;
@@ -146,7 +149,9 @@ async function loadSceneFile(document: SceneDocument, file: ProjectFileTreeNode,
         return false;
     }
     const currentPath = useEditorStore.getState().openedScenePath;
-    if (document.dirty && currentPath !== file.path && !window.confirm(t('discardDirtySceneConfirm'))) {
+    const compilerDocument = getCompilerSceneDocument();
+    const dirty = compilerDocument && compilerDocument.scenePath === currentPath ? compilerDocument.dirty : document.dirty;
+    if (dirty && currentPath !== file.path && !window.confirm(t('discardDirtySceneConfirm'))) {
         return false;
     }
     const content = await readProjectFileText(projectTree, file);
@@ -181,6 +186,7 @@ type ExplorerAccordionSection = 'project' | 'library';
 
 export function ResourceExplorer({ document }: { document: SceneDocument; revision?: number }) {
     useDocumentRevision();
+    useCompilerSceneRevision();
     const t = useI18n();
     const projectTree = useEditorStore((state) => state.projectTree);
     const selectedPath = useEditorStore((state) => state.selectedProjectFilePath);
@@ -212,6 +218,8 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
     const selectedNodeTemplate = selectedPath?.startsWith('library/template/node/')
         ? nodeTemplateLibrary.find((item) => selectedPath === `library/template/node/${item.kind}`)
         : undefined;
+    const compilerDocument = getCompilerSceneDocument();
+    const currentSceneDirty = compilerDocument && compilerDocument.scenePath === openedScenePath ? compilerDocument.dirty : document.dirty;
 
     useEffect(() => {
         if (!projectTree) {
@@ -366,7 +374,7 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
         if (!directory) {
             return;
         }
-        if (document.dirty && !window.confirm(t('discardDirtySceneConfirm'))) {
+        if (currentSceneDirty && !window.confirm(t('discardDirtySceneConfirm'))) {
             return;
         }
 
@@ -382,7 +390,7 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
         if (!projectTree || selectedNodeTemplate) {
             return;
         }
-        if (!canRenameFile(projectTree, file, openedScenePath, document.dirty)) {
+        if (!canRenameFile(projectTree, file, openedScenePath, currentSceneDirty)) {
             setActionText(file.path === projectTree.path
                 ? t('cannotRenameRoot')
                 : t('cannotRenameDirtyScene'));
@@ -404,7 +412,7 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
             setActionText(t('cannotRenameRoot'));
             return;
         }
-        if (file.path === openedScenePath && document.dirty) {
+        if (file.path === openedScenePath && currentSceneDirty) {
             setActionText(t('cannotRenameDirtyScene'));
             return;
         }
@@ -436,7 +444,7 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
             setActionText(t('cannotDeleteRoot'));
             return;
         }
-        if (file.path === openedScenePath && document.dirty) {
+        if (file.path === openedScenePath && currentSceneDirty) {
             setActionText(t('cannotDeleteDirtyScene'));
             return;
         }
@@ -521,10 +529,10 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
                         <div className="accordionContent">
                             <div className="fileOperationBar" aria-label={t('fileOperationsLabel')}>
                                 <Button icon="refresh" onPress={() => void refreshFileTree()}>{t('refresh')}</Button>
-                                <Button disabled={selectedNodeTemplate !== undefined || !selectedFile || !canRenameFile(projectTree, selectedFile, openedScenePath, document.dirty)} icon="edit" onPress={() => selectedFile ? beginRename(selectedFile) : undefined}>
+                                <Button disabled={selectedNodeTemplate !== undefined || !selectedFile || !canRenameFile(projectTree, selectedFile, openedScenePath, currentSceneDirty)} icon="edit" onPress={() => selectedFile ? beginRename(selectedFile) : undefined}>
                                     {t('rename')}
                                 </Button>
-                                <Button disabled={selectedNodeTemplate !== undefined || !selectedFile || !canDeleteFile(projectTree, selectedFile, openedScenePath, document.dirty)} icon="trash" onPress={() => void deleteSelectedEntry()} variant="danger">
+                                <Button disabled={selectedNodeTemplate !== undefined || !selectedFile || !canDeleteFile(projectTree, selectedFile, openedScenePath, currentSceneDirty)} icon="trash" onPress={() => void deleteSelectedEntry()} variant="danger">
                                     {t('delete')}
                                 </Button>
                             </div>
@@ -652,13 +660,13 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
                                                         </MenuItem>
                                                     ) : null}
                                                     <MenuItem
-                                                        isDisabled={!canRenameFile(projectTree, file, openedScenePath, document.dirty)}
+                                                        isDisabled={!canRenameFile(projectTree, file, openedScenePath, currentSceneDirty)}
                                                         onAction={() => beginRename(file)}
                                                     >
                                                         {t('rename')}
                                                     </MenuItem>
                                                     <MenuItem
-                                                        isDisabled={!canDeleteFile(projectTree, file, openedScenePath, document.dirty)}
+                                                        isDisabled={!canDeleteFile(projectTree, file, openedScenePath, currentSceneDirty)}
                                                         onAction={() => void deleteEntry(file)}
                                                     >
                                                         {t('delete')}

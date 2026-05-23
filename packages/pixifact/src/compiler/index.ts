@@ -5,4 +5,5 @@ export * from './scriptInterfaceExtractor';
 export * from './sceneRuntime';
 export * from './slotRuntime';
 export * from './templateParser';
+export * from './templateSerializer';
 export * from './typescriptCompiler';

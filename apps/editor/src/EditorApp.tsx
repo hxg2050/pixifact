@@ -23,7 +23,7 @@ import { InspectorPanel } from './panels/InspectorPanel';
 import { SummaryBar } from './panels/SummaryBar';
 import { ViewportPanel } from './panels/ViewportPanel';
 import { collectHierarchy, useCompilerSceneRevision, useDocumentRevision } from './panels/common';
-import { openProjectFolder, saveSceneFile } from './services/projectFileTree';
+import { openProjectFolder, saveCompilerSceneFile, saveSceneFile } from './services/projectFileTree';
 import type { CompilerSceneTemplateNode } from './services/projectFileTree';
 import {
     createReadyRunStatus,
@@ -118,7 +118,7 @@ function SceneTreePanel({ document }: { document: SceneDocument }) {
                         <span>{Object.keys(publicInterface.props).length} props</span>
                         <span>{Object.keys(publicInterface.events).length} events</span>
                         <span>{Object.keys(publicInterface.slots).length} slots</span>
-                        <span className="sceneState saved">readonly</span>
+                        <span className={compilerDocument.dirty ? 'sceneState dirty' : 'sceneState saved'}>{compilerDocument.dirty ? t('dirtyUnsaved') : t('saved')}</span>
                     </div>
                 </section>
                 <CompilerSceneHierarchyTree />
@@ -244,6 +244,10 @@ export function EditorApp() {
     });
     const components = useMemo(() => createDockComponents(document, revision), [document, revision]);
     const hasProject = Boolean(projectTree);
+    const compilerDocument = getCompilerSceneDocument();
+    const compilerSceneOpened = openedScenePath && compilerDocument?.scenePath === openedScenePath;
+    const currentSceneDirty = compilerSceneOpened ? compilerDocument.dirty : document.dirty;
+    const currentSceneName = compilerSceneOpened ? compilerDocument.template.name : document.scene.name;
     const saveStatus = useMemo(() => {
         switch (saveStatusKey) {
             case 'treeLoaded':
@@ -328,8 +332,13 @@ export function EditorApp() {
             setSaveStatusKey('noScene');
             return;
         }
-        if (getCompilerSceneDocument()?.scenePath === openedScenePath) {
-            setSaveStatusKey('noScene');
+        const compilerDocument = getCompilerSceneDocument();
+        if (compilerDocument?.scenePath === openedScenePath) {
+            const saved = await saveCompilerSceneFile(projectTree, openedScenePath, compilerDocument);
+            if (saved) {
+                setSavedFileName(openedScenePath.split('/').pop() ?? openedScenePath);
+                setSaveStatusKey('savedFile');
+            }
             return;
         }
 
@@ -350,7 +359,7 @@ export function EditorApp() {
                 state: 'starting',
                 error: undefined,
             }));
-            setRunStatus(await startEditorRun(projectTree, document.dirty));
+            setRunStatus(await startEditorRun(projectTree, currentSceneDirty));
         } catch (error) {
             setRunStatus((current) => ({
                 ...current,
@@ -358,7 +367,7 @@ export function EditorApp() {
                 error: error instanceof Error ? error.message : String(error),
             }));
         }
-    }, [document.dirty, projectTree]);
+    }, [currentSceneDirty, projectTree]);
     const stopRun = useCallback(async () => {
         try {
             setRunStatus(await stopEditorRun(runStatus));
@@ -378,8 +387,8 @@ export function EditorApp() {
     }, [language]);
     const topStatus = hasProject ? (
         <>
-            <span>{document.scene.name}.scene</span>
-            <span className={document.dirty ? 'statusPill dirty' : 'statusPill saved'}>{document.dirty ? t('dirtyUnsaved') : t('saved')}</span>
+            <span>{currentSceneName}.scene</span>
+            <span className={currentSceneDirty ? 'statusPill dirty' : 'statusPill saved'}>{currentSceneDirty ? t('dirtyUnsaved') : t('saved')}</span>
             <span data-testid="save-status">{saveStatus}</span>
             <span>{t(`runState_${runStatus.state}`)}</span>
             <span>AI Ready</span>

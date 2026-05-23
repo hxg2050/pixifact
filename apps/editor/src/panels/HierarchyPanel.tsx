@@ -876,7 +876,7 @@ export function CompilerSceneHierarchyTree() {
             <div className="sectionHeader hierarchyHeader">
                 <div>
                     <div className="sectionTitle">{t('hierarchyTreeTitle')}</div>
-                    <small>Compiler Scene readonly</small>
+                    <small>Compiler Scene</small>
                 </div>
             </div>
             <TreeView

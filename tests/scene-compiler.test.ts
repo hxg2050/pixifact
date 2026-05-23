@@ -10,6 +10,7 @@ import {
     parseSceneTemplate,
     part,
     prop,
+    serializeSceneTemplate,
     createEvent,
     event,
     registerScene,
@@ -257,6 +258,30 @@ describe('Pixifact scene compiler spike', () => {
               </Container>
             </Scene>
         `)).toThrow('Scene "DuplicateIds" has duplicate id "labelText".');
+    });
+
+    it('serializes a compiler scene template back to restricted XML', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="MainMenu" script="../src/scenes/MainMenu.ts" class="MainMenu" width="960" height="540">
+              <Interface>
+                <Prop name="title" type="string" default="Menu" />
+                <Event name="start" />
+                <Slot name="footer" />
+              </Interface>
+              <Button id="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">
+                <Text slot="footer" id="hintText" text="Press Enter" fill="#ffffff" />
+              </Button>
+            </Scene>
+        `);
+
+        const source = serializeSceneTemplate(template);
+        const next = parseSceneTemplate(source);
+
+        expect(source).toContain('<Scene name="MainMenu" script="../src/scenes/MainMenu.ts" width="960" height="540">');
+        expect(source).toContain('<Prop name="title" type="string" default="Menu" />');
+        expect(source).toContain('<Button id="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">');
+        expect(source).toContain('<Text id="hintText" slot="footer" text="Press Enter" fill="#ffffff" />');
+        expect(next).toEqual(template);
     });
 
     it('generates scene registry files from a project scenes directory', async () => {

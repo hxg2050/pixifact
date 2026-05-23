@@ -31,6 +31,7 @@ import {
     projectFileRelativePath,
     renameProjectEntry,
     saveOpenedSceneFile,
+    saveCompilerSceneFile,
     saveSceneFile,
 } from '../apps/editor/src/services/projectFileTree';
 import { createSceneInstanceNode } from '../apps/editor/src/services/sceneInstance';
@@ -686,6 +687,39 @@ describe('project file tree service', () => {
             },
         });
         expect(compilerDocument?.selection).toEqual({ type: 'node', node: '1:titleText' });
+        expect(compilerDocument?.dirty).toBe(true);
+    });
+
+    it('saves compiler Scene template edits back to XML', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file(`
+                    <Scene name="Button" width="120" height="40">
+                      <Graphics id="background" shape="roundRect" width="120" height="40" radius="8" fill="#4169e1" />
+                      <Text id="labelText" text="Button" x="32" y="10" fontSize="16" fill="#ffffff" />
+                    </Scene>
+                `),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+        updateCompilerSceneNode('1:labelText', {
+            id: 'titleText',
+            props: {
+                text: 'Start',
+                x: 40,
+            },
+        });
+        const compilerDocument = getCompilerSceneDocument();
+
+        expect(compilerDocument?.dirty).toBe(true);
+        expect(await saveCompilerSceneFile(tree, 'GameProject/scenes/Button.scene', compilerDocument!)).toBe(true);
+        expect(getCompilerSceneDocument()?.dirty).toBe(false);
+
+        const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene');
+        expect(saved).toContain('<Text id="titleText" text="Start" x="40" y="10" fontSize="16" fill="#ffffff" />');
     });
 
     it('creates and opens a Scene, applies live CLI commands, updates preview and saves', async () => {

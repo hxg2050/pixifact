@@ -1,10 +1,12 @@
 import type { SceneDocument } from 'pixifact';
 import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
+import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
 import type {
     SceneScriptInterface,
     SceneTemplateNode,
 } from '../../../../packages/pixifact/src/compiler/spec';
-import { loadCompilerSceneDocument } from '../document/compilerSceneDocumentController';
+import { loadCompilerSceneDocument, markCompilerSceneSaved } from '../document/compilerSceneDocumentController';
+import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { editorDragDataTypes } from './dragPayload';
 import {
     createHostProjectDirectory,
@@ -323,6 +325,17 @@ export async function saveSceneFile(projectTree: ProjectFileTreeNode, path: stri
 
     await writeHostProjectFileText(ensureProjectRootPath(projectTree), file.path, document.serialize());
     document.dirty = false;
+    return true;
+}
+
+export async function saveCompilerSceneFile(projectTree: ProjectFileTreeNode, path: string, document: CompilerSceneDocument) {
+    const file = findFileByPath(projectTree, path);
+    if (!file) {
+        return false;
+    }
+
+    await writeHostProjectFileText(ensureProjectRootPath(projectTree), file.path, serializeSceneTemplate(document.template));
+    markCompilerSceneSaved();
     return true;
 }
 

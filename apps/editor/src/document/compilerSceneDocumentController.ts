@@ -13,6 +13,7 @@ export interface CompilerSceneDocument {
     template: SceneTemplate;
     descriptor?: CompilerSceneScriptInterface;
     selection: CompilerSceneSelection;
+    dirty: boolean;
 }
 
 const listeners = new Set<() => void>();
@@ -41,10 +42,11 @@ export function subscribeCompilerSceneDocument(listener: () => void) {
     };
 }
 
-export function loadCompilerSceneDocument(next: Omit<CompilerSceneDocument, 'selection'>) {
+export function loadCompilerSceneDocument(next: Omit<CompilerSceneDocument, 'selection' | 'dirty'>) {
     document = {
         ...next,
         selection: { type: 'scene' },
+        dirty: false,
     };
     emitCompilerSceneUpdate();
 }
@@ -84,6 +86,18 @@ export function updateCompilerSceneNode(locator: string, updates: { id?: string;
         selection: updates.id !== undefined
             ? { type: 'node', node: updated.locator }
             : document.selection,
+        dirty: true,
+    };
+    emitCompilerSceneUpdate();
+}
+
+export function markCompilerSceneSaved() {
+    if (!document) {
+        return;
+    }
+    document = {
+        ...document,
+        dirty: false,
     };
     emitCompilerSceneUpdate();
 }
