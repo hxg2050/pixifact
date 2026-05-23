@@ -10,6 +10,7 @@ import {
     createCompilerPixiTemplateNode,
     deleteCompilerSceneNode,
     getCompilerSceneDocument,
+    moveCompilerSceneNode,
     resetCompilerSceneDocument,
     updateCompilerSceneNode,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
@@ -1004,6 +1005,124 @@ describe('project file tree service', () => {
                 name: 'footer',
             }],
         });
+        expect(getCompilerSceneDocument()?.dirty).toBe(false);
+    });
+
+    it('moves compiler nodes before, after, inside containers, into slots, and back to root', async () => {
+        host.reset({
+            scenes: host.directory({
+                'MainMenu.scene': host.file(`
+                    <Scene name="MainMenu">
+                      <Text id="titleText" text="Title" />
+                      <Container id="content">
+                        <Graphics id="background" />
+                      </Container>
+                      <Panel id="settingsPanel" scene="scenes/Panel.scene" />
+                    </Scene>
+                `),
+                'Panel.scene': host.file('<Scene name="Panel" />'),
+            }),
+            src: host.directory({
+                generated: host.directory({
+                    'Panel.scene.interface.json': host.file(JSON.stringify({
+                        scene: './scenes/Panel.scene',
+                        className: 'Panel',
+                        interface: {
+                            props: {},
+                            events: {},
+                            slots: {
+                                footer: {},
+                            },
+                        },
+                        parts: {},
+                    })),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/MainMenu.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        const intoContainer = moveCompilerSceneNode('0:titleText', '1:content', 'inside');
+        const afterContent = moveCompilerSceneNode('0:content/1:titleText', '0:content/0:background', 'before');
+        const intoSlot = moveCompilerSceneNode('0:content/0:titleText', '1:settingsPanel/slot:footer', 'inside');
+        const backToRoot = moveCompilerSceneNode('1:settingsPanel/slot:footer/0:titleText', '__scene__', 'inside');
+
+        const compilerDocument = getCompilerSceneDocument();
+        expect(intoContainer).toEqual({ ok: true, locator: '0:content/1:titleText' });
+        expect(afterContent).toEqual({ ok: true, locator: '0:content/0:titleText' });
+        expect(intoSlot).toEqual({ ok: true, locator: '1:settingsPanel/slot:footer/0:titleText' });
+        expect(backToRoot).toEqual({ ok: true, locator: '2:titleText' });
+        expect(compilerDocument?.template.children.map((node) => node.kind === 'slotOutlet' ? node.name : node.id)).toEqual([
+            'content',
+            'settingsPanel',
+            'titleText',
+        ]);
+        expect(compilerDocument?.template.children[0]).toMatchObject({
+            kind: 'pixi',
+            id: 'content',
+            children: [{
+                kind: 'pixi',
+                id: 'background',
+            }],
+        });
+        expect(compilerDocument?.template.children[1]).toMatchObject({
+            kind: 'sceneInstance',
+            id: 'settingsPanel',
+            slots: {
+                footer: [],
+            },
+        });
+        expect(compilerDocument?.selection).toEqual({ type: 'node', node: '2:titleText' });
+        expect(compilerDocument?.dirty).toBe(true);
+    });
+
+    it('does not move compiler slots, slot outlets, or nodes into descendants', async () => {
+        host.reset({
+            scenes: host.directory({
+                'MainMenu.scene': host.file(`
+                    <Scene name="MainMenu">
+                      <Container id="content">
+                        <Container id="inner" />
+                        <slot name="footer" />
+                      </Container>
+                      <Panel id="settingsPanel" scene="scenes/Panel.scene" />
+                    </Scene>
+                `),
+                'Panel.scene': host.file('<Scene name="Panel" />'),
+            }),
+            src: host.directory({
+                generated: host.directory({
+                    'Panel.scene.interface.json': host.file(JSON.stringify({
+                        scene: './scenes/Panel.scene',
+                        className: 'Panel',
+                        interface: {
+                            props: {},
+                            events: {},
+                            slots: {
+                                footer: {},
+                            },
+                        },
+                        parts: {},
+                    })),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/MainMenu.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        const intoDescendant = moveCompilerSceneNode('0:content', '0:content/0:inner', 'inside');
+        const slotOutlet = moveCompilerSceneNode('0:content/1:slot:footer', '__scene__', 'inside');
+        const slot = moveCompilerSceneNode('1:settingsPanel/slot:footer', '__scene__', 'inside');
+        const intoSceneInstance = moveCompilerSceneNode('0:content/0:inner', '1:settingsPanel', 'inside');
+
+        expect(intoDescendant.ok).toBe(false);
+        expect(slotOutlet.ok).toBe(false);
+        expect(slot.ok).toBe(false);
+        expect(intoSceneInstance.ok).toBe(false);
         expect(getCompilerSceneDocument()?.dirty).toBe(false);
     });
 

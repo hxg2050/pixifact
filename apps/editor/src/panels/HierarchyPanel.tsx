@@ -11,6 +11,7 @@ import {
     deleteCompilerSceneNode,
     compilerSceneNodeLocator,
     getCompilerSceneDocument,
+    moveCompilerSceneNode,
     selectCompilerSceneNode,
 } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
@@ -235,6 +236,21 @@ function canAddCompilerSceneNode(item: CompilerHierarchyTreeNode | undefined) {
 
 function canDeleteCompilerSceneNode(item: CompilerHierarchyTreeNode | undefined) {
     return Boolean(item && item.node !== 'scene' && item.node.kind !== 'slot' && item.node.kind !== 'slotOutlet');
+}
+
+function canDragCompilerSceneNode(item: CompilerHierarchyTreeNode) {
+    return item.node !== 'scene' && item.node.kind !== 'slot' && item.node.kind !== 'slotOutlet';
+}
+
+function compilerNodeDropPosition(item: CompilerHierarchyTreeNode, y: number, height: number) {
+    if (item.node === 'scene' || item.node.kind === 'slot') {
+        return 'inside' as const;
+    }
+    const position = nodeDropPosition(y, height);
+    if (position === 'inside' && !canAddCompilerSceneNode(item)) {
+        return y < height / 2 ? 'before' : 'after';
+    }
+    return position;
 }
 
 function findCompilerHierarchyItem(items: TreeViewItem<CompilerHierarchyTreeNode>[], locator: string): CompilerHierarchyTreeNode | undefined {
@@ -912,6 +928,10 @@ export function CompilerSceneHierarchyTree() {
     const compilerDocument = getCompilerSceneDocument();
     const t = useI18n();
     const [error, setError] = useState<string>();
+    const [dropTarget, setDropTarget] = useState<string>();
+    const [nodeDropTarget, setNodeDropTarget] = useState<NodeDropTargetState>();
+    const [draggedNodeLocator, setDraggedNodeLocator] = useState<string>();
+    const nodeRowRefs = useRef(new Map<string, HTMLDivElement>());
 
     if (!compilerDocument) {
         return null;
@@ -948,6 +968,21 @@ export function CompilerSceneHierarchyTree() {
         }
         setError(undefined);
     };
+    const moveCompilerNode = (sourceLocator: string, targetLocator: string, position: NodeDropPosition) => {
+        const result = moveCompilerSceneNode(sourceLocator, targetLocator, position);
+        if (!result.ok) {
+            setError(result.error);
+            setNodeDropTarget(undefined);
+            return;
+        }
+        setDropTarget(undefined);
+        setNodeDropTarget(undefined);
+        setDraggedNodeLocator(undefined);
+        setError(undefined);
+    };
+    const moveCompilerNodeToRoot = (sourceLocator: string) => {
+        moveCompilerNode(sourceLocator, '__scene__', 'inside');
+    };
 
     return (
         <div className="nodeTree" data-testid="compiler-scene-hierarchy">
@@ -980,20 +1015,86 @@ export function CompilerSceneHierarchyTree() {
                 onSelectedKeyChange={(_, item) => selectCompilerSceneNode(item.locator)}
                 selectedKeys={[selected]}
                 renderItem={({ item }) => (
-                    <div
+                    <DropZone
+                        acceptedTypes={[editorDragDataTypes.hierarchyNode]}
+                        aria-label={t('dropToNode', { node: compilerNodeLabel(item.node, compilerDocument.template.name) })}
                         className={[
                             'nodeRow',
                             item.locator === selected ? 'selected' : '',
+                            item.locator === dropTarget ? 'dropTarget' : '',
+                            nodeDropTarget?.locator === item.locator ? `nodeDropTarget ${nodeDropTarget.position}` : '',
                         ].filter(Boolean).join(' ')}
+                        disabled={item.node !== 'scene' && item.node.kind === 'slotOutlet'}
+                        getDropOperation={(_types, allowedOperations) => allowedOperations.includes('move') ? 'move' : 'cancel'}
+                        onDropEnter={() => setDropTarget(item.locator)}
+                        onDropExit={() => setDropTarget((target) => target === item.locator ? undefined : target)}
+                        onDropMove={(event) => {
+                            setDropTarget(item.locator);
+                            if (draggedNodeLocator) {
+                                const height = nodeRowRefs.current.get(item.locator)?.getBoundingClientRect().height ?? 26;
+                                setNodeDropTarget({
+                                    locator: item.locator,
+                                    position: compilerNodeDropPosition(item, event.y, height),
+                                });
+                            }
+                        }}
+                        onPayloadDrop={(payload) => {
+                            setDropTarget(item.locator);
+                            setNodeDropTarget(undefined);
+                            if (payload.type === editorDragDataTypes.hierarchyNode) {
+                                moveCompilerNode(payload.data, item.locator, nodeDropTarget?.locator === item.locator ? nodeDropTarget.position : 'inside');
+                            }
+                        }}
+                        ref={(element) => {
+                            if (element) {
+                                nodeRowRefs.current.set(item.locator, element);
+                            } else {
+                                nodeRowRefs.current.delete(item.locator);
+                            }
+                        }}
                         style={{ '--tree-indent': `${item.depth * 14}px` } as React.CSSProperties}
                     >
-                        <span className="nodeName">
-                            <SystemIcon name={compilerNodeIcon(item.node)} />
-                            <strong>{compilerNodeLabel(item.node, compilerDocument.template.name)}</strong>
-                        </span>
-                    </div>
+                        <DragSource
+                            as="div"
+                            className="nodeDragContent"
+                            disabled={!canDragCompilerSceneNode(item)}
+                            getAllowedDropOperations={() => ['move']}
+                            onSystemDragEnd={() => {
+                                setDraggedNodeLocator(undefined);
+                                setNodeDropTarget(undefined);
+                            }}
+                            onSystemDragStart={() => setDraggedNodeLocator(item.locator)}
+                            payload={hierarchyNodeDragPayload(item.locator, compilerNodeLabel(item.node, compilerDocument.template.name))}
+                        >
+                            <span className="nodeName">
+                                <SystemIcon name={compilerNodeIcon(item.node)} />
+                                <strong>{compilerNodeLabel(item.node, compilerDocument.template.name)}</strong>
+                            </span>
+                        </DragSource>
+                    </DropZone>
                 )}
             />
+            <DropZone
+                acceptedTypes={[editorDragDataTypes.hierarchyNode]}
+                aria-label={t('dropToSceneRoot')}
+                className={[
+                    'rootDropZone',
+                    dropTarget === rootDropLocator ? 'dropTarget' : '',
+                ].filter(Boolean).join(' ')}
+                getDropOperation={(_types, allowedOperations) => allowedOperations.includes('move') ? 'move' : 'cancel'}
+                onDropEnter={() => setDropTarget(rootDropLocator)}
+                onDropExit={() => setDropTarget((target) => target === rootDropLocator ? undefined : target)}
+                onPayloadDrop={(payload) => {
+                    setDropTarget(rootDropLocator);
+                    setNodeDropTarget(undefined);
+                    if (payload.type === editorDragDataTypes.hierarchyNode) {
+                        moveCompilerNodeToRoot(payload.data);
+                    }
+                }}
+            >
+                <strong>{t('dropToSceneRoot')}</strong>
+                <span>{t('hierarchyDropHint')}</span>
+            </DropZone>
         </div>
     );
 }

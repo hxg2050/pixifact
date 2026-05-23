@@ -5,6 +5,7 @@ import type {
 } from '../services/projectFileTree';
 
 export type CompilerSceneAddablePixiType = Extract<SceneTemplatePrimitiveType, 'Container' | 'Text' | 'Graphics'>;
+export type CompilerSceneNodeDropPosition = 'before' | 'inside' | 'after';
 
 export type CompilerSceneSelection =
     | { type: 'scene' }
@@ -207,6 +208,69 @@ export function deleteCompilerSceneNode(locator: string) {
     };
 }
 
+export function moveCompilerSceneNode(
+    sourceLocator: string,
+    targetLocator: string,
+    position: CompilerSceneNodeDropPosition,
+) {
+    if (!document) {
+        return {
+            ok: false as const,
+            error: '未打开 Compiler Scene。',
+        };
+    }
+    if (sourceLocator === targetLocator || targetLocator.startsWith(`${sourceLocator}/`)) {
+        return {
+            ok: false as const,
+            error: '当前选择不能移动。',
+        };
+    }
+
+    const template = structuredClone(document.template);
+    const source = findCompilerSceneNodeLocation(template.children, sourceLocator);
+    if (!source || source.node.kind === 'slotOutlet') {
+        return {
+            ok: false as const,
+            error: '当前选择不能移动。',
+        };
+    }
+
+    const target = position === 'inside'
+        ? findCompilerSceneChildList(template.children, targetLocator)
+        : findCompilerSceneSiblingTarget(template.children, targetLocator, position);
+    if (!target) {
+        return {
+            ok: false as const,
+            error: '目标位置不能接收该节点。',
+        };
+    }
+
+    const [node] = source.nodes.splice(source.index, 1);
+    let index = target.index;
+    if (source.nodes === target.nodes && source.index < index) {
+        index -= 1;
+    }
+    target.nodes.splice(index, 0, node);
+
+    const locator = findCompilerSceneNodeLocator(template.children, node);
+    if (!locator) {
+        throw new Error('Moved Compiler Scene node is missing from the template.');
+    }
+
+    document = {
+        ...document,
+        template,
+        selection: { type: 'node', node: locator },
+        dirty: true,
+    };
+    emitCompilerSceneUpdate();
+
+    return {
+        ok: true as const,
+        locator,
+    };
+}
+
 export function markCompilerSceneSaved() {
     if (!document) {
         return;
@@ -325,6 +389,153 @@ function insertCompilerSceneNode(
                 const inserted = insertCompilerSceneNode(children, parentLocator, node, `${nodeLocator}/slot:${slot}`);
                 if (inserted) {
                     return inserted;
+                }
+            }
+        }
+    }
+    return undefined;
+}
+
+interface CompilerSceneNodeLocation {
+    index: number;
+    locator: string;
+    node: CompilerSceneTemplateNode;
+    nodes: CompilerSceneTemplateNode[];
+}
+
+interface CompilerSceneChildList {
+    index: number;
+    nodes: CompilerSceneTemplateNode[];
+}
+
+function childCompilerSceneNodeLocator(parentLocator: string, node: CompilerSceneTemplateNode, index: number) {
+    return compilerSceneNodeLocator(node, parentLocator === '__scene__' ? String(index) : `${parentLocator}/${index}`);
+}
+
+function findCompilerSceneNodeLocation(
+    nodes: CompilerSceneTemplateNode[],
+    locator: string,
+    parentLocator = '__scene__',
+): CompilerSceneNodeLocation | undefined {
+    for (const [index, node] of nodes.entries()) {
+        const nodeLocator = childCompilerSceneNodeLocator(parentLocator, node, index);
+        if (nodeLocator === locator) {
+            return {
+                index,
+                locator: nodeLocator,
+                node,
+                nodes,
+            };
+        }
+        if (node.kind === 'pixi') {
+            const found = findCompilerSceneNodeLocation(node.children, locator, nodeLocator);
+            if (found) {
+                return found;
+            }
+            continue;
+        }
+        if (node.kind === 'sceneInstance') {
+            for (const [slot, children] of Object.entries(node.slots)) {
+                const found = findCompilerSceneNodeLocation(children, locator, `${nodeLocator}/slot:${slot}`);
+                if (found) {
+                    return found;
+                }
+            }
+        }
+    }
+    return undefined;
+}
+
+function findCompilerSceneChildList(
+    nodes: CompilerSceneTemplateNode[],
+    targetLocator: string,
+    parentLocator = '__scene__',
+): CompilerSceneChildList | undefined {
+    if (parentLocator === '__scene__' && targetLocator === '__scene__') {
+        return {
+            index: nodes.length,
+            nodes,
+        };
+    }
+
+    for (const [index, node] of nodes.entries()) {
+        const nodeLocator = childCompilerSceneNodeLocator(parentLocator, node, index);
+        if (node.kind === 'pixi') {
+            if (nodeLocator === targetLocator) {
+                return node.type === 'Container'
+                    ? {
+                        index: node.children.length,
+                        nodes: node.children,
+                    }
+                    : undefined;
+            }
+            const found = findCompilerSceneChildList(node.children, targetLocator, nodeLocator);
+            if (found) {
+                return found;
+            }
+            continue;
+        }
+        if (node.kind === 'sceneInstance') {
+            if (isDirectCompilerSlotLocator(nodeLocator, targetLocator)) {
+                const slot = compilerSlotName(nodeLocator, targetLocator);
+                if (!sceneInstanceHasSlot(node, slot)) {
+                    return undefined;
+                }
+                const children = node.slots[slot] ?? [];
+                node.slots[slot] = children;
+                return {
+                    index: children.length,
+                    nodes: children,
+                };
+            }
+            for (const [slot, children] of Object.entries(node.slots)) {
+                const found = findCompilerSceneChildList(children, targetLocator, `${nodeLocator}/slot:${slot}`);
+                if (found) {
+                    return found;
+                }
+            }
+        }
+    }
+    return undefined;
+}
+
+function findCompilerSceneSiblingTarget(
+    nodes: CompilerSceneTemplateNode[],
+    targetLocator: string,
+    position: Exclude<CompilerSceneNodeDropPosition, 'inside'>,
+) {
+    const target = findCompilerSceneNodeLocation(nodes, targetLocator);
+    if (!target || target.node.kind === 'slotOutlet') {
+        return undefined;
+    }
+    return {
+        index: target.index + (position === 'after' ? 1 : 0),
+        nodes: target.nodes,
+    };
+}
+
+function findCompilerSceneNodeLocator(
+    nodes: readonly CompilerSceneTemplateNode[],
+    target: CompilerSceneTemplateNode,
+    parentLocator = '__scene__',
+): string | undefined {
+    for (const [index, node] of nodes.entries()) {
+        const nodeLocator = childCompilerSceneNodeLocator(parentLocator, node, index);
+        if (node === target) {
+            return nodeLocator;
+        }
+        if (node.kind === 'pixi') {
+            const found = findCompilerSceneNodeLocator(node.children, target, nodeLocator);
+            if (found) {
+                return found;
+            }
+            continue;
+        }
+        if (node.kind === 'sceneInstance') {
+            for (const [slot, children] of Object.entries(node.slots)) {
+                const found = findCompilerSceneNodeLocator(children, target, `${nodeLocator}/slot:${slot}`);
+                if (found) {
+                    return found;
                 }
             }
         }
