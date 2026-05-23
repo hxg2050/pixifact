@@ -144,6 +144,10 @@ const host = vi.hoisted(() => {
         return match ? `ui.${match[1]}` : undefined;
     }
 
+    function isHiddenProjectDirectory(name: string) {
+        return name === 'node_modules' || name === 'dist';
+    }
+
     function systemPath(path: string) {
         return `${rootSystemPath}${path === rootName ? '' : `/${path.slice(rootName.length + 1)}`}`;
     }
@@ -163,6 +167,7 @@ const host = vi.hoisted(() => {
         }
 
         const children = [...node.children.entries()]
+            .filter(([childName, child]) => child.kind !== 'directory' || !isHiddenProjectDirectory(childName))
             .sort(([leftName, left], [rightName, right]) => {
                 if (left.kind !== right.kind) {
                     return left.kind === 'directory' ? -1 : 1;
@@ -311,6 +316,14 @@ describe('project file tree service', () => {
                 }),
                 'logic.ts': host.file(),
             }),
+            node_modules: host.directory({
+                pixifact: host.directory({
+                    'index.ts': host.file(),
+                }),
+            }),
+            dist: host.directory({
+                'bundle.js': host.file(),
+            }),
             'README.md': host.file(),
             'atlas.png': host.file(),
         });
@@ -330,6 +343,8 @@ describe('project file tree service', () => {
             'atlas.png',
             'README.md',
         ]);
+        expect(findFileByPath(tree, 'GameProject/node_modules')).toBeUndefined();
+        expect(findFileByPath(tree, 'GameProject/dist')).toBeUndefined();
         expect(projectFileKind('Button.scene', 'GameProject/scenes/Button.scene')).toBe('scene');
         expect(projectFileKind('logic.ts', 'GameProject/scripts/logic.ts')).toBe('script');
         expect(projectFileKind('atlas.png', 'GameProject/atlas.png')).toBe('asset');

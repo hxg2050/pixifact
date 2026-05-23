@@ -309,12 +309,15 @@ fn read_directory(root: &Path, directory: &Path, depth: usize) -> Result<Project
     let mut children = Vec::new();
     for entry in entries {
         let path = entry.path();
+        let name = file_name(&path)?;
         if path.is_dir() {
+            if is_hidden_project_directory(&name) {
+                continue;
+            }
             children.push(read_directory(root, &path, depth + 1)?);
             continue;
         }
 
-        let name = file_name(&path)?;
         let relative_path = relative_project_path(root, &path)?;
         let kind = project_file_kind(&name, &relative_path);
         let detail = if kind == "component" {
@@ -345,6 +348,10 @@ fn read_directory(root: &Path, directory: &Path, depth: usize) -> Result<Project
         children: Some(children),
         detail: None,
     })
+}
+
+fn is_hidden_project_directory(name: &str) -> bool {
+    matches!(name, "node_modules" | "dist")
 }
 
 fn project_file_kind(name: &str, path: &str) -> String {
