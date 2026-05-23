@@ -52,6 +52,15 @@ const fieldLabelKeys: Record<string, I18nKey> = {
     mode: 'mode',
     src: 'src',
     tint: 'tint',
+    texture: 'texture',
+    pivotX: 'pivotX',
+    pivotY: 'pivotY',
+    skewX: 'skewX',
+    skewY: 'skewY',
+    eventMode: 'eventMode',
+    cursor: 'cursor',
+    label: 'label',
+    shape: 'shape',
     leftWidth: 'leftWidth',
     rightWidth: 'rightWidth',
     topHeight: 'topHeight',
@@ -118,7 +127,19 @@ interface SelectedCompilerSlot {
 type SelectedCompilerItem = CompilerSceneTemplateNode | SelectedCompilerSlot | undefined;
 
 const compilerTransformProps = ['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation'];
-const compilerDisplayProps = ['alpha', 'visible', 'zIndex'];
+const compilerAdvancedTransformProps = ['pivotX', 'pivotY', 'skewX', 'skewY'];
+const compilerDisplayProps = ['alpha', 'visible', 'zIndex', 'eventMode', 'cursor', 'label'];
+const compilerSpriteProps = ['texture', 'anchorX', 'anchorY', 'tint'];
+const compilerTextProps = ['text', 'fontSize', 'fontFamily', 'fontWeight', 'fill'];
+const compilerGraphicsProps = ['shape', 'radius', 'fill', 'strokeColor', 'strokeWidth', 'strokeAlpha'];
+const compilerKnownPixiProps = new Set([
+    ...compilerTransformProps,
+    ...compilerAdvancedTransformProps,
+    ...compilerDisplayProps,
+    ...compilerSpriteProps,
+    ...compilerTextProps,
+    ...compilerGraphicsProps,
+]);
 
 function compilerSlotChildCount(nodes: readonly CompilerSceneTemplateNode[], locator: string, path = ''): number {
     for (const [index, node] of nodes.entries()) {
@@ -228,14 +249,14 @@ function partNames(descriptor: CompilerSceneScriptInterface | undefined) {
 }
 
 function compilerFieldType(key: string, value: unknown) {
-    if (['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation', 'alpha', 'zIndex', 'radius', 'fontSize'].includes(key)) {
+    if (['fill', 'tint', 'strokeColor'].includes(key)) {
+        return 'color';
+    }
+    if (['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation', 'pivotX', 'pivotY', 'skewX', 'skewY', 'alpha', 'zIndex', 'radius', 'fontSize', 'anchorX', 'anchorY', 'fillAlpha', 'strokeWidth', 'strokeAlpha'].includes(key)) {
         return 'number';
     }
     if (['visible'].includes(key)) {
         return 'boolean';
-    }
-    if (['fill', 'tint'].includes(key)) {
-        return 'color';
     }
     if (typeof value === 'number') {
         return 'number';
@@ -272,7 +293,7 @@ function compilerTransformFields(node: SelectedCompilerItem): InspectorFieldMode
     if (!node || node.kind === 'slot' || node.kind === 'slotOutlet') {
         return [];
     }
-    return compilerTransformProps.map((key) => compilerField(key, node.props[key]));
+    return [...compilerTransformProps, ...compilerAdvancedTransformProps].map((key) => compilerField(key, node.props[key]));
 }
 
 function compilerDisplayFields(node: SelectedCompilerItem): InspectorFieldModel[] {
@@ -289,16 +310,18 @@ function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: Compile
     if (node.kind === 'sceneInstance' && sceneInterface) {
         return Object.entries(sceneInterface.props).map(([key, contract]) => compilerField(key, node.props[key] ?? contract.default, contract.type));
     }
-    const typeKeys = node.kind === 'pixi' && node.type === 'Text'
-        ? ['text', 'fontSize', 'fontWeight', 'fill']
-        : node.kind === 'pixi' && node.type === 'Graphics'
-            ? ['shape', 'radius', 'fill']
-            : [];
+    const typeKeys = node.kind === 'pixi' && ['Sprite', 'NineSliceSprite', 'TilingSprite'].includes(node.type)
+        ? compilerSpriteProps
+        : node.kind === 'pixi' && ['Text', 'BitmapText', 'HTMLText'].includes(node.type)
+            ? compilerTextProps
+            : node.kind === 'pixi' && node.type === 'Graphics'
+                ? compilerGraphicsProps
+                : [];
     const keys = [
         ...new Set([
             ...typeKeys,
             ...Object.keys(node.props),
-        ].filter((key) => !compilerTransformProps.includes(key) && !compilerDisplayProps.includes(key))),
+        ].filter((key) => !compilerKnownPixiProps.has(key) || typeKeys.includes(key))),
     ];
     return keys.map((key) => compilerField(key, node.props[key]));
 }

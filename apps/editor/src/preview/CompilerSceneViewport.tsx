@@ -44,8 +44,10 @@ interface RenderContext {
 
 const previewWidth = 960;
 const previewHeight = 540;
-const transformProps = new Set(['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation']);
+const transformProps = new Set(['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation', 'pivotX', 'pivotY', 'skewX', 'skewY']);
 const pixiProps = new Set(['alpha', 'visible', 'eventMode', 'cursor', 'label', 'zIndex']);
+const spriteProps = new Set(['texture', 'anchorX', 'anchorY', 'tint']);
+const graphicsProps = new Set(['shape', 'radius', 'fill', 'fillAlpha', 'strokeColor', 'strokeWidth', 'strokeAlpha']);
 const textStyleProps = new Set(['fontSize', 'fontFamily', 'fontWeight', 'fill']);
 
 function numericProp(value: SceneTemplateValue | undefined, defaultValue: number) {
@@ -136,12 +138,31 @@ function applyGraphics(node: Container, props: Record<string, SceneTemplateValue
             numericProp(props.width, 0),
             numericProp(props.height, 0),
             numericProp(props.radius, 0),
-        ).fill(numericProp(props.fill, 0xffffff));
+        );
+        applyGraphicsStyles(node, props);
         return;
     }
     if (shape === 'rect') {
-        node.rect(0, 0, numericProp(props.width, 0), numericProp(props.height, 0))
-            .fill(numericProp(props.fill, 0xffffff));
+        node.rect(0, 0, numericProp(props.width, 0), numericProp(props.height, 0));
+        applyGraphicsStyles(node, props);
+    }
+}
+
+function applyGraphicsStyles(node: Graphics, props: Record<string, SceneTemplateValue>) {
+    if (props.fillAlpha === undefined) {
+        node.fill(numericProp(props.fill, 0xffffff));
+    } else {
+        node.fill({
+            color: numericProp(props.fill, 0xffffff),
+            alpha: numericProp(props.fillAlpha, 1),
+        });
+    }
+    if (props.strokeWidth !== undefined) {
+        node.stroke({
+            width: numericProp(props.strokeWidth, 1),
+            color: numericProp(props.strokeColor, 0x000000),
+            alpha: numericProp(props.strokeAlpha, 1),
+        });
     }
 }
 
@@ -165,12 +186,32 @@ function applyNodeProps(target: Container, props: Record<string, SceneTemplateVa
     if (props.rotation !== undefined) {
         target.rotation = numericProp(props.rotation, 0);
     }
+    const pivotX = props.pivotX;
+    const pivotY = props.pivotY;
+    if (pivotX !== undefined || pivotY !== undefined) {
+        target.pivot.set(numericProp(pivotX, 0), numericProp(pivotY, 0));
+    }
+    const skewX = props.skewX;
+    const skewY = props.skewY;
+    if (skewX !== undefined || skewY !== undefined) {
+        target.skew.set(numericProp(skewX, 0), numericProp(skewY, 0));
+    }
+    if (target instanceof Sprite) {
+        const anchorX = props.anchorX;
+        const anchorY = props.anchorY;
+        if (anchorX !== undefined || anchorY !== undefined) {
+            target.anchor.set(numericProp(anchorX, 0), numericProp(anchorY, 0));
+        }
+        if (props.tint !== undefined) {
+            target.tint = numericProp(props.tint, 0xffffff);
+        }
+    }
     if (!instance && props.shape !== undefined) {
         applyGraphics(target, props);
     }
 
     for (const [key, value] of Object.entries(props)) {
-        if (transformProps.has(key) || key === 'shape' || key === 'radius' || key === 'fill' || key === 'texture' || key === 'text' || textStyleProps.has(key)) {
+        if (transformProps.has(key) || spriteProps.has(key) || graphicsProps.has(key) || key === 'text' || textStyleProps.has(key)) {
             continue;
         }
         if (instance || pixiProps.has(key)) {

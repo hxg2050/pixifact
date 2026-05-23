@@ -8,8 +8,10 @@ import type {
     SceneTemplateValue,
 } from './spec';
 
-const transformProps = new Set(['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation']);
+const transformProps = new Set(['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation', 'pivotX', 'pivotY', 'skewX', 'skewY']);
 const pixiProps = new Set(['alpha', 'visible', 'eventMode', 'cursor', 'label', 'zIndex']);
+const spriteProps = new Set(['texture', 'anchorX', 'anchorY', 'tint']);
+const graphicsProps = new Set(['shape', 'radius', 'fill', 'fillAlpha', 'strokeColor', 'strokeWidth', 'strokeAlpha']);
 
 export function compileSceneTemplateToTs(template: SceneTemplate, options: CompileSceneTemplateOptions = {}) {
     const context = new CompileContext(template, options);
@@ -239,11 +241,22 @@ class CompileContext {
         if (props.rotation !== undefined) {
             this.#lines.push(`  ${variable}.rotation = ${this.#value(props.rotation)};`);
         }
+        const pivotX = props.pivotX;
+        const pivotY = props.pivotY;
+        if (pivotX !== undefined || pivotY !== undefined) {
+            this.#lines.push(`  ${variable}.pivot.set(${this.#value(pivotX ?? 0)}, ${this.#value(pivotY ?? 0)});`);
+        }
+        const skewX = props.skewX;
+        const skewY = props.skewY;
+        if (skewX !== undefined || skewY !== undefined) {
+            this.#lines.push(`  ${variable}.skew.set(${this.#value(skewX ?? 0)}, ${this.#value(skewY ?? 0)});`);
+        }
+        this.#applySpriteProps(variable, props);
         if (!instance && props.shape !== undefined) {
             this.#drawGraphics(variable, props);
         }
         for (const [key, value] of Object.entries(props)) {
-            if (transformProps.has(key) || key === 'shape' || key === 'radius' || key === 'fill' || key === 'texture' || key === 'text' || this.#isTextStyleProp(key)) {
+            if (transformProps.has(key) || spriteProps.has(key) || graphicsProps.has(key) || key === 'text' || this.#isTextStyleProp(key)) {
                 continue;
             }
             if (instance || pixiProps.has(key)) {
@@ -252,15 +265,39 @@ class CompileContext {
         }
     }
 
+    #applySpriteProps(variable: string, props: Record<string, SceneTemplateValue>) {
+        const anchorX = props.anchorX;
+        const anchorY = props.anchorY;
+        if (anchorX !== undefined || anchorY !== undefined) {
+            this.#lines.push(`  ${variable}.anchor.set(${this.#value(anchorX ?? 0)}, ${this.#value(anchorY ?? 0)});`);
+        }
+        if (props.tint !== undefined) {
+            this.#lines.push(`  ${variable}.tint = ${this.#value(props.tint)};`);
+        }
+    }
+
     #drawGraphics(variable: string, props: Record<string, SceneTemplateValue>) {
         const shape = props.shape;
         if (shape === 'roundRect') {
-            this.#lines.push(`  ${variable}.roundRect(0, 0, ${this.#value(props.width ?? 0)}, ${this.#value(props.height ?? 0)}, ${this.#value(props.radius ?? 0)}).fill(${this.#value(props.fill ?? 0xffffff)});`);
+            this.#lines.push(`  ${variable}.roundRect(0, 0, ${this.#value(props.width ?? 0)}, ${this.#value(props.height ?? 0)}, ${this.#value(props.radius ?? 0)})${this.#graphicsStyles(props)};`);
             return;
         }
         if (shape === 'rect') {
-            this.#lines.push(`  ${variable}.rect(0, 0, ${this.#value(props.width ?? 0)}, ${this.#value(props.height ?? 0)}).fill(${this.#value(props.fill ?? 0xffffff)});`);
+            this.#lines.push(`  ${variable}.rect(0, 0, ${this.#value(props.width ?? 0)}, ${this.#value(props.height ?? 0)})${this.#graphicsStyles(props)};`);
         }
+    }
+
+    #graphicsStyles(props: Record<string, SceneTemplateValue>) {
+        const fill = props.fillAlpha === undefined
+            ? `.fill(${this.#value(props.fill ?? 0xffffff)})`
+            : `.fill({ color: ${this.#value(props.fill ?? 0xffffff)}, alpha: ${this.#value(props.fillAlpha)} })`;
+        if (props.strokeWidth === undefined) {
+            return fill;
+        }
+        const stroke = props.strokeAlpha === undefined
+            ? `.stroke({ width: ${this.#value(props.strokeWidth)}, color: ${this.#value(props.strokeColor ?? 0x000000)} })`
+            : `.stroke({ width: ${this.#value(props.strokeWidth)}, color: ${this.#value(props.strokeColor ?? 0x000000)}, alpha: ${this.#value(props.strokeAlpha)} })`;
+        return `${fill}${stroke}`;
     }
 
     #applyNodeId(variable: string, id: string | undefined) {

@@ -72,8 +72,8 @@ describe('Pixifact scene compiler spike', () => {
     it('compiles a source scene into a typed PixiJS mount function', () => {
         const template = parseSceneTemplate(`
             <Scene name="Button" width="180" height="52">
-              <Graphics id="background" shape="roundRect" width="180" height="52" radius="8" fill="#4169e1" />
-              <Text id="label" text="Button" x="72" y="16" fontSize="16" fill="#ffffff" />
+              <Graphics id="background" shape="roundRect" width="180" height="52" radius="8" fill="#4169e1" fillAlpha="0.8" strokeColor="#ffffff" strokeWidth="2" strokeAlpha="0.5" />
+              <Text id="label" text="Button" x="72" y="16" pivotX="10" pivotY="4" skewX="0.1" skewY="0.2" fontSize="16" fill="#ffffff" />
               <Container id="iconHost" x="20" y="14">
                 <slot name="icon" />
               </Container>
@@ -94,8 +94,10 @@ describe('Pixifact scene compiler spike', () => {
         expect(code).toContain('root.width = 180;');
         expect(code).toContain('const background = new Graphics();');
         expect(code).toContain('background.label = "background";');
-        expect(code).toContain('background.roundRect(0, 0, 180, 52, 8).fill(4286945);');
+        expect(code).toContain('background.roundRect(0, 0, 180, 52, 8).fill({ color: 4286945, alpha: 0.8 }).stroke({ width: 2, color: 16777215, alpha: 0.5 });');
         expect(code).toContain('const label = new Text({ text: "Button", style: { fontSize: 16, fill: 16777215 } })');
+        expect(code).toContain('label.pivot.set(10, 4);');
+        expect(code).toContain('label.skew.set(0.1, 0.2);');
         expect(code).toContain('root.addChild(background);');
         expect(code).toContain('iconHost.position.set(20, 14);');
         expect(code).toContain('__pixifactSlots["icon"] = iconHost;');
@@ -108,7 +110,7 @@ describe('Pixifact scene compiler spike', () => {
         const template = parseSceneTemplate(`
             <Scene name="MainMenu">
               <Button id="startButton" scene="scenes/Button.scene" x="390" y="300" scaleX="1.2" scaleY="0.9" rotation="0.25" alpha="0.8" visible="true" zIndex="10" label="Start" @click="startGame">
-                <Sprite slot="icon" id="playIcon" texture="assets/icons/play.png" />
+                <Sprite slot="icon" id="playIcon" texture="assets/icons/play.png" anchorX="0.5" anchorY="0.5" tint="#ff0000" />
               </Button>
             </Scene>
         `);
@@ -146,6 +148,9 @@ describe('Pixifact scene compiler spike', () => {
                         id: 'playIcon',
                         props: {
                             texture: 'assets/icons/play.png',
+                            anchorX: 0.5,
+                            anchorY: 0.5,
+                            tint: 0xff0000,
                         },
                     },
                 ],
@@ -167,6 +172,8 @@ describe('Pixifact scene compiler spike', () => {
         expect(code).toContain('connectSceneEvent(startButton.click, "startGame", root, actions);');
         expect(code).toContain('root.addChild(startButton);');
         expect(code).toContain('const playIcon = Sprite.from("assets/icons/play.png");');
+        expect(code).toContain('playIcon.anchor.set(0.5, 0.5);');
+        expect(code).toContain('playIcon.tint = 16711680;');
         expect(code).toContain('mount(startButton, playIcon, "icon");');
         expect(code).not.toContain('background');
         expect(code).not.toContain('hitArea');

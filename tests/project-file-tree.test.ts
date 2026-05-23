@@ -803,6 +803,14 @@ describe('project file tree service', () => {
             props: {
                 text: 'Start',
                 x: 40,
+                pivotX: 8,
+                pivotY: 4,
+                skewX: 0.1,
+                skewY: 0.2,
+                alpha: 0.9,
+                eventMode: 'static',
+                cursor: 'pointer',
+                label: 'title',
             },
         });
 
@@ -815,6 +823,14 @@ describe('project file tree service', () => {
             props: {
                 text: 'Start',
                 x: 40,
+                pivotX: 8,
+                pivotY: 4,
+                skewX: 0.1,
+                skewY: 0.2,
+                alpha: 0.9,
+                eventMode: 'static',
+                cursor: 'pointer',
+                label: 'title',
             },
         });
         expect(compilerDocument?.selection).toEqual({ type: 'node', node: '1:titleText' });
@@ -1467,6 +1483,14 @@ describe('project file tree service', () => {
             props: {
                 text: 'Start',
                 x: 40,
+                pivotX: 8,
+                pivotY: 4,
+                skewX: 0.1,
+                skewY: 0.2,
+                alpha: 0.9,
+                eventMode: 'static',
+                cursor: 'pointer',
+                label: 'title',
             },
         });
         const compilerDocument = getCompilerSceneDocument();
@@ -1476,7 +1500,7 @@ describe('project file tree service', () => {
         expect(getCompilerSceneDocument()?.dirty).toBe(false);
 
         const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene');
-        expect(saved).toContain('<Text id="titleText" text="Start" x="40" y="10" fontSize="16" fill="#ffffff" />');
+        expect(saved).toContain('<Text id="titleText" text="Start" x="40" y="10" fontSize="16" fill="#ffffff" pivotX="8" pivotY="4" skewX="0.1" skewY="0.2" alpha="0.9" eventMode="static" cursor="pointer" label="title" />');
     });
 
     it('saves compiler Scene instance public prop and event edits back to XML', async () => {
