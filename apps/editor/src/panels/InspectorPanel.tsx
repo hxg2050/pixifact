@@ -591,14 +591,14 @@ function paletteDisabledReason(item: PaletteComponentItem, t: Translate) {
         : undefined;
 }
 
-export function InspectorPanel({ document }: { document: SceneDocument }) {
+export function InspectorPanel({ document }: { document?: SceneDocument }) {
     const revision = useDocumentRevision();
     useCompilerSceneRevision();
     const t = useI18n();
     const openedScenePath = useEditorStore((state) => state.openedScenePath);
     const compilerDocument = getCompilerSceneDocument();
-    const selected = selectedNodeId(document);
-    const model = document.getInspectorModel();
+    const selected = document ? selectedNodeId(document) : undefined;
+    const model = document?.getInspectorModel();
     const [error, setError] = useState<string>();
     const [componentPickerOpen, setComponentPickerOpen] = useState(false);
     const [actionText, setActionText] = useState(() => t('inspectorDefaultAction'));
@@ -798,7 +798,7 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
         );
     }
 
-    if (!openedScenePath || !selected || !model) {
+    if (!document || !openedScenePath || !selected || !model) {
         return (
             <div className="panelSurface inspectorSurface panelEmptyState">
                 <strong>{t('inspectorEmptyTitle')}</strong>

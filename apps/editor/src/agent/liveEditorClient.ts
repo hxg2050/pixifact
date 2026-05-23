@@ -4,6 +4,7 @@ import {
     getSceneDocument,
     refreshSceneDocument,
 } from '../document/sceneDocumentController';
+import { getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import {
     refreshProjectFileTree,
@@ -184,7 +185,16 @@ function matchesCurrentScene(args: ToolInput) {
     return assertString(args.scenePath, 'scenePath') === openedScenePath;
 }
 
+function assertLegacySceneCommandTarget() {
+    const openedScenePath = useEditorStore.getState().openedScenePath;
+    const compilerDocument = getCompilerSceneDocument();
+    if (openedScenePath && compilerDocument?.scenePath === openedScenePath) {
+        throw new Error('The currently open Scene uses Pixifact compiler XML; legacy SceneCommand live tools cannot edit it.');
+    }
+}
+
 async function saveCurrentScene() {
+    assertLegacySceneCommandTarget();
     const store = useEditorStore.getState();
     const projectTree = store.projectTree;
     const openedScenePath = store.openedScenePath;
@@ -201,6 +211,7 @@ async function saveCurrentScene() {
 }
 
 function dryRunCurrentCommands(commands: SceneCommand[]) {
+    assertLegacySceneCommandTarget();
     const document = getSceneDocument();
     const proposal = {
         id: 'cli-live-dry-run',
@@ -247,6 +258,7 @@ export function createLiveEditorActionHandlers() {
             if (!matchesCurrentScene(args)) {
                 throw new Error('The requested Scene is not the currently open Scene in the editor.');
             }
+            assertLegacySceneCommandTarget();
             const store = useEditorStore.getState();
             const document = getSceneDocument();
             return {
@@ -265,6 +277,7 @@ export function createLiveEditorActionHandlers() {
             if (!matchesCurrentScene(args)) {
                 throw new Error('The requested Scene is not the currently open Scene in the editor.');
             }
+            assertLegacySceneCommandTarget();
             const nodeId = assertString(args.node, 'node');
             const node = collectDetailedNodes(getSceneDocument().scene.root).find((item) => item.locator === nodeId);
             if (!node) {
@@ -344,6 +357,7 @@ export function createLiveEditorActionHandlers() {
             if (!matchesCurrentScene(args)) {
                 throw new Error('The requested Scene is not the currently open Scene in the editor.');
             }
+            assertLegacySceneCommandTarget();
             const commands = assertCommands(args.commands);
             const draft = structuredClone(getSceneDocument().scene);
             const results: CommandResult[] = [];

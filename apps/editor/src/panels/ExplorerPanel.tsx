@@ -1,9 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { SceneDocument } from 'pixifact';
-import {
-    closeCompilerSceneDocument,
-    getCompilerSceneDocument,
-} from '../document/compilerSceneDocumentController';
+import { getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import {
     Button,
     DragSource,
@@ -15,7 +11,6 @@ import {
     TreeView,
 } from '../components/system';
 import type { TreeViewItem } from '../components/system';
-import { refreshSceneDocument } from '../document/sceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
 import type { I18nKey } from '../i18n';
@@ -41,17 +36,15 @@ import {
     createFolder,
     deleteProjectEntry,
     containingDirectory,
-    openSceneFile,
     openProjectCodeFile,
     openProjectDefaultFile,
     openCompilerSceneFile,
     readProjectFileBytes,
-    readProjectFileText,
     refreshProjectFileTree,
     renameProjectEntry,
 } from '../services/projectFileTree';
 import { hostErrorMessage } from '../services/hostBridge';
-import { useCompilerSceneRevision, useDocumentRevision } from './common';
+import { useCompilerSceneRevision } from './common';
 
 interface ImportMetaWithEnv extends ImportMeta {
     env?: Record<string, string | boolean | undefined>;
@@ -146,29 +139,19 @@ function canOpenWithDefaultApp(file: ProjectFileTreeNode) {
     return file.kind === 'asset' || file.kind === 'doc' || file.kind === 'unknown';
 }
 
-async function loadSceneFile(document: SceneDocument, file: ProjectFileTreeNode, t: Translate) {
+async function loadSceneFile(file: ProjectFileTreeNode, t: Translate) {
     const projectTree = useEditorStore.getState().projectTree;
     if (!projectTree) {
         return false;
     }
     const currentPath = useEditorStore.getState().openedScenePath;
     const compilerDocument = getCompilerSceneDocument();
-    const dirty = compilerDocument && compilerDocument.scenePath === currentPath ? compilerDocument.dirty : document.dirty;
+    const dirty = compilerDocument && compilerDocument.scenePath === currentPath ? compilerDocument.dirty : false;
     if (dirty && currentPath !== file.path && !window.confirm(t('discardDirtySceneConfirm'))) {
         return false;
     }
-    const content = await readProjectFileText(projectTree, file);
-    if (content.trimStart().startsWith('<Scene')) {
-        const opened = await openCompilerSceneFile(projectTree, file);
-        useEditorStore.getState().setOpenedScene(opened.openedScenePath);
-        refreshSceneDocument();
-        return true;
-    }
-
-    closeCompilerSceneDocument();
-    const opened = await openSceneFile(projectTree, file, document);
+    const opened = await openCompilerSceneFile(projectTree, file);
     useEditorStore.getState().setOpenedScene(opened.openedScenePath);
-    refreshSceneDocument();
     return true;
 }
 
@@ -187,8 +170,7 @@ function EmptyProjectState() {
 
 type ExplorerAccordionSection = 'project' | 'library';
 
-export function ResourceExplorer({ document }: { document: SceneDocument; revision?: number }) {
-    useDocumentRevision();
+export function ResourceExplorer() {
     useCompilerSceneRevision();
     const t = useI18n();
     const projectTree = useEditorStore((state) => state.projectTree);
@@ -225,7 +207,7 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
         ? sceneToolLibrary.find((item) => selectedPath === `library/scene-tool/${item.kind}`)
         : undefined;
     const compilerDocument = getCompilerSceneDocument();
-    const currentSceneDirty = compilerDocument && compilerDocument.scenePath === openedScenePath ? compilerDocument.dirty : document.dirty;
+    const currentSceneDirty = compilerDocument && compilerDocument.scenePath === openedScenePath ? compilerDocument.dirty : false;
 
     useEffect(() => {
         if (!projectTree) {
@@ -309,7 +291,7 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
             return;
         }
         if (file.kind === 'scene') {
-            const loaded = await loadSceneFile(document, file, t);
+            const loaded = await loadSceneFile(file, t);
             if (!loaded) {
                 return;
             }
@@ -398,7 +380,6 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
         setOpenedScene(session.openedScenePath);
         setNewSceneName('');
         setActionText(t('sceneCreatedAndOpened', { file: session.created.fileName }));
-        refreshSceneDocument();
     };
 
     const beginRename = (file: ProjectFileTreeNode) => {
