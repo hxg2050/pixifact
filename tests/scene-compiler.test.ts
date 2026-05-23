@@ -6,6 +6,8 @@ import {
     parseSceneTemplate,
     part,
     prop,
+    createEvent,
+    event,
     registerScene,
     registerSlot,
     scene,
@@ -143,7 +145,7 @@ describe('Pixifact scene compiler spike', () => {
         expect(code).toContain('const startButton = new Button();');
         expect(code).toContain('startButton.position.set(390, 300);');
         expect(code).toContain('startButton.label = "Start";');
-        expect(code).toContain('startButton.onClick(actions.startGame);');
+        expect(code).toContain('startButton.click.connect(actions.startGame);');
         expect(code).toContain('root.addChild(startButton);');
         expect(code).toContain('const playIcon = Sprite.from("assets/icons/play.png");');
         expect(code).toContain('mount(startButton, playIcon, "icon");');
@@ -183,6 +185,9 @@ describe('Pixifact scene compiler spike', () => {
             @slot()
             declare readonly icon: Container;
 
+            @event()
+            readonly click = createEvent();
+
             readyText = '';
 
             @prop({ type: 'string', default: 'Play' })
@@ -196,11 +201,18 @@ describe('Pixifact scene compiler spike', () => {
         }
 
         const button = new RuntimeButton();
+        let clicked = false;
+        button.click.connect(() => {
+            clicked = true;
+        });
+        button.click.emit();
+
         const icon = new Container();
         mount(button, icon, 'icon');
 
         expect(button.children).toHaveLength(2);
         expect(button.readyText).toBe('Play');
+        expect(clicked).toBe(true);
         expect((button.children[0] as Text).text).toBe('Play');
         expect(button.icon.children[0]).toBe(icon);
     });

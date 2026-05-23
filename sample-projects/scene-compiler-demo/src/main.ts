@@ -43,7 +43,7 @@ mount(panel, bodyText);
 
 const button = new Button();
 button.label = 'Start';
-button.onClick(() => {
+button.click.connect(() => {
     button.label = button.label === undefined ? 'Started' : 'Started';
     bodyText.text = 'Click handled through Button public event.\nThe parent scene never touches Button internals.';
 });

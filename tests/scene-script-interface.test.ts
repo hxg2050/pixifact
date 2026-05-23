@@ -24,7 +24,7 @@ describe('scene script interface extractor', () => {
                 accessor disabled = false;
 
                 @event()
-                onClick(handler: () => void) {}
+                readonly click = createEvent();
 
                 @slot()
                 icon!: Container;
@@ -62,7 +62,7 @@ describe('scene script interface extractor', () => {
             @scene({ scene: './Panel.scene' })
             export class Panel {
                 @event({ name: 'close' })
-                handleClose() {}
+                readonly closeEvent = createEvent();
 
                 @slot({ name: 'footer' })
                 footerSlot!: unknown;
@@ -87,7 +87,7 @@ describe('scene script interface extractor', () => {
                 accessor label = 'Button';
 
                 @event()
-                onClick() {}
+                readonly click = createEvent();
 
                 @slot()
                 icon!: unknown;

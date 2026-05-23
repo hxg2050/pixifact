@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { event, part, prop, scene, slot } from 'pixifact/compiler';
+import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
 @scene('./scenes/Button.scene')
 export class Button extends Container {
@@ -9,13 +9,14 @@ export class Button extends Container {
     @part()
     protected declare labelText: Text;
 
-    #clickHandler?: () => void;
+    @event()
+    readonly click = createEvent();
 
     onMounted() {
         this.eventMode = 'static';
         this.cursor = 'pointer';
         this.on('pointertap', () => {
-            this.#clickHandler?.();
+            this.click.emit();
         });
         this.on('pointerover', () => {
             this.background.tint = 0xc8dcff;
@@ -34,11 +35,6 @@ export class Button extends Container {
     set disabled(value: boolean) {
         this.alpha = value ? 0.48 : 1;
         this.eventMode = value ? 'none' : 'static';
-    }
-
-    @event()
-    onClick(handler: () => void) {
-        this.#clickHandler = handler;
     }
 
     @slot()

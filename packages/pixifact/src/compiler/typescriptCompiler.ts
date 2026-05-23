@@ -152,7 +152,7 @@ class CompileContext {
         this.#lines.push(`  const ${variable} = new ${node.type}();`);
         this.#applyPixiProps(variable, node.props, true);
         for (const [name, action] of Object.entries(node.events)) {
-            this.#lines.push(`  ${variable}.${this.#eventMethod(name)}(${actionsParameter}.${action});`);
+            this.#lines.push(`  ${variable}.${name}.connect(${actionsParameter}.${action});`);
         }
         this.#lines.push(`  ${parent}.addChild(${variable});`);
         for (const [slot, children] of Object.entries(node.slots)) {
@@ -174,7 +174,7 @@ class CompileContext {
             this.#applyNodeId(variable, node.id);
             this.#applyPixiProps(variable, node.props, true);
             for (const [name, action] of Object.entries(node.events)) {
-                this.#lines.push(`  ${variable}.${this.#eventMethod(name)}(${actionsParameter}.${action});`);
+                this.#lines.push(`  ${variable}.${name}.connect(${actionsParameter}.${action});`);
             }
             for (const [slot, children] of Object.entries(node.slots)) {
                 for (const child of children) {
@@ -268,10 +268,6 @@ class CompileContext {
 
     #isTextStyleProp(key: string) {
         return key === 'fontSize' || key === 'fontFamily' || key === 'fontWeight' || key === 'fill';
-    }
-
-    #eventMethod(name: string) {
-        return `on${name.charAt(0).toUpperCase()}${name.slice(1)}`;
     }
 
     #anonymousName(type: string) {

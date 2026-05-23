@@ -80,7 +80,7 @@ hud.score = value;
 ```ts
 export class Button extends Container {
   set label(value: string) {}
-  onClick(handler: () => void) {}
+  readonly click = createEvent();
 }
 ```
 
@@ -90,7 +90,7 @@ export class Button extends Container {
 
 ```ts
 import { Container, Text } from 'pixi.js';
-import { event, part, prop, scene, slot } from 'pixifact/compiler';
+import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
 @scene('./Button.scene')
 export class Button extends Container {
@@ -104,10 +104,13 @@ export class Button extends Container {
 
   onMounted() {
     this.eventMode = 'static';
+    this.on('pointertap', () => {
+      this.click.emit();
+    });
   }
 
   @event()
-  onClick(handler: () => void) {}
+  readonly click = createEvent();
 
   @slot()
   declare readonly icon: Container;

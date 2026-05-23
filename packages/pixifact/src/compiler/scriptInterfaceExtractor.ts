@@ -43,7 +43,7 @@ export function extractSceneScriptInterface(source: string, fileName = 'scene-sc
 
             const event = memberDecoratorOptions(member, 'event');
             if (event) {
-                events[typeof event.name === 'string' ? event.name : eventName(name)] = { type: 'action' };
+                events[typeof event.name === 'string' ? event.name : name] = { type: 'action' };
             }
 
             const slot = memberDecoratorOptions(member, 'slot');
@@ -133,13 +133,6 @@ function memberName(name: ts.PropertyName | undefined) {
         return name.text;
     }
     return undefined;
-}
-
-function eventName(name: string) {
-    if (name.startsWith('on') && name.length > 2) {
-        return `${name.charAt(2).toLowerCase()}${name.slice(3)}`;
-    }
-    return name;
 }
 
 function objectLiteralValue(expression: ts.Expression, label: string) {
