@@ -21,7 +21,6 @@ import { useI18n } from '../i18n';
 import type { I18nKey } from '../i18n';
 import {
     nodeTemplateLibrary,
-    baseNodeLibrary,
     pixiNodeTemplateLibrary,
 } from '../services/nodeTemplateLibrary';
 import {
@@ -710,9 +709,9 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
                         className={openSection === 'library' ? 'accordionPanel open' : 'accordionPanel'}
                     >
                         <div className="accordionContent">
-                            <div className="libraryGroupTitle">{compilerDocument ? t('pixiNodeLibrary') : t('baseNodeLibrary')}</div>
+                            <div className="libraryGroupTitle">{t('pixiNodeLibrary')}</div>
                             <div className="fileTree nodeTemplateLibraryTree">
-                                {(compilerDocument ? pixiNodeTemplateLibrary : baseNodeLibrary).map((item) => (
+                                {pixiNodeTemplateLibrary.map((item) => (
                                     <DragSource
                                         as="button"
                                         className={[
