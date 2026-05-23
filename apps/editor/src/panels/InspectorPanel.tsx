@@ -109,14 +109,43 @@ const fieldLabelKeys: Record<string, I18nKey> = {
 type Translate = (key: I18nKey, values?: Record<string, string | number>) => string;
 
 interface SelectedCompilerSlot {
-    kind: 'slotGroup';
+    kind: 'slot';
+    owner: string;
     name: string;
+    childCount: number;
 }
 
 type SelectedCompilerItem = CompilerSceneTemplateNode | SelectedCompilerSlot | undefined;
 
 const compilerTransformProps = ['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation'];
 const compilerDisplayProps = ['alpha', 'visible', 'zIndex'];
+
+function compilerSlotChildCount(nodes: readonly CompilerSceneTemplateNode[], locator: string, path = ''): number {
+    for (const [index, node] of nodes.entries()) {
+        const nodePath = path ? `${path}/${index}` : String(index);
+        const nodeLocator = compilerSceneNodeLocator(node, nodePath);
+        if (node.kind === 'pixi') {
+            const count = compilerSlotChildCount(node.children, locator, nodeLocator);
+            if (count >= 0) {
+                return count;
+            }
+            continue;
+        }
+        if (node.kind === 'sceneInstance') {
+            for (const [slot, children] of Object.entries(node.slots)) {
+                const slotLocator = `${nodeLocator}/slot:${slot}`;
+                if (slotLocator === locator) {
+                    return children.length;
+                }
+                const count = compilerSlotChildCount(children, locator, slotLocator);
+                if (count >= 0) {
+                    return count;
+                }
+            }
+        }
+    }
+    return -1;
+}
 
 function selectedCompilerNode(nodes: readonly CompilerSceneTemplateNode[], locator: string, path = ''): CompilerSceneTemplateNode | undefined {
     for (const [index, node] of nodes.entries()) {
@@ -143,12 +172,14 @@ function selectedCompilerNode(nodes: readonly CompilerSceneTemplateNode[], locat
     return undefined;
 }
 
-function selectedCompilerSlot(locator: string): SelectedCompilerSlot | undefined {
+function selectedCompilerSlot(nodes: readonly CompilerSceneTemplateNode[], locator: string): SelectedCompilerSlot | undefined {
     const segment = locator.split('/').at(-1);
     return segment?.startsWith('slot:')
         ? {
-            kind: 'slotGroup',
+            kind: 'slot',
+            owner: locator.slice(0, -segment.length - 1),
             name: segment.slice('slot:'.length),
+            childCount: Math.max(0, compilerSlotChildCount(nodes, locator)),
         }
         : undefined;
 }
@@ -157,7 +188,7 @@ function compilerNodeKind(node: SelectedCompilerItem) {
     if (!node) {
         return 'Scene';
     }
-    if (node.kind === 'slotGroup') {
+    if (node.kind === 'slot') {
         return 'slot';
     }
     if (node.kind === 'slotOutlet') {
@@ -173,7 +204,7 @@ function compilerNodeName(node: SelectedCompilerItem, sceneName: string) {
     if (!node) {
         return sceneName;
     }
-    if (node.kind === 'slotGroup') {
+    if (node.kind === 'slot') {
         return `slot: ${node.name}`;
     }
     if (node.kind === 'slotOutlet') {
@@ -238,21 +269,21 @@ function compilerField(key: string, value: unknown, type?: string): InspectorFie
 }
 
 function compilerTransformFields(node: SelectedCompilerItem): InspectorFieldModel[] {
-    if (!node || node.kind === 'slotGroup' || node.kind === 'slotOutlet') {
+    if (!node || node.kind === 'slot' || node.kind === 'slotOutlet') {
         return [];
     }
     return compilerTransformProps.map((key) => compilerField(key, node.props[key]));
 }
 
 function compilerDisplayFields(node: SelectedCompilerItem): InspectorFieldModel[] {
-    if (!node || node.kind === 'slotGroup' || node.kind === 'slotOutlet') {
+    if (!node || node.kind === 'slot' || node.kind === 'slotOutlet') {
         return [];
     }
     return compilerDisplayProps.map((key) => compilerField(key, node.props[key]));
 }
 
 function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: CompilerSceneTemplateInterface): InspectorFieldModel[] {
-    if (!node || node.kind === 'slotGroup' || node.kind === 'slotOutlet') {
+    if (!node || node.kind === 'slot' || node.kind === 'slotOutlet') {
         return [];
     }
     if (node.kind === 'sceneInstance' && sceneInterface) {
@@ -535,7 +566,7 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
     if (openedScenePath && compilerDocument?.scenePath === openedScenePath) {
         const publicInterface = compilerDocument.descriptor?.interface ?? compilerDocument.template.interface;
         const selectedCompiler = compilerDocument.selection.type === 'node'
-            ? selectedCompilerSlot(compilerDocument.selection.node) ?? selectedCompilerNode(compilerDocument.template.children, compilerDocument.selection.node)
+            ? selectedCompilerSlot(compilerDocument.template.children, compilerDocument.selection.node) ?? selectedCompilerNode(compilerDocument.template.children, compilerDocument.selection.node)
             : undefined;
         const selectedSceneInterface = selectedCompiler?.kind === 'sceneInstance'
             ? compilerDocument.sceneInterfaces[selectedCompiler.scene]
@@ -552,7 +583,7 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
         const compilerSelection = compilerDocument.selection.type === 'node'
             ? compilerDocument.selection.node
             : undefined;
-        const canEditCompilerNode = compilerSelection && selectedCompiler && selectedCompiler.kind !== 'slotGroup' && selectedCompiler.kind !== 'slotOutlet';
+        const canEditCompilerNode = compilerSelection && selectedCompiler && selectedCompiler.kind !== 'slot' && selectedCompiler.kind !== 'slotOutlet';
         const commitCompilerId = (value: unknown) => {
             if (!canEditCompilerNode) {
                 return;
@@ -620,7 +651,14 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
                                 {'type' in selectedCompiler ? <FieldRow label="type" value={selectedCompiler.type} /> : null}
                                 {selectedCompiler.kind === 'sceneInstance' ? <FieldRow label="scene" value={selectedCompiler.scene} /> : null}
                                 {selectedCompiler.kind === 'slotOutlet' ? <FieldRow label="slot" value={selectedCompiler.name} /> : null}
-                                {selectedCompiler.kind === 'slotGroup' ? <FieldRow label="slot" value={selectedCompiler.name} /> : null}
+                                {selectedCompiler.kind === 'slot' ? (
+                                    <>
+                                        <FieldRow label="kind" value="slot" />
+                                        <FieldRow label="name" value={selectedCompiler.name} />
+                                        <FieldRow label="owner" value={selectedCompiler.owner} />
+                                        <FieldRow label="children" value={selectedCompiler.childCount} />
+                                    </>
+                                ) : null}
                             </div>
                         </section>
                         {compilerTransformEditorFields.length ? (

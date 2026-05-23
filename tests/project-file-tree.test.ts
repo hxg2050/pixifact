@@ -10,8 +10,10 @@ import {
     resetCompilerSceneDocument,
     updateCompilerSceneNode,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
+import type { CompilerSceneDocument } from '../apps/editor/src/document/compilerSceneDocumentController';
 import { useEditorStore } from '../apps/editor/src/editorStore';
 import { createLiveEditorActionHandlers } from '../apps/editor/src/agent/liveEditorClient';
+import { buildCompilerHierarchyTreeItems } from '../apps/editor/src/panels/HierarchyPanel';
 import {
     collectFolderPaths,
     createAndOpenSceneFile,
@@ -701,6 +703,75 @@ describe('project file tree service', () => {
         expect(opened.sceneInterfaces['scenes/Button.scene'].props.disabled.default).toBe(false);
         expect(compilerDocument?.sceneInterfaces['scenes/Button.scene'].events.click).toEqual({ type: 'action' });
         expect(compilerDocument?.sceneInterfaces['scenes/Button.scene'].slots.icon).toEqual({});
+    });
+
+    it('builds placement-only hierarchy nodes for public compiler Scene slots', () => {
+        const compilerDocument: CompilerSceneDocument = {
+            scenePath: 'GameProject/scenes/MainMenu.scene',
+            template: {
+                version: 2,
+                name: 'MainMenu',
+                props: {},
+                interface: {
+                    props: {},
+                    events: {},
+                    slots: {},
+                },
+                children: [{
+                    kind: 'sceneInstance',
+                    type: 'Panel',
+                    id: 'settingsPanel',
+                    scene: 'scenes/Panel.scene',
+                    props: {},
+                    events: {},
+                    slots: {
+                        footer: [{
+                            kind: 'pixi',
+                            type: 'Text',
+                            id: 'footerText',
+                            props: {
+                                text: 'OK',
+                            },
+                            children: [],
+                        }],
+                    },
+                }],
+            },
+            sceneInterfaces: {
+                'scenes/Panel.scene': {
+                    props: {},
+                    events: {},
+                    slots: {
+                        default: {},
+                        footer: {},
+                    },
+                },
+            },
+            selection: { type: 'scene' },
+            dirty: false,
+        };
+
+        const [sceneItem] = buildCompilerHierarchyTreeItems(compilerDocument);
+        const [panelItem] = sceneItem.children ?? [];
+        const slots = panelItem.children ?? [];
+
+        expect(slots.map((slot) => slot.textValue)).toEqual(['slot: default', 'slot: footer']);
+        expect(slots[0].item.node).toEqual({
+            kind: 'slot',
+            owner: '0:settingsPanel',
+            name: 'default',
+            childCount: 0,
+        });
+        expect(slots[1].item.node).toEqual({
+            kind: 'slot',
+            owner: '0:settingsPanel',
+            name: 'footer',
+            childCount: 1,
+        });
+        expect(slots[1].children?.[0].item.node).toMatchObject({
+            kind: 'pixi',
+            id: 'footerText',
+        });
     });
 
     it('updates compiler Scene template nodes in memory', async () => {

@@ -29,15 +29,17 @@ interface HierarchyTreeNode {
     node: NodeSpec;
 }
 
-interface CompilerHierarchyTreeNode {
+export interface CompilerHierarchyTreeNode {
     depth: number;
     locator: string;
-    node: CompilerSceneTemplateNode | 'scene' | CompilerSlotGroup;
+    node: CompilerSceneTemplateNode | 'scene' | CompilerSlot;
 }
 
-interface CompilerSlotGroup {
-    kind: 'slotGroup';
+export interface CompilerSlot {
+    kind: 'slot';
+    owner: string;
     name: string;
+    childCount: number;
 }
 
 interface LocatedNode {
@@ -80,11 +82,11 @@ function nodeKindIcon(node: NodeSpec): SystemIconName {
     }
 }
 
-function compilerNodeIcon(node: CompilerSceneTemplateNode | 'scene' | CompilerSlotGroup): SystemIconName {
+function compilerNodeIcon(node: CompilerSceneTemplateNode | 'scene' | CompilerSlot): SystemIconName {
     if (node === 'scene') {
         return 'folder-open';
     }
-    if (node.kind === 'slotGroup') {
+    if (node.kind === 'slot') {
         return 'input';
     }
     if (node.kind === 'sceneInstance') {
@@ -123,11 +125,11 @@ function hierarchyTreeItem(node: NodeSpec, depth = 0): TreeViewItem<HierarchyTre
     };
 }
 
-function compilerNodeLabel(node: CompilerSceneTemplateNode | 'scene' | CompilerSlotGroup, sceneName: string) {
+function compilerNodeLabel(node: CompilerSceneTemplateNode | 'scene' | CompilerSlot, sceneName: string) {
     if (node === 'scene') {
         return sceneName;
     }
-    if (node.kind === 'slotGroup') {
+    if (node.kind === 'slot') {
         return `slot: ${node.name}`;
     }
     if (node.kind === 'slotOutlet') {
@@ -139,12 +141,9 @@ function compilerNodeLabel(node: CompilerSceneTemplateNode | 'scene' | CompilerS
     return node.id ?? node.type;
 }
 
-function compilerTreeItem(document = getCompilerSceneDocument()): TreeViewItem<CompilerHierarchyTreeNode>[] {
-    if (!document) {
-        return [];
-    }
+export function buildCompilerHierarchyTreeItems(document: NonNullable<ReturnType<typeof getCompilerSceneDocument>>): TreeViewItem<CompilerHierarchyTreeNode>[] {
     return [{
-        children: document.template.children.map((node, index) => compilerNodeTreeItem(document.template.name, node, 1, String(index))),
+        children: document.template.children.map((node, index) => compilerNodeTreeItem(document, node, 1, String(index))),
         id: '__scene__',
         item: {
             depth: 0,
@@ -155,38 +154,54 @@ function compilerTreeItem(document = getCompilerSceneDocument()): TreeViewItem<C
     }];
 }
 
-function compilerNodeTreeItem(sceneName: string, node: CompilerSceneTemplateNode, depth: number, path: string): TreeViewItem<CompilerHierarchyTreeNode> {
+function compilerTreeItem(document = getCompilerSceneDocument()): TreeViewItem<CompilerHierarchyTreeNode>[] {
+    if (!document) {
+        return [];
+    }
+    return buildCompilerHierarchyTreeItems(document);
+}
+
+function compilerNodeTreeItem(document: NonNullable<ReturnType<typeof getCompilerSceneDocument>>, node: CompilerSceneTemplateNode, depth: number, path: string): TreeViewItem<CompilerHierarchyTreeNode> {
     const locator = compilerSceneNodeLocator(node, path);
     return {
-        children: compilerNodeTreeItems(sceneName, node, depth + 1, locator),
+        children: compilerNodeTreeItems(document, node, depth + 1, locator),
         id: locator,
         item: {
             depth,
             locator,
             node,
         },
-        textValue: compilerNodeLabel(node, sceneName),
+        textValue: compilerNodeLabel(node, document.template.name),
     };
 }
 
-function compilerNodeTreeItems(sceneName: string, node: CompilerSceneTemplateNode, depth: number, path: string): TreeViewItem<CompilerHierarchyTreeNode>[] | undefined {
+function compilerNodeTreeItems(document: NonNullable<ReturnType<typeof getCompilerSceneDocument>>, node: CompilerSceneTemplateNode, depth: number, path: string): TreeViewItem<CompilerHierarchyTreeNode>[] | undefined {
     if (node.kind === 'slotOutlet') {
         return undefined;
     }
     if (node.kind === 'pixi') {
-        return node.children.map((child, index) => compilerNodeTreeItem(sceneName, child, depth, `${path}/${index}`));
+        return node.children.map((child, index) => compilerNodeTreeItem(document, child, depth, `${path}/${index}`));
     }
-    return Object.entries(node.slots).map(([slot, children]) => {
+    const slots = [
+        ...new Set([
+            ...Object.keys(document.sceneInterfaces[node.scene]?.slots ?? {}),
+            ...Object.keys(node.slots),
+        ]),
+    ];
+    return slots.map((slot) => {
+        const children = node.slots[slot] ?? [];
         const locator = `${path}/slot:${slot}`;
         return {
-            children: children.map((child, index) => compilerNodeTreeItem(sceneName, child, depth + 1, `${locator}/${index}`)),
+            children: children.map((child, index) => compilerNodeTreeItem(document, child, depth + 1, `${locator}/${index}`)),
             id: locator,
             item: {
                 depth,
                 locator,
                 node: {
-                    kind: 'slotGroup' as const,
+                    kind: 'slot' as const,
+                    owner: path,
                     name: slot,
+                    childCount: children.length,
                 },
             },
             textValue: `slot: ${slot}`,
