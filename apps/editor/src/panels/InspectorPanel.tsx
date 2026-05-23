@@ -584,6 +584,7 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
             ? compilerDocument.selection.node
             : undefined;
         const canEditCompilerNode = compilerSelection && selectedCompiler && selectedCompiler.kind !== 'slot' && selectedCompiler.kind !== 'slotOutlet';
+        const canEditCompilerSlotOutlet = compilerSelection && selectedCompiler?.kind === 'slotOutlet';
         const commitCompilerId = (value: unknown) => {
             if (!canEditCompilerNode) {
                 return;
@@ -608,6 +609,14 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
                 events: {
                     [key]: typeof value === 'string' ? value : undefined,
                 },
+            });
+        };
+        const commitCompilerSlotName = (value: unknown) => {
+            if (!canEditCompilerSlotOutlet) {
+                return;
+            }
+            updateCompilerSceneNode(compilerSelection, {
+                slotName: typeof value === 'string' ? value : '',
             });
         };
 
@@ -650,7 +659,13 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
                                 ) : null}
                                 {'type' in selectedCompiler ? <FieldRow label="type" value={selectedCompiler.type} /> : null}
                                 {selectedCompiler.kind === 'sceneInstance' ? <FieldRow label="scene" value={selectedCompiler.scene} /> : null}
-                                {selectedCompiler.kind === 'slotOutlet' ? <FieldRow label="slot" value={selectedCompiler.name} /> : null}
+                                {selectedCompiler.kind === 'slotOutlet' ? (
+                                    <EditableFieldRow
+                                        field={compilerField('slotName', selectedCompiler.name)}
+                                        label="slot"
+                                        onCommit={commitCompilerSlotName}
+                                    />
+                                ) : null}
                                 {selectedCompiler.kind === 'slot' ? (
                                     <>
                                         <FieldRow label="kind" value="slot" />

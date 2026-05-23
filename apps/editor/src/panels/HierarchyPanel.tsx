@@ -10,6 +10,7 @@ import {
     addCompilerSceneInstanceNode,
     compilerPixiTypeFromNodeTemplate,
     createCompilerPixiTemplateNode,
+    createCompilerSceneToolTemplateNode,
     type CompilerSceneAddablePixiType,
     deleteCompilerSceneNode,
     compilerSceneNodeLocator,
@@ -24,6 +25,10 @@ import {
     createNodeTemplateNode,
     isNodeTemplateKind,
 } from '../services/nodeTemplateLibrary';
+import {
+    isSceneToolKind,
+    sceneToolDragDataType,
+} from '../services/sceneToolLibrary';
 import { createSceneInstanceNode } from '../services/sceneInstance';
 import { hierarchyNodeDragPayload } from '../services/dragPayload';
 import { editorDragDataTypes } from '../services/dragPayload';
@@ -237,12 +242,16 @@ function canAddCompilerSceneNode(item: CompilerHierarchyTreeNode | undefined) {
     return item.node.kind === 'pixi' && item.node.type === 'Container';
 }
 
+function canAddCompilerSceneTool(item: CompilerHierarchyTreeNode | undefined) {
+    return Boolean(item && item.node !== 'scene' && item.node.kind === 'pixi' && item.node.type === 'Container');
+}
+
 function canDeleteCompilerSceneNode(item: CompilerHierarchyTreeNode | undefined) {
-    return Boolean(item && item.node !== 'scene' && item.node.kind !== 'slot' && item.node.kind !== 'slotOutlet');
+    return Boolean(item && item.node !== 'scene' && item.node.kind !== 'slot');
 }
 
 function canDragCompilerSceneNode(item: CompilerHierarchyTreeNode) {
-    return item.node !== 'scene' && item.node.kind !== 'slot' && item.node.kind !== 'slotOutlet';
+    return item.node !== 'scene' && item.node.kind !== 'slot';
 }
 
 function compilerNodeDropPosition(item: CompilerHierarchyTreeNode, y: number, height: number) {
@@ -984,6 +993,23 @@ export function CompilerSceneHierarchyTree() {
         setDropTarget(undefined);
         setError(undefined);
     };
+    const addCompilerSceneToolUnderNode = (kind: string, parent: string) => {
+        if (!isSceneToolKind(kind)) {
+            setError(t('sceneToolMissing'));
+            return;
+        }
+        const document = getCompilerSceneDocument();
+        if (!document) {
+            return;
+        }
+        const result = addCompilerSceneNode(parent, createCompilerSceneToolTemplateNode(document.template, kind));
+        if (!result.ok) {
+            setError(result.error);
+            return;
+        }
+        setDropTarget(undefined);
+        setError(undefined);
+    };
     const addCompilerSceneUnderNode = async (scenePath: string, parent: string) => {
         if (scenePath === openedScenePath) {
             setError(t('sceneCannotDropSelf'));
@@ -1071,7 +1097,7 @@ export function CompilerSceneHierarchyTree() {
                 selectedKeys={[selected]}
                 renderItem={({ item }) => (
                     <DropZone
-                        acceptedTypes={[sceneDragDataType, nodeTemplateDragDataType, editorDragDataTypes.hierarchyNode]}
+                        acceptedTypes={[sceneDragDataType, nodeTemplateDragDataType, sceneToolDragDataType, editorDragDataTypes.hierarchyNode]}
                         aria-label={t('dropToNode', { node: compilerNodeLabel(item.node, compilerDocument.template.name) })}
                         className={[
                             'nodeRow',
@@ -1079,10 +1105,12 @@ export function CompilerSceneHierarchyTree() {
                             item.locator === dropTarget ? 'dropTarget' : '',
                             nodeDropTarget?.locator === item.locator ? `nodeDropTarget ${nodeDropTarget.position}` : '',
                         ].filter(Boolean).join(' ')}
-                        disabled={item.node !== 'scene' && item.node.kind === 'slotOutlet'}
                         getDropOperation={(types, allowedOperations) => {
                             if (types.has(editorDragDataTypes.hierarchyNode)) {
                                 return allowedOperations.includes('move') ? 'move' : 'cancel';
+                            }
+                            if (types.has(sceneToolDragDataType)) {
+                                return canAddCompilerSceneTool(item) && allowedOperations.includes('copy') ? 'copy' : 'cancel';
                             }
                             if (!canAddCompilerSceneNode(item)) {
                                 return 'cancel';
@@ -1112,6 +1140,10 @@ export function CompilerSceneHierarchyTree() {
                             }
                             if (payload.type === sceneDragDataType) {
                                 void addCompilerSceneUnderNode(payload.data, item.locator);
+                                return;
+                            }
+                            if (payload.type === sceneToolDragDataType) {
+                                addCompilerSceneToolUnderNode(payload.data, item.locator);
                                 return;
                             }
                             addCompilerNodeTemplateUnderNode(payload.data, item.locator);
@@ -1169,6 +1201,9 @@ export function CompilerSceneHierarchyTree() {
                     }
                     if (payload.type === sceneDragDataType) {
                         void addCompilerSceneUnderNode(payload.data, '__scene__');
+                        return;
+                    }
+                    if (payload.type === sceneToolDragDataType) {
                         return;
                     }
                     addCompilerNodeTemplateUnderNode(payload.data, '__scene__');

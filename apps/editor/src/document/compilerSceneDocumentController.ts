@@ -4,6 +4,7 @@ import type {
     CompilerSceneTemplateNode,
 } from '../services/projectFileTree';
 import type { NodeTemplateKind } from '../services/nodeTemplateLibrary';
+import type { SceneToolKind } from '../services/sceneToolLibrary';
 
 export type CompilerSceneAddablePixiType = Extract<SceneTemplatePrimitiveType, 'Container' | 'Sprite' | 'Text' | 'Graphics'>;
 export type CompilerSceneNodeDropPosition = 'before' | 'inside' | 'after';
@@ -80,6 +81,7 @@ export function updateCompilerSceneNode(
     locator: string,
     updates: {
         id?: string;
+        slotName?: string;
         events?: Record<string, string | undefined>;
         props?: Record<string, SceneTemplateValue | undefined>;
     },
@@ -95,7 +97,7 @@ export function updateCompilerSceneNode(
     document = {
         ...document,
         template,
-        selection: updates.id !== undefined
+        selection: updates.id !== undefined || updates.slotName !== undefined
             ? { type: 'node', node: updated.locator }
             : document.selection,
         dirty: true,
@@ -190,6 +192,13 @@ export function createCompilerSceneInstanceTemplateNode(
         props: {},
         events: {},
         slots: Object.fromEntries(Object.keys(sceneInterface.slots).map((slot) => [slot, []])),
+    };
+}
+
+export function createCompilerSceneToolTemplateNode(template: SceneTemplate, kind: SceneToolKind): CompilerSceneTemplateNode {
+    return {
+        kind: 'slotOutlet',
+        name: nextCompilerSceneSlotName(template.children),
     };
 }
 
@@ -317,7 +326,7 @@ export function moveCompilerSceneNode(
 
     const template = structuredClone(document.template);
     const source = findCompilerSceneNodeLocation(template.children, sourceLocator);
-    if (!source || source.node.kind === 'slotOutlet') {
+    if (!source) {
         return {
             ok: false as const,
             error: '当前选择不能移动。',
@@ -328,6 +337,12 @@ export function moveCompilerSceneNode(
         ? findCompilerSceneChildList(template.children, targetLocator)
         : findCompilerSceneSiblingTarget(template.children, targetLocator, position);
     if (!target) {
+        return {
+            ok: false as const,
+            error: '目标位置不能接收该节点。',
+        };
+    }
+    if (source.node.kind === 'slotOutlet' && !target.acceptsSlotOutlet) {
         return {
             ok: false as const,
             error: '目标位置不能接收该节点。',
@@ -396,6 +411,17 @@ function nextCompilerSceneNodeId(nodes: readonly CompilerSceneTemplateNode[], ty
     return id;
 }
 
+function nextCompilerSceneSlotName(nodes: readonly CompilerSceneTemplateNode[]) {
+    const slots = collectCompilerSceneSlotNames(nodes);
+    let index = 1;
+    let name = 'slot1';
+    while (slots.has(name)) {
+        index += 1;
+        name = `slot${index}`;
+    }
+    return name;
+}
+
 function collectCompilerSceneNodeIds(nodes: readonly CompilerSceneTemplateNode[], ids = new Set<string>()) {
     for (const node of nodes) {
         if (node.kind === 'slotOutlet') {
@@ -415,6 +441,23 @@ function collectCompilerSceneNodeIds(nodes: readonly CompilerSceneTemplateNode[]
     return ids;
 }
 
+function collectCompilerSceneSlotNames(nodes: readonly CompilerSceneTemplateNode[], names = new Set<string>()) {
+    for (const node of nodes) {
+        if (node.kind === 'slotOutlet') {
+            names.add(node.name);
+            continue;
+        }
+        if (node.kind === 'pixi') {
+            collectCompilerSceneSlotNames(node.children, names);
+            continue;
+        }
+        for (const children of Object.values(node.slots)) {
+            collectCompilerSceneSlotNames(children, names);
+        }
+    }
+    return names;
+}
+
 function isDirectCompilerSlotLocator(ownerLocator: string, locator: string) {
     const prefix = `${ownerLocator}/slot:`;
     if (!locator.startsWith(prefix)) {
@@ -432,6 +475,14 @@ function sceneInstanceHasSlot(node: Extract<CompilerSceneTemplateNode, { kind: '
         || node.slots[slot] !== undefined;
 }
 
+function canInsertCompilerSceneNodeIntoParent(parentLocator: string, node: CompilerSceneTemplateNode) {
+    return parentLocator !== '__scene__' || node.kind !== 'slotOutlet';
+}
+
+function normalizeCompilerSlotName(value: string) {
+    return value.trim() || 'default';
+}
+
 function insertCompilerSceneNode(
     nodes: CompilerSceneTemplateNode[],
     parentLocator: string,
@@ -439,6 +490,9 @@ function insertCompilerSceneNode(
     path = '',
 ): { locator: string } | undefined {
     if (!path && parentLocator === '__scene__') {
+        if (!canInsertCompilerSceneNodeIntoParent(parentLocator, node)) {
+            return undefined;
+        }
         const index = nodes.length;
         nodes.push(node);
         return { locator: compilerSceneNodeLocator(node, String(index)) };
@@ -449,6 +503,9 @@ function insertCompilerSceneNode(
         const nodeLocator = compilerSceneNodeLocator(parent, nodePath);
         if (nodeLocator === parentLocator) {
             if (parent.kind !== 'pixi' || parent.type !== 'Container') {
+                return undefined;
+            }
+            if (!canInsertCompilerSceneNodeIntoParent(parentLocator, node)) {
                 return undefined;
             }
             const childIndex = parent.children.length;
@@ -464,6 +521,9 @@ function insertCompilerSceneNode(
         }
         if (parent.kind === 'sceneInstance') {
             if (isDirectCompilerSlotLocator(nodeLocator, parentLocator)) {
+                if (node.kind === 'slotOutlet') {
+                    return undefined;
+                }
                 const slot = compilerSlotName(nodeLocator, parentLocator);
                 if (!sceneInstanceHasSlot(parent, slot)) {
                     return undefined;
@@ -486,6 +546,7 @@ function insertCompilerSceneNode(
 }
 
 interface CompilerSceneNodeLocation {
+    acceptsSlotOutlet: boolean;
     index: number;
     locator: string;
     node: CompilerSceneTemplateNode;
@@ -493,6 +554,7 @@ interface CompilerSceneNodeLocation {
 }
 
 interface CompilerSceneChildList {
+    acceptsSlotOutlet: boolean;
     index: number;
     nodes: CompilerSceneTemplateNode[];
 }
@@ -505,11 +567,13 @@ function findCompilerSceneNodeLocation(
     nodes: CompilerSceneTemplateNode[],
     locator: string,
     parentLocator = '__scene__',
+    acceptsSlotOutlet = false,
 ): CompilerSceneNodeLocation | undefined {
     for (const [index, node] of nodes.entries()) {
         const nodeLocator = childCompilerSceneNodeLocator(parentLocator, node, index);
         if (nodeLocator === locator) {
             return {
+                acceptsSlotOutlet,
                 index,
                 locator: nodeLocator,
                 node,
@@ -517,7 +581,7 @@ function findCompilerSceneNodeLocation(
             };
         }
         if (node.kind === 'pixi') {
-            const found = findCompilerSceneNodeLocation(node.children, locator, nodeLocator);
+            const found = findCompilerSceneNodeLocation(node.children, locator, nodeLocator, node.type === 'Container');
             if (found) {
                 return found;
             }
@@ -525,7 +589,7 @@ function findCompilerSceneNodeLocation(
         }
         if (node.kind === 'sceneInstance') {
             for (const [slot, children] of Object.entries(node.slots)) {
-                const found = findCompilerSceneNodeLocation(children, locator, `${nodeLocator}/slot:${slot}`);
+                const found = findCompilerSceneNodeLocation(children, locator, `${nodeLocator}/slot:${slot}`, false);
                 if (found) {
                     return found;
                 }
@@ -542,6 +606,7 @@ function findCompilerSceneChildList(
 ): CompilerSceneChildList | undefined {
     if (parentLocator === '__scene__' && targetLocator === '__scene__') {
         return {
+            acceptsSlotOutlet: false,
             index: nodes.length,
             nodes,
         };
@@ -553,6 +618,7 @@ function findCompilerSceneChildList(
             if (nodeLocator === targetLocator) {
                 return node.type === 'Container'
                     ? {
+                        acceptsSlotOutlet: true,
                         index: node.children.length,
                         nodes: node.children,
                     }
@@ -573,6 +639,7 @@ function findCompilerSceneChildList(
                 const children = node.slots[slot] ?? [];
                 node.slots[slot] = children;
                 return {
+                    acceptsSlotOutlet: false,
                     index: children.length,
                     nodes: children,
                 };
@@ -594,10 +661,11 @@ function findCompilerSceneSiblingTarget(
     position: Exclude<CompilerSceneNodeDropPosition, 'inside'>,
 ) {
     const target = findCompilerSceneNodeLocation(nodes, targetLocator);
-    if (!target || target.node.kind === 'slotOutlet') {
+    if (!target) {
         return undefined;
     }
     return {
+        acceptsSlotOutlet: target.acceptsSlotOutlet,
         index: target.index + (position === 'after' ? 1 : 0),
         nodes: target.nodes,
     };
@@ -642,9 +710,6 @@ function removeCompilerSceneNode(
         const nodePath = path ? `${path}/${index}` : String(index);
         const nodeLocator = compilerSceneNodeLocator(node, nodePath);
         if (nodeLocator === locator) {
-            if (node.kind === 'slotOutlet') {
-                return undefined;
-            }
             nodes.splice(index, 1);
             return { selection: parentSelection };
         }
@@ -673,6 +738,7 @@ function updateCompilerSceneNodes(
     locator: string,
     updates: {
         id?: string;
+        slotName?: string;
         events?: Record<string, string | undefined>;
         props?: Record<string, SceneTemplateValue | undefined>;
     },
@@ -707,11 +773,15 @@ function updateCompilerSceneNodeData(
     node: CompilerSceneTemplateNode,
     updates: {
         id?: string;
+        slotName?: string;
         events?: Record<string, string | undefined>;
         props?: Record<string, SceneTemplateValue | undefined>;
     },
 ) {
     if (node.kind === 'slotOutlet') {
+        if (updates.slotName !== undefined) {
+            node.name = normalizeCompilerSlotName(updates.slotName);
+        }
         return;
     }
     if (updates.id !== undefined) {

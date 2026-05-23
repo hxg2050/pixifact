@@ -27,7 +27,11 @@ import {
     nodeTemplateDragPayload,
     componentDragPayload,
     sceneDragPayload,
+    sceneToolDragPayload,
 } from '../services/dragPayload';
+import {
+    sceneToolLibrary,
+} from '../services/sceneToolLibrary';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import {
     collectFolderPaths,
@@ -217,6 +221,9 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
     const selectedNodeTemplate = selectedPath?.startsWith('library/template/node/')
         ? nodeTemplateLibrary.find((item) => selectedPath === `library/template/node/${item.kind}`)
         : undefined;
+    const selectedSceneTool = selectedPath?.startsWith('library/scene-tool/')
+        ? sceneToolLibrary.find((item) => selectedPath === `library/scene-tool/${item.kind}`)
+        : undefined;
     const compilerDocument = getCompilerSceneDocument();
     const currentSceneDirty = compilerDocument && compilerDocument.scenePath === openedScenePath ? compilerDocument.dirty : document.dirty;
 
@@ -281,6 +288,15 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
             return;
         }
         setSelectedProjectFile(`library/template/node/${item.kind}`);
+        setRenameName('');
+        setActionText(t('nodeTemplateDragHint', { name: t(item.nameKey) }));
+    };
+    const selectSceneTool = (kind: string) => {
+        const item = sceneToolLibrary.find((candidate) => candidate.kind === kind);
+        if (!item) {
+            return;
+        }
+        setSelectedProjectFile(`library/scene-tool/${item.kind}`);
         setRenameName('');
         setActionText(t('nodeTemplateDragHint', { name: t(item.nameKey) }));
     };
@@ -713,15 +729,37 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
                                     </DragSource>
                                 ))}
                             </div>
+                            <div className="libraryGroupTitle">{t('sceneToolLibrary')}</div>
+                            <div className="fileTree nodeTemplateLibraryTree">
+                                {sceneToolLibrary.map((item) => (
+                                    <DragSource
+                                        as="button"
+                                        className={[
+                                            'fileRow',
+                                            'nodeTemplate',
+                                            selectedPath === `library/scene-tool/${item.kind}` ? 'selected' : '',
+                                        ].filter(Boolean).join(' ')}
+                                        data-scene-tool={item.kind}
+                                        key={item.kind}
+                                        onClick={() => selectSceneTool(item.kind)}
+                                        payload={sceneToolDragPayload(item.kind, t(item.nameKey))}
+                                        title={t(item.detailKey)}
+                                    >
+                                        <strong>{t(item.nameKey)}</strong>
+                                    </DragSource>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </section>
                 <section className="filePreview" data-testid="file-preview">
                     <div className="filePreviewContent">
                         <span>{t('file')}</span>
-                        <strong>{selectedNodeTemplate ? t(selectedNodeTemplate.nameKey) : selectedFile?.name ?? projectTree.name}</strong>
-                        <small>{selectedNodeTemplate ? t('nodeTemplateLibrary') : selectedFile?.path ?? projectTree.path}</small>
-                        {selectedNodeTemplate ? (
+                        <strong>{selectedSceneTool ? t(selectedSceneTool.nameKey) : selectedNodeTemplate ? t(selectedNodeTemplate.nameKey) : selectedFile?.name ?? projectTree.name}</strong>
+                        <small>{selectedSceneTool ? t('sceneToolLibrary') : selectedNodeTemplate ? t('nodeTemplateLibrary') : selectedFile?.path ?? projectTree.path}</small>
+                        {selectedSceneTool ? (
+                            <div className="fileRule">{t('sceneToolPreviewRule', { detail: t(selectedSceneTool.detailKey) })}</div>
+                        ) : selectedNodeTemplate ? (
                             <div className="fileRule">{t('nodeTemplatePreviewRule', { detail: t(selectedNodeTemplate.detailKey) })}</div>
                         ) : selectedFile?.kind === 'asset' ? (
                             <div className="imagePreview">

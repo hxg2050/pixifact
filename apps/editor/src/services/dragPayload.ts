@@ -1,5 +1,6 @@
 export const editorDragDataTypes = {
     nodeTemplate: 'application/x-pixifact-node-template',
+    sceneTool: 'application/x-pixifact-scene-tool',
     component: 'application/x-pixifact-component',
     hierarchyNode: 'application/x-pixifact-hierarchy-node',
     scene: 'application/x-pixifact-scene',
@@ -18,6 +19,14 @@ export function nodeTemplateDragPayload(kind: string, label?: string): EditorDra
         data: kind,
         label,
         type: editorDragDataTypes.nodeTemplate,
+    };
+}
+
+export function sceneToolDragPayload(kind: string, label?: string): EditorDragPayload {
+    return {
+        data: kind,
+        label,
+        type: editorDragDataTypes.sceneTool,
     };
 }
 
