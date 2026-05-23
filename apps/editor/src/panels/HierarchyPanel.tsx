@@ -5,6 +5,9 @@ import { DragSource, DropZone, SystemIcon, TreeView } from '../components/system
 import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/system';
 import { refreshSceneDocument } from '../document/sceneDocumentController';
 import {
+    addCompilerSceneNode,
+    createCompilerPixiTemplateNode,
+    type CompilerSceneAddablePixiType,
     compilerSceneNodeLocator,
     getCompilerSceneDocument,
     selectCompilerSceneNode,
@@ -214,6 +217,32 @@ function collectCompilerLocators(items: TreeViewItem<CompilerHierarchyTreeNode>[
         String(item.id),
         ...collectCompilerLocators(item.children ?? []),
     ]);
+}
+
+function canAddCompilerSceneNode(item: CompilerHierarchyTreeNode | undefined) {
+    if (!item) {
+        return true;
+    }
+    if (item.node === 'scene') {
+        return true;
+    }
+    if (item.node.kind === 'slot') {
+        return true;
+    }
+    return item.node.kind === 'pixi' && item.node.type === 'Container';
+}
+
+function findCompilerHierarchyItem(items: TreeViewItem<CompilerHierarchyTreeNode>[], locator: string): CompilerHierarchyTreeNode | undefined {
+    for (const item of items) {
+        if (item.item.locator === locator) {
+            return item.item;
+        }
+        const found = findCompilerHierarchyItem(item.children ?? [], locator);
+        if (found) {
+            return found;
+        }
+    }
+    return undefined;
 }
 
 function collectNodeLocators(node: NodeSpec): string[] {
@@ -877,6 +906,7 @@ export function CompilerSceneHierarchyTree() {
     useCompilerSceneRevision();
     const compilerDocument = getCompilerSceneDocument();
     const t = useI18n();
+    const [error, setError] = useState<string>();
 
     if (!compilerDocument) {
         return null;
@@ -885,6 +915,22 @@ export function CompilerSceneHierarchyTree() {
     const treeItems = compilerTreeItem(compilerDocument);
     const expandedKeys = collectCompilerLocators(treeItems);
     const selected = compilerDocument.selection.type === 'node' ? compilerDocument.selection.node : '__scene__';
+    const selectedItem = selected === '__scene__'
+        ? treeItems[0]?.item
+        : findCompilerHierarchyItem(treeItems, selected);
+    const canAddNode = canAddCompilerSceneNode(selectedItem);
+
+    const addPixiNode = (type: CompilerSceneAddablePixiType) => {
+        if (!canAddNode) {
+            return;
+        }
+        const result = addCompilerSceneNode(selected, createCompilerPixiTemplateNode(compilerDocument.template, type));
+        if (!result.ok) {
+            setError(result.error);
+            return;
+        }
+        setError(undefined);
+    };
 
     return (
         <div className="nodeTree" data-testid="compiler-scene-hierarchy">
@@ -893,7 +939,19 @@ export function CompilerSceneHierarchyTree() {
                     <div className="sectionTitle">{t('hierarchyTreeTitle')}</div>
                     <small>Compiler Scene</small>
                 </div>
+                <div className="hierarchyCreateActions" aria-label="Add compiler scene node">
+                    <button disabled={!canAddNode} onClick={() => addPixiNode('Container')} title="Add Container" type="button">
+                        Container
+                    </button>
+                    <button disabled={!canAddNode} onClick={() => addPixiNode('Text')} title="Add Text" type="button">
+                        Text
+                    </button>
+                    <button disabled={!canAddNode} onClick={() => addPixiNode('Graphics')} title="Add Graphics" type="button">
+                        Graphics
+                    </button>
+                </div>
             </div>
+            {error ? <div className="errorBox">{error}</div> : null}
             <TreeView
                 ariaLabel={t('sceneNodeTreeLabel')}
                 expandedKeys={expandedKeys}

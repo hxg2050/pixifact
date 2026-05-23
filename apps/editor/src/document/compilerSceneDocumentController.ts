@@ -1,8 +1,10 @@
-import type { SceneTemplate, SceneTemplateInterface, SceneTemplateValue } from '../../../../packages/pixifact/src/compiler/spec';
+import type { SceneTemplate, SceneTemplateInterface, SceneTemplatePrimitiveType, SceneTemplateValue } from '../../../../packages/pixifact/src/compiler/spec';
 import type {
     CompilerSceneScriptInterface,
     CompilerSceneTemplateNode,
 } from '../services/projectFileTree';
+
+export type CompilerSceneAddablePixiType = Extract<SceneTemplatePrimitiveType, 'Container' | 'Text' | 'Graphics'>;
 
 export type CompilerSceneSelection =
     | { type: 'scene' }
@@ -99,6 +101,81 @@ export function updateCompilerSceneNode(
     emitCompilerSceneUpdate();
 }
 
+export function createCompilerPixiTemplateNode(template: SceneTemplate, type: CompilerSceneAddablePixiType): CompilerSceneTemplateNode {
+    const id = nextCompilerSceneNodeId(template.children, type);
+    if (type === 'Container') {
+        return {
+            kind: 'pixi',
+            type,
+            id,
+            props: {
+                width: 100,
+                height: 100,
+            },
+            children: [],
+        };
+    }
+    if (type === 'Text') {
+        return {
+            kind: 'pixi',
+            type,
+            id,
+            props: {
+                text: 'Text',
+                width: 120,
+                height: 28,
+                fontSize: 16,
+                fill: 0x111827,
+            },
+            children: [],
+        };
+    }
+    return {
+        kind: 'pixi',
+        type,
+        id,
+        props: {
+            shape: 'roundRect',
+            width: 100,
+            height: 60,
+            radius: 8,
+            fill: 0xe5e7eb,
+        },
+        children: [],
+    };
+}
+
+export function addCompilerSceneNode(parentLocator: string, node: CompilerSceneTemplateNode) {
+    if (!document) {
+        return {
+            ok: false as const,
+            error: '未打开 Compiler Scene。',
+        };
+    }
+
+    const template = structuredClone(document.template);
+    const inserted = insertCompilerSceneNode(template.children, parentLocator, structuredClone(node));
+    if (!inserted) {
+        return {
+            ok: false as const,
+            error: '当前选择不能包含子节点。',
+        };
+    }
+
+    document = {
+        ...document,
+        template,
+        selection: { type: 'node', node: inserted.locator },
+        dirty: true,
+    };
+    emitCompilerSceneUpdate();
+
+    return {
+        ok: true as const,
+        locator: inserted.locator,
+    };
+}
+
 export function markCompilerSceneSaved() {
     if (!document) {
         return;
@@ -121,6 +198,107 @@ export function compilerSceneNodeLocator(node: CompilerSceneTemplateNode, path =
         return suffix;
     }
     return suffix;
+}
+
+function nextCompilerSceneNodeId(nodes: readonly CompilerSceneTemplateNode[], type: CompilerSceneAddablePixiType) {
+    const ids = collectCompilerSceneNodeIds(nodes);
+    const base = type[0].toLowerCase() + type.slice(1);
+    let index = 1;
+    let id = `${base}${index}`;
+    while (ids.has(id)) {
+        index += 1;
+        id = `${base}${index}`;
+    }
+    return id;
+}
+
+function collectCompilerSceneNodeIds(nodes: readonly CompilerSceneTemplateNode[], ids = new Set<string>()) {
+    for (const node of nodes) {
+        if (node.kind === 'slotOutlet') {
+            continue;
+        }
+        if (node.id) {
+            ids.add(node.id);
+        }
+        if (node.kind === 'pixi') {
+            collectCompilerSceneNodeIds(node.children, ids);
+            continue;
+        }
+        for (const children of Object.values(node.slots)) {
+            collectCompilerSceneNodeIds(children, ids);
+        }
+    }
+    return ids;
+}
+
+function isDirectCompilerSlotLocator(ownerLocator: string, locator: string) {
+    const prefix = `${ownerLocator}/slot:`;
+    if (!locator.startsWith(prefix)) {
+        return false;
+    }
+    return !locator.slice(prefix.length).includes('/');
+}
+
+function compilerSlotName(ownerLocator: string, locator: string) {
+    return locator.slice(`${ownerLocator}/slot:`.length);
+}
+
+function sceneInstanceHasSlot(node: Extract<CompilerSceneTemplateNode, { kind: 'sceneInstance' }>, slot: string) {
+    return document?.sceneInterfaces[node.scene]?.slots[slot] !== undefined
+        || node.slots[slot] !== undefined;
+}
+
+function insertCompilerSceneNode(
+    nodes: CompilerSceneTemplateNode[],
+    parentLocator: string,
+    node: CompilerSceneTemplateNode,
+    path = '',
+): { locator: string } | undefined {
+    if (!path && parentLocator === '__scene__') {
+        const index = nodes.length;
+        nodes.push(node);
+        return { locator: compilerSceneNodeLocator(node, String(index)) };
+    }
+
+    for (const [index, parent] of nodes.entries()) {
+        const nodePath = path ? `${path}/${index}` : String(index);
+        const nodeLocator = compilerSceneNodeLocator(parent, nodePath);
+        if (nodeLocator === parentLocator) {
+            if (parent.kind !== 'pixi' || parent.type !== 'Container') {
+                return undefined;
+            }
+            const childIndex = parent.children.length;
+            parent.children.push(node);
+            return { locator: compilerSceneNodeLocator(node, `${nodeLocator}/${childIndex}`) };
+        }
+        if (parent.kind === 'pixi') {
+            const inserted = insertCompilerSceneNode(parent.children, parentLocator, node, nodeLocator);
+            if (inserted) {
+                return inserted;
+            }
+            continue;
+        }
+        if (parent.kind === 'sceneInstance') {
+            if (isDirectCompilerSlotLocator(nodeLocator, parentLocator)) {
+                const slot = compilerSlotName(nodeLocator, parentLocator);
+                if (!sceneInstanceHasSlot(parent, slot)) {
+                    return undefined;
+                }
+                const children = parent.slots[slot] ?? [];
+                parent.slots[slot] = children;
+                const childIndex = children.length;
+                children.push(node);
+                return { locator: compilerSceneNodeLocator(node, `${parentLocator}/${childIndex}`) };
+            }
+            for (const [slot, children] of Object.entries(parent.slots)) {
+                const inserted = insertCompilerSceneNode(children, parentLocator, node, `${nodeLocator}/slot:${slot}`);
+                if (inserted) {
+                    return inserted;
+                }
+            }
+        }
+    }
+    return undefined;
 }
 
 function updateCompilerSceneNodes(

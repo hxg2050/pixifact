@@ -6,6 +6,8 @@ import {
     resetSceneDocument,
 } from '../apps/editor/src/document/sceneDocumentController';
 import {
+    addCompilerSceneNode,
+    createCompilerPixiTemplateNode,
     getCompilerSceneDocument,
     resetCompilerSceneDocument,
     updateCompilerSceneNode,
@@ -811,6 +813,102 @@ describe('project file tree service', () => {
         });
         expect(compilerDocument?.selection).toEqual({ type: 'node', node: '1:titleText' });
         expect(compilerDocument?.dirty).toBe(true);
+    });
+
+    it('adds compiler Pixi nodes to root, Container children, and Scene slots', async () => {
+        host.reset({
+            scenes: host.directory({
+                'MainMenu.scene': host.file(`
+                    <Scene name="MainMenu">
+                      <Container id="content" />
+                      <Panel id="settingsPanel" scene="scenes/Panel.scene" />
+                    </Scene>
+                `),
+                'Panel.scene': host.file('<Scene name="Panel" />'),
+            }),
+            src: host.directory({
+                generated: host.directory({
+                    'Panel.scene.interface.json': host.file(JSON.stringify({
+                        scene: './scenes/Panel.scene',
+                        className: 'Panel',
+                        interface: {
+                            props: {},
+                            events: {},
+                            slots: {
+                                footer: {},
+                            },
+                        },
+                        parts: {},
+                    })),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/MainMenu.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        let compilerDocument = getCompilerSceneDocument();
+        expect(compilerDocument).toBeDefined();
+
+        const rootResult = addCompilerSceneNode('__scene__', createCompilerPixiTemplateNode(compilerDocument!.template, 'Text'));
+        compilerDocument = getCompilerSceneDocument();
+        const containerResult = addCompilerSceneNode('0:content', createCompilerPixiTemplateNode(compilerDocument!.template, 'Graphics'));
+        compilerDocument = getCompilerSceneDocument();
+        const slotResult = addCompilerSceneNode('1:settingsPanel/slot:footer', createCompilerPixiTemplateNode(compilerDocument!.template, 'Container'));
+
+        compilerDocument = getCompilerSceneDocument();
+        expect(rootResult).toEqual({ ok: true, locator: '2:text1' });
+        expect(containerResult).toEqual({ ok: true, locator: '0:content/0:graphics1' });
+        expect(slotResult).toEqual({ ok: true, locator: '1:settingsPanel/slot:footer/0:container1' });
+        expect(compilerDocument?.template.children[2]).toMatchObject({
+            kind: 'pixi',
+            type: 'Text',
+            id: 'text1',
+        });
+        expect(compilerDocument?.template.children[0]).toMatchObject({
+            kind: 'pixi',
+            children: [{
+                kind: 'pixi',
+                type: 'Graphics',
+                id: 'graphics1',
+            }],
+        });
+        expect(compilerDocument?.template.children[1]).toMatchObject({
+            kind: 'sceneInstance',
+            slots: {
+                footer: [{
+                    kind: 'pixi',
+                    type: 'Container',
+                    id: 'container1',
+                }],
+            },
+        });
+        expect(compilerDocument?.selection).toEqual({ type: 'node', node: '1:settingsPanel/slot:footer/0:container1' });
+        expect(compilerDocument?.dirty).toBe(true);
+    });
+
+    it('does not add compiler nodes inside non-container Pixi nodes', async () => {
+        host.reset({
+            scenes: host.directory({
+                'MainMenu.scene': host.file(`
+                    <Scene name="MainMenu">
+                      <Text id="titleText" text="Title" />
+                    </Scene>
+                `),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/MainMenu.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        const compilerDocument = getCompilerSceneDocument();
+        const result = addCompilerSceneNode('0:titleText', createCompilerPixiTemplateNode(compilerDocument!.template, 'Text'));
+
+        expect(result.ok).toBe(false);
+        expect(getCompilerSceneDocument()?.template.children).toHaveLength(1);
+        expect(getCompilerSceneDocument()?.dirty).toBe(false);
     });
 
     it('updates compiler Scene instance public props and events in memory', async () => {
