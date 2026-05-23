@@ -431,6 +431,22 @@ async function readCompilerSceneDescriptor(projectTree: ProjectFileTreeNode, fil
     return JSON.parse(await readProjectFileText(projectTree, generatedFile)) as SceneScriptInterface;
 }
 
+export async function readCompilerScenePublicInterface(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
+    const descriptor = await readCompilerSceneDescriptor(projectTree, file);
+    if (descriptor) {
+        return {
+            className: descriptor.className,
+            interface: descriptor.interface,
+        };
+    }
+
+    const template = parseSceneTemplate(await readProjectFileText(projectTree, file));
+    return {
+        className: template.script?.className ?? template.name,
+        interface: template.interface,
+    };
+}
+
 async function readReferencedCompilerSceneInterfaces(projectTree: ProjectFileTreeNode, nodes: readonly SceneTemplateNode[]) {
     const scenePaths = [...collectSceneInstancePaths(nodes)];
     const entries: [string, SceneTemplateInterface][] = [];
@@ -439,13 +455,8 @@ async function readReferencedCompilerSceneInterfaces(projectTree: ProjectFileTre
         if (!sceneFile) {
             continue;
         }
-        const descriptor = await readCompilerSceneDescriptor(projectTree, sceneFile);
-        if (descriptor) {
-            entries.push([scenePath, descriptor.interface]);
-            continue;
-        }
-        const template = parseSceneTemplate(await readProjectFileText(projectTree, sceneFile));
-        entries.push([scenePath, template.interface]);
+        const publicInterface = await readCompilerScenePublicInterface(projectTree, sceneFile);
+        entries.push([scenePath, publicInterface.interface]);
     }
     return Object.fromEntries(entries);
 }

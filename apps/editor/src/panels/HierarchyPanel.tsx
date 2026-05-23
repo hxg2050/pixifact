@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ComponentSpec, SceneDocument, NodeSpec, SceneSpec } from 'pixifact';
 import { ComponentRegistry } from 'pixifact';
+import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
 import { DragSource, DropZone, SystemIcon, TreeView } from '../components/system';
 import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/system';
 import { refreshSceneDocument } from '../document/sceneDocumentController';
 import {
     addCompilerSceneNode,
+    addCompilerSceneInstanceNode,
+    compilerPixiTypeFromNodeTemplate,
     createCompilerPixiTemplateNode,
     type CompilerSceneAddablePixiType,
     deleteCompilerSceneNode,
@@ -24,7 +27,7 @@ import {
 import { createSceneInstanceNode } from '../services/sceneInstance';
 import { hierarchyNodeDragPayload } from '../services/dragPayload';
 import { editorDragDataTypes } from '../services/dragPayload';
-import { findFileByPath, sceneDragDataType, readProjectFileText } from '../services/projectFileTree';
+import { findFileByPath, sceneDragDataType, readCompilerScenePublicInterface, readProjectFileText, projectFileRelativePath } from '../services/projectFileTree';
 import type { CompilerSceneTemplateNode } from '../services/projectFileTree';
 import { collectHierarchy, getNodeLocator, selectedNodeId, useCompilerSceneRevision, useDocumentRevision } from './common';
 
@@ -927,6 +930,8 @@ export function CompilerSceneHierarchyTree() {
     useCompilerSceneRevision();
     const compilerDocument = getCompilerSceneDocument();
     const t = useI18n();
+    const projectTree = useEditorStore((state) => state.projectTree);
+    const openedScenePath = useEditorStore((state) => state.openedScenePath);
     const [error, setError] = useState<string>();
     const [dropTarget, setDropTarget] = useState<string>();
     const [nodeDropTarget, setNodeDropTarget] = useState<NodeDropTargetState>();
@@ -955,6 +960,56 @@ export function CompilerSceneHierarchyTree() {
             setError(result.error);
             return;
         }
+        setError(undefined);
+    };
+    const addCompilerNodeTemplateUnderNode = (kind: string, parent: string) => {
+        if (!isNodeTemplateKind(kind)) {
+            setError(t('nodeTemplateMissing'));
+            return;
+        }
+        const type = compilerPixiTypeFromNodeTemplate(kind);
+        if (!type) {
+            setError('Compiler Scene 暂不支持该节点模板。');
+            return;
+        }
+        const document = getCompilerSceneDocument();
+        if (!document) {
+            return;
+        }
+        const result = addCompilerSceneNode(parent, createCompilerPixiTemplateNode(document.template, type));
+        if (!result.ok) {
+            setError(result.error);
+            return;
+        }
+        setDropTarget(undefined);
+        setError(undefined);
+    };
+    const addCompilerSceneUnderNode = async (scenePath: string, parent: string) => {
+        if (scenePath === openedScenePath) {
+            setError(t('sceneCannotDropSelf'));
+            return;
+        }
+
+        const file = projectTree ? findFileByPath(projectTree, scenePath) : undefined;
+        if (!projectTree || !file || file.kind !== 'scene') {
+            setError(t('droppedFileNotScene'));
+            return;
+        }
+
+        const source = parseSceneTemplate(await readProjectFileText(projectTree, file));
+        const publicInterface = await readCompilerScenePublicInterface(projectTree, file);
+        const result = addCompilerSceneInstanceNode(
+            parent,
+            projectFileRelativePath(projectTree, file),
+            source,
+            publicInterface.interface,
+            publicInterface.className,
+        );
+        if (!result.ok) {
+            setError(result.error);
+            return;
+        }
+        setDropTarget(undefined);
         setError(undefined);
     };
     const deleteSelectedNode = () => {
@@ -1016,7 +1071,7 @@ export function CompilerSceneHierarchyTree() {
                 selectedKeys={[selected]}
                 renderItem={({ item }) => (
                     <DropZone
-                        acceptedTypes={[editorDragDataTypes.hierarchyNode]}
+                        acceptedTypes={[sceneDragDataType, nodeTemplateDragDataType, editorDragDataTypes.hierarchyNode]}
                         aria-label={t('dropToNode', { node: compilerNodeLabel(item.node, compilerDocument.template.name) })}
                         className={[
                             'nodeRow',
@@ -1025,7 +1080,15 @@ export function CompilerSceneHierarchyTree() {
                             nodeDropTarget?.locator === item.locator ? `nodeDropTarget ${nodeDropTarget.position}` : '',
                         ].filter(Boolean).join(' ')}
                         disabled={item.node !== 'scene' && item.node.kind === 'slotOutlet'}
-                        getDropOperation={(_types, allowedOperations) => allowedOperations.includes('move') ? 'move' : 'cancel'}
+                        getDropOperation={(types, allowedOperations) => {
+                            if (types.has(editorDragDataTypes.hierarchyNode)) {
+                                return allowedOperations.includes('move') ? 'move' : 'cancel';
+                            }
+                            if (!canAddCompilerSceneNode(item)) {
+                                return 'cancel';
+                            }
+                            return allowedOperations.includes('copy') ? 'copy' : allowedOperations[0] ?? 'copy';
+                        }}
                         onDropEnter={() => setDropTarget(item.locator)}
                         onDropExit={() => setDropTarget((target) => target === item.locator ? undefined : target)}
                         onDropMove={(event) => {
@@ -1036,6 +1099,8 @@ export function CompilerSceneHierarchyTree() {
                                     locator: item.locator,
                                     position: compilerNodeDropPosition(item, event.y, height),
                                 });
+                            } else {
+                                setNodeDropTarget(undefined);
                             }
                         }}
                         onPayloadDrop={(payload) => {
@@ -1043,7 +1108,13 @@ export function CompilerSceneHierarchyTree() {
                             setNodeDropTarget(undefined);
                             if (payload.type === editorDragDataTypes.hierarchyNode) {
                                 moveCompilerNode(payload.data, item.locator, nodeDropTarget?.locator === item.locator ? nodeDropTarget.position : 'inside');
+                                return;
                             }
+                            if (payload.type === sceneDragDataType) {
+                                void addCompilerSceneUnderNode(payload.data, item.locator);
+                                return;
+                            }
+                            addCompilerNodeTemplateUnderNode(payload.data, item.locator);
                         }}
                         ref={(element) => {
                             if (element) {
@@ -1075,13 +1146,18 @@ export function CompilerSceneHierarchyTree() {
                 )}
             />
             <DropZone
-                acceptedTypes={[editorDragDataTypes.hierarchyNode]}
+                acceptedTypes={[sceneDragDataType, nodeTemplateDragDataType, editorDragDataTypes.hierarchyNode]}
                 aria-label={t('dropToSceneRoot')}
                 className={[
                     'rootDropZone',
                     dropTarget === rootDropLocator ? 'dropTarget' : '',
                 ].filter(Boolean).join(' ')}
-                getDropOperation={(_types, allowedOperations) => allowedOperations.includes('move') ? 'move' : 'cancel'}
+                getDropOperation={(types, allowedOperations) => {
+                    if (types.has(editorDragDataTypes.hierarchyNode)) {
+                        return allowedOperations.includes('move') ? 'move' : 'cancel';
+                    }
+                    return allowedOperations.includes('copy') ? 'copy' : allowedOperations[0] ?? 'copy';
+                }}
                 onDropEnter={() => setDropTarget(rootDropLocator)}
                 onDropExit={() => setDropTarget((target) => target === rootDropLocator ? undefined : target)}
                 onPayloadDrop={(payload) => {
@@ -1089,7 +1165,13 @@ export function CompilerSceneHierarchyTree() {
                     setNodeDropTarget(undefined);
                     if (payload.type === editorDragDataTypes.hierarchyNode) {
                         moveCompilerNodeToRoot(payload.data);
+                        return;
                     }
+                    if (payload.type === sceneDragDataType) {
+                        void addCompilerSceneUnderNode(payload.data, '__scene__');
+                        return;
+                    }
+                    addCompilerNodeTemplateUnderNode(payload.data, '__scene__');
                 }}
             >
                 <strong>{t('dropToSceneRoot')}</strong>

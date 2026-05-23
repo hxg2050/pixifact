@@ -3,8 +3,9 @@ import type {
     CompilerSceneScriptInterface,
     CompilerSceneTemplateNode,
 } from '../services/projectFileTree';
+import type { NodeTemplateKind } from '../services/nodeTemplateLibrary';
 
-export type CompilerSceneAddablePixiType = Extract<SceneTemplatePrimitiveType, 'Container' | 'Text' | 'Graphics'>;
+export type CompilerSceneAddablePixiType = Extract<SceneTemplatePrimitiveType, 'Container' | 'Sprite' | 'Text' | 'Graphics'>;
 export type CompilerSceneNodeDropPosition = 'before' | 'inside' | 'after';
 
 export type CompilerSceneSelection =
@@ -116,6 +117,18 @@ export function createCompilerPixiTemplateNode(template: SceneTemplate, type: Co
             children: [],
         };
     }
+    if (type === 'Sprite') {
+        return {
+            kind: 'pixi',
+            type,
+            id,
+            props: {
+                width: 96,
+                height: 96,
+            },
+            children: [],
+        };
+    }
     if (type === 'Text') {
         return {
             kind: 'pixi',
@@ -143,6 +156,82 @@ export function createCompilerPixiTemplateNode(template: SceneTemplate, type: Co
             fill: 0xe5e7eb,
         },
         children: [],
+    };
+}
+
+export function compilerPixiTypeFromNodeTemplate(kind: NodeTemplateKind): CompilerSceneAddablePixiType | undefined {
+    if (kind === 'container') {
+        return 'Container';
+    }
+    if (kind === 'image') {
+        return 'Sprite';
+    }
+    if (kind === 'text') {
+        return 'Text';
+    }
+    if (kind === 'shape') {
+        return 'Graphics';
+    }
+    return undefined;
+}
+
+export function createCompilerSceneInstanceTemplateNode(
+    template: SceneTemplate,
+    scene: SceneTemplate,
+    scenePath: string,
+    sceneInterface: SceneTemplateInterface = scene.interface,
+    className = scene.script?.className ?? scene.name,
+): CompilerSceneTemplateNode {
+    return {
+        kind: 'sceneInstance',
+        type: className,
+        id: nextCompilerSceneNodeId(template.children, className),
+        scene: scenePath,
+        props: {},
+        events: {},
+        slots: Object.fromEntries(Object.keys(sceneInterface.slots).map((slot) => [slot, []])),
+    };
+}
+
+export function addCompilerSceneInstanceNode(
+    parentLocator: string,
+    scenePath: string,
+    scene: SceneTemplate,
+    sceneInterface: SceneTemplateInterface = scene.interface,
+    className = scene.script?.className ?? scene.name,
+) {
+    if (!document) {
+        return {
+            ok: false as const,
+            error: '未打开 Compiler Scene。',
+        };
+    }
+
+    const template = structuredClone(document.template);
+    const node = createCompilerSceneInstanceTemplateNode(template, scene, scenePath, sceneInterface, className);
+    const inserted = insertCompilerSceneNode(template.children, parentLocator, node);
+    if (!inserted) {
+        return {
+            ok: false as const,
+            error: '当前选择不能包含子节点。',
+        };
+    }
+
+    document = {
+        ...document,
+        template,
+        sceneInterfaces: {
+            ...document.sceneInterfaces,
+            [scenePath]: sceneInterface,
+        },
+        selection: { type: 'node', node: inserted.locator },
+        dirty: true,
+    };
+    emitCompilerSceneUpdate();
+
+    return {
+        ok: true as const,
+        locator: inserted.locator,
     };
 }
 
@@ -295,7 +384,7 @@ export function compilerSceneNodeLocator(node: CompilerSceneTemplateNode, path =
     return suffix;
 }
 
-function nextCompilerSceneNodeId(nodes: readonly CompilerSceneTemplateNode[], type: CompilerSceneAddablePixiType) {
+function nextCompilerSceneNodeId(nodes: readonly CompilerSceneTemplateNode[], type: string) {
     const ids = collectCompilerSceneNodeIds(nodes);
     const base = type[0].toLowerCase() + type.slice(1);
     let index = 1;

@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SceneDocument, buttonScene, container, scene, shape, text } from 'pixifact';
 import type { SceneCommand } from 'pixifact';
+import { parseSceneTemplate } from 'pixifact/compiler';
 import {
     getSceneDocument,
     resetSceneDocument,
 } from '../apps/editor/src/document/sceneDocumentController';
 import {
     addCompilerSceneNode,
+    addCompilerSceneInstanceNode,
+    compilerPixiTypeFromNodeTemplate,
     createCompilerPixiTemplateNode,
     deleteCompilerSceneNode,
     getCompilerSceneDocument,
@@ -887,6 +890,136 @@ describe('project file tree service', () => {
             },
         });
         expect(compilerDocument?.selection).toEqual({ type: 'node', node: '1:settingsPanel/slot:footer/0:container1' });
+        expect(compilerDocument?.dirty).toBe(true);
+    });
+
+    it('maps old node templates to compiler Pixi nodes', () => {
+        expect(compilerPixiTypeFromNodeTemplate('container')).toBe('Container');
+        expect(compilerPixiTypeFromNodeTemplate('image')).toBe('Sprite');
+        expect(compilerPixiTypeFromNodeTemplate('text')).toBe('Text');
+        expect(compilerPixiTypeFromNodeTemplate('shape')).toBe('Graphics');
+        expect(compilerPixiTypeFromNodeTemplate('input')).toBeUndefined();
+        expect(compilerPixiTypeFromNodeTemplate('button')).toBeUndefined();
+    });
+
+    it('adds dropped compiler Scene files to root, Container children, and Scene slots', async () => {
+        host.reset({
+            scenes: host.directory({
+                'MainMenu.scene': host.file(`
+                    <Scene name="MainMenu">
+                      <Container id="content" />
+                      <Panel id="settingsPanel" scene="scenes/Panel.scene" />
+                    </Scene>
+                `),
+                'Button.scene': host.file(`
+                    <Scene name="Button" script="../src/scenes/Button.ts" class="Button" width="120" height="40">
+                      <Container id="iconHost">
+                        <slot name="icon" />
+                      </Container>
+                    </Scene>
+                `),
+                'Panel.scene': host.file('<Scene name="Panel" />'),
+            }),
+            src: host.directory({
+                generated: host.directory({
+                    'Button.scene.interface.json': host.file(JSON.stringify({
+                        scene: './scenes/Button.scene',
+                        className: 'Button',
+                        interface: {
+                            props: {
+                                label: {
+                                    type: 'string',
+                                    default: 'Button',
+                                },
+                            },
+                            events: {
+                                click: {
+                                    type: 'action',
+                                },
+                            },
+                            slots: {
+                                icon: {},
+                            },
+                        },
+                        parts: {},
+                    })),
+                    'Panel.scene.interface.json': host.file(JSON.stringify({
+                        scene: './scenes/Panel.scene',
+                        className: 'Panel',
+                        interface: {
+                            props: {},
+                            events: {},
+                            slots: {
+                                footer: {},
+                            },
+                        },
+                        parts: {},
+                    })),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const mainMenuFile = findFileByPath(tree, 'GameProject/scenes/MainMenu.scene');
+        const buttonFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+
+        await openCompilerSceneFile(tree, mainMenuFile!);
+        const buttonTemplate = parseSceneTemplate(await host.readProjectFileText('/tmp/GameProject', buttonFile!.path));
+        const buttonInterface = {
+            props: {
+                label: {
+                    type: 'string',
+                    default: 'Button',
+                },
+            },
+            events: {
+                click: {
+                    type: 'action' as const,
+                },
+            },
+            slots: {
+                icon: {},
+            },
+        };
+
+        const rootResult = addCompilerSceneInstanceNode('__scene__', projectFileRelativePath(tree, buttonFile!), buttonTemplate, buttonInterface, 'Button');
+        const containerResult = addCompilerSceneInstanceNode('0:content', projectFileRelativePath(tree, buttonFile!), buttonTemplate, buttonInterface, 'Button');
+        const slotResult = addCompilerSceneInstanceNode('1:settingsPanel/slot:footer', projectFileRelativePath(tree, buttonFile!), buttonTemplate, buttonInterface, 'Button');
+
+        const compilerDocument = getCompilerSceneDocument();
+        expect(rootResult).toEqual({ ok: true, locator: '2:button1' });
+        expect(containerResult).toEqual({ ok: true, locator: '0:content/0:button2' });
+        expect(slotResult).toEqual({ ok: true, locator: '1:settingsPanel/slot:footer/0:button3' });
+        expect(compilerDocument?.template.children[2]).toMatchObject({
+            kind: 'sceneInstance',
+            type: 'Button',
+            id: 'button1',
+            scene: 'scenes/Button.scene',
+            props: {},
+            events: {},
+            slots: {
+                icon: [],
+            },
+        });
+        expect(compilerDocument?.template.children[0]).toMatchObject({
+            kind: 'pixi',
+            id: 'content',
+            children: [{
+                kind: 'sceneInstance',
+                id: 'button2',
+            }],
+        });
+        expect(compilerDocument?.template.children[1]).toMatchObject({
+            kind: 'sceneInstance',
+            id: 'settingsPanel',
+            slots: {
+                footer: [{
+                    kind: 'sceneInstance',
+                    id: 'button3',
+                }],
+            },
+        });
+        expect(compilerDocument?.sceneInterfaces['scenes/Button.scene']).toEqual(buttonInterface);
+        expect(compilerDocument?.selection).toEqual({ type: 'node', node: '1:settingsPanel/slot:footer/0:button3' });
         expect(compilerDocument?.dirty).toBe(true);
     });
 
