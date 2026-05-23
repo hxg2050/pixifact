@@ -759,6 +759,10 @@ describe('project file tree service', () => {
 
         updateCompilerSceneNode('0:startButton', {
             props: {
+                x: 24,
+                y: 36,
+                width: 188,
+                height: 48,
                 label: 'Continue',
                 disabled: true,
             },
@@ -773,6 +777,10 @@ describe('project file tree service', () => {
         expect(button).toMatchObject({
             kind: 'sceneInstance',
             props: {
+                x: 24,
+                y: 36,
+                width: 188,
+                height: 48,
                 label: 'Continue',
                 disabled: true,
             },
@@ -831,6 +839,10 @@ describe('project file tree service', () => {
         await openCompilerSceneFile(tree, sceneFile!);
         updateCompilerSceneNode('0:startButton', {
             props: {
+                x: 24,
+                y: 36,
+                width: 188,
+                height: 48,
                 label: 'Continue',
                 disabled: true,
             },
@@ -843,7 +855,7 @@ describe('project file tree service', () => {
         expect(await saveCompilerSceneFile(tree, 'GameProject/scenes/MainMenu.scene', compilerDocument!)).toBe(true);
 
         const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/MainMenu.scene');
-        expect(saved).toContain('<Button id="startButton" scene="scenes/Button.scene" label="Continue" disabled="true" @click="resumeGame" />');
+        expect(saved).toContain('<Button id="startButton" scene="scenes/Button.scene" label="Continue" x="24" y="36" width="188" height="48" disabled="true" @click="resumeGame" />');
     });
 
     it('creates and opens a Scene, applies live CLI commands, updates preview and saves', async () => {

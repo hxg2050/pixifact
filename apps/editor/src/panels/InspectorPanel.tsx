@@ -115,6 +115,8 @@ interface SelectedCompilerSlot {
 
 type SelectedCompilerItem = CompilerSceneTemplateNode | SelectedCompilerSlot | undefined;
 
+const compilerTransformProps = ['x', 'y', 'width', 'height'];
+
 function selectedCompilerNode(nodes: readonly CompilerSceneTemplateNode[], locator: string, path = ''): CompilerSceneTemplateNode | undefined {
     for (const [index, node] of nodes.entries()) {
         const nodePath = path ? `${path}/${index}` : String(index);
@@ -236,7 +238,9 @@ function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: Compile
         return [];
     }
     if (node.kind === 'sceneInstance' && sceneInterface) {
-        return Object.entries(sceneInterface.props).map(([key, contract]) => compilerField(key, node.props[key] ?? contract.default, contract.type));
+        const transformFields = compilerTransformProps.map((key) => compilerField(key, node.props[key]));
+        const publicFields = Object.entries(sceneInterface.props).map(([key, contract]) => compilerField(key, node.props[key] ?? contract.default, contract.type));
+        return [...transformFields, ...publicFields];
     }
     const typeKeys = node.kind === 'pixi' && node.type === 'Text'
         ? ['text', 'fontSize', 'fontWeight', 'fill']
@@ -245,10 +249,7 @@ function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: Compile
             : [];
     const keys = [
         ...new Set([
-            'x',
-            'y',
-            'width',
-            'height',
+            ...compilerTransformProps,
             ...typeKeys,
             ...Object.keys(node.props),
         ]),
