@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SceneDocument, buttonScene, container, scene, shape, text } from 'pixifact';
 import type { SceneCommand } from 'pixifact';
-import { parseSceneTemplate, pixiSceneFieldSchema, pixiSceneNodeDefaults, pixiSceneNodePropKeys } from 'pixifact/compiler';
+import { parseSceneTemplate, pixiSceneFieldSchema, pixiSceneNodeDefaults, pixiSceneNodePropGroups, pixiSceneNodePropKeys } from 'pixifact/compiler';
 import {
     getSceneDocument,
     resetSceneDocument,
@@ -987,6 +987,26 @@ describe('project file tree service', () => {
         expect(pixiSceneFieldSchema('fill')).toMatchObject({
             type: 'color',
         });
+    });
+
+    it('groups compiler Pixi basic node props by node capability', () => {
+        expect(pixiSceneNodePropGroups('NineSliceSprite')).toEqual([
+            {
+                group: 'sprite',
+                fields: ['texture', 'anchorX', 'anchorY', 'tint'],
+            },
+            {
+                group: 'nineSlice',
+                fields: ['leftWidth', 'rightWidth', 'topHeight', 'bottomHeight'],
+            },
+        ]);
+        expect(pixiSceneNodePropGroups('TilingSprite').map((group) => group.group)).toEqual(['sprite', 'tiling']);
+        expect(pixiSceneNodePropGroups('Text')).toEqual([
+            {
+                group: 'text',
+                fields: ['text', 'fontSize', 'fontFamily', 'fontWeight', 'fill'],
+            },
+        ]);
     });
 
     it('adds and renames compiler slot outlets only under Containers', async () => {

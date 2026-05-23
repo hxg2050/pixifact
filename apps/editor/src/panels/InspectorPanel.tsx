@@ -15,7 +15,9 @@ import {
     pixiSceneDisplayProps,
     pixiSceneFieldSchema,
     pixiSceneKnownProps,
+    pixiSceneNodePropGroups,
     pixiSceneNodePropKeys,
+    type PixiScenePropGroup,
     pixiSceneTransformProps,
 } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import type {
@@ -140,6 +142,15 @@ interface SelectedCompilerSlot {
 type SelectedCompilerItem = CompilerSceneTemplateNode | SelectedCompilerSlot | undefined;
 
 const compilerKnownPixiProps = new Set<string>(pixiSceneKnownProps);
+const compilerPixiGroupTitles: Record<PixiScenePropGroup, string> = {
+    transform: 'Transform',
+    display: 'Display',
+    sprite: 'Sprite',
+    nineSlice: 'Nine Slice',
+    tiling: 'Tiling',
+    text: 'Text',
+    graphics: 'Graphics',
+};
 
 function compilerSlotChildCount(nodes: readonly CompilerSceneTemplateNode[], locator: string, path = ''): number {
     for (const [index, node] of nodes.entries()) {
@@ -301,23 +312,41 @@ function compilerDisplayFields(node: SelectedCompilerItem): InspectorFieldModel[
     return pixiSceneDisplayProps.map((key) => compilerField(key, node.props[key]));
 }
 
-function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: CompilerSceneTemplateInterface): InspectorFieldModel[] {
+interface CompilerFieldSection {
+    title: string;
+    fields: InspectorFieldModel[];
+}
+
+function compilerPropSections(node: SelectedCompilerItem, sceneInterface?: CompilerSceneTemplateInterface): CompilerFieldSection[] {
     if (!node || node.kind === 'slot' || node.kind === 'slotOutlet') {
         return [];
     }
     if (node.kind === 'sceneInstance' && sceneInterface) {
-        return Object.entries(sceneInterface.props).map(([key, contract]) => compilerField(key, node.props[key] ?? contract.default, contract.type));
+        return [{
+            title: 'Props',
+            fields: Object.entries(sceneInterface.props).map(([key, contract]) => compilerField(key, node.props[key] ?? contract.default, contract.type)),
+        }];
     }
     const typeKeys = node.kind === 'pixi' && isPixiSceneNodeType(node.type)
         ? pixiSceneNodePropKeys(node.type)
         : [];
-    const keys = [
+    const customKeys = [
         ...new Set([
-            ...typeKeys,
             ...Object.keys(node.props),
         ].filter((key) => !compilerKnownPixiProps.has(key) || typeKeys.includes(key))),
     ];
-    return keys.map((key) => compilerField(key, node.props[key]));
+    const sections = node.kind === 'pixi' && isPixiSceneNodeType(node.type)
+        ? pixiSceneNodePropGroups(node.type).map(({ group, fields }) => ({
+            title: compilerPixiGroupTitles[group],
+            fields: fields.map((key) => compilerField(key, node.props[key])),
+        }))
+        : [];
+    const customFields = customKeys
+        .filter((key) => !typeKeys.includes(key))
+        .map((key) => compilerField(key, node.props[key]));
+    return customFields.length
+        ? [...sections, { title: 'Props', fields: customFields }]
+        : sections;
 }
 
 function compilerEventFields(node: SelectedCompilerItem, sceneInterface?: CompilerSceneTemplateInterface): InspectorFieldModel[] {
@@ -595,7 +624,7 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
                 : [];
         const compilerTransformEditorFields = compilerTransformFields(selectedCompiler);
         const compilerDisplayEditorFields = compilerDisplayFields(selectedCompiler);
-        const compilerPropEditorFields = compilerPropFields(selectedCompiler, selectedSceneInterface);
+        const compilerPropEditorSections = compilerPropSections(selectedCompiler, selectedSceneInterface);
         const compilerEventEditorFields = compilerEventFields(selectedCompiler, selectedSceneInterface);
         const compilerSelection = compilerDocument.selection.type === 'node'
             ? compilerDocument.selection.node
@@ -723,21 +752,23 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
                                 </div>
                             </section>
                         ) : null}
-                        {compilerPropEditorFields.length ? (
-                            <section className="inspectorSection">
-                                <h3>Props</h3>
-                                <div className="fieldStack">
-                                    {compilerPropEditorFields.map((field) => (
-                                        <EditableFieldRow
-                                            field={field}
-                                            key={field.key}
-                                            label={field.label}
-                                            onCommit={(value) => commitCompilerProp(field.key, value)}
-                                        />
-                                    ))}
-                                </div>
-                            </section>
-                        ) : null}
+                        {compilerPropEditorSections.map((section) => (
+                            section.fields.length ? (
+                                <section className="inspectorSection" key={section.title}>
+                                    <h3>{section.title}</h3>
+                                    <div className="fieldStack">
+                                        {section.fields.map((field) => (
+                                            <EditableFieldRow
+                                                field={field}
+                                                key={field.key}
+                                                label={field.label}
+                                                onCommit={(value) => commitCompilerProp(field.key, value)}
+                                            />
+                                        ))}
+                                    </div>
+                                </section>
+                            ) : null
+                        ))}
                         {compilerEventEditorFields.length ? (
                             <section className="inspectorSection">
                                 <h3>Events</h3>

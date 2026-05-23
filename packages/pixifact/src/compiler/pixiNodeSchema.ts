@@ -116,6 +116,14 @@ export const pixiSceneAddableNodeTypes = [
     'Graphics',
 ] as const satisfies readonly PixiSceneNodeType[];
 
+export const pixiSceneNodePropGroupOrder = [
+    'sprite',
+    'nineSlice',
+    'tiling',
+    'text',
+    'graphics',
+] as const satisfies readonly PixiScenePropGroup[];
+
 const pixiSceneFieldSchemas: Partial<Record<string, PixiSceneFieldSchema>> = {
     x: { key: 'x', type: 'number' },
     y: { key: 'y', type: 'number' },
@@ -287,6 +295,14 @@ export function pixiSceneNodeAcceptsChildren(type: SceneTemplatePrimitiveType) {
 
 export function pixiSceneNodePropKeys(type: PixiSceneNodeType) {
     return Object.values(pixiSceneNodeSchemas[type].groups).flat();
+}
+
+export function pixiSceneNodePropGroups(type: PixiSceneNodeType) {
+    const groups = pixiSceneNodeSchemas[type].groups;
+    return pixiSceneNodePropGroupOrder.flatMap((group) => {
+        const fields = groups[group];
+        return fields ? [{ group, fields }] : [];
+    });
 }
 
 export function pixiSceneFieldSchema(key: string) {
