@@ -8,6 +8,7 @@ import {
 import {
     getCompilerSceneDocument,
     resetCompilerSceneDocument,
+    updateCompilerSceneNode,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
 import { useEditorStore } from '../apps/editor/src/editorStore';
 import { createLiveEditorActionHandlers } from '../apps/editor/src/agent/liveEditorClient';
@@ -647,6 +648,44 @@ describe('project file tree service', () => {
         expect(compilerDocument?.template.children.map((node) => node.kind === 'slotOutlet' ? node.name : node.id)).toEqual(['background', 'labelText']);
         expect(compilerDocument?.descriptor?.interface.props.label.default).toBe('Button');
         expect(compilerDocument?.selection).toEqual({ type: 'scene' });
+    });
+
+    it('updates compiler Scene template nodes in memory', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file(`
+                    <Scene name="Button" width="120" height="40">
+                      <Graphics id="background" shape="roundRect" width="120" height="40" radius="8" fill="#4169e1" />
+                      <Text id="labelText" text="Button" x="32" y="10" fontSize="16" fill="#ffffff" />
+                    </Scene>
+                `),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        updateCompilerSceneNode('1:labelText', {
+            id: 'titleText',
+            props: {
+                text: 'Start',
+                x: 40,
+            },
+        });
+
+        const compilerDocument = getCompilerSceneDocument();
+        const label = compilerDocument?.template.children[1];
+
+        expect(label).toMatchObject({
+            kind: 'pixi',
+            id: 'titleText',
+            props: {
+                text: 'Start',
+                x: 40,
+            },
+        });
+        expect(compilerDocument?.selection).toEqual({ type: 'node', node: '1:titleText' });
     });
 
     it('creates and opens a Scene, applies live CLI commands, updates preview and saves', async () => {
