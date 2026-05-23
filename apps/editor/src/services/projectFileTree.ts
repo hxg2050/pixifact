@@ -1,6 +1,7 @@
 import type { SceneDocument } from 'pixifact';
 import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
 import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
+import { extractSceneScriptInterface } from '../../../../packages/pixifact/src/compiler/scriptInterfaceExtractor';
 import type {
     SceneScriptInterface,
     SceneTemplate,
@@ -204,6 +205,10 @@ export function createBlankCompilerScene(name: string): SceneTemplate {
     return {
         version: 2,
         name: assetName,
+        script: {
+            path: `src/scenes/${assetName}.ts`,
+            className: assetName,
+        },
         props: {
             width: 960,
             height: 540,
@@ -217,23 +222,71 @@ export function createBlankCompilerScene(name: string): SceneTemplate {
     };
 }
 
-export async function createSceneFile(directory: ProjectFileTreeNode, name: string) {
+function createBlankCompilerSceneScript(name: string) {
+    const assetName = sceneAssetName(name);
+    return [
+        "import { Container } from 'pixi.js';",
+        "import { scene } from 'pixifact/compiler';",
+        '',
+        `@scene('scenes/${assetName}.scene')`,
+        `export class ${assetName} extends Container {`,
+        '    onMounted() {}',
+        '}',
+        '',
+    ].join('\n');
+}
+
+export async function createSceneFile(projectTree: ProjectFileTreeNode, directory: ProjectFileTreeNode, name: string) {
     const fileName = sceneFileName(name);
+    const assetName = sceneAssetName(name);
+    const scriptFileName = `${assetName}.ts`;
+    const scriptPath = `${projectTree.path}/src/scenes/${scriptFileName}`;
     if (!fileName || fileName === '.scene') {
         throw new ProjectFileOperationError('Scene 名称不能为空。');
     }
     if (directory.children?.some((child) => child.name === fileName)) {
         throw new ProjectFileOperationError(`已存在 ${fileName}。`);
     }
+    if (findFileByPath(projectTree, scriptPath)) {
+        throw new ProjectFileOperationError(`已存在 ${scriptFileName}。`);
+    }
 
+    const projectRootPath = ensureProjectRootPath(projectTree);
     const content = serializeSceneTemplate(createBlankCompilerScene(name));
-    await createHostProjectFile(ensureProjectRootPath(directory), directory.path, fileName, content);
+    await ensureProjectDirectoryPath(projectTree, ['src', 'scenes']);
+    await createHostProjectFile(projectRootPath, directory.path, fileName, content);
+    await createHostProjectFile(projectRootPath, `${projectTree.path}/src/scenes`, scriptFileName, createBlankCompilerSceneScript(name));
 
     return {
         fileName,
         path: `${directory.path}/${fileName}`,
         content,
+        scriptFileName,
+        scriptPath,
     };
+}
+
+async function ensureProjectDirectoryPath(projectTree: ProjectFileTreeNode, parts: string[]) {
+    let current = projectTree;
+    let currentPath = projectTree.path;
+    for (const part of parts) {
+        const existing = current?.children?.find((child) => child.name === part);
+        if (existing) {
+            current = existing;
+            currentPath = existing.path;
+            continue;
+        }
+        await createHostProjectDirectory(ensureProjectRootPath(projectTree), currentPath, part);
+        currentPath = `${currentPath}/${part}`;
+        current = {
+            id: currentPath,
+            name: part,
+            path: currentPath,
+            kind: 'folder',
+            depth: current.depth + 1,
+            children: [],
+        };
+    }
 }
 
 export async function createFolder(directory: ProjectFileTreeNode, name: string) {
@@ -367,7 +420,8 @@ export async function openCompilerSceneFile(
 ) {
     const content = await readProjectFileText(projectTree, file);
     const template = parseSceneTemplate(content);
-    const descriptor = await readCompilerSceneDescriptor(projectTree, file);
+    const descriptor = await readBoundCompilerSceneDescriptor(projectTree, file, template);
+    template.interface = descriptor.interface;
     const sceneInterfaces = await readReferencedCompilerSceneInterfaces(projectTree, template.children);
     loadCompilerSceneDocument({
         scenePath: file.path,
@@ -389,7 +443,7 @@ export async function createAndOpenSceneFile(
     directory: ProjectFileTreeNode,
     name: string,
 ) {
-    const created = await createSceneFile(directory, name);
+    const created = await createSceneFile(projectTree, directory, name);
     const refreshedTree = await refreshProjectFileTree(projectTree);
     const createdFile = findFileByPath(refreshedTree, created.path);
 
@@ -420,28 +474,32 @@ export async function readProjectFileText(projectTree: ProjectFileTreeNode, file
     return readHostProjectFileText(ensureProjectRootPath(projectTree), file.path);
 }
 
-async function readCompilerSceneDescriptor(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
-    const generatedFile = findFileByPath(projectTree, compilerSceneDescriptorPath(projectTree, file));
-    if (!generatedFile) {
-        return undefined;
-    }
-    return JSON.parse(await readProjectFileText(projectTree, generatedFile)) as SceneScriptInterface;
+export async function readCompilerScenePublicInterface(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
+    const template = parseSceneTemplate(await readProjectFileText(projectTree, file));
+    const descriptor = await readBoundCompilerSceneDescriptor(projectTree, file, template);
+    return {
+        className: descriptor.className,
+        interface: descriptor.interface,
+    };
 }
 
-export async function readCompilerScenePublicInterface(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
-    const descriptor = await readCompilerSceneDescriptor(projectTree, file);
-    if (descriptor) {
-        return {
-            className: descriptor.className,
-            interface: descriptor.interface,
-        };
+async function readBoundCompilerSceneDescriptor(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode, template: SceneTemplate) {
+    if (!template.script) {
+        throw new ProjectFileOperationError(`Scene ${file.name} 必须绑定脚本。`);
     }
-
-    const template = parseSceneTemplate(await readProjectFileText(projectTree, file));
-    return {
-        className: template.script?.className ?? template.name,
-        interface: template.interface,
-    };
+    const scriptFile = findFileByPath(projectTree, `${projectTree.path}/${template.script.path}`);
+    if (!scriptFile) {
+        throw new ProjectFileOperationError(`找不到 Scene 脚本 ${template.script.path}。`);
+    }
+    const descriptor = extractSceneScriptInterface(await readProjectFileText(projectTree, scriptFile), scriptFile.path);
+    const scenePath = projectFileRelativePath(projectTree, file);
+    if (descriptor.scene !== scenePath) {
+        throw new ProjectFileOperationError(`Scene 脚本 @scene 必须指向 ${scenePath}，当前是 ${descriptor.scene}。`);
+    }
+    if (descriptor.className !== template.script.className) {
+        throw new ProjectFileOperationError(`Scene class 必须是 ${descriptor.className}，当前是 ${template.script.className}。`);
+    }
+    return descriptor;
 }
 
 async function readReferencedCompilerSceneInterfaces(projectTree: ProjectFileTreeNode, nodes: readonly SceneTemplateNode[]) {
@@ -472,11 +530,6 @@ function collectSceneInstancePaths(nodes: readonly SceneTemplateNode[], paths = 
         }
     }
     return paths;
-}
-
-function compilerSceneDescriptorPath(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
-    const sceneName = file.name.replace(/\.scene$/, '');
-    return `${projectTree.path}/src/generated/${sceneName}.scene.interface.json`;
 }
 
 export async function readProjectFileBytes(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {

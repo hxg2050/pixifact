@@ -1,7 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
-@scene('./scenes/Button.scene')
+@scene('scenes/Button.scene')
 export class Button extends Container {
     @part()
     protected declare background: Graphics;

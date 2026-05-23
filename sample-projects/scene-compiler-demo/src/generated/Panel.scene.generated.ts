@@ -49,6 +49,6 @@ export function mountPanelScene(root: Container) {
   };
 }
 
-registerScene("./scenes/Panel.scene", {
+registerScene("scenes/Panel.scene", {
   mount: mountPanelScene,
 });

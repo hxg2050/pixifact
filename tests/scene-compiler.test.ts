@@ -23,7 +23,7 @@ import { compileScenes } from 'pixifact/compiler-node';
 describe('Pixifact scene compiler spike', () => {
     it('parses a restricted XML scene template with scene props and slot outlet', () => {
         const template = parseSceneTemplate(`
-            <Scene name="Button" script="../src/scenes/Button.ts" class="Button" width="180" height="52">
+            <Scene name="Button" script="src/scenes/Button.ts" class="Button" width="180" height="52">
               <Interface>
                 <Prop name="label" type="string" default="Button" />
                 <Prop name="disabled" type="boolean" default="false" />
@@ -41,7 +41,7 @@ describe('Pixifact scene compiler spike', () => {
 
         expect(template.name).toBe('Button');
         expect(template.script).toEqual({
-            path: '../src/scenes/Button.ts',
+            path: 'src/scenes/Button.ts',
             className: 'Button',
         });
         expect(template.interface.props.label).toEqual({
@@ -307,7 +307,7 @@ describe('Pixifact scene compiler spike', () => {
 
     it('serializes a compiler scene template back to restricted XML', () => {
         const template = parseSceneTemplate(`
-            <Scene name="MainMenu" script="../src/scenes/MainMenu.ts" class="MainMenu" width="960" height="540">
+            <Scene name="MainMenu" script="src/scenes/MainMenu.ts" class="MainMenu" width="960" height="540">
               <Interface>
                 <Prop name="title" type="string" default="Menu" />
                 <Event name="start" />
@@ -322,7 +322,7 @@ describe('Pixifact scene compiler spike', () => {
         const source = serializeSceneTemplate(template);
         const next = parseSceneTemplate(source);
 
-        expect(source).toContain('<Scene name="MainMenu" script="../src/scenes/MainMenu.ts" width="960" height="540">');
+        expect(source).toContain('<Scene name="MainMenu" script="src/scenes/MainMenu.ts" width="960" height="540">');
         expect(source).toContain('<Prop name="title" type="string" default="Menu" />');
         expect(source).toContain('<Button id="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">');
         expect(source).toContain('<Text id="hintText" slot="footer" text="Press Enter" fill="#ffffff" />');
@@ -335,7 +335,7 @@ describe('Pixifact scene compiler spike', () => {
             await mkdir(join(root, 'scenes'));
             await mkdir(join(root, 'src', 'scenes'), { recursive: true });
             await writeFile(join(root, 'scenes', 'Button.scene'), `
-                <Scene name="Button" script="../src/scenes/Button.ts" class="Button" width="120" height="40">
+                <Scene name="Button" script="src/scenes/Button.ts" class="Button" width="120" height="40">
                   <Text id="labelText" text="Button" />
                 </Scene>
             `);
@@ -343,7 +343,7 @@ describe('Pixifact scene compiler spike', () => {
                 import { Container, Text } from 'pixi.js';
                 import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
-                @scene('./scenes/Button.scene')
+                @scene('scenes/Button.scene')
                 export class Button extends Container {
                     @part()
                     protected declare labelText: Text;
@@ -365,10 +365,10 @@ describe('Pixifact scene compiler spike', () => {
             const descriptor = await readFile(join(root, 'src', 'generated', 'Button.scene.interface.json'), 'utf8');
             const registry = await readFile(join(root, 'src', 'generated', 'scenes.generated.ts'), 'utf8');
 
-            expect(generated).toContain('registerScene("./scenes/Button.scene"');
+            expect(generated).toContain('registerScene("scenes/Button.scene"');
             expect(generated).toContain('export function mountButtonScene(root: Container)');
             expect(JSON.parse(descriptor)).toEqual({
-                scene: './scenes/Button.scene',
+                scene: 'scenes/Button.scene',
                 className: 'Button',
                 interface: {
                     props: {

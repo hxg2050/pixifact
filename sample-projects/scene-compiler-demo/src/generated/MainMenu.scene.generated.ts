@@ -41,6 +41,6 @@ export function mountMainMenuScene(root: Container, actions: Record<string, () =
   };
 }
 
-registerScene("./scenes/MainMenu.scene", {
+registerScene("scenes/MainMenu.scene", {
   mount: mountMainMenuScene,
 });

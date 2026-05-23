@@ -273,7 +273,7 @@ describe('Pixifact CLI', () => {
         const projectRoot = createEmptyTempProject();
         fs.mkdirSync(path.join(projectRoot, 'src', 'scenes'), { recursive: true });
         fs.writeFileSync(path.join(projectRoot, 'scenes', 'Button.scene'), `
-            <Scene name="Button" script="../src/scenes/Button.ts" class="Button" width="120" height="40">
+            <Scene name="Button" script="src/scenes/Button.ts" class="Button" width="120" height="40">
               <Text id="labelText" text="Button" />
             </Scene>
         `);
@@ -281,7 +281,7 @@ describe('Pixifact CLI', () => {
             import { Container, Text } from 'pixi.js';
             import { part, prop, scene } from 'pixifact/compiler';
 
-            @scene('./scenes/Button.scene')
+            @scene('scenes/Button.scene')
             export class Button extends Container {
                 @part()
                 protected declare labelText: Text;
@@ -302,7 +302,7 @@ describe('Pixifact CLI', () => {
         });
         expect(generated).toContain('export function mountButtonScene(root: Container)');
         expect(descriptor).toMatchObject({
-            scene: './scenes/Button.scene',
+            scene: 'scenes/Button.scene',
             className: 'Button',
             interface: {
                 props: {

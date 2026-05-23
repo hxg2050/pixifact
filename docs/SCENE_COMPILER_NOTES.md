@@ -95,20 +95,18 @@ TextInput.ts
 示意：
 
 ```xml
-<Scene name="Button" script="../src/scenes/Button.ts" class="Button">
+<Scene name="Button" script="src/scenes/Button.ts" class="Button">
   <Interface>
     <Prop name="label" type="string" default="Button" />
     <Prop name="disabled" type="boolean" default="false" />
     <Event name="click" />
-    <Slot name="icon" multiple="false" />
+    <Slot name="icon" />
   </Interface>
 
-  <Container key="root" width="180" height="52">
-    <Graphics key="background" shape="roundRect" width="180" height="52" radius="8" fill="#4169e1" />
-    <Text key="label" text="Button" x="72" y="16" fontSize="16" fill="#ffffff" />
-    <Container key="iconHost" x="20" y="14">
-      <slot name="icon" />
-    </Container>
+  <Graphics id="background" shape="roundRect" width="180" height="52" radius="8" fill="#4169e1" />
+  <Text id="label" text="Button" x="72" y="16" fontSize="16" fill="#ffffff" />
+  <Container id="iconHost" x="20" y="14">
+    <slot name="icon" />
   </Container>
 </Scene>
 ```
@@ -116,12 +114,10 @@ TextInput.ts
 父 Scene 使用它：
 
 ```xml
-<Scene name="MainMenu" script="../src/scenes/MainMenu.ts" class="MainMenu">
-  <Container key="root">
-    <Button key="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">
-      <Sprite slot="icon" key="playIcon" texture="assets/icons/play.png" />
-    </Button>
-  </Container>
+<Scene name="MainMenu" script="src/scenes/MainMenu.ts" class="MainMenu">
+  <Button id="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">
+    <Sprite id="playIcon" slot="icon" texture="assets/icons/play.png" />
+  </Button>
 </Scene>
 ```
 

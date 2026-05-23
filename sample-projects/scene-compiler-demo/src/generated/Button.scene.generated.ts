@@ -36,6 +36,6 @@ export function mountButtonScene(root: Container) {
   };
 }
 
-registerScene("./scenes/Button.scene", {
+registerScene("scenes/Button.scene", {
   mount: mountButtonScene,
 });

@@ -286,7 +286,7 @@ packages/pixifact/src/compiler/
 当前 `.scene` 结构：
 
 ```xml
-<Scene name="Button" script="../src/scenes/Button.ts" class="Button" width="188" height="48">
+<Scene name="Button" script="src/scenes/Button.ts" class="Button" width="188" height="48">
   <Graphics id="background" shape="roundRect" width="188" height="48" radius="10" fill="#2f6fed" />
   <Container id="iconHost" x="18" y="14">
     <slot name="icon" />

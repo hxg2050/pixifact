@@ -289,6 +289,50 @@ async function readHostTree() {
     return tree as Awaited<ReturnType<typeof import('../apps/editor/src/services/projectFileTree')['refreshProjectFileTree']>>;
 }
 
+function sceneScript(className: string, members = '') {
+    return host.file(`
+        import { Container, Text } from 'pixi.js';
+        import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
+
+        @scene('scenes/${className}.scene')
+        export class ${className} extends Container {
+            ${members}
+        }
+    `);
+}
+
+function emptySceneScript(className: string) {
+    return sceneScript(className);
+}
+
+function buttonSceneScript(options: { disabled?: boolean } = {}) {
+    return sceneScript('Button', `
+        @part()
+        protected declare labelText: Text;
+
+        @prop({ type: 'string', default: 'Button' })
+        accessor label = 'Button';
+
+        ${options.disabled ? `
+        @prop({ type: 'boolean', default: false })
+        accessor disabled = false;
+        ` : ''}
+
+        @event()
+        readonly click = createEvent();
+
+        @slot()
+        icon!: Container;
+    `);
+}
+
+function panelSceneScript(className = 'Panel') {
+    return sceneScript(className, `
+        @slot()
+        footer!: Container;
+    `);
+}
+
 describe('project file tree service', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -369,13 +413,18 @@ describe('project file tree service', () => {
         const tree = await readHostTree();
         const scenes = tree.children?.[0];
 
-        const created = await createSceneFile(scenes!, 'menu panel');
+        const created = await createSceneFile(tree, scenes!, 'menu panel');
         const refreshed = await readHostTree();
 
         expect(created.path).toBe('GameProject/scenes/MenuPanel.scene');
+        expect(created.scriptPath).toBe('GameProject/src/scenes/MenuPanel.ts');
         expect(parseSceneTemplate(created.content)).toMatchObject({
             version: 2,
             name: 'MenuPanel',
+            script: {
+                path: 'src/scenes/MenuPanel.ts',
+                className: 'MenuPanel',
+            },
             props: {
                 width: 960,
                 height: 540,
@@ -387,8 +436,9 @@ describe('project file tree service', () => {
             },
             children: [],
         });
-        expect(created.content).toBe('<Scene name="MenuPanel" width="960" height="540">\n</Scene>\n');
+        expect(created.content).toBe('<Scene name="MenuPanel" script="src/scenes/MenuPanel.ts" width="960" height="540">\n</Scene>\n');
         expect(refreshed.children?.[0].children?.[0].name).toBe('MenuPanel.scene');
+        expect(findFileByPath(refreshed, 'GameProject/src/scenes/MenuPanel.ts')).toBeDefined();
     });
 
     it('rejects duplicate scene file names', async () => {
@@ -400,7 +450,7 @@ describe('project file tree service', () => {
         const tree = await readHostTree();
         const scenes = tree.children?.[0];
 
-        await expect(createSceneFile(scenes!, 'menu panel')).rejects.toThrow('已存在 MenuPanel.scene');
+        await expect(createSceneFile(tree, scenes!, 'menu panel')).rejects.toThrow('已存在 MenuPanel.scene');
     });
 
     it('creates a folder in the selected directory', async () => {
@@ -616,37 +666,15 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'Button.scene': host.file(`
-                    <Scene name="Button" script="../src/scenes/Button.ts" class="Button" width="120" height="40">
+                    <Scene name="Button" script="src/scenes/Button.ts" width="120" height="40">
                       <Graphics id="background" shape="roundRect" width="120" height="40" radius="8" fill="#2f6fed" />
                       <Text id="labelText" text="Button" />
                     </Scene>
                 `),
             }),
             src: host.directory({
-                generated: host.directory({
-                    'Button.scene.interface.json': host.file(JSON.stringify({
-                        scene: './scenes/Button.scene',
-                        className: 'Button',
-                        interface: {
-                            props: {
-                                label: {
-                                    type: 'string',
-                                    default: 'Button',
-                                },
-                            },
-                            events: {
-                                click: {
-                                    type: 'action',
-                                },
-                            },
-                            slots: {
-                                icon: {},
-                            },
-                        },
-                        parts: {
-                            labelText: 'labelText',
-                        },
-                    })),
+                scenes: host.directory({
+                    'Button.ts': buttonSceneScript(),
                 }),
             }),
         });
@@ -669,40 +697,17 @@ describe('project file tree service', () => {
     it('loads public interfaces for compiler Scene instances', async () => {
         host.reset({
             scenes: host.directory({
-                'Button.scene': host.file('<Scene name="Button" />'),
+                'Button.scene': host.file('<Scene name="Button" script="src/scenes/Button.ts" />'),
                 'MainMenu.scene': host.file(`
-                    <Scene name="MainMenu">
+                    <Scene name="MainMenu" script="src/scenes/MainMenu.ts">
                       <Button id="startButton" scene="scenes/Button.scene" label="Start" @click="startGame" />
                     </Scene>
                 `),
             }),
             src: host.directory({
-                generated: host.directory({
-                    'Button.scene.interface.json': host.file(JSON.stringify({
-                        scene: './scenes/Button.scene',
-                        className: 'Button',
-                        interface: {
-                            props: {
-                                label: {
-                                    type: 'string',
-                                    default: 'Button',
-                                },
-                                disabled: {
-                                    type: 'boolean',
-                                    default: false,
-                                },
-                            },
-                            events: {
-                                click: {
-                                    type: 'action',
-                                },
-                            },
-                            slots: {
-                                icon: {},
-                            },
-                        },
-                        parts: {},
-                    })),
+                scenes: host.directory({
+                    'Button.ts': buttonSceneScript({ disabled: true }),
+                    'MainMenu.ts': emptySceneScript('MainMenu'),
                 }),
             }),
         });
@@ -790,11 +795,16 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'Button.scene': host.file(`
-                    <Scene name="Button" width="120" height="40">
+                    <Scene name="Button" script="src/scenes/Button.ts" width="120" height="40">
                       <Graphics id="background" shape="roundRect" width="120" height="40" radius="8" fill="#4169e1" />
                       <Text id="labelText" text="Button" x="32" y="10" fontSize="16" fill="#ffffff" />
                     </Scene>
                 `),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.ts': buttonSceneScript(),
+                }),
             }),
         });
         const tree = await readHostTree();
@@ -844,7 +854,12 @@ describe('project file tree service', () => {
     it('updates compiler Scene root metadata in memory', async () => {
         host.reset({
             scenes: host.directory({
-                'Button.scene': host.file('<Scene name="Button" width="120" height="40" />'),
+                'Button.scene': host.file('<Scene name="Button" script="src/scenes/Button.ts" width="120" height="40" />'),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.ts': buttonSceneScript(),
+                }),
             }),
         });
         const tree = await readHostTree();
@@ -859,7 +874,7 @@ describe('project file tree service', () => {
                 height: 52,
             },
             script: {
-                path: '../src/scenes/Button.ts',
+                path: 'src/scenes/Button.ts',
                 className: 'Button',
             },
         });
@@ -869,7 +884,7 @@ describe('project file tree service', () => {
         expect(compilerDocument?.template).toMatchObject({
             name: 'PrimaryButton',
             script: {
-                path: '../src/scenes/Button.ts',
+                path: 'src/scenes/Button.ts',
                 className: 'Button',
             },
             props: {
@@ -884,27 +899,17 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'MainMenu.scene': host.file(`
-                    <Scene name="MainMenu">
+                    <Scene name="MainMenu" script="src/scenes/MainMenu.ts">
                       <Container id="content" />
                       <Panel id="settingsPanel" scene="scenes/Panel.scene" />
                     </Scene>
                 `),
-                'Panel.scene': host.file('<Scene name="Panel" />'),
+                'Panel.scene': host.file('<Scene name="Panel" script="src/scenes/Panel.ts" />'),
             }),
             src: host.directory({
-                generated: host.directory({
-                    'Panel.scene.interface.json': host.file(JSON.stringify({
-                        scene: './scenes/Panel.scene',
-                        className: 'Panel',
-                        interface: {
-                            props: {},
-                            events: {},
-                            slots: {
-                                footer: {},
-                            },
-                        },
-                        parts: {},
-                    })),
+                scenes: host.directory({
+                    'MainMenu.ts': emptySceneScript('MainMenu'),
+                    'Panel.ts': panelSceneScript(),
                 }),
             }),
         });
@@ -1056,27 +1061,17 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'MainMenu.scene': host.file(`
-                    <Scene name="MainMenu">
+                    <Scene name="MainMenu" script="src/scenes/MainMenu.ts">
                       <Container id="content" />
                       <Panel id="settingsPanel" scene="scenes/Panel.scene" />
                     </Scene>
                 `),
-                'Panel.scene': host.file('<Scene name="Panel" />'),
+                'Panel.scene': host.file('<Scene name="Panel" script="src/scenes/Panel.ts" />'),
             }),
             src: host.directory({
-                generated: host.directory({
-                    'Panel.scene.interface.json': host.file(JSON.stringify({
-                        scene: './scenes/Panel.scene',
-                        className: 'Panel',
-                        interface: {
-                            props: {},
-                            events: {},
-                            slots: {
-                                footer: {},
-                            },
-                        },
-                        parts: {},
-                    })),
+                scenes: host.directory({
+                    'MainMenu.ts': emptySceneScript('MainMenu'),
+                    'Panel.ts': panelSceneScript(),
                 }),
             }),
         });
@@ -1121,55 +1116,25 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'MainMenu.scene': host.file(`
-                    <Scene name="MainMenu">
+                    <Scene name="MainMenu" script="src/scenes/MainMenu.ts">
                       <Container id="content" />
                       <Panel id="settingsPanel" scene="scenes/Panel.scene" />
                     </Scene>
                 `),
                 'Button.scene': host.file(`
-                    <Scene name="Button" script="../src/scenes/Button.ts" class="Button" width="120" height="40">
+                    <Scene name="Button" script="src/scenes/Button.ts" width="120" height="40">
                       <Container id="iconHost">
                         <slot name="icon" />
                       </Container>
                     </Scene>
                 `),
-                'Panel.scene': host.file('<Scene name="Panel" />'),
+                'Panel.scene': host.file('<Scene name="Panel" script="src/scenes/Panel.ts" />'),
             }),
             src: host.directory({
-                generated: host.directory({
-                    'Button.scene.interface.json': host.file(JSON.stringify({
-                        scene: './scenes/Button.scene',
-                        className: 'Button',
-                        interface: {
-                            props: {
-                                label: {
-                                    type: 'string',
-                                    default: 'Button',
-                                },
-                            },
-                            events: {
-                                click: {
-                                    type: 'action',
-                                },
-                            },
-                            slots: {
-                                icon: {},
-                            },
-                        },
-                        parts: {},
-                    })),
-                    'Panel.scene.interface.json': host.file(JSON.stringify({
-                        scene: './scenes/Panel.scene',
-                        className: 'Panel',
-                        interface: {
-                            props: {},
-                            events: {},
-                            slots: {
-                                footer: {},
-                            },
-                        },
-                        parts: {},
-                    })),
+                scenes: host.directory({
+                    'MainMenu.ts': emptySceneScript('MainMenu'),
+                    'Button.ts': buttonSceneScript(),
+                    'Panel.ts': panelSceneScript(),
                 }),
             }),
         });
@@ -1242,10 +1207,15 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'MainMenu.scene': host.file(`
-                    <Scene name="MainMenu">
+                    <Scene name="MainMenu" script="src/scenes/MainMenu.ts">
                       <Text id="titleText" text="Title" />
                     </Scene>
                 `),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'MainMenu.ts': emptySceneScript('MainMenu'),
+                }),
             }),
         });
         const tree = await readHostTree();
@@ -1265,7 +1235,7 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'MainMenu.scene': host.file(`
-                    <Scene name="MainMenu">
+                    <Scene name="MainMenu" script="src/scenes/MainMenu.ts">
                       <Text id="titleText" text="Title" />
                       <Container id="content">
                         <Graphics id="background" />
@@ -1275,22 +1245,12 @@ describe('project file tree service', () => {
                       </Panel>
                     </Scene>
                 `),
-                'Panel.scene': host.file('<Scene name="Panel" />'),
+                'Panel.scene': host.file('<Scene name="Panel" script="src/scenes/Panel.ts" />'),
             }),
             src: host.directory({
-                generated: host.directory({
-                    'Panel.scene.interface.json': host.file(JSON.stringify({
-                        scene: './scenes/Panel.scene',
-                        className: 'Panel',
-                        interface: {
-                            props: {},
-                            events: {},
-                            slots: {
-                                footer: {},
-                            },
-                        },
-                        parts: {},
-                    })),
+                scenes: host.directory({
+                    'MainMenu.ts': emptySceneScript('MainMenu'),
+                    'Panel.ts': panelSceneScript(),
                 }),
             }),
         });
@@ -1327,12 +1287,17 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'Panel.scene': host.file(`
-                    <Scene name="Panel">
+                    <Scene name="Panel" script="src/scenes/Panel.ts">
                       <Container id="footerHost">
                         <slot name="footer" />
                       </Container>
                     </Scene>
                 `),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Panel.ts': panelSceneScript(),
+                }),
             }),
         });
         const tree = await readHostTree();
@@ -1357,7 +1322,7 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'MainMenu.scene': host.file(`
-                    <Scene name="MainMenu">
+                    <Scene name="MainMenu" script="src/scenes/MainMenu.ts">
                       <Text id="titleText" text="Title" />
                       <Container id="content">
                         <Graphics id="background" />
@@ -1365,22 +1330,12 @@ describe('project file tree service', () => {
                       <Panel id="settingsPanel" scene="scenes/Panel.scene" />
                     </Scene>
                 `),
-                'Panel.scene': host.file('<Scene name="Panel" />'),
+                'Panel.scene': host.file('<Scene name="Panel" script="src/scenes/Panel.ts" />'),
             }),
             src: host.directory({
-                generated: host.directory({
-                    'Panel.scene.interface.json': host.file(JSON.stringify({
-                        scene: './scenes/Panel.scene',
-                        className: 'Panel',
-                        interface: {
-                            props: {},
-                            events: {},
-                            slots: {
-                                footer: {},
-                            },
-                        },
-                        parts: {},
-                    })),
+                scenes: host.directory({
+                    'MainMenu.ts': emptySceneScript('MainMenu'),
+                    'Panel.ts': panelSceneScript(),
                 }),
             }),
         });
@@ -1427,7 +1382,7 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'Panel.scene': host.file(`
-                    <Scene name="Panel">
+                    <Scene name="Panel" script="src/scenes/Panel.ts">
                       <Container id="content">
                         <Text id="titleText" text="Title" />
                         <slot name="default" />
@@ -1436,22 +1391,12 @@ describe('project file tree service', () => {
                       <Panel id="nestedPanel" scene="scenes/NestedPanel.scene" />
                     </Scene>
                 `),
-                'NestedPanel.scene': host.file('<Scene name="NestedPanel" />'),
+                'NestedPanel.scene': host.file('<Scene name="NestedPanel" script="src/scenes/NestedPanel.ts" />'),
             }),
             src: host.directory({
-                generated: host.directory({
-                    'NestedPanel.scene.interface.json': host.file(JSON.stringify({
-                        scene: './scenes/NestedPanel.scene',
-                        className: 'NestedPanel',
-                        interface: {
-                            props: {},
-                            events: {},
-                            slots: {
-                                footer: {},
-                            },
-                        },
-                        parts: {},
-                    })),
+                scenes: host.directory({
+                    'Panel.ts': panelSceneScript(),
+                    'NestedPanel.ts': panelSceneScript('NestedPanel'),
                 }),
             }),
         });
@@ -1494,7 +1439,7 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'MainMenu.scene': host.file(`
-                    <Scene name="MainMenu">
+                    <Scene name="MainMenu" script="src/scenes/MainMenu.ts">
                       <Container id="content">
                         <Container id="inner" />
                         <slot name="footer" />
@@ -1502,22 +1447,12 @@ describe('project file tree service', () => {
                       <Panel id="settingsPanel" scene="scenes/Panel.scene" />
                     </Scene>
                 `),
-                'Panel.scene': host.file('<Scene name="Panel" />'),
+                'Panel.scene': host.file('<Scene name="Panel" script="src/scenes/Panel.ts" />'),
             }),
             src: host.directory({
-                generated: host.directory({
-                    'Panel.scene.interface.json': host.file(JSON.stringify({
-                        scene: './scenes/Panel.scene',
-                        className: 'Panel',
-                        interface: {
-                            props: {},
-                            events: {},
-                            slots: {
-                                footer: {},
-                            },
-                        },
-                        parts: {},
-                    })),
+                scenes: host.directory({
+                    'MainMenu.ts': emptySceneScript('MainMenu'),
+                    'Panel.ts': panelSceneScript(),
                 }),
             }),
         });
@@ -1540,10 +1475,15 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'MainMenu.scene': host.file(`
-                    <Scene name="MainMenu">
+                    <Scene name="MainMenu" script="src/scenes/MainMenu.ts">
                       <Button id="startButton" scene="scenes/Button.scene" label="Start" @click="startGame" />
                     </Scene>
                 `),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'MainMenu.ts': emptySceneScript('MainMenu'),
+                }),
             }),
         });
         const tree = await readHostTree();
@@ -1601,11 +1541,16 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'Button.scene': host.file(`
-                    <Scene name="Button" width="120" height="40">
+                    <Scene name="Button" script="src/scenes/Button.ts" width="120" height="40">
                       <Graphics id="background" shape="roundRect" width="120" height="40" radius="8" fill="#4169e1" />
                       <Text id="labelText" text="Button" x="32" y="10" fontSize="16" fill="#ffffff" />
                     </Scene>
                 `),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.ts': buttonSceneScript(),
+                }),
             }),
         });
         const tree = await readHostTree();
@@ -1619,7 +1564,7 @@ describe('project file tree service', () => {
                 height: 52,
             },
             script: {
-                path: '../src/scenes/Button.ts',
+                path: 'src/scenes/Button.ts',
                 className: 'Button',
             },
         });
@@ -1645,7 +1590,7 @@ describe('project file tree service', () => {
         expect(getCompilerSceneDocument()?.dirty).toBe(false);
 
         const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene');
-        expect(saved).toContain('<Scene name="PrimaryButton" script="../src/scenes/Button.ts" class="Button" width="180" height="52">');
+        expect(saved).toContain('<Scene name="PrimaryButton" script="src/scenes/Button.ts" class="Button" width="180" height="52">');
         expect(saved).toContain('<Text id="titleText" text="Start" x="40" y="10" fontSize="16" fill="#ffffff" pivotX="8" pivotY="4" skewX="0.1" skewY="0.2" alpha="0.9" eventMode="static" cursor="pointer" label="title" />');
     });
 
@@ -1653,10 +1598,15 @@ describe('project file tree service', () => {
         host.reset({
             scenes: host.directory({
                 'MainMenu.scene': host.file(`
-                    <Scene name="MainMenu">
+                    <Scene name="MainMenu" script="src/scenes/MainMenu.ts">
                       <Button id="startButton" scene="scenes/Button.scene" label="Start" @click="startGame" />
                     </Scene>
                 `),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'MainMenu.ts': emptySceneScript('MainMenu'),
+                }),
             }),
         });
         const tree = await readHostTree();
@@ -1721,7 +1671,7 @@ describe('project file tree service', () => {
         expect(host.writeProjectFileText).toHaveBeenCalledWith(
             '/tmp/GameProject',
             'GameProject/scenes/StatusPanel.scene',
-            '<Scene name="StatusPanel" width="960" height="540">\n</Scene>\n',
+            '<Scene name="StatusPanel" script="src/scenes/StatusPanel.ts" width="960" height="540">\n</Scene>\n',
         );
         expect(parseSceneTemplate(saved).name).toBe('StatusPanel');
     });

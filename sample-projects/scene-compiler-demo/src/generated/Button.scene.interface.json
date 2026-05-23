@@ -1,5 +1,5 @@
 {
-  "scene": "./scenes/Button.scene",
+  "scene": "scenes/Button.scene",
   "className": "Button",
   "interface": {
     "props": {

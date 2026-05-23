@@ -1,5 +1,5 @@
 {
-  "scene": "./scenes/MainMenu.scene",
+  "scene": "scenes/MainMenu.scene",
   "className": "MainMenu",
   "interface": {
     "props": {},
