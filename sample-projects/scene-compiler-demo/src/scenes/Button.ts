@@ -1,32 +1,33 @@
-import { Container, Graphics } from 'pixi.js';
-import { event, prop, scene, slot } from 'pixifact/compiler';
-import { mountButtonScene } from '../generated/Button.scene.generated';
-import type { ButtonParts } from '../generated/Button.scene.generated';
+import { Container, Graphics, Text } from 'pixi.js';
+import { event, part, prop, scene, slot } from 'pixifact/compiler';
 
 @scene('./scenes/Button.scene')
 export class Button extends Container {
-    readonly #parts: ButtonParts;
+    @part()
+    protected declare background: Graphics;
+
+    @part()
+    protected declare labelText: Text;
+
     #clickHandler?: () => void;
 
-    constructor() {
-        super();
-        this.#parts = mountButtonScene(this);
+    childrenCreated() {
         this.eventMode = 'static';
         this.cursor = 'pointer';
         this.on('pointertap', () => {
             this.#clickHandler?.();
         });
         this.on('pointerover', () => {
-            this.#parts.background.tint = 0xc8dcff;
+            this.background.tint = 0xc8dcff;
         });
         this.on('pointerout', () => {
-            this.#parts.background.tint = 0xffffff;
+            this.background.tint = 0xffffff;
         });
     }
 
     @prop({ type: 'string', default: 'Button' })
     set label(value: string) {
-        this.#parts.labelText.text = value;
+        this.labelText.text = value;
     }
 
     @prop({ type: 'boolean', default: false })
@@ -40,7 +41,7 @@ export class Button extends Container {
         this.#clickHandler = handler;
     }
 
-    @slot({ multiple: false })
+    @slot()
     declare readonly icon: Container;
 
     setIconGraphic(graphic: Graphics) {

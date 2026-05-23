@@ -1,13 +1,11 @@
-<Scene name="Panel" script="../src/scenes/Panel.ts" class="Panel">
-  <Container key="root" width="520" height="280">
-    <Graphics key="background" shape="roundRect" width="520" height="280" radius="18" fill="#192235" />
-    <Graphics key="headerRule" shape="rect" x="28" y="72" width="464" height="1" fill="#39506f" />
-    <Text key="titleText" text="Panel" x="30" y="28" fontSize="24" fontWeight="800" fill="#ffffff" />
-    <Container key="contentHost" x="32" y="96">
-      <slot />
-    </Container>
-    <Container key="footerHost" x="300" y="208">
-      <slot name="footer" />
-    </Container>
+<Scene name="Panel" script="../src/scenes/Panel.ts" class="Panel" width="520" height="280">
+  <Graphics id="background" shape="roundRect" width="520" height="280" radius="18" fill="#192235" />
+  <Graphics id="headerRule" shape="rect" x="28" y="72" width="464" height="1" fill="#39506f" />
+  <Text id="titleText" text="Panel" x="30" y="28" fontSize="24" fontWeight="800" fill="#ffffff" />
+  <Container id="contentHost" x="32" y="96">
+    <slot />
+  </Container>
+  <Container id="footerHost" x="300" y="208">
+    <slot name="footer" />
   </Container>
 </Scene>

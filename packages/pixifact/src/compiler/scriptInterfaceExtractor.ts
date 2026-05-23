@@ -48,9 +48,7 @@ export function extractSceneScriptInterface(source: string, fileName = 'scene-sc
 
             const slot = memberDecoratorOptions(member, 'slot');
             if (slot) {
-                slots[typeof slot.name === 'string' ? slot.name : name] = {
-                    multiple: slot.multiple === undefined ? true : slot.multiple === true,
-                };
+                slots[typeof slot.name === 'string' ? slot.name : name] = {};
             }
         }
 

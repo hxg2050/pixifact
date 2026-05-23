@@ -27,7 +27,6 @@ export interface SceneTemplateEventContract {
 }
 
 export interface SceneTemplateSlotContract {
-    multiple: boolean;
 }
 
 export interface SceneTemplateInterface {
@@ -40,8 +39,9 @@ export interface SceneTemplate {
     version: 2;
     name: string;
     script?: SceneTemplateScript;
+    props: Record<string, SceneTemplateValue>;
     interface: SceneTemplateInterface;
-    root: SceneTemplateNode;
+    children: SceneTemplateNode[];
 }
 
 export type SceneTemplateNode =
@@ -52,7 +52,7 @@ export type SceneTemplateNode =
 export interface PixiTemplateNode {
     kind: 'pixi';
     type: SceneTemplatePrimitiveType;
-    key?: string;
+    id?: string;
     props: Record<string, SceneTemplateValue>;
     children: SceneTemplateNode[];
 }
@@ -60,7 +60,7 @@ export interface PixiTemplateNode {
 export interface SceneInstanceTemplateNode {
     kind: 'sceneInstance';
     type: string;
-    key?: string;
+    id?: string;
     scene: string;
     props: Record<string, SceneTemplateValue>;
     events: Record<string, string>;
@@ -75,6 +75,7 @@ export interface SlotOutletTemplateNode {
 export interface CompileSceneTemplateOptions {
     functionName?: string;
     actionsParameter?: string;
+    registrationPath?: string;
 }
 
 export interface SceneScriptInterface {
@@ -101,5 +102,8 @@ export interface SceneEventDecoratorOptions {
 
 export interface SceneSlotDecoratorOptions {
     name?: string;
-    multiple?: boolean;
+}
+
+export interface ScenePartDecoratorOptions {
+    id?: string;
 }

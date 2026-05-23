@@ -41,9 +41,6 @@ export function parseSceneTemplate(source: string): SceneTemplate {
 
     const interfaceElement = root.children.find((child) => child.name === 'Interface');
     const templateChildren = root.children.filter((child) => child.name !== 'Interface');
-    if (templateChildren.length !== 1) {
-        throw new Error(`Scene "${name}" must have exactly one template root.`);
-    }
 
     const script = root.attributes.script
         ? {
@@ -52,12 +49,16 @@ export function parseSceneTemplate(source: string): SceneTemplate {
         }
         : undefined;
 
+    const children = templateChildren.map(parseTemplateNode);
+    assertUniqueIds(name, children);
+
     return {
         version: 2,
         name,
         script,
+        props: parseProps(root, ['name', 'script', 'class']),
         interface: parseInterface(interfaceElement),
-        root: parseTemplateNode(templateChildren[0]),
+        children,
     };
 }
 
@@ -87,11 +88,7 @@ function parseInterface(element: XmlElement | undefined): SceneTemplateInterface
         }
         if (child.name === 'Slot') {
             const name = requiredAttribute(child, 'name');
-            result.slots[name] = {
-                multiple: child.attributes.multiple === undefined
-                    ? true
-                    : parseAttributeValue(child.attributes.multiple) === true,
-            };
+            result.slots[name] = {};
             continue;
         }
         throw new Error(`Unsupported interface tag <${child.name}>.`);
@@ -113,9 +110,9 @@ function parseTemplateNode(element: XmlElement): SceneTemplateNode {
         const node: PixiTemplateNode = {
             kind: 'pixi',
             type: element.name as SceneTemplatePrimitiveType,
-            props: parseProps(element, ['key', 'slot']),
+            props: parseProps(element, ['id', 'slot']),
             children: element.children.map(parseTemplateNode),
-            ...(element.attributes.key ? { key: element.attributes.key } : {}),
+            ...(element.attributes.id ? { id: element.attributes.id } : {}),
         };
         return node;
     }
@@ -132,10 +129,10 @@ function parseTemplateNode(element: XmlElement): SceneTemplateNode {
             kind: 'sceneInstance',
             type: element.name,
             scene: element.attributes.scene,
-            props: parseProps(element, ['key', 'scene', 'slot'], isEventAttribute),
+            props: parseProps(element, ['id', 'scene', 'slot'], isEventAttribute),
             events: parseEvents(element),
             slots,
-            ...(element.attributes.key ? { key: element.attributes.key } : {}),
+            ...(element.attributes.id ? { id: element.attributes.id } : {}),
         };
         return node;
     }
@@ -209,6 +206,37 @@ function removeAttribute(element: XmlElement, name: string): XmlElement {
         ...element,
         attributes,
     };
+}
+
+function assertUniqueIds(sceneName: string, children: SceneTemplateNode[]) {
+    const seen = new Set<string>();
+
+    function visit(node: SceneTemplateNode) {
+        if (node.kind === 'slotOutlet') {
+            return;
+        }
+        if (node.id) {
+            if (seen.has(node.id)) {
+                throw new Error(`Scene "${sceneName}" has duplicate id "${node.id}".`);
+            }
+            seen.add(node.id);
+        }
+        if (node.kind === 'pixi') {
+            for (const child of node.children) {
+                visit(child);
+            }
+            return;
+        }
+        for (const slottedChildren of Object.values(node.slots)) {
+            for (const child of slottedChildren) {
+                visit(child);
+            }
+        }
+    }
+
+    for (const child of children) {
+        visit(child);
+    }
 }
 
 class TemplateXmlParser {

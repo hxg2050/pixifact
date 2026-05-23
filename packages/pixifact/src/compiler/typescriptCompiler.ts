@@ -18,8 +18,9 @@ export function compileSceneTemplateToTs(template: SceneTemplate, options: Compi
 
 class CompileContext {
     readonly #imports = new Set<SceneTemplatePrimitiveType>();
+    readonly #runtimeImports = new Set<string>();
     readonly #lines: string[] = [];
-    readonly #parts: { key: string; type: string }[] = [];
+    readonly #parts: { id: string; type: string }[] = [];
     #nextId = 0;
 
     constructor(
@@ -28,32 +29,56 @@ class CompileContext {
     ) {}
 
     compile() {
-        this.#collectImports(this.template.root);
-        this.#collectParts(this.template.root);
+        for (const child of this.template.children) {
+            this.#collectImports(child);
+            this.#collectParts(child);
+        }
 
         const functionName = this.options.functionName || `mount${this.template.name}Scene`;
         const actionsParameter = this.options.actionsParameter || 'actions';
-        const imports = this.#formatImports();
         const partsType = this.#formatPartsType();
 
         this.#lines.push(`export function ${functionName}(root: Container, ${actionsParameter}: Record<string, () => void> = {}) {`);
-        this.#compileRoot(this.template.root, 'root', actionsParameter);
-        this.#lines.push(`  return { ${['root', ...this.#parts.map((part) => part.key)].join(', ')} };`);
+        this.#lines.push('  const __pixifactSlots: Record<string, Container> = {};');
+        this.#applyPixiProps('root', this.template.props);
+        for (const child of this.template.children) {
+            this.#compileNode(child, 'root', actionsParameter);
+        }
+        this.#lines.push('  return {');
+        this.#lines.push('    root,');
+        this.#lines.push(`    parts: { ${this.#parts.map((part) => part.id).join(', ')} },`);
+        this.#lines.push('    slots: __pixifactSlots,');
+        this.#lines.push('  };');
         this.#lines.push('}');
+        if (this.options.registrationPath) {
+            this.#runtimeImports.add('registerScene');
+            this.#lines.push('');
+            this.#lines.push(`registerScene(${JSON.stringify(this.options.registrationPath)}, {`);
+            this.#lines.push(`  mount: ${functionName},`);
+            this.#lines.push('});');
+        }
 
+        const imports = this.#formatImports();
         return `${imports}\n\n${partsType}\n\n${this.#lines.join('\n')}\n`;
     }
 
     #formatImports() {
         const imports = ['Container', ...[...this.#imports].filter((item) => item !== 'Container').sort()];
-        return `import { ${imports.join(', ')} } from 'pixi.js';`;
+        const lines = [`import { ${imports.join(', ')} } from 'pixi.js';`];
+        if (this.#runtimeImports.size > 0) {
+            lines.push(`import { ${[...this.#runtimeImports].sort().join(', ')} } from 'pixifact/compiler';`);
+        }
+        return lines.join('\n');
     }
 
     #formatPartsType() {
         const lines = [`export type ${this.template.name}Parts = {`, '  root: Container;'];
+        lines.push('  parts: {');
         for (const part of this.#parts) {
-            lines.push(`  ${part.key}: ${part.type};`);
+            lines.push(`    ${part.id}: ${part.type};`);
         }
+        lines.push('  };');
+        lines.push('  slots: Record<string, Container>;');
         lines.push('};');
         return lines.join('\n');
     }
@@ -77,8 +102,8 @@ class CompileContext {
 
     #collectParts(node: SceneTemplateNode) {
         if (node.kind === 'pixi') {
-            if (node.key && node.key !== 'root') {
-                this.#parts.push({ key: node.key, type: node.type });
+            if (node.id) {
+                this.#parts.push({ id: node.id, type: node.type });
             }
             for (const child of node.children) {
                 this.#collectParts(child);
@@ -86,8 +111,8 @@ class CompileContext {
             return;
         }
         if (node.kind === 'sceneInstance') {
-            if (node.key) {
-                this.#parts.push({ key: node.key, type: node.type });
+            if (node.id) {
+                this.#parts.push({ id: node.id, type: node.type });
             }
             for (const children of Object.values(node.slots)) {
                 for (const child of children) {
@@ -97,18 +122,11 @@ class CompileContext {
         }
     }
 
-    #compileRoot(node: SceneTemplateNode, variable: string, actionsParameter: string) {
-        if (node.kind !== 'pixi' || node.type !== 'Container') {
-            throw new Error(`Scene "${this.template.name}" root must be a Container.`);
-        }
-        this.#applyPixiProps(variable, node.props);
-        for (const child of node.children) {
-            this.#compileNode(child, variable, actionsParameter);
-        }
-    }
-
     #compileNode(node: SceneTemplateNode, parent: string, actionsParameter: string) {
         if (node.kind === 'slotOutlet') {
+            this.#runtimeImports.add('registerSlot');
+            this.#lines.push(`  __pixifactSlots[${JSON.stringify(node.name)}] = ${parent};`);
+            this.#lines.push(`  registerSlot(root, ${JSON.stringify(node.name)}, ${parent});`);
             return;
         }
         if (node.kind === 'sceneInstance') {
@@ -119,8 +137,9 @@ class CompileContext {
     }
 
     #compilePixiNode(node: PixiTemplateNode, parent: string, actionsParameter: string) {
-        const variable = node.key || this.#anonymousName(node.type);
+        const variable = node.id || this.#anonymousName(node.type);
         this.#lines.push(`  const ${variable} = ${this.#constructPixiNode(node)};`);
+        this.#applyNodeId(variable, node.id);
         this.#applyPixiProps(variable, node.props);
         this.#lines.push(`  ${parent}.addChild(${variable});`);
         for (const child of node.children) {
@@ -129,7 +148,7 @@ class CompileContext {
     }
 
     #compileSceneInstance(node: SceneInstanceTemplateNode, parent: string, actionsParameter: string) {
-        const variable = node.key || this.#anonymousName(node.type);
+        const variable = node.id || this.#anonymousName(node.type);
         this.#lines.push(`  const ${variable} = new ${node.type}();`);
         this.#applyPixiProps(variable, node.props, true);
         for (const [name, action] of Object.entries(node.events)) {
@@ -138,8 +157,9 @@ class CompileContext {
         this.#lines.push(`  ${parent}.addChild(${variable});`);
         for (const [slot, children] of Object.entries(node.slots)) {
             for (const child of children) {
-                const childVariable = this.#compileSlottedNode(child, `${variable}.slots.${slot}`, actionsParameter);
-                this.#lines.push(`  ${variable}.slots.${slot}.addChild(${childVariable});`);
+                const childVariable = this.#compileSlottedNode(child, variable, actionsParameter);
+                this.#runtimeImports.add('mount');
+                this.#lines.push(`  mount(${variable}, ${childVariable}, ${JSON.stringify(slot)});`);
             }
         }
     }
@@ -149,23 +169,26 @@ class CompileContext {
             throw new Error(`Cannot place <slot> inside ${slotTarget}.`);
         }
         if (node.kind === 'sceneInstance') {
-            const variable = node.key || this.#anonymousName(node.type);
+            const variable = node.id || this.#anonymousName(node.type);
             this.#lines.push(`  const ${variable} = new ${node.type}();`);
+            this.#applyNodeId(variable, node.id);
             this.#applyPixiProps(variable, node.props, true);
             for (const [name, action] of Object.entries(node.events)) {
                 this.#lines.push(`  ${variable}.${this.#eventMethod(name)}(${actionsParameter}.${action});`);
             }
             for (const [slot, children] of Object.entries(node.slots)) {
                 for (const child of children) {
-                    const childVariable = this.#compileSlottedNode(child, `${variable}.slots.${slot}`, actionsParameter);
-                    this.#lines.push(`  ${variable}.slots.${slot}.addChild(${childVariable});`);
+                    const childVariable = this.#compileSlottedNode(child, variable, actionsParameter);
+                    this.#runtimeImports.add('mount');
+                    this.#lines.push(`  mount(${variable}, ${childVariable}, ${JSON.stringify(slot)});`);
                 }
             }
             return variable;
         }
 
-        const variable = node.key || this.#anonymousName(node.type);
+        const variable = node.id || this.#anonymousName(node.type);
         this.#lines.push(`  const ${variable} = ${this.#constructPixiNode(node)};`);
+        this.#applyNodeId(variable, node.id);
         this.#applyPixiProps(variable, node.props);
         for (const child of node.children) {
             this.#compileNode(child, variable, actionsParameter);
@@ -223,6 +246,12 @@ class CompileContext {
         }
         if (shape === 'rect') {
             this.#lines.push(`  ${variable}.rect(0, 0, ${this.#value(props.width ?? 0)}, ${this.#value(props.height ?? 0)}).fill(${this.#value(props.fill ?? 0xffffff)});`);
+        }
+    }
+
+    #applyNodeId(variable: string, id: string | undefined) {
+        if (id) {
+            this.#lines.push(`  ${variable}.label = ${JSON.stringify(id)};`);
         }
     }
 

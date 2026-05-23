@@ -1,4 +1,5 @@
 import './styles.css';
+import './generated/scenes.generated';
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import { mount } from 'pixifact/compiler';
 import { Button } from './scenes/Button';

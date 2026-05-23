@@ -3,6 +3,7 @@ import {
     emitSceneScriptInterfaceDescriptor,
     event,
     extractSceneScriptInterface,
+    part,
     prop,
     scene,
     slot,
@@ -25,7 +26,7 @@ describe('scene script interface extractor', () => {
                 @event()
                 onClick(handler: () => void) {}
 
-                @slot({ multiple: false })
+                @slot()
                 icon!: Container;
             }
         `);
@@ -50,9 +51,7 @@ describe('scene script interface extractor', () => {
                     },
                 },
                 slots: {
-                    icon: {
-                        multiple: false,
-                    },
+                    icon: {},
                 },
             },
         });
@@ -76,9 +75,7 @@ describe('scene script interface extractor', () => {
             },
         });
         expect(contract.interface.slots).toEqual({
-            footer: {
-                multiple: true,
-            },
+            footer: {},
         });
     });
 
@@ -92,7 +89,7 @@ describe('scene script interface extractor', () => {
                 @event()
                 onClick() {}
 
-                @slot({ multiple: false })
+                @slot()
                 icon!: unknown;
             }
         `);
@@ -113,9 +110,7 @@ describe('scene script interface extractor', () => {
                     },
                 },
                 slots: {
-                    icon: {
-                        multiple: false,
-                    },
+                    icon: {},
                 },
             },
         });
@@ -125,9 +120,11 @@ describe('scene script interface extractor', () => {
     it('exports no-op decorator factories for real scene scripts', () => {
         expect(typeof scene('./Button.scene')).toBe('function');
         expect(typeof scene({ scene: './Button.scene' })).toBe('function');
+        expect(typeof part()).toBe('function');
+        expect(typeof part({ id: 'labelText' })).toBe('function');
         expect(typeof prop({ type: 'string', default: 'Button' })).toBe('function');
         expect(typeof event()).toBe('function');
-        expect(typeof slot({ multiple: false })).toBe('function');
+        expect(typeof slot()).toBe('function');
     });
 
     it('rejects non-literal decorator options', () => {

@@ -1,9 +1,7 @@
-<Scene name="Button" script="../src/scenes/Button.ts" class="Button">
-  <Container key="root" width="188" height="48">
-    <Graphics key="background" shape="roundRect" width="188" height="48" radius="10" fill="#2f6fed" />
-    <Container key="iconHost" x="18" y="14">
-      <slot name="icon" />
-    </Container>
-    <Text key="labelText" text="Button" x="54" y="13" fontSize="17" fontWeight="700" fill="#ffffff" />
+<Scene name="Button" script="../src/scenes/Button.ts" class="Button" width="188" height="48">
+  <Graphics id="background" shape="roundRect" width="188" height="48" radius="10" fill="#2f6fed" />
+  <Container id="iconHost" x="18" y="14">
+    <slot name="icon" />
   </Container>
+  <Text id="labelText" text="Button" x="54" y="13" fontSize="17" fontWeight="700" fill="#ffffff" />
 </Scene>

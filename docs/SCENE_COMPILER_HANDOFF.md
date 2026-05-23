@@ -89,26 +89,34 @@ export class Button extends Container {
 当前更推荐的 public contract 来源是 TS 装饰器，而不是手写在 `.scene` 中：
 
 ```ts
-import { Container } from 'pixi.js';
-import { event, prop, scene, slot } from 'pixifact/compiler';
+import { Container, Text } from 'pixi.js';
+import { event, part, prop, scene, slot } from 'pixifact/compiler';
 
 @scene('./Button.scene')
 export class Button extends Container {
-  @prop({ type: 'string', default: 'Button' })
-  accessor label = 'Button';
+  @part()
+  declare protected labelText: Text;
 
-  @prop({ type: 'boolean', default: false })
-  accessor disabled = false;
+  @prop({ type: 'string', default: 'Button' })
+  set label(value: string) {
+    this.labelText.text = value;
+  }
+
+  childrenCreated() {
+    this.eventMode = 'static';
+  }
 
   @event()
   onClick(handler: () => void) {}
 
-  @slot({ multiple: false })
-  icon!: Container;
+  @slot()
+  declare readonly icon: Container;
 }
 ```
 
-工具链静态提取装饰器生成 interface descriptor。Editor / AI / Inspector 读取生成后的 descriptor，不直接执行用户代码，也不在运行时解析 TS。
+`@scene` 当前已具备普通 TS 运行时能力：它会在用户 constructor 执行后挂载已注册的 `.scene`，绑定 `@part` 和 `@slot`，应用 `@prop` 默认值，然后调用 `childrenCreated()`。因此 constructor 中不要访问 `@part`；需要访问内部节点的初始化逻辑放在 `childrenCreated()`。
+
+工具链仍可静态提取装饰器生成 interface descriptor。Editor / AI / Inspector 读取生成后的 descriptor，不直接执行用户代码，也不在运行时解析 TS。
 
 约束：
 
@@ -121,8 +129,8 @@ export class Button extends Container {
 Scene Instance 是在一个 `.scene` 里引用另一个 `.scene`，并把它当成独立对象使用。
 
 ```xml
-<Button key="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">
-  <Sprite slot="icon" key="playIcon" texture="assets/icons/play.png" />
+<Button id="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">
+  <Sprite slot="icon" id="playIcon" texture="assets/icons/play.png" />
 </Button>
 ```
 
@@ -154,7 +162,7 @@ Vue 风格：
 父 Scene 传入：
 
 ```xml
-<Sprite slot="icon" key="playIcon" texture="assets/icons/play.png" />
+<Sprite slot="icon" id="playIcon" texture="assets/icons/play.png" />
 ```
 
 原则：
@@ -199,7 +207,7 @@ Inspector：
 
 - 选中 Scene Instance：显示 public props / events / slots + instance transform。
 - 选中普通 PixiJS 对象：显示 PixiJS-facing properties。
-- 选中 slot：显示 slot 名称、multiple、当前内容、可投放类型。
+- 选中 slot：显示 slot 名称、当前内容、可投放类型。
 
 点击实例内部装饰时选中 instance；点击 slot 内容时选中 slot 内容。双击 Scene Instance 打开源 `.scene`。
 
@@ -222,10 +230,26 @@ packages/pixifact/src/compiler/
 当前能力：
 
 - `parseSceneTemplate(source)`：解析受限 XML 到 typed Scene AST。
-- `compileSceneTemplateToTs(template)`：生成最小 PixiJS TS mount function。
+- `compileSceneTemplateToTs(template)`：生成最小 PixiJS TS mount function，可注册到 runtime scene registry。
 - `extractSceneScriptInterface(source)`：静态提取 `@scene/@prop/@event/@slot`。
 - `emitSceneScriptInterfaceDescriptor(source)`：输出稳定 JSON descriptor。
-- `scene/prop/event/slot`：no-op 装饰器 API，可被真实 Scene Script import，metadata 仍以静态提取为准。
+- `scene/part/prop/event/slot`：装饰器 API；`@scene` 可在普通 TS 环境中挂载已注册 `.scene`。
+- `registerScene(path, definition)`：注册编译后的 `.scene`。
+- `mount(target, child, slot?)`：向 Scene 暴露的 slot 投放 PixiJS 节点或 Scene Instance。
+
+当前 `.scene` 结构：
+
+```xml
+<Scene name="Button" script="../src/scenes/Button.ts" class="Button" width="188" height="48">
+  <Graphics id="background" shape="roundRect" width="188" height="48" radius="10" fill="#2f6fed" />
+  <Container id="iconHost" x="18" y="14">
+    <slot name="icon" />
+  </Container>
+  <Text id="labelText" text="Button" x="54" y="13" />
+</Scene>
+```
+
+`<Scene>` 是编译单元，不是运行时 PixiJS 节点。Scene Script 实例本身是根 `Container`，`.scene` 的一级节点直接 `addChild` 到该实例。节点使用 `id`，同一 `.scene` 内必须唯一；`@part()` 默认用字段名关联同名 `id`。
 
 测试：
 
