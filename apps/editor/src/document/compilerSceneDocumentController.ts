@@ -1,4 +1,6 @@
-import type { SceneTemplate, SceneTemplateInterface, SceneTemplatePrimitiveType, SceneTemplateValue } from '../../../../packages/pixifact/src/compiler/spec';
+import type { SceneTemplate, SceneTemplateInterface, SceneTemplateValue } from '../../../../packages/pixifact/src/compiler/spec';
+import { pixiSceneNodeAcceptsChildren, pixiSceneNodeDefaults } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
+import type { PixiSceneNodeType } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import type {
     CompilerSceneScriptInterface,
     CompilerSceneTemplateNode,
@@ -6,7 +8,7 @@ import type {
 import type { NodeTemplateKind, PixiNodeTemplateKind } from '../services/nodeTemplateLibrary';
 import type { SceneToolKind } from '../services/sceneToolLibrary';
 
-export type CompilerSceneAddablePixiType = Extract<SceneTemplatePrimitiveType, 'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics'>;
+export type CompilerSceneAddablePixiType = PixiSceneNodeType;
 export type CompilerSceneNodeDropPosition = 'before' | 'inside' | 'after';
 
 export type CompilerSceneSelection =
@@ -107,86 +109,11 @@ export function updateCompilerSceneNode(
 
 export function createCompilerPixiTemplateNode(template: SceneTemplate, type: CompilerSceneAddablePixiType): CompilerSceneTemplateNode {
     const id = nextCompilerSceneNodeId(template.children, type);
-    if (type === 'Container') {
-        return {
-            kind: 'pixi',
-            type,
-            id,
-            props: {
-                width: 100,
-                height: 100,
-            },
-            children: [],
-        };
-    }
-    if (type === 'Sprite') {
-        return {
-            kind: 'pixi',
-            type,
-            id,
-            props: {
-                width: 96,
-                height: 96,
-            },
-            children: [],
-        };
-    }
-    if (type === 'NineSliceSprite') {
-        return {
-            kind: 'pixi',
-            type,
-            id,
-            props: {
-                width: 160,
-                height: 80,
-                leftWidth: 10,
-                rightWidth: 10,
-                topHeight: 10,
-                bottomHeight: 10,
-            },
-            children: [],
-        };
-    }
-    if (type === 'TilingSprite') {
-        return {
-            kind: 'pixi',
-            type,
-            id,
-            props: {
-                width: 160,
-                height: 96,
-                tileScaleX: 1,
-                tileScaleY: 1,
-            },
-            children: [],
-        };
-    }
-    if (type === 'Text' || type === 'BitmapText' || type === 'HTMLText') {
-        return {
-            kind: 'pixi',
-            type,
-            id,
-            props: {
-                text: 'Text',
-                width: 120,
-                height: 28,
-                fontSize: 16,
-                fill: 0x111827,
-            },
-            children: [],
-        };
-    }
     return {
         kind: 'pixi',
         type,
         id,
-        props: {
-            shape: 'roundRect',
-            width: 100,
-            height: 60,
-            radius: 8,
-            fill: 0xe5e7eb,
-        },
+        props: pixiSceneNodeDefaults(type),
         children: [],
     };
 }
@@ -556,7 +483,7 @@ function insertCompilerSceneNode(
         const nodePath = path ? `${path}/${index}` : String(index);
         const nodeLocator = compilerSceneNodeLocator(parent, nodePath);
         if (nodeLocator === parentLocator) {
-            if (parent.kind !== 'pixi' || parent.type !== 'Container') {
+            if (parent.kind !== 'pixi' || !pixiSceneNodeAcceptsChildren(parent.type)) {
                 return undefined;
             }
             if (!canInsertCompilerSceneNodeIntoParent(parentLocator, node)) {
@@ -635,7 +562,7 @@ function findCompilerSceneNodeLocation(
             };
         }
         if (node.kind === 'pixi') {
-            const found = findCompilerSceneNodeLocation(node.children, locator, nodeLocator, node.type === 'Container');
+            const found = findCompilerSceneNodeLocation(node.children, locator, nodeLocator, pixiSceneNodeAcceptsChildren(node.type));
             if (found) {
                 return found;
             }
@@ -670,7 +597,7 @@ function findCompilerSceneChildList(
         const nodeLocator = childCompilerSceneNodeLocator(parentLocator, node, index);
         if (node.kind === 'pixi') {
             if (nodeLocator === targetLocator) {
-                return node.type === 'Container'
+                return pixiSceneNodeAcceptsChildren(node.type)
                     ? {
                         acceptsSlotOutlet: true,
                         index: node.children.length,

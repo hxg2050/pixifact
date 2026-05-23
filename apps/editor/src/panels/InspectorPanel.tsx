@@ -10,6 +10,14 @@ import {
     getCompilerSceneDocument,
     updateCompilerSceneNode,
 } from '../document/compilerSceneDocumentController';
+import {
+    isPixiSceneNodeType,
+    pixiSceneDisplayProps,
+    pixiSceneFieldSchema,
+    pixiSceneKnownProps,
+    pixiSceneNodePropKeys,
+    pixiSceneTransformProps,
+} from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import type {
     SceneCommand,
     SceneDocument,
@@ -131,24 +139,7 @@ interface SelectedCompilerSlot {
 
 type SelectedCompilerItem = CompilerSceneTemplateNode | SelectedCompilerSlot | undefined;
 
-const compilerTransformProps = ['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation'];
-const compilerAdvancedTransformProps = ['pivotX', 'pivotY', 'skewX', 'skewY'];
-const compilerDisplayProps = ['alpha', 'visible', 'zIndex', 'eventMode', 'cursor', 'label'];
-const compilerSpriteProps = ['texture', 'anchorX', 'anchorY', 'tint'];
-const compilerNineSliceSpriteProps = [...compilerSpriteProps, 'leftWidth', 'rightWidth', 'topHeight', 'bottomHeight'];
-const compilerTilingSpriteProps = [...compilerSpriteProps, 'tilePositionX', 'tilePositionY', 'tileScaleX', 'tileScaleY', 'tileRotation'];
-const compilerTextProps = ['text', 'fontSize', 'fontFamily', 'fontWeight', 'fill'];
-const compilerGraphicsProps = ['shape', 'radius', 'fill', 'fillAlpha', 'strokeColor', 'strokeWidth', 'strokeAlpha'];
-const compilerKnownPixiProps = new Set([
-    ...compilerTransformProps,
-    ...compilerAdvancedTransformProps,
-    ...compilerDisplayProps,
-    ...compilerSpriteProps,
-    ...compilerNineSliceSpriteProps,
-    ...compilerTilingSpriteProps,
-    ...compilerTextProps,
-    ...compilerGraphicsProps,
-]);
+const compilerKnownPixiProps = new Set<string>(pixiSceneKnownProps);
 
 function compilerSlotChildCount(nodes: readonly CompilerSceneTemplateNode[], locator: string, path = ''): number {
     for (const [index, node] of nodes.entries()) {
@@ -258,14 +249,9 @@ function partNames(descriptor: CompilerSceneScriptInterface | undefined) {
 }
 
 function compilerFieldType(key: string, value: unknown) {
-    if (['fill', 'tint', 'strokeColor'].includes(key)) {
-        return 'color';
-    }
-    if (['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation', 'pivotX', 'pivotY', 'skewX', 'skewY', 'alpha', 'zIndex', 'radius', 'fontSize', 'anchorX', 'anchorY', 'fillAlpha', 'strokeWidth', 'strokeAlpha', 'leftWidth', 'rightWidth', 'topHeight', 'bottomHeight', 'tilePositionX', 'tilePositionY', 'tileScaleX', 'tileScaleY', 'tileRotation'].includes(key)) {
-        return 'number';
-    }
-    if (['visible'].includes(key)) {
-        return 'boolean';
+    const schema = pixiSceneFieldSchema(key);
+    if (schema) {
+        return schema.type;
     }
     if (typeof value === 'number') {
         return 'number';
@@ -290,44 +276,29 @@ function compilerContractFieldType(type: string) {
 }
 
 function compilerField(key: string, value: unknown, type?: string): InspectorFieldModel {
-    const enumOptions = compilerEnumOptions(key);
+    const schema = pixiSceneFieldSchema(key);
+    const enumOptions = schema?.type === 'enum' ? schema.options : undefined;
     return {
         key,
         label: key,
-        type: enumOptions ? 'enum' : type ? compilerContractFieldType(type) : compilerFieldType(key, value),
+        type: type ? compilerContractFieldType(type) : compilerFieldType(key, value),
         value,
         ...(enumOptions ? { schema: { key, type: 'enum', options: enumOptions } } : {}),
     };
-}
-
-function compilerEnumOptions(key: string) {
-    if (key === 'shape') {
-        return ['roundRect', 'rect'];
-    }
-    if (key === 'eventMode') {
-        return ['none', 'passive', 'auto', 'static', 'dynamic'];
-    }
-    if (key === 'fontWeight') {
-        return ['400', '500', '600', '700', 'bold'];
-    }
-    if (key === 'cursor') {
-        return ['default', 'pointer', 'text', 'grab', 'grabbing'];
-    }
-    return undefined;
 }
 
 function compilerTransformFields(node: SelectedCompilerItem): InspectorFieldModel[] {
     if (!node || node.kind === 'slot' || node.kind === 'slotOutlet') {
         return [];
     }
-    return [...compilerTransformProps, ...compilerAdvancedTransformProps].map((key) => compilerField(key, node.props[key]));
+    return pixiSceneTransformProps.map((key) => compilerField(key, node.props[key]));
 }
 
 function compilerDisplayFields(node: SelectedCompilerItem): InspectorFieldModel[] {
     if (!node || node.kind === 'slot' || node.kind === 'slotOutlet') {
         return [];
     }
-    return compilerDisplayProps.map((key) => compilerField(key, node.props[key]));
+    return pixiSceneDisplayProps.map((key) => compilerField(key, node.props[key]));
 }
 
 function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: CompilerSceneTemplateInterface): InspectorFieldModel[] {
@@ -337,17 +308,9 @@ function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: Compile
     if (node.kind === 'sceneInstance' && sceneInterface) {
         return Object.entries(sceneInterface.props).map(([key, contract]) => compilerField(key, node.props[key] ?? contract.default, contract.type));
     }
-    const typeKeys = node.kind === 'pixi' && node.type === 'NineSliceSprite'
-        ? compilerNineSliceSpriteProps
-        : node.kind === 'pixi' && node.type === 'TilingSprite'
-            ? compilerTilingSpriteProps
-            : node.kind === 'pixi' && node.type === 'Sprite'
-        ? compilerSpriteProps
-        : node.kind === 'pixi' && ['Text', 'BitmapText', 'HTMLText'].includes(node.type)
-            ? compilerTextProps
-            : node.kind === 'pixi' && node.type === 'Graphics'
-                ? compilerGraphicsProps
-                : [];
+    const typeKeys = node.kind === 'pixi' && isPixiSceneNodeType(node.type)
+        ? pixiSceneNodePropKeys(node.type)
+        : [];
     const keys = [
         ...new Set([
             ...typeKeys,

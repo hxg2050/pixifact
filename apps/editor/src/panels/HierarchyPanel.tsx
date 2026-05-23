@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ComponentSpec, SceneDocument, NodeSpec, SceneSpec } from 'pixifact';
 import { ComponentRegistry } from 'pixifact';
 import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
+import { pixiSceneNodeAcceptsChildren } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import { DragSource, DropZone, SystemIcon, TreeView } from '../components/system';
 import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/system';
 import { refreshSceneDocument } from '../document/sceneDocumentController';
@@ -240,11 +241,11 @@ function canAddCompilerSceneNode(item: CompilerHierarchyTreeNode | undefined) {
     if (item.node.kind === 'slot') {
         return true;
     }
-    return item.node.kind === 'pixi' && item.node.type === 'Container';
+    return item.node.kind === 'pixi' && pixiSceneNodeAcceptsChildren(item.node.type);
 }
 
 function canAddCompilerSceneTool(item: CompilerHierarchyTreeNode | undefined) {
-    return Boolean(item && item.node !== 'scene' && item.node.kind === 'pixi' && item.node.type === 'Container');
+    return Boolean(item && item.node !== 'scene' && item.node.kind === 'pixi' && pixiSceneNodeAcceptsChildren(item.node.type));
 }
 
 function canDeleteCompilerSceneNode(item: CompilerHierarchyTreeNode | undefined) {

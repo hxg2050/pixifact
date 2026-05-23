@@ -7,11 +7,19 @@ import type {
     SceneTemplatePrimitiveType,
     SceneTemplateValue,
 } from './spec';
+import {
+    pixiSceneDisplayProps,
+    pixiSceneGraphicsProps,
+    pixiSceneSpriteLikeProps,
+    pixiSceneTextStyleProps,
+    pixiSceneTransformProps,
+} from './pixiNodeSchema';
 
-const transformProps = new Set(['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation', 'pivotX', 'pivotY', 'skewX', 'skewY']);
-const pixiProps = new Set(['alpha', 'visible', 'eventMode', 'cursor', 'label', 'zIndex']);
-const spriteProps = new Set(['texture', 'anchorX', 'anchorY', 'tint', 'leftWidth', 'rightWidth', 'topHeight', 'bottomHeight', 'tilePositionX', 'tilePositionY', 'tileScaleX', 'tileScaleY', 'tileRotation']);
-const graphicsProps = new Set(['shape', 'radius', 'fill', 'fillAlpha', 'strokeColor', 'strokeWidth', 'strokeAlpha']);
+const transformProps = new Set<string>(pixiSceneTransformProps);
+const pixiProps = new Set<string>(pixiSceneDisplayProps);
+const spriteProps = new Set<string>(pixiSceneSpriteLikeProps);
+const graphicsProps = new Set<string>(pixiSceneGraphicsProps);
+const textStyleProps = new Set<string>(pixiSceneTextStyleProps);
 
 export function compileSceneTemplateToTs(template: SceneTemplate, options: CompileSceneTemplateOptions = {}) {
     const context = new CompileContext(template, options);
@@ -341,7 +349,7 @@ class CompileContext {
 
     #styleObject(props: Record<string, SceneTemplateValue>) {
         const entries: string[] = [];
-        for (const key of ['fontSize', 'fontFamily', 'fontWeight', 'fill']) {
+        for (const key of pixiSceneTextStyleProps) {
             const value = props[key];
             if (value !== undefined) {
                 entries.push(`${key}: ${key === 'fontWeight' ? JSON.stringify(String(value)) : this.#value(value)}`);
@@ -382,7 +390,7 @@ class CompileContext {
     }
 
     #isTextStyleProp(key: string) {
-        return key === 'fontSize' || key === 'fontFamily' || key === 'fontWeight' || key === 'fill';
+        return textStyleProps.has(key);
     }
 
     #anonymousName(type: string) {

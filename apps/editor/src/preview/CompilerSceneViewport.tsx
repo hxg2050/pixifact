@@ -12,6 +12,13 @@ import {
     TilingSprite,
 } from 'pixi.js';
 import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
+import {
+    pixiSceneDisplayProps,
+    pixiSceneGraphicsProps,
+    pixiSceneSpriteLikeProps,
+    pixiSceneTextStyleProps,
+    pixiSceneTransformProps,
+} from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import { compilerSceneNodeLocator } from '../document/compilerSceneDocumentController';
 import type {
     PixiTemplateNode,
@@ -49,11 +56,11 @@ interface RenderContext {
 
 const previewWidth = 960;
 const previewHeight = 540;
-const transformProps = new Set(['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation', 'pivotX', 'pivotY', 'skewX', 'skewY']);
-const pixiProps = new Set(['alpha', 'visible', 'eventMode', 'cursor', 'label', 'zIndex']);
-const spriteProps = new Set(['texture', 'anchorX', 'anchorY', 'tint', 'leftWidth', 'rightWidth', 'topHeight', 'bottomHeight', 'tilePositionX', 'tilePositionY', 'tileScaleX', 'tileScaleY', 'tileRotation']);
-const graphicsProps = new Set(['shape', 'radius', 'fill', 'fillAlpha', 'strokeColor', 'strokeWidth', 'strokeAlpha']);
-const textStyleProps = new Set(['fontSize', 'fontFamily', 'fontWeight', 'fill']);
+const transformProps = new Set<string>(pixiSceneTransformProps);
+const pixiProps = new Set<string>(pixiSceneDisplayProps);
+const spriteProps = new Set<string>(pixiSceneSpriteLikeProps);
+const graphicsProps = new Set<string>(pixiSceneGraphicsProps);
+const textStyleProps = new Set<string>(pixiSceneTextStyleProps);
 
 function numericProp(value: SceneTemplateValue | undefined, defaultValue: number) {
     return typeof value === 'number' ? value : defaultValue;

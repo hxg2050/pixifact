@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SceneDocument, buttonScene, container, scene, shape, text } from 'pixifact';
 import type { SceneCommand } from 'pixifact';
-import { parseSceneTemplate } from 'pixifact/compiler';
+import { parseSceneTemplate, pixiSceneFieldSchema, pixiSceneNodeDefaults, pixiSceneNodePropKeys } from 'pixifact/compiler';
 import {
     getSceneDocument,
     resetSceneDocument,
@@ -958,6 +958,34 @@ describe('project file tree service', () => {
                 text: 'Text',
                 fontSize: 16,
             },
+        });
+    });
+
+    it('describes compiler Pixi basic node fields through schema', () => {
+        expect(pixiSceneNodeDefaults('Graphics')).toEqual({
+            shape: 'roundRect',
+            width: 100,
+            height: 60,
+            radius: 8,
+            fill: 0xe5e7eb,
+        });
+        expect(pixiSceneNodePropKeys('TilingSprite')).toEqual([
+            'texture',
+            'anchorX',
+            'anchorY',
+            'tint',
+            'tilePositionX',
+            'tilePositionY',
+            'tileScaleX',
+            'tileScaleY',
+            'tileRotation',
+        ]);
+        expect(pixiSceneFieldSchema('eventMode')).toMatchObject({
+            type: 'enum',
+            options: ['none', 'passive', 'auto', 'static', 'dynamic'],
+        });
+        expect(pixiSceneFieldSchema('fill')).toMatchObject({
+            type: 'color',
         });
     });
 

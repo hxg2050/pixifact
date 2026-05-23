@@ -1,5 +1,6 @@
 export * from './decorators';
 export * from './eventRuntime';
+export * from './pixiNodeSchema';
 export * from './spec';
 export * from './scriptInterfaceExtractor';
 export * from './sceneRuntime';
