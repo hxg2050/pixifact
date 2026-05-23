@@ -118,6 +118,7 @@ export function PixifactViewport({ document, revision }: PixifactViewportProps) 
                     width: 960,
                     height: 540,
                     background: 0xffffff,
+                    backgroundAlpha: 0,
                     antialias: true,
                     autoDensity: true,
                     resolution: Math.min(window.devicePixelRatio || 1, 2),
