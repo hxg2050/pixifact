@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { SceneDocument } from 'pixifact';
+import { closeCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import {
     Button,
     DragSource,
@@ -37,7 +38,9 @@ import {
     openSceneFile,
     openProjectCodeFile,
     openProjectDefaultFile,
+    openCompilerSceneFile,
     readProjectFileBytes,
+    readProjectFileText,
     refreshProjectFileTree,
     renameProjectEntry,
 } from '../services/projectFileTree';
@@ -146,6 +149,15 @@ async function loadSceneFile(document: SceneDocument, file: ProjectFileTreeNode,
     if (document.dirty && currentPath !== file.path && !window.confirm(t('discardDirtySceneConfirm'))) {
         return false;
     }
+    const content = await readProjectFileText(projectTree, file);
+    if (content.trimStart().startsWith('<Scene')) {
+        const opened = await openCompilerSceneFile(projectTree, file);
+        useEditorStore.getState().setOpenedScene(opened.openedScenePath);
+        refreshSceneDocument();
+        return true;
+    }
+
+    closeCompilerSceneDocument();
     const opened = await openSceneFile(projectTree, file, document);
     useEditorStore.getState().setOpenedScene(opened.openedScenePath);
     refreshSceneDocument();

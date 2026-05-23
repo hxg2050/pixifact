@@ -1,4 +1,10 @@
 import type { SceneDocument } from 'pixifact';
+import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
+import type {
+    SceneScriptInterface,
+    SceneTemplateNode,
+} from '../../../../packages/pixifact/src/compiler/spec';
+import { loadCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { editorDragDataTypes } from './dragPayload';
 import {
     createHostProjectDirectory,
@@ -18,6 +24,10 @@ import { sceneAssetName, sceneFileName, sceneRootKey } from './sceneNaming';
 
 export type ProjectFileKind = 'folder' | 'scene' | 'script' | 'component' | 'asset' | 'doc' | 'unknown';
 export const sceneDragDataType = editorDragDataTypes.scene;
+export type {
+    SceneScriptInterface as CompilerSceneScriptInterface,
+    SceneTemplateNode as CompilerSceneTemplateNode,
+};
 
 export interface ProjectFileTreeNode {
     id: string;
@@ -336,6 +346,26 @@ export async function openSceneFile(
     };
 }
 
+export async function openCompilerSceneFile(
+    projectTree: ProjectFileTreeNode,
+    file: ProjectFileTreeNode,
+) {
+    const content = await readProjectFileText(projectTree, file);
+    const template = parseSceneTemplate(content);
+    const descriptor = await readCompilerSceneDescriptor(projectTree, file);
+    loadCompilerSceneDocument({
+        scenePath: file.path,
+        template,
+        descriptor,
+    });
+
+    return {
+        openedScenePath: file.path,
+        template,
+        descriptor,
+    };
+}
+
 export async function createAndOpenSceneFile(
     projectTree: ProjectFileTreeNode,
     directory: ProjectFileTreeNode,
@@ -373,6 +403,19 @@ export async function refreshProjectFileTree(projectTree: ProjectFileTreeNode) {
 
 export async function readProjectFileText(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
     return readHostProjectFileText(ensureProjectRootPath(projectTree), file.path);
+}
+
+async function readCompilerSceneDescriptor(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
+    const generatedFile = findFileByPath(projectTree, compilerSceneDescriptorPath(projectTree, file));
+    if (!generatedFile) {
+        return undefined;
+    }
+    return JSON.parse(await readProjectFileText(projectTree, generatedFile)) as SceneScriptInterface;
+}
+
+function compilerSceneDescriptorPath(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
+    const sceneName = file.name.replace(/\.scene$/, '');
+    return `${projectTree.path}/src/generated/${sceneName}.scene.interface.json`;
 }
 
 export async function readProjectFileBytes(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {

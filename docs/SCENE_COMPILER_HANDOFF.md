@@ -242,6 +242,7 @@ packages/pixifact/src/compiler/
 - `registerScene(path, definition)`：注册编译后的 `.scene`。
 - `mount(target, child, slot?)`：向 Scene 暴露的 slot 投放 PixiJS 节点或 Scene Instance。
 - `connectSceneEvent(event, actionName, root, actions?)`：连接 `.scene` 里的事件声明；优先使用外部 actions，否则调用 root Scene Script 上的同名方法。
+- Editor 已接入 compiler scene 只读模式：XML `.scene` 打开后显示只读层级、public contract、parts 和选中节点摘要，不进入旧 `SceneDocument` 编辑链路。
 
 当前 `.scene` 结构：
 

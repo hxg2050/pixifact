@@ -5,6 +5,10 @@ import {
     listPaletteComponents,
     validateDesignTokenValue,
 } from 'pixifact';
+import {
+    compilerSceneNodeLocator,
+    getCompilerSceneDocument,
+} from '../document/compilerSceneDocumentController';
 import type {
     SceneCommand,
     SceneDocument,
@@ -26,7 +30,11 @@ import { refreshSceneDocument } from '../document/sceneDocumentController';
 import { useI18n } from '../i18n';
 import type { I18nKey } from '../i18n';
 import { editorDragDataTypes } from '../services/dragPayload';
-import { parseTextValue, selectedNodeId, useDocumentRevision } from './common';
+import type {
+    CompilerSceneScriptInterface,
+    CompilerSceneTemplateNode,
+} from '../services/projectFileTree';
+import { FieldRow, formatValue, parseTextValue, selectedNodeId, useCompilerSceneRevision, useDocumentRevision } from './common';
 import { useEditorStore } from '../editorStore';
 
 const nodePropLabelKeys: Record<'id' | 'key' | 'role' | 'name', I18nKey | undefined> = {
@@ -97,6 +105,91 @@ const fieldLabelKeys: Record<string, I18nKey> = {
 };
 
 type Translate = (key: I18nKey, values?: Record<string, string | number>) => string;
+
+interface SelectedCompilerSlot {
+    kind: 'slotGroup';
+    name: string;
+}
+
+type SelectedCompilerItem = CompilerSceneTemplateNode | SelectedCompilerSlot | undefined;
+
+function selectedCompilerNode(nodes: readonly CompilerSceneTemplateNode[], locator: string, path = ''): CompilerSceneTemplateNode | undefined {
+    for (const [index, node] of nodes.entries()) {
+        const nodePath = path ? `${path}/${index}` : String(index);
+        const nodeLocator = compilerSceneNodeLocator(node, nodePath);
+        if (nodeLocator === locator) {
+            return node;
+        }
+        if (node.kind === 'pixi') {
+            const child = selectedCompilerNode(node.children, locator, nodeLocator);
+            if (child) {
+                return child;
+            }
+        }
+        if (node.kind === 'sceneInstance') {
+            for (const [slot, children] of Object.entries(node.slots)) {
+                const child = selectedCompilerNode(children, locator, `${nodeLocator}/slot:${slot}`);
+                if (child) {
+                    return child;
+                }
+            }
+        }
+    }
+    return undefined;
+}
+
+function selectedCompilerSlot(locator: string): SelectedCompilerSlot | undefined {
+    const segment = locator.split('/').at(-1);
+    return segment?.startsWith('slot:')
+        ? {
+            kind: 'slotGroup',
+            name: segment.slice('slot:'.length),
+        }
+        : undefined;
+}
+
+function compilerNodeKind(node: SelectedCompilerItem) {
+    if (!node) {
+        return 'Scene';
+    }
+    if (node.kind === 'slotGroup') {
+        return 'slot';
+    }
+    if (node.kind === 'slotOutlet') {
+        return 'slot';
+    }
+    if (node.kind === 'sceneInstance') {
+        return 'Scene Instance';
+    }
+    return node.type;
+}
+
+function compilerNodeName(node: SelectedCompilerItem, sceneName: string) {
+    if (!node) {
+        return sceneName;
+    }
+    if (node.kind === 'slotGroup') {
+        return `slot: ${node.name}`;
+    }
+    if (node.kind === 'slotOutlet') {
+        return node.name;
+    }
+    return node.id ?? compilerNodeKind(node);
+}
+
+function contractCount(contract: CompilerSceneScriptInterface['interface'] | undefined, key: keyof CompilerSceneScriptInterface['interface']) {
+    return Object.keys(contract?.[key] ?? {}).length;
+}
+
+function contractNames(contract: CompilerSceneScriptInterface['interface'] | undefined, key: keyof CompilerSceneScriptInterface['interface']) {
+    const names = Object.keys(contract?.[key] ?? {});
+    return names.length ? names.join(', ') : 'none';
+}
+
+function partNames(descriptor: CompilerSceneScriptInterface | undefined) {
+    const names = Object.entries(descriptor?.parts ?? {}).map(([property, id]) => property === id ? property : `${property} -> ${id}`);
+    return names.length ? names.join(', ') : 'none';
+}
 
 function nodePropLabel(key: 'id' | 'key' | 'role' | 'name', t: Translate) {
     const labelKey = nodePropLabelKeys[key];
@@ -327,8 +420,74 @@ function paletteDisabledReason(item: PaletteComponentItem, t: Translate) {
 
 export function InspectorPanel({ document }: { document: SceneDocument }) {
     const revision = useDocumentRevision();
+    useCompilerSceneRevision();
     const t = useI18n();
     const openedScenePath = useEditorStore((state) => state.openedScenePath);
+    const compilerDocument = getCompilerSceneDocument();
+    if (openedScenePath && compilerDocument?.scenePath === openedScenePath) {
+        const publicInterface = compilerDocument.descriptor?.interface ?? compilerDocument.template.interface;
+        const selectedCompiler = compilerDocument.selection.type === 'node'
+            ? selectedCompilerSlot(compilerDocument.selection.node) ?? selectedCompilerNode(compilerDocument.template.children, compilerDocument.selection.node)
+            : undefined;
+        const selectedProps = selectedCompiler?.kind === 'sceneInstance' || selectedCompiler?.kind === 'pixi'
+            ? Object.entries(selectedCompiler.props)
+            : [];
+        const selectedEvents = selectedCompiler?.kind === 'sceneInstance'
+            ? Object.entries(selectedCompiler.events)
+            : [];
+        const selectedSlots = selectedCompiler?.kind === 'sceneInstance'
+            ? Object.keys(selectedCompiler.slots)
+            : selectedCompiler?.kind === 'slotOutlet'
+                ? [selectedCompiler.name]
+                : [];
+
+        return (
+            <div className="panelSurface inspectorSurface" data-testid="compiler-scene-inspector">
+                <section className="identity">
+                    <span>Compiler Scene</span>
+                    <strong>{compilerNodeName(selectedCompiler, compilerDocument.template.name)}</strong>
+                    <small>{compilerNodeKind(selectedCompiler)}</small>
+                </section>
+                <section className="inspectorSection">
+                    <h3>Scene</h3>
+                    <div className="fieldStack">
+                        <FieldRow label="name" value={compilerDocument.template.name} />
+                        <FieldRow label="script" value={compilerDocument.template.script?.path ?? 'none'} />
+                        <FieldRow label="class" value={compilerDocument.template.script?.className ?? 'none'} />
+                        <FieldRow label="path" value={compilerDocument.scenePath} />
+                    </div>
+                </section>
+                <section className="inspectorSection">
+                    <h3>Public Contract</h3>
+                    <div className="fieldStack">
+                        <FieldRow label="props" value={`${contractCount(publicInterface, 'props')}: ${contractNames(publicInterface, 'props')}`} />
+                        <FieldRow label="events" value={`${contractCount(publicInterface, 'events')}: ${contractNames(publicInterface, 'events')}`} />
+                        <FieldRow label="slots" value={`${contractCount(publicInterface, 'slots')}: ${contractNames(publicInterface, 'slots')}`} />
+                        <FieldRow label="parts" value={partNames(compilerDocument.descriptor)} />
+                    </div>
+                </section>
+                {selectedCompiler ? (
+                    <section className="inspectorSection">
+                        <h3>Selected</h3>
+                        <div className="fieldStack">
+                            {'id' in selectedCompiler ? <FieldRow label="id" value={selectedCompiler.id ?? 'none'} /> : null}
+                            {'type' in selectedCompiler ? <FieldRow label="type" value={selectedCompiler.type} /> : null}
+                            {selectedCompiler.kind === 'sceneInstance' ? <FieldRow label="scene" value={selectedCompiler.scene} /> : null}
+                            {selectedCompiler.kind === 'slotOutlet' ? <FieldRow label="slot" value={selectedCompiler.name} /> : null}
+                            {selectedCompiler.kind === 'slotGroup' ? <FieldRow label="slot" value={selectedCompiler.name} /> : null}
+                            {selectedProps.map(([key, value]) => (
+                                <FieldRow key={key} label={key} value={formatValue(value, t)} />
+                            ))}
+                            {selectedEvents.map(([key, value]) => (
+                                <FieldRow key={`event:${key}`} label={`@${key}`} value={value} />
+                            ))}
+                            {selectedSlots.length ? <FieldRow label="slots" value={selectedSlots.join(', ')} /> : null}
+                        </div>
+                    </section>
+                ) : null}
+            </div>
+        );
+    }
     const selected = selectedNodeId(document);
     const model = document.getInspectorModel();
     const [error, setError] = useState<string>();

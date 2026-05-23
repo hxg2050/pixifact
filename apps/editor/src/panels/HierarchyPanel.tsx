@@ -4,6 +4,11 @@ import { ComponentRegistry } from 'pixifact';
 import { DragSource, DropZone, SystemIcon, TreeView } from '../components/system';
 import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/system';
 import { refreshSceneDocument } from '../document/sceneDocumentController';
+import {
+    compilerSceneNodeLocator,
+    getCompilerSceneDocument,
+    selectCompilerSceneNode,
+} from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
 import {
@@ -15,12 +20,24 @@ import { createSceneInstanceNode } from '../services/sceneInstance';
 import { hierarchyNodeDragPayload } from '../services/dragPayload';
 import { editorDragDataTypes } from '../services/dragPayload';
 import { findFileByPath, sceneDragDataType, readProjectFileText } from '../services/projectFileTree';
-import { collectHierarchy, getNodeLocator, selectedNodeId, useDocumentRevision } from './common';
+import type { CompilerSceneTemplateNode } from '../services/projectFileTree';
+import { collectHierarchy, getNodeLocator, selectedNodeId, useCompilerSceneRevision, useDocumentRevision } from './common';
 
 interface HierarchyTreeNode {
     depth: number;
     locator: string;
     node: NodeSpec;
+}
+
+interface CompilerHierarchyTreeNode {
+    depth: number;
+    locator: string;
+    node: CompilerSceneTemplateNode | 'scene' | CompilerSlotGroup;
+}
+
+interface CompilerSlotGroup {
+    kind: 'slotGroup';
+    name: string;
 }
 
 interface LocatedNode {
@@ -63,6 +80,35 @@ function nodeKindIcon(node: NodeSpec): SystemIconName {
     }
 }
 
+function compilerNodeIcon(node: CompilerSceneTemplateNode | 'scene' | CompilerSlotGroup): SystemIconName {
+    if (node === 'scene') {
+        return 'folder-open';
+    }
+    if (node.kind === 'slotGroup') {
+        return 'input';
+    }
+    if (node.kind === 'sceneInstance') {
+        return 'folder-open';
+    }
+    if (node.kind === 'slotOutlet') {
+        return 'input';
+    }
+    switch (node.type) {
+        case 'Sprite':
+        case 'NineSliceSprite':
+        case 'TilingSprite':
+            return 'image';
+        case 'Text':
+        case 'BitmapText':
+        case 'HTMLText':
+            return 'letter-text';
+        case 'Graphics':
+            return 'square';
+        default:
+            return 'folder-open';
+    }
+}
+
 function hierarchyTreeItem(node: NodeSpec, depth = 0): TreeViewItem<HierarchyTreeNode> {
     const locator = node.key ?? node.id ?? node.name ?? 'root';
     return {
@@ -75,6 +121,84 @@ function hierarchyTreeItem(node: NodeSpec, depth = 0): TreeViewItem<HierarchyTre
         },
         textValue: nodeLabel(node),
     };
+}
+
+function compilerNodeLabel(node: CompilerSceneTemplateNode | 'scene' | CompilerSlotGroup, sceneName: string) {
+    if (node === 'scene') {
+        return sceneName;
+    }
+    if (node.kind === 'slotGroup') {
+        return `slot: ${node.name}`;
+    }
+    if (node.kind === 'slotOutlet') {
+        return `slot: ${node.name}`;
+    }
+    if (node.kind === 'sceneInstance') {
+        return `${node.id ?? node.type} : ${node.scene}`;
+    }
+    return node.id ?? node.type;
+}
+
+function compilerTreeItem(document = getCompilerSceneDocument()): TreeViewItem<CompilerHierarchyTreeNode>[] {
+    if (!document) {
+        return [];
+    }
+    return [{
+        children: document.template.children.map((node, index) => compilerNodeTreeItem(document.template.name, node, 1, String(index))),
+        id: '__scene__',
+        item: {
+            depth: 0,
+            locator: '__scene__',
+            node: 'scene',
+        },
+        textValue: document.template.name,
+    }];
+}
+
+function compilerNodeTreeItem(sceneName: string, node: CompilerSceneTemplateNode, depth: number, path: string): TreeViewItem<CompilerHierarchyTreeNode> {
+    const locator = compilerSceneNodeLocator(node, path);
+    return {
+        children: compilerNodeTreeItems(sceneName, node, depth + 1, locator),
+        id: locator,
+        item: {
+            depth,
+            locator,
+            node,
+        },
+        textValue: compilerNodeLabel(node, sceneName),
+    };
+}
+
+function compilerNodeTreeItems(sceneName: string, node: CompilerSceneTemplateNode, depth: number, path: string): TreeViewItem<CompilerHierarchyTreeNode>[] | undefined {
+    if (node.kind === 'slotOutlet') {
+        return undefined;
+    }
+    if (node.kind === 'pixi') {
+        return node.children.map((child, index) => compilerNodeTreeItem(sceneName, child, depth, `${path}/${index}`));
+    }
+    return Object.entries(node.slots).map(([slot, children]) => {
+        const locator = `${path}/slot:${slot}`;
+        return {
+            children: children.map((child, index) => compilerNodeTreeItem(sceneName, child, depth + 1, `${locator}/${index}`)),
+            id: locator,
+            item: {
+                depth,
+                locator,
+                node: {
+                    kind: 'slotGroup' as const,
+                    name: slot,
+                },
+            },
+            textValue: `slot: ${slot}`,
+        };
+    });
+}
+
+function collectCompilerLocators(items: TreeViewItem<CompilerHierarchyTreeNode>[]): string[] {
+    return items.flatMap((item) => [
+        String(item.id),
+        ...collectCompilerLocators(item.children ?? []),
+    ]);
 }
 
 function collectNodeLocators(node: NodeSpec): string[] {
@@ -730,6 +854,53 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
                     </button>
                 </div>
             ) : null}
+        </div>
+    );
+}
+
+export function CompilerSceneHierarchyTree() {
+    useCompilerSceneRevision();
+    const compilerDocument = getCompilerSceneDocument();
+    const t = useI18n();
+
+    if (!compilerDocument) {
+        return null;
+    }
+
+    const treeItems = compilerTreeItem(compilerDocument);
+    const expandedKeys = collectCompilerLocators(treeItems);
+    const selected = compilerDocument.selection.type === 'node' ? compilerDocument.selection.node : '__scene__';
+
+    return (
+        <div className="nodeTree" data-testid="compiler-scene-hierarchy">
+            <div className="sectionHeader hierarchyHeader">
+                <div>
+                    <div className="sectionTitle">{t('hierarchyTreeTitle')}</div>
+                    <small>Compiler Scene readonly</small>
+                </div>
+            </div>
+            <TreeView
+                ariaLabel={t('sceneNodeTreeLabel')}
+                expandedKeys={expandedKeys}
+                items={treeItems}
+                onItemAction={(item) => selectCompilerSceneNode(item.locator)}
+                onSelectedKeyChange={(_, item) => selectCompilerSceneNode(item.locator)}
+                selectedKeys={[selected]}
+                renderItem={({ item }) => (
+                    <div
+                        className={[
+                            'nodeRow',
+                            item.locator === selected ? 'selected' : '',
+                        ].filter(Boolean).join(' ')}
+                        style={{ '--tree-indent': `${item.depth * 14}px` } as React.CSSProperties}
+                    >
+                        <span className="nodeName">
+                            <SystemIcon name={compilerNodeIcon(item.node)} />
+                            <strong>{compilerNodeLabel(item.node, compilerDocument.template.name)}</strong>
+                        </span>
+                    </div>
+                )}
+            />
         </div>
     );
 }

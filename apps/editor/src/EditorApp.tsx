@@ -7,19 +7,24 @@ import {
     refreshSceneDocument,
     resetSceneDocument,
 } from './document/sceneDocumentController';
+import {
+    getCompilerSceneDocument,
+    resetCompilerSceneDocument,
+} from './document/compilerSceneDocumentController';
 import { IconButton } from './components/IconButton';
 import { Button, Select, SystemIcon } from './components/system';
 import { useEditorStore } from './editorStore';
 import type { EditorLanguage } from './i18n';
 import { editorLanguageNames, translate, useI18n } from './i18n';
 import { ResourceExplorer } from './panels/ExplorerPanel';
-import { HierarchyTree } from './panels/HierarchyPanel';
+import { CompilerSceneHierarchyTree, HierarchyTree } from './panels/HierarchyPanel';
 import { AiPanel } from './panels/AiPanel';
 import { InspectorPanel } from './panels/InspectorPanel';
 import { SummaryBar } from './panels/SummaryBar';
 import { ViewportPanel } from './panels/ViewportPanel';
-import { collectHierarchy, useDocumentRevision } from './panels/common';
+import { collectHierarchy, useCompilerSceneRevision, useDocumentRevision } from './panels/common';
 import { openProjectFolder, saveSceneFile } from './services/projectFileTree';
+import type { CompilerSceneTemplateNode } from './services/projectFileTree';
 import {
     createReadyRunStatus,
     refreshEditorRunStatus,
@@ -86,13 +91,37 @@ function createDockComponents(document: SceneDocument, revision: number) {
 
 function SceneTreePanel({ document }: { document: SceneDocument }) {
     useDocumentRevision();
+    useCompilerSceneRevision();
     const t = useI18n();
     const openedScenePath = useEditorStore((state) => state.openedScenePath);
+    const compilerDocument = getCompilerSceneDocument();
     if (!openedScenePath) {
         return (
             <div className="dockPanelSurface panelEmptyState">
                 <strong>{t('sceneEmptyTitle')}</strong>
                 <span>{t('sceneEmptyHint')}</span>
+            </div>
+        );
+    }
+    if (compilerDocument?.scenePath === openedScenePath) {
+        const nodeCount = countCompilerSceneNodes(compilerDocument.template.children);
+        const publicInterface = compilerDocument.descriptor?.interface ?? compilerDocument.template.interface;
+
+        return (
+            <div className="dockPanelSurface">
+                <section className="resourceMeta">
+                    <span>{t('panelScene')}</span>
+                    <strong>{compilerDocument.template.name}</strong>
+                    <small title={openedScenePath}>{openedScenePath}</small>
+                    <div className="sceneMetaGrid">
+                        <span>{t('nodeCount', { count: nodeCount })}</span>
+                        <span>{Object.keys(publicInterface.props).length} props</span>
+                        <span>{Object.keys(publicInterface.events).length} events</span>
+                        <span>{Object.keys(publicInterface.slots).length} slots</span>
+                        <span className="sceneState saved">readonly</span>
+                    </div>
+                </section>
+                <CompilerSceneHierarchyTree />
             </div>
         );
     }
@@ -114,6 +143,22 @@ function SceneTreePanel({ document }: { document: SceneDocument }) {
             <HierarchyTree document={document} />
         </div>
     );
+}
+
+function countCompilerSceneNodes(nodes: readonly CompilerSceneTemplateNode[]): number {
+    let count = 1;
+    for (const node of nodes) {
+        count += 1;
+        if (node.kind === 'pixi') {
+            count += countCompilerSceneNodes(node.children) - 1;
+        }
+        if (node.kind === 'sceneInstance') {
+            for (const children of Object.values(node.slots)) {
+                count += countCompilerSceneNodes(children) - 1;
+            }
+        }
+    }
+    return count;
 }
 
 function WelcomePage({ onOpenFolder }: { onOpenFolder: () => void }) {
@@ -181,6 +226,7 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
 
 export function EditorApp() {
     const revision = useDocumentRevision();
+    useCompilerSceneRevision();
     const document = getSceneDocument();
     const t = useI18n();
     const language = useEditorStore((state) => state.language);
@@ -256,6 +302,7 @@ export function EditorApp() {
 
     const resetDocument = useCallback(() => {
         resetSceneDocument();
+        resetCompilerSceneDocument();
     }, []);
     const undo = useCallback(() => {
         document.undo();
@@ -278,6 +325,10 @@ export function EditorApp() {
             return;
         }
         if (!openedScenePath) {
+            setSaveStatusKey('noScene');
+            return;
+        }
+        if (getCompilerSceneDocument()?.scenePath === openedScenePath) {
             setSaveStatusKey('noScene');
             return;
         }

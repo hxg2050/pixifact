@@ -5,6 +5,10 @@ import {
     getSceneDocument,
     resetSceneDocument,
 } from '../apps/editor/src/document/sceneDocumentController';
+import {
+    getCompilerSceneDocument,
+    resetCompilerSceneDocument,
+} from '../apps/editor/src/document/compilerSceneDocumentController';
 import { useEditorStore } from '../apps/editor/src/editorStore';
 import { createLiveEditorActionHandlers } from '../apps/editor/src/agent/liveEditorClient';
 import {
@@ -18,6 +22,7 @@ import {
     findFileByPath,
     mergeExpandedFolderPaths,
     nearestExistingPath,
+    openCompilerSceneFile,
     openSceneFile,
     openProjectCodeFile,
     openProjectDefaultFile,
@@ -273,6 +278,7 @@ describe('project file tree service', () => {
         vi.clearAllMocks();
         localStorage.clear();
         resetSceneDocument();
+        resetCompilerSceneDocument();
         host.reset();
         useEditorStore.setState({
             language: 'zh-CN',
@@ -573,6 +579,59 @@ describe('project file tree service', () => {
         expect(saved).toBe(true);
         expect(document.dirty).toBe(false);
         expect(JSON.parse(content).root.children[0].text.value).toBe('Continue');
+    });
+
+    it('opens compiler Scene templates as readonly editor documents', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file(`
+                    <Scene name="Button" script="../src/scenes/Button.ts" class="Button" width="120" height="40">
+                      <Graphics id="background" shape="roundRect" width="120" height="40" radius="8" fill="#2f6fed" />
+                      <Text id="labelText" text="Button" />
+                    </Scene>
+                `),
+            }),
+            src: host.directory({
+                generated: host.directory({
+                    'Button.scene.interface.json': host.file(JSON.stringify({
+                        scene: './scenes/Button.scene',
+                        className: 'Button',
+                        interface: {
+                            props: {
+                                label: {
+                                    type: 'string',
+                                    default: 'Button',
+                                },
+                            },
+                            events: {
+                                click: {
+                                    type: 'action',
+                                },
+                            },
+                            slots: {
+                                icon: {},
+                            },
+                        },
+                        parts: {
+                            labelText: 'labelText',
+                        },
+                    })),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+
+        const opened = await openCompilerSceneFile(tree, sceneFile!);
+        const compilerDocument = getCompilerSceneDocument();
+
+        expect(opened.openedScenePath).toBe('GameProject/scenes/Button.scene');
+        expect(opened.template.name).toBe('Button');
+        expect(opened.descriptor?.className).toBe('Button');
+        expect(compilerDocument?.scenePath).toBe('GameProject/scenes/Button.scene');
+        expect(compilerDocument?.template.children.map((node) => node.kind === 'slotOutlet' ? node.name : node.id)).toEqual(['background', 'labelText']);
+        expect(compilerDocument?.descriptor?.interface.props.label.default).toBe('Button');
+        expect(compilerDocument?.selection).toEqual({ type: 'scene' });
     });
 
     it('creates and opens a Scene, applies live CLI commands, updates preview and saves', async () => {

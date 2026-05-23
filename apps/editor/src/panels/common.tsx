@@ -4,6 +4,10 @@ import {
     getSceneDocumentRevision,
     subscribeSceneDocument,
 } from '../document/sceneDocumentController';
+import {
+    getCompilerSceneDocumentRevision,
+    subscribeCompilerSceneDocument,
+} from '../document/compilerSceneDocumentController';
 import { useI18n } from '../i18n';
 import type { I18nKey } from '../i18n';
 
@@ -46,6 +50,14 @@ export function useDocumentRevision() {
         subscribeSceneDocument,
         getSceneDocumentRevision,
         getSceneDocumentRevision,
+    );
+}
+
+export function useCompilerSceneRevision() {
+    return useSyncExternalStore(
+        subscribeCompilerSceneDocument,
+        getCompilerSceneDocumentRevision,
+        getCompilerSceneDocumentRevision,
     );
 }
 
