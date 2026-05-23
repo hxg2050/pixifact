@@ -61,6 +61,11 @@ const fieldLabelKeys: Record<string, I18nKey> = {
     cursor: 'cursor',
     label: 'label',
     shape: 'shape',
+    tilePositionX: 'tilePositionX',
+    tilePositionY: 'tilePositionY',
+    tileScaleX: 'tileScaleX',
+    tileScaleY: 'tileScaleY',
+    tileRotation: 'tileRotation',
     leftWidth: 'leftWidth',
     rightWidth: 'rightWidth',
     topHeight: 'topHeight',
@@ -130,13 +135,17 @@ const compilerTransformProps = ['x', 'y', 'width', 'height', 'scaleX', 'scaleY',
 const compilerAdvancedTransformProps = ['pivotX', 'pivotY', 'skewX', 'skewY'];
 const compilerDisplayProps = ['alpha', 'visible', 'zIndex', 'eventMode', 'cursor', 'label'];
 const compilerSpriteProps = ['texture', 'anchorX', 'anchorY', 'tint'];
+const compilerNineSliceSpriteProps = [...compilerSpriteProps, 'leftWidth', 'rightWidth', 'topHeight', 'bottomHeight'];
+const compilerTilingSpriteProps = [...compilerSpriteProps, 'tilePositionX', 'tilePositionY', 'tileScaleX', 'tileScaleY', 'tileRotation'];
 const compilerTextProps = ['text', 'fontSize', 'fontFamily', 'fontWeight', 'fill'];
-const compilerGraphicsProps = ['shape', 'radius', 'fill', 'strokeColor', 'strokeWidth', 'strokeAlpha'];
+const compilerGraphicsProps = ['shape', 'radius', 'fill', 'fillAlpha', 'strokeColor', 'strokeWidth', 'strokeAlpha'];
 const compilerKnownPixiProps = new Set([
     ...compilerTransformProps,
     ...compilerAdvancedTransformProps,
     ...compilerDisplayProps,
     ...compilerSpriteProps,
+    ...compilerNineSliceSpriteProps,
+    ...compilerTilingSpriteProps,
     ...compilerTextProps,
     ...compilerGraphicsProps,
 ]);
@@ -252,7 +261,7 @@ function compilerFieldType(key: string, value: unknown) {
     if (['fill', 'tint', 'strokeColor'].includes(key)) {
         return 'color';
     }
-    if (['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation', 'pivotX', 'pivotY', 'skewX', 'skewY', 'alpha', 'zIndex', 'radius', 'fontSize', 'anchorX', 'anchorY', 'fillAlpha', 'strokeWidth', 'strokeAlpha'].includes(key)) {
+    if (['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation', 'pivotX', 'pivotY', 'skewX', 'skewY', 'alpha', 'zIndex', 'radius', 'fontSize', 'anchorX', 'anchorY', 'fillAlpha', 'strokeWidth', 'strokeAlpha', 'leftWidth', 'rightWidth', 'topHeight', 'bottomHeight', 'tilePositionX', 'tilePositionY', 'tileScaleX', 'tileScaleY', 'tileRotation'].includes(key)) {
         return 'number';
     }
     if (['visible'].includes(key)) {
@@ -281,12 +290,30 @@ function compilerContractFieldType(type: string) {
 }
 
 function compilerField(key: string, value: unknown, type?: string): InspectorFieldModel {
+    const enumOptions = compilerEnumOptions(key);
     return {
         key,
         label: key,
-        type: type ? compilerContractFieldType(type) : compilerFieldType(key, value),
+        type: enumOptions ? 'enum' : type ? compilerContractFieldType(type) : compilerFieldType(key, value),
         value,
+        ...(enumOptions ? { schema: { key, type: 'enum', options: enumOptions } } : {}),
     };
+}
+
+function compilerEnumOptions(key: string) {
+    if (key === 'shape') {
+        return ['roundRect', 'rect'];
+    }
+    if (key === 'eventMode') {
+        return ['none', 'passive', 'auto', 'static', 'dynamic'];
+    }
+    if (key === 'fontWeight') {
+        return ['400', '500', '600', '700', 'bold'];
+    }
+    if (key === 'cursor') {
+        return ['default', 'pointer', 'text', 'grab', 'grabbing'];
+    }
+    return undefined;
 }
 
 function compilerTransformFields(node: SelectedCompilerItem): InspectorFieldModel[] {
@@ -310,7 +337,11 @@ function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: Compile
     if (node.kind === 'sceneInstance' && sceneInterface) {
         return Object.entries(sceneInterface.props).map(([key, contract]) => compilerField(key, node.props[key] ?? contract.default, contract.type));
     }
-    const typeKeys = node.kind === 'pixi' && ['Sprite', 'NineSliceSprite', 'TilingSprite'].includes(node.type)
+    const typeKeys = node.kind === 'pixi' && node.type === 'NineSliceSprite'
+        ? compilerNineSliceSpriteProps
+        : node.kind === 'pixi' && node.type === 'TilingSprite'
+            ? compilerTilingSpriteProps
+            : node.kind === 'pixi' && node.type === 'Sprite'
         ? compilerSpriteProps
         : node.kind === 'pixi' && ['Text', 'BitmapText', 'HTMLText'].includes(node.type)
             ? compilerTextProps

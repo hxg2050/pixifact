@@ -3,10 +3,10 @@ import type {
     CompilerSceneScriptInterface,
     CompilerSceneTemplateNode,
 } from '../services/projectFileTree';
-import type { NodeTemplateKind } from '../services/nodeTemplateLibrary';
+import type { NodeTemplateKind, PixiNodeTemplateKind } from '../services/nodeTemplateLibrary';
 import type { SceneToolKind } from '../services/sceneToolLibrary';
 
-export type CompilerSceneAddablePixiType = Extract<SceneTemplatePrimitiveType, 'Container' | 'Sprite' | 'Text' | 'Graphics'>;
+export type CompilerSceneAddablePixiType = Extract<SceneTemplatePrimitiveType, 'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics'>;
 export type CompilerSceneNodeDropPosition = 'before' | 'inside' | 'after';
 
 export type CompilerSceneSelection =
@@ -131,7 +131,37 @@ export function createCompilerPixiTemplateNode(template: SceneTemplate, type: Co
             children: [],
         };
     }
-    if (type === 'Text') {
+    if (type === 'NineSliceSprite') {
+        return {
+            kind: 'pixi',
+            type,
+            id,
+            props: {
+                width: 160,
+                height: 80,
+                leftWidth: 10,
+                rightWidth: 10,
+                topHeight: 10,
+                bottomHeight: 10,
+            },
+            children: [],
+        };
+    }
+    if (type === 'TilingSprite') {
+        return {
+            kind: 'pixi',
+            type,
+            id,
+            props: {
+                width: 160,
+                height: 96,
+                tileScaleX: 1,
+                tileScaleY: 1,
+            },
+            children: [],
+        };
+    }
+    if (type === 'Text' || type === 'BitmapText' || type === 'HTMLText') {
         return {
             kind: 'pixi',
             type,
@@ -161,7 +191,31 @@ export function createCompilerPixiTemplateNode(template: SceneTemplate, type: Co
     };
 }
 
+function compilerPixiTypeFromPixiNodeTemplate(kind: PixiNodeTemplateKind): CompilerSceneAddablePixiType {
+    switch (kind) {
+        case 'pixi-container':
+            return 'Container';
+        case 'pixi-sprite':
+            return 'Sprite';
+        case 'pixi-nine-slice-sprite':
+            return 'NineSliceSprite';
+        case 'pixi-tiling-sprite':
+            return 'TilingSprite';
+        case 'pixi-text':
+            return 'Text';
+        case 'pixi-bitmap-text':
+            return 'BitmapText';
+        case 'pixi-html-text':
+            return 'HTMLText';
+        case 'pixi-graphics':
+            return 'Graphics';
+    }
+}
+
 export function compilerPixiTypeFromNodeTemplate(kind: NodeTemplateKind): CompilerSceneAddablePixiType | undefined {
+    if (kind.startsWith('pixi-')) {
+        return compilerPixiTypeFromPixiNodeTemplate(kind as PixiNodeTemplateKind);
+    }
     if (kind === 'container') {
         return 'Container';
     }

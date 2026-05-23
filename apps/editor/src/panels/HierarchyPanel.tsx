@@ -23,6 +23,7 @@ import { useI18n } from '../i18n';
 import {
     nodeTemplateDragDataType,
     createNodeTemplateNode,
+    isLegacyNodeTemplateKind,
     isNodeTemplateKind,
 } from '../services/nodeTemplateLibrary';
 import {
@@ -676,7 +677,7 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
     };
 
     const addNodeTemplateUnderNode = (kind: string, parent: string) => {
-        if (!isNodeTemplateKind(kind)) {
+        if (!isLegacyNodeTemplateKind(kind)) {
             setError(t('nodeTemplateMissing'));
             return;
         }

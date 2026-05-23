@@ -10,7 +10,7 @@ import type {
 
 const transformProps = new Set(['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation', 'pivotX', 'pivotY', 'skewX', 'skewY']);
 const pixiProps = new Set(['alpha', 'visible', 'eventMode', 'cursor', 'label', 'zIndex']);
-const spriteProps = new Set(['texture', 'anchorX', 'anchorY', 'tint']);
+const spriteProps = new Set(['texture', 'anchorX', 'anchorY', 'tint', 'leftWidth', 'rightWidth', 'topHeight', 'bottomHeight', 'tilePositionX', 'tilePositionY', 'tileScaleX', 'tileScaleY', 'tileRotation']);
 const graphicsProps = new Set(['shape', 'radius', 'fill', 'fillAlpha', 'strokeColor', 'strokeWidth', 'strokeAlpha']);
 
 export function compileSceneTemplateToTs(template: SceneTemplate, options: CompileSceneTemplateOptions = {}) {
@@ -20,6 +20,7 @@ export function compileSceneTemplateToTs(template: SceneTemplate, options: Compi
 
 class CompileContext {
     readonly #imports = new Set<SceneTemplatePrimitiveType>();
+    readonly #pixiImports = new Set<string>();
     readonly #runtimeImports = new Set<string>();
     readonly #lines: string[] = [];
     readonly #parts: { id: string; type: string }[] = [];
@@ -65,7 +66,11 @@ class CompileContext {
     }
 
     #formatImports() {
-        const imports = ['Container', ...[...this.#imports].filter((item) => item !== 'Container').sort()];
+        const imports = [...new Set([
+            'Container',
+            ...[...this.#imports].filter((item) => item !== 'Container').sort(),
+            ...[...this.#pixiImports].sort(),
+        ])];
         const lines = [`import { ${imports.join(', ')} } from 'pixi.js';`];
         for (const [name, source] of Object.entries(this.options.sceneImports ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
             lines.push(`import { ${name} } from ${JSON.stringify(source)};`);
@@ -206,7 +211,7 @@ class CompileContext {
 
     #constructPixiNode(node: PixiTemplateNode) {
         if (node.type === 'Text' || node.type === 'BitmapText' || node.type === 'HTMLText') {
-            const text = this.#value(node.props.text ?? '');
+            const text = this.#stringValue(node.props.text ?? '');
             const style = this.#styleObject(node.props);
             return `new ${node.type}({ text: ${text}${style ? `, style: ${style}` : ''} })`;
         }
@@ -214,6 +219,12 @@ class CompileContext {
             return node.props.texture === undefined
                 ? 'new Sprite()'
                 : `Sprite.from(${this.#value(node.props.texture)})`;
+        }
+        if (node.type === 'NineSliceSprite') {
+            return `new NineSliceSprite(${this.#spriteTextureOptions(node.props)})`;
+        }
+        if (node.type === 'TilingSprite') {
+            return `new TilingSprite(${this.#spriteTextureOptions(node.props)})`;
         }
         if (node.type === 'Graphics') {
             return 'new Graphics()';
@@ -274,6 +285,22 @@ class CompileContext {
         if (props.tint !== undefined) {
             this.#lines.push(`  ${variable}.tint = ${this.#value(props.tint)};`);
         }
+        for (const key of ['leftWidth', 'rightWidth', 'topHeight', 'bottomHeight', 'tileRotation']) {
+            const value = props[key];
+            if (value !== undefined) {
+                this.#lines.push(`  ${variable}.${key} = ${this.#value(value)};`);
+            }
+        }
+        const tilePositionX = props.tilePositionX;
+        const tilePositionY = props.tilePositionY;
+        if (tilePositionX !== undefined || tilePositionY !== undefined) {
+            this.#lines.push(`  ${variable}.tilePosition.set(${this.#value(tilePositionX ?? 0)}, ${this.#value(tilePositionY ?? 0)});`);
+        }
+        const tileScaleX = props.tileScaleX;
+        const tileScaleY = props.tileScaleY;
+        if (tileScaleX !== undefined || tileScaleY !== undefined) {
+            this.#lines.push(`  ${variable}.tileScale.set(${this.#value(tileScaleX ?? 1)}, ${this.#value(tileScaleY ?? 1)});`);
+        }
     }
 
     #drawGraphics(variable: string, props: Record<string, SceneTemplateValue>) {
@@ -323,6 +350,15 @@ class CompileContext {
         return entries.length > 0 ? `{ ${entries.join(', ')} }` : undefined;
     }
 
+    #spriteTextureOptions(props: Record<string, SceneTemplateValue>) {
+        if (props.texture !== undefined) {
+            this.#pixiImports.add('Texture');
+        }
+        return props.texture === undefined
+            ? '{}'
+            : `{ texture: Texture.from(${this.#value(props.texture)}) }`;
+    }
+
     #hasEvents() {
         for (const child of this.template.children) {
             if (this.#nodeHasEvents(child)) {
@@ -359,5 +395,9 @@ class CompileContext {
             return JSON.stringify(value);
         }
         return String(value);
+    }
+
+    #stringValue(value: SceneTemplateValue) {
+        return JSON.stringify(String(value));
     }
 }

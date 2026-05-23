@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
 import {
     Application as PixiApplication,
+    BitmapText,
     Container,
     Graphics,
+    HTMLText,
+    NineSliceSprite,
     Sprite,
     Text,
+    Texture,
+    TilingSprite,
 } from 'pixi.js';
 import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
 import { compilerSceneNodeLocator } from '../document/compilerSceneDocumentController';
@@ -46,7 +51,7 @@ const previewWidth = 960;
 const previewHeight = 540;
 const transformProps = new Set(['x', 'y', 'width', 'height', 'scaleX', 'scaleY', 'rotation', 'pivotX', 'pivotY', 'skewX', 'skewY']);
 const pixiProps = new Set(['alpha', 'visible', 'eventMode', 'cursor', 'label', 'zIndex']);
-const spriteProps = new Set(['texture', 'anchorX', 'anchorY', 'tint']);
+const spriteProps = new Set(['texture', 'anchorX', 'anchorY', 'tint', 'leftWidth', 'rightWidth', 'topHeight', 'bottomHeight', 'tilePositionX', 'tilePositionY', 'tileScaleX', 'tileScaleY', 'tileRotation']);
 const graphicsProps = new Set(['shape', 'radius', 'fill', 'fillAlpha', 'strokeColor', 'strokeWidth', 'strokeAlpha']);
 const textStyleProps = new Set(['fontSize', 'fontFamily', 'fontWeight', 'fill']);
 
@@ -55,7 +60,7 @@ function numericProp(value: SceneTemplateValue | undefined, defaultValue: number
 }
 
 function stringProp(value: SceneTemplateValue | undefined, defaultValue = '') {
-    return typeof value === 'string' ? value : defaultValue;
+    return value === undefined ? defaultValue : String(value);
 }
 
 function sceneSize(template: SceneTemplate) {
@@ -96,16 +101,9 @@ async function loadSceneTemplate(context: RenderContext, scene: string) {
 }
 
 function createTextNode(node: PixiTemplateNode) {
-    const style: Record<string, string | number> = {};
-    for (const key of textStyleProps) {
-        const value = node.props[key];
-        if (value !== undefined) {
-            style[key] = key === 'fontWeight' ? String(value) : value as string | number;
-        }
-    }
     return new Text({
         text: stringProp(node.props.text),
-        style,
+        style: textStyle(node),
     });
 }
 
@@ -113,9 +111,31 @@ function createPixiNode(node: PixiTemplateNode) {
     if (node.type === 'Text') {
         return createTextNode(node);
     }
+    if (node.type === 'BitmapText') {
+        return new BitmapText({
+            text: stringProp(node.props.text),
+            style: textStyle(node),
+        });
+    }
+    if (node.type === 'HTMLText') {
+        return new HTMLText({
+            text: stringProp(node.props.text),
+            style: textStyle(node),
+        });
+    }
     if (node.type === 'Sprite') {
         const texture = node.props.texture;
         return typeof texture === 'string' ? Sprite.from(texture) : new Sprite();
+    }
+    if (node.type === 'NineSliceSprite') {
+        const texture = node.props.texture;
+        return typeof texture === 'string'
+            ? new NineSliceSprite({ texture: Texture.from(texture) })
+            : new NineSliceSprite(Texture.EMPTY);
+    }
+    if (node.type === 'TilingSprite') {
+        const texture = node.props.texture;
+        return new TilingSprite(typeof texture === 'string' ? { texture: Texture.from(texture) } : {});
     }
     if (node.type === 'Graphics') {
         return new Graphics();
@@ -124,6 +144,17 @@ function createPixiNode(node: PixiTemplateNode) {
         return new Container();
     }
     throw new Error(`Editor preview 暂不支持 <${node.type}>。`);
+}
+
+function textStyle(node: PixiTemplateNode) {
+    const style: Record<string, string | number> = {};
+    for (const key of textStyleProps) {
+        const value = node.props[key];
+        if (value !== undefined) {
+            style[key] = key === 'fontWeight' ? String(value) : value as string | number;
+        }
+    }
+    return style;
 }
 
 function applyGraphics(node: Container, props: Record<string, SceneTemplateValue>) {
@@ -196,7 +227,7 @@ function applyNodeProps(target: Container, props: Record<string, SceneTemplateVa
     if (skewX !== undefined || skewY !== undefined) {
         target.skew.set(numericProp(skewX, 0), numericProp(skewY, 0));
     }
-    if (target instanceof Sprite) {
+    if (target instanceof Sprite || target instanceof NineSliceSprite || target instanceof TilingSprite) {
         const anchorX = props.anchorX;
         const anchorY = props.anchorY;
         if (anchorX !== undefined || anchorY !== undefined) {
@@ -204,6 +235,29 @@ function applyNodeProps(target: Container, props: Record<string, SceneTemplateVa
         }
         if (props.tint !== undefined) {
             target.tint = numericProp(props.tint, 0xffffff);
+        }
+    }
+    if (target instanceof NineSliceSprite) {
+        for (const key of ['leftWidth', 'rightWidth', 'topHeight', 'bottomHeight'] as const) {
+            const value = props[key];
+            if (value !== undefined) {
+                target[key] = numericProp(value, 10);
+            }
+        }
+    }
+    if (target instanceof TilingSprite) {
+        const tilePositionX = props.tilePositionX;
+        const tilePositionY = props.tilePositionY;
+        if (tilePositionX !== undefined || tilePositionY !== undefined) {
+            target.tilePosition.set(numericProp(tilePositionX, 0), numericProp(tilePositionY, 0));
+        }
+        const tileScaleX = props.tileScaleX;
+        const tileScaleY = props.tileScaleY;
+        if (tileScaleX !== undefined || tileScaleY !== undefined) {
+            target.tileScale.set(numericProp(tileScaleX, 1), numericProp(tileScaleY, 1));
+        }
+        if (props.tileRotation !== undefined) {
+            target.tileRotation = numericProp(props.tileRotation, 0);
         }
     }
     if (!instance && props.shape !== undefined) {

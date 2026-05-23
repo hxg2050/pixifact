@@ -179,6 +179,32 @@ describe('Pixifact scene compiler spike', () => {
         expect(code).not.toContain('hitArea');
     });
 
+    it('compiles PixiJS sprite and text variants', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="PixiVariants">
+              <NineSliceSprite id="panel" texture="assets/panel.png" width="200" height="100" leftWidth="12" rightWidth="12" topHeight="8" bottomHeight="8" />
+              <TilingSprite id="pattern" texture="assets/pattern.png" width="320" height="180" tilePositionX="4" tilePositionY="8" tileScaleX="0.5" tileScaleY="0.75" tileRotation="0.2" />
+              <BitmapText id="score" text="100" fontSize="24" fill="#ffffff" />
+              <HTMLText id="richText" text="&lt;b&gt;Ready&lt;/b&gt;" fontSize="18" fill="#ff0000" />
+            </Scene>
+        `);
+
+        const code = compileSceneTemplateToTs(template);
+
+        expect(code).toContain('BitmapText');
+        expect(code).toContain('NineSliceSprite');
+        expect(code).toContain('Texture');
+        expect(code).toContain('const panel = new NineSliceSprite({ texture: Texture.from("assets/panel.png") });');
+        expect(code).toContain('panel.leftWidth = 12;');
+        expect(code).toContain('panel.bottomHeight = 8;');
+        expect(code).toContain('const pattern = new TilingSprite({ texture: Texture.from("assets/pattern.png") });');
+        expect(code).toContain('pattern.tilePosition.set(4, 8);');
+        expect(code).toContain('pattern.tileScale.set(0.5, 0.75);');
+        expect(code).toContain('pattern.tileRotation = 0.2;');
+        expect(code).toContain('const score = new BitmapText({ text: "100", style: { fontSize: 24, fill: 16777215 } })');
+        expect(code).toContain('const richText = new HTMLText({ text: "<b>Ready</b>", style: { fontSize: 18, fill: 16711680 } })');
+    });
+
     it('mounts registered scene content through runtime decorators in plain TypeScript', () => {
         registerScene('./RuntimeButton.scene', {
             mount(root) {

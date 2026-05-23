@@ -916,6 +916,49 @@ describe('project file tree service', () => {
         expect(compilerPixiTypeFromNodeTemplate('text')).toBe('Text');
         expect(compilerPixiTypeFromNodeTemplate('shape')).toBe('Graphics');
         expect(compilerPixiTypeFromNodeTemplate('input')).toBeUndefined();
+        expect(compilerPixiTypeFromNodeTemplate('pixi-container')).toBe('Container');
+        expect(compilerPixiTypeFromNodeTemplate('pixi-sprite')).toBe('Sprite');
+        expect(compilerPixiTypeFromNodeTemplate('pixi-nine-slice-sprite')).toBe('NineSliceSprite');
+        expect(compilerPixiTypeFromNodeTemplate('pixi-tiling-sprite')).toBe('TilingSprite');
+        expect(compilerPixiTypeFromNodeTemplate('pixi-text')).toBe('Text');
+        expect(compilerPixiTypeFromNodeTemplate('pixi-bitmap-text')).toBe('BitmapText');
+        expect(compilerPixiTypeFromNodeTemplate('pixi-html-text')).toBe('HTMLText');
+        expect(compilerPixiTypeFromNodeTemplate('pixi-graphics')).toBe('Graphics');
+    });
+
+    it('creates compiler Pixi basic nodes with type defaults', () => {
+        const template = parseSceneTemplate('<Scene name="Library" />');
+
+        expect(createCompilerPixiTemplateNode(template, 'NineSliceSprite')).toMatchObject({
+            kind: 'pixi',
+            type: 'NineSliceSprite',
+            props: {
+                width: 160,
+                height: 80,
+                leftWidth: 10,
+                rightWidth: 10,
+                topHeight: 10,
+                bottomHeight: 10,
+            },
+        });
+        expect(createCompilerPixiTemplateNode(template, 'TilingSprite')).toMatchObject({
+            kind: 'pixi',
+            type: 'TilingSprite',
+            props: {
+                width: 160,
+                height: 96,
+                tileScaleX: 1,
+                tileScaleY: 1,
+            },
+        });
+        expect(createCompilerPixiTemplateNode(template, 'BitmapText')).toMatchObject({
+            kind: 'pixi',
+            type: 'BitmapText',
+            props: {
+                text: 'Text',
+                fontSize: 16,
+            },
+        });
     });
 
     it('adds and renames compiler slot outlets only under Containers', async () => {

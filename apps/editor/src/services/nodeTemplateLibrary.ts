@@ -11,7 +11,17 @@ import { editorDragDataTypes } from './dragPayload';
 
 export const nodeTemplateDragDataType = editorDragDataTypes.nodeTemplate;
 
-export type NodeTemplateKind = 'container' | 'text' | 'image' | 'input' | 'shape';
+export type LegacyNodeTemplateKind = 'container' | 'text' | 'image' | 'input' | 'shape';
+export type PixiNodeTemplateKind =
+    | 'pixi-container'
+    | 'pixi-sprite'
+    | 'pixi-nine-slice-sprite'
+    | 'pixi-tiling-sprite'
+    | 'pixi-text'
+    | 'pixi-bitmap-text'
+    | 'pixi-html-text'
+    | 'pixi-graphics';
+export type NodeTemplateKind = LegacyNodeTemplateKind | PixiNodeTemplateKind;
 
 export interface NodeTemplateItem {
     kind: NodeTemplateKind;
@@ -30,6 +40,17 @@ export const nodeTemplateLibrary: NodeTemplateItem[] = [
 ];
 
 export const baseNodeLibrary = nodeTemplateLibrary;
+
+export const pixiNodeTemplateLibrary: NodeTemplateItem[] = [
+    { kind: 'pixi-container', name: 'Container', detail: 'PixiJS Container', nameKey: 'pixiContainerName', detailKey: 'pixiContainerDetail' },
+    { kind: 'pixi-sprite', name: 'Sprite', detail: 'PixiJS Sprite', nameKey: 'pixiSpriteName', detailKey: 'pixiSpriteDetail' },
+    { kind: 'pixi-nine-slice-sprite', name: 'NineSliceSprite', detail: 'PixiJS NineSliceSprite', nameKey: 'pixiNineSliceSpriteName', detailKey: 'pixiNineSliceSpriteDetail' },
+    { kind: 'pixi-tiling-sprite', name: 'TilingSprite', detail: 'PixiJS TilingSprite', nameKey: 'pixiTilingSpriteName', detailKey: 'pixiTilingSpriteDetail' },
+    { kind: 'pixi-text', name: 'Text', detail: 'PixiJS Text', nameKey: 'pixiTextName', detailKey: 'pixiTextDetail' },
+    { kind: 'pixi-bitmap-text', name: 'BitmapText', detail: 'PixiJS BitmapText', nameKey: 'pixiBitmapTextName', detailKey: 'pixiBitmapTextDetail' },
+    { kind: 'pixi-html-text', name: 'HTMLText', detail: 'PixiJS HTMLText', nameKey: 'pixiHtmlTextName', detailKey: 'pixiHtmlTextDetail' },
+    { kind: 'pixi-graphics', name: 'Graphics', detail: 'PixiJS Graphics', nameKey: 'pixiGraphicsName', detailKey: 'pixiGraphicsDetail' },
+];
 
 function nodeKeyBase(kind: NodeTemplateKind) {
     switch (kind) {
@@ -128,5 +149,9 @@ export function createNodeTemplateNode(document: SceneDocument, kind: NodeTempla
 }
 
 export function isNodeTemplateKind(value: string): value is NodeTemplateKind {
+    return [...nodeTemplateLibrary, ...pixiNodeTemplateLibrary].some((item) => item.kind === value);
+}
+
+export function isLegacyNodeTemplateKind(value: string): value is LegacyNodeTemplateKind {
     return nodeTemplateLibrary.some((item) => item.kind === value);
 }

@@ -22,6 +22,7 @@ import type { I18nKey } from '../i18n';
 import {
     nodeTemplateLibrary,
     baseNodeLibrary,
+    pixiNodeTemplateLibrary,
 } from '../services/nodeTemplateLibrary';
 import {
     nodeTemplateDragPayload,
@@ -219,7 +220,7 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
     const devProjectRootPath = editorProjectPath();
     const projectPath = projectTree?.systemPath ?? projectTree?.path ?? devProjectRootPath ?? t('saveStatusClosed');
     const selectedNodeTemplate = selectedPath?.startsWith('library/template/node/')
-        ? nodeTemplateLibrary.find((item) => selectedPath === `library/template/node/${item.kind}`)
+        ? [...nodeTemplateLibrary, ...pixiNodeTemplateLibrary].find((item) => selectedPath === `library/template/node/${item.kind}`)
         : undefined;
     const selectedSceneTool = selectedPath?.startsWith('library/scene-tool/')
         ? sceneToolLibrary.find((item) => selectedPath === `library/scene-tool/${item.kind}`)
@@ -283,7 +284,7 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
     };
 
     const selectNodeTemplate = (kind: string) => {
-        const item = nodeTemplateLibrary.find((candidate) => candidate.kind === kind);
+        const item = [...nodeTemplateLibrary, ...pixiNodeTemplateLibrary].find((candidate) => candidate.kind === kind);
         if (!item) {
             return;
         }
@@ -709,9 +710,9 @@ export function ResourceExplorer({ document }: { document: SceneDocument; revisi
                         className={openSection === 'library' ? 'accordionPanel open' : 'accordionPanel'}
                     >
                         <div className="accordionContent">
-                            <div className="libraryGroupTitle">{t('baseNodeLibrary')}</div>
+                            <div className="libraryGroupTitle">{compilerDocument ? t('pixiNodeLibrary') : t('baseNodeLibrary')}</div>
                             <div className="fileTree nodeTemplateLibraryTree">
-                                {baseNodeLibrary.map((item) => (
+                                {(compilerDocument ? pixiNodeTemplateLibrary : baseNodeLibrary).map((item) => (
                                     <DragSource
                                         as="button"
                                         className={[
