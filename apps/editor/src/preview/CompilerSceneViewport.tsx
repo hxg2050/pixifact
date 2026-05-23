@@ -7,6 +7,7 @@ import {
     Text,
 } from 'pixi.js';
 import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
+import { compilerSceneNodeLocator } from '../document/compilerSceneDocumentController';
 import type {
     PixiTemplateNode,
     SceneInstanceTemplateNode,
@@ -29,6 +30,7 @@ interface CompilerSceneViewportProps {
 interface RenderedCompilerScene {
     root: Container;
     slots: Map<string, Container>;
+    nodes: Map<string, Container>;
     width: number;
     height: number;
 }
@@ -36,6 +38,7 @@ interface RenderedCompilerScene {
 interface RenderContext {
     projectTree: ProjectFileTreeNode;
     sceneRootPath: string;
+    locatorPath: string;
     templates: Map<string, SceneTemplate>;
 }
 
@@ -171,14 +174,16 @@ function applyNodeProps(target: Container, props: Record<string, SceneTemplateVa
 async function renderScene(template: SceneTemplate, context: RenderContext): Promise<RenderedCompilerScene> {
     const root = new Container({ label: template.name });
     const slots = new Map<string, Container>();
+    const nodes = new Map<string, Container>();
     const size = sceneSize(template);
 
     applyNodeProps(root, template.props);
-    await renderChildren(root, template.children, context, slots);
+    await renderChildren(root, template.children, context, slots, nodes);
 
     return {
         root,
         slots,
+        nodes,
         width: size.width,
         height: size.height,
     };
@@ -189,17 +194,18 @@ async function renderChildren(
     children: readonly SceneTemplateNode[],
     context: RenderContext,
     slots: Map<string, Container>,
+    nodes: Map<string, Container>,
 ) {
-    for (const child of children) {
+    for (const [index, child] of children.entries()) {
         if (child.kind === 'slotOutlet') {
             slots.set(child.name, parent);
             continue;
         }
-        parent.addChild(await renderNode(child, context, slots));
+        parent.addChild(await renderNode(child, context, slots, nodes, context.locatorPath ? `${context.locatorPath}/${index}` : String(index)));
     }
 }
 
-async function renderSceneInstance(node: SceneInstanceTemplateNode, context: RenderContext) {
+async function renderSceneInstance(node: SceneInstanceTemplateNode, context: RenderContext, nodes: Map<string, Container>) {
     const template = await loadSceneTemplate(context, node.scene);
     const rendered = await renderScene(template, context);
 
@@ -211,24 +217,43 @@ async function renderSceneInstance(node: SceneInstanceTemplateNode, context: Ren
         if (!host) {
             throw new Error(`${node.type} 缺少 slot：${slot}`);
         }
-        await renderChildren(host, children, context, rendered.slots);
+        await renderChildren(host, children, {
+            ...context,
+            locatorPath: `${context.locatorPath}/slot:${slot}`,
+        }, rendered.slots, nodes);
     }
 
     return rendered.root;
 }
 
-async function renderNode(node: SceneTemplateNode, context: RenderContext, slots: Map<string, Container>): Promise<Container> {
+async function renderNode(
+    node: SceneTemplateNode,
+    context: RenderContext,
+    slots: Map<string, Container>,
+    nodes: Map<string, Container>,
+    path: string,
+): Promise<Container> {
     if (node.kind === 'slotOutlet') {
         throw new Error('<slot> 只能放在容器内部。');
     }
     if (node.kind === 'sceneInstance') {
-        return renderSceneInstance(node, context);
+        const display = await renderSceneInstance(node, {
+            ...context,
+            locatorPath: compilerSceneNodeLocator(node, path),
+        }, nodes);
+        nodes.set(compilerSceneNodeLocator(node, path), display);
+        return display;
     }
 
     const display = createPixiNode(node);
     display.label = node.id ?? node.type;
     applyNodeProps(display, node.props);
-    await renderChildren(display, node.children, context, slots);
+    const locator = compilerSceneNodeLocator(node, path);
+    nodes.set(locator, display);
+    await renderChildren(display, node.children, {
+        ...context,
+        locatorPath: locator,
+    }, slots, nodes);
     return display;
 }
 
@@ -242,8 +267,32 @@ function fitScene(root: Container, width: number, height: number) {
     );
 }
 
+function selectedCompilerNode(document: CompilerSceneDocument) {
+    return document.selection.type === 'node' && document.selection.node !== '__scene__'
+        ? document.selection.node
+        : undefined;
+}
+
+function drawSelectionOutline(outline: Graphics, target: Container | undefined) {
+    outline.clear();
+    if (!target) {
+        return;
+    }
+
+    const bounds = target.getBounds();
+    if (!Number.isFinite(bounds.x) || !Number.isFinite(bounds.y) || bounds.width <= 0 || bounds.height <= 0) {
+        return;
+    }
+
+    outline
+        .rect(bounds.x, bounds.y, bounds.width, bounds.height)
+        .stroke({ width: 2, color: 0x16a34a, alpha: 1 });
+}
+
 export function CompilerSceneViewport({ document, projectTree }: CompilerSceneViewportProps) {
     const hostRef = useRef<HTMLDivElement | null>(null);
+    const outlineRef = useRef<Graphics | undefined>(undefined);
+    const nodesRef = useRef<Map<string, Container>>(new Map());
     const [status, setStatus] = useState('正在初始化编译器预览');
 
     useEffect(() => {
@@ -286,6 +335,7 @@ export function CompilerSceneViewport({ document, projectTree }: CompilerSceneVi
                 const context: RenderContext = {
                     projectTree,
                     sceneRootPath: sceneProjectRootPath(projectTree, document.scenePath),
+                    locatorPath: '',
                     templates: new Map([[document.scenePath, document.template]]),
                 };
                 const rendered = await renderScene(document.template, context);
@@ -297,6 +347,12 @@ export function CompilerSceneViewport({ document, projectTree }: CompilerSceneVi
 
                 fitScene(rendered.root, rendered.width, rendered.height);
                 app.stage.addChild(rendered.root);
+                nodesRef.current = rendered.nodes;
+                const outline = new Graphics();
+                outline.eventMode = 'none';
+                outlineRef.current = outline;
+                app.stage.addChild(outline);
+                drawSelectionOutline(outline, rendered.nodes.get(selectedCompilerNode(document) ?? ''));
                 app.canvas.className = 'pixifactCanvas';
                 host.appendChild(app.canvas);
                 setStatus('');
@@ -310,9 +366,19 @@ export function CompilerSceneViewport({ document, projectTree }: CompilerSceneVi
 
         return () => {
             cancelled = true;
+            outlineRef.current = undefined;
+            nodesRef.current = new Map();
             destroyApp();
         };
     }, [document.scenePath, document.template, projectTree]);
+
+    useEffect(() => {
+        const outline = outlineRef.current;
+        if (!outline) {
+            return;
+        }
+        drawSelectionOutline(outline, nodesRef.current.get(selectedCompilerNode(document) ?? ''));
+    }, [document.selection]);
 
     return (
         <div className="pixifactViewportHost" ref={hostRef}>
