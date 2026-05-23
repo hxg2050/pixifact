@@ -598,7 +598,7 @@ describe('project file tree service', () => {
         expect(JSON.parse(content).root.children[0].text.value).toBe('Continue');
     });
 
-    it('opens compiler Scene templates as readonly editor documents', async () => {
+    it('opens compiler Scene templates as editable editor documents', async () => {
         host.reset({
             scenes: host.directory({
                 'Button.scene': host.file(`
@@ -649,6 +649,58 @@ describe('project file tree service', () => {
         expect(compilerDocument?.template.children.map((node) => node.kind === 'slotOutlet' ? node.name : node.id)).toEqual(['background', 'labelText']);
         expect(compilerDocument?.descriptor?.interface.props.label.default).toBe('Button');
         expect(compilerDocument?.selection).toEqual({ type: 'scene' });
+        expect(compilerDocument?.sceneInterfaces).toEqual({});
+    });
+
+    it('loads public interfaces for compiler Scene instances', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file('<Scene name="Button" />'),
+                'MainMenu.scene': host.file(`
+                    <Scene name="MainMenu">
+                      <Button id="startButton" scene="scenes/Button.scene" label="Start" @click="startGame" />
+                    </Scene>
+                `),
+            }),
+            src: host.directory({
+                generated: host.directory({
+                    'Button.scene.interface.json': host.file(JSON.stringify({
+                        scene: './scenes/Button.scene',
+                        className: 'Button',
+                        interface: {
+                            props: {
+                                label: {
+                                    type: 'string',
+                                    default: 'Button',
+                                },
+                                disabled: {
+                                    type: 'boolean',
+                                    default: false,
+                                },
+                            },
+                            events: {
+                                click: {
+                                    type: 'action',
+                                },
+                            },
+                            slots: {
+                                icon: {},
+                            },
+                        },
+                        parts: {},
+                    })),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/MainMenu.scene');
+
+        const opened = await openCompilerSceneFile(tree, sceneFile!);
+        const compilerDocument = getCompilerSceneDocument();
+
+        expect(opened.sceneInterfaces['scenes/Button.scene'].props.disabled.default).toBe(false);
+        expect(compilerDocument?.sceneInterfaces['scenes/Button.scene'].events.click).toEqual({ type: 'action' });
+        expect(compilerDocument?.sceneInterfaces['scenes/Button.scene'].slots.icon).toEqual({});
     });
 
     it('updates compiler Scene template nodes in memory', async () => {
@@ -690,6 +742,47 @@ describe('project file tree service', () => {
         expect(compilerDocument?.dirty).toBe(true);
     });
 
+    it('updates compiler Scene instance public props and events in memory', async () => {
+        host.reset({
+            scenes: host.directory({
+                'MainMenu.scene': host.file(`
+                    <Scene name="MainMenu">
+                      <Button id="startButton" scene="scenes/Button.scene" label="Start" @click="startGame" />
+                    </Scene>
+                `),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/MainMenu.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        updateCompilerSceneNode('0:startButton', {
+            props: {
+                label: 'Continue',
+                disabled: true,
+            },
+            events: {
+                click: 'resumeGame',
+            },
+        });
+
+        const compilerDocument = getCompilerSceneDocument();
+        const button = compilerDocument?.template.children[0];
+
+        expect(button).toMatchObject({
+            kind: 'sceneInstance',
+            props: {
+                label: 'Continue',
+                disabled: true,
+            },
+            events: {
+                click: 'resumeGame',
+            },
+        });
+        expect(compilerDocument?.dirty).toBe(true);
+    });
+
     it('saves compiler Scene template edits back to XML', async () => {
         host.reset({
             scenes: host.directory({
@@ -720,6 +813,37 @@ describe('project file tree service', () => {
 
         const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene');
         expect(saved).toContain('<Text id="titleText" text="Start" x="40" y="10" fontSize="16" fill="#ffffff" />');
+    });
+
+    it('saves compiler Scene instance public prop and event edits back to XML', async () => {
+        host.reset({
+            scenes: host.directory({
+                'MainMenu.scene': host.file(`
+                    <Scene name="MainMenu">
+                      <Button id="startButton" scene="scenes/Button.scene" label="Start" @click="startGame" />
+                    </Scene>
+                `),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/MainMenu.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+        updateCompilerSceneNode('0:startButton', {
+            props: {
+                label: 'Continue',
+                disabled: true,
+            },
+            events: {
+                click: 'resumeGame',
+            },
+        });
+        const compilerDocument = getCompilerSceneDocument();
+
+        expect(await saveCompilerSceneFile(tree, 'GameProject/scenes/MainMenu.scene', compilerDocument!)).toBe(true);
+
+        const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/MainMenu.scene');
+        expect(saved).toContain('<Button id="startButton" scene="scenes/Button.scene" label="Continue" disabled="true" @click="resumeGame" />');
     });
 
     it('creates and opens a Scene, applies live CLI commands, updates preview and saves', async () => {

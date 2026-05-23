@@ -1,4 +1,4 @@
-import type { SceneTemplate, SceneTemplateValue } from '../../../../packages/pixifact/src/compiler/spec';
+import type { SceneTemplate, SceneTemplateInterface, SceneTemplateValue } from '../../../../packages/pixifact/src/compiler/spec';
 import type {
     CompilerSceneScriptInterface,
     CompilerSceneTemplateNode,
@@ -12,6 +12,7 @@ export interface CompilerSceneDocument {
     scenePath: string;
     template: SceneTemplate;
     descriptor?: CompilerSceneScriptInterface;
+    sceneInterfaces: Record<string, SceneTemplateInterface>;
     selection: CompilerSceneSelection;
     dirty: boolean;
 }
@@ -71,7 +72,14 @@ export function selectCompilerSceneNode(node: string) {
     emitCompilerSceneUpdate();
 }
 
-export function updateCompilerSceneNode(locator: string, updates: { id?: string; props?: Record<string, SceneTemplateValue | undefined> }) {
+export function updateCompilerSceneNode(
+    locator: string,
+    updates: {
+        id?: string;
+        events?: Record<string, string | undefined>;
+        props?: Record<string, SceneTemplateValue | undefined>;
+    },
+) {
     if (!document) {
         return;
     }
@@ -118,7 +126,11 @@ export function compilerSceneNodeLocator(node: CompilerSceneTemplateNode, path =
 function updateCompilerSceneNodes(
     nodes: CompilerSceneTemplateNode[],
     locator: string,
-    updates: { id?: string; props?: Record<string, SceneTemplateValue | undefined> },
+    updates: {
+        id?: string;
+        events?: Record<string, string | undefined>;
+        props?: Record<string, SceneTemplateValue | undefined>;
+    },
     path = '',
 ): { locator: string } | undefined {
     for (const [index, node] of nodes.entries()) {
@@ -148,7 +160,11 @@ function updateCompilerSceneNodes(
 
 function updateCompilerSceneNodeData(
     node: CompilerSceneTemplateNode,
-    updates: { id?: string; props?: Record<string, SceneTemplateValue | undefined> },
+    updates: {
+        id?: string;
+        events?: Record<string, string | undefined>;
+        props?: Record<string, SceneTemplateValue | undefined>;
+    },
 ) {
     if (node.kind === 'slotOutlet') {
         return;
@@ -161,6 +177,15 @@ function updateCompilerSceneNodeData(
             delete node.props[key];
         } else {
             node.props[key] = value;
+        }
+    }
+    if (node.kind === 'sceneInstance') {
+        for (const [key, value] of Object.entries(updates.events ?? {})) {
+            if (value === undefined) {
+                delete node.events[key];
+            } else {
+                node.events[key] = value;
+            }
         }
     }
 }

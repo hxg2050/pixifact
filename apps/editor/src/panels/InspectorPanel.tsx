@@ -33,6 +33,7 @@ import type { I18nKey } from '../i18n';
 import { editorDragDataTypes } from '../services/dragPayload';
 import type {
     CompilerSceneScriptInterface,
+    CompilerSceneTemplateInterface,
     CompilerSceneTemplateNode,
 } from '../services/projectFileTree';
 import { FieldRow, formatValue, parseTextValue, selectedNodeId, useCompilerSceneRevision, useDocumentRevision } from './common';
@@ -208,18 +209,34 @@ function compilerFieldType(key: string, value: unknown) {
     return 'string';
 }
 
-function compilerField(key: string, value: unknown): InspectorFieldModel {
+function compilerContractFieldType(type: string) {
+    if (type === 'number') {
+        return 'number';
+    }
+    if (type === 'boolean') {
+        return 'boolean';
+    }
+    if (type === 'color') {
+        return 'color';
+    }
+    return 'string';
+}
+
+function compilerField(key: string, value: unknown, type?: string): InspectorFieldModel {
     return {
         key,
         label: key,
-        type: compilerFieldType(key, value),
+        type: type ? compilerContractFieldType(type) : compilerFieldType(key, value),
         value,
     };
 }
 
-function compilerPropFields(node: SelectedCompilerItem): InspectorFieldModel[] {
+function compilerPropFields(node: SelectedCompilerItem, sceneInterface?: CompilerSceneTemplateInterface): InspectorFieldModel[] {
     if (!node || node.kind === 'slotGroup' || node.kind === 'slotOutlet') {
         return [];
+    }
+    if (node.kind === 'sceneInstance' && sceneInterface) {
+        return Object.entries(sceneInterface.props).map(([key, contract]) => compilerField(key, node.props[key] ?? contract.default, contract.type));
     }
     const typeKeys = node.kind === 'pixi' && node.type === 'Text'
         ? ['text', 'fontSize', 'fontWeight', 'fill']
@@ -237,6 +254,21 @@ function compilerPropFields(node: SelectedCompilerItem): InspectorFieldModel[] {
         ]),
     ];
     return keys.map((key) => compilerField(key, node.props[key]));
+}
+
+function compilerEventFields(node: SelectedCompilerItem, sceneInterface?: CompilerSceneTemplateInterface): InspectorFieldModel[] {
+    if (!node || node.kind !== 'sceneInstance') {
+        return [];
+    }
+    const keys = sceneInterface
+        ? Object.keys(sceneInterface.events)
+        : Object.keys(node.events);
+    return keys.map((key) => ({
+        key,
+        label: `@${key}`,
+        type: 'string',
+        value: node.events[key],
+    }));
 }
 
 function nodePropLabel(key: 'id' | 'key' | 'role' | 'name', t: Translate) {
@@ -489,15 +521,16 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
         const selectedCompiler = compilerDocument.selection.type === 'node'
             ? selectedCompilerSlot(compilerDocument.selection.node) ?? selectedCompilerNode(compilerDocument.template.children, compilerDocument.selection.node)
             : undefined;
-        const selectedEvents = selectedCompiler?.kind === 'sceneInstance'
-            ? Object.entries(selectedCompiler.events)
-            : [];
+        const selectedSceneInterface = selectedCompiler?.kind === 'sceneInstance'
+            ? compilerDocument.sceneInterfaces[selectedCompiler.scene]
+            : undefined;
         const selectedSlots = selectedCompiler?.kind === 'sceneInstance'
-            ? Object.keys(selectedCompiler.slots)
+            ? Object.keys(selectedSceneInterface?.slots ?? selectedCompiler.slots)
             : selectedCompiler?.kind === 'slotOutlet'
                 ? [selectedCompiler.name]
                 : [];
-        const compilerPropEditorFields = compilerPropFields(selectedCompiler);
+        const compilerPropEditorFields = compilerPropFields(selectedCompiler, selectedSceneInterface);
+        const compilerEventEditorFields = compilerEventFields(selectedCompiler, selectedSceneInterface);
         const compilerSelection = compilerDocument.selection.type === 'node'
             ? compilerDocument.selection.node
             : undefined;
@@ -515,6 +548,16 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
             updateCompilerSceneNode(compilerSelection, {
                 props: {
                     [key]: value as string | number | boolean | undefined,
+                },
+            });
+        };
+        const commitCompilerEvent = (key: string, value: unknown) => {
+            if (!canEditCompilerNode || selectedCompiler?.kind !== 'sceneInstance') {
+                return;
+            }
+            updateCompilerSceneNode(compilerSelection, {
+                events: {
+                    [key]: typeof value === 'string' ? value : undefined,
                 },
             });
         };
@@ -567,8 +610,13 @@ export function InspectorPanel({ document }: { document: SceneDocument }) {
                                     onCommit={(value) => commitCompilerProp(field.key, value)}
                                 />
                             ))}
-                            {selectedEvents.map(([key, value]) => (
-                                <FieldRow key={`event:${key}`} label={`@${key}`} value={value} />
+                            {compilerEventEditorFields.map((field) => (
+                                <EditableFieldRow
+                                    field={field}
+                                    key={`event:${field.key}`}
+                                    label={field.label}
+                                    onCommit={(value) => commitCompilerEvent(field.key, value)}
+                                />
                             ))}
                             {selectedSlots.length ? <FieldRow label="slots" value={selectedSlots.join(', ')} /> : null}
                         </div>

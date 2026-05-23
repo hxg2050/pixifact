@@ -3,6 +3,7 @@ import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/t
 import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
 import type {
     SceneScriptInterface,
+    SceneTemplateInterface,
     SceneTemplateNode,
 } from '../../../../packages/pixifact/src/compiler/spec';
 import { loadCompilerSceneDocument, markCompilerSceneSaved } from '../document/compilerSceneDocumentController';
@@ -28,6 +29,7 @@ export type ProjectFileKind = 'folder' | 'scene' | 'script' | 'component' | 'ass
 export const sceneDragDataType = editorDragDataTypes.scene;
 export type {
     SceneScriptInterface as CompilerSceneScriptInterface,
+    SceneTemplateInterface as CompilerSceneTemplateInterface,
     SceneTemplateNode as CompilerSceneTemplateNode,
 };
 
@@ -366,16 +368,19 @@ export async function openCompilerSceneFile(
     const content = await readProjectFileText(projectTree, file);
     const template = parseSceneTemplate(content);
     const descriptor = await readCompilerSceneDescriptor(projectTree, file);
+    const sceneInterfaces = await readReferencedCompilerSceneInterfaces(projectTree, template.children);
     loadCompilerSceneDocument({
         scenePath: file.path,
         template,
         descriptor,
+        sceneInterfaces,
     });
 
     return {
         openedScenePath: file.path,
         template,
         descriptor,
+        sceneInterfaces,
     };
 }
 
@@ -424,6 +429,41 @@ async function readCompilerSceneDescriptor(projectTree: ProjectFileTreeNode, fil
         return undefined;
     }
     return JSON.parse(await readProjectFileText(projectTree, generatedFile)) as SceneScriptInterface;
+}
+
+async function readReferencedCompilerSceneInterfaces(projectTree: ProjectFileTreeNode, nodes: readonly SceneTemplateNode[]) {
+    const scenePaths = [...collectSceneInstancePaths(nodes)];
+    const entries: [string, SceneTemplateInterface][] = [];
+    for (const scenePath of scenePaths) {
+        const sceneFile = findFileByPath(projectTree, `${projectTree.path}/${scenePath}`);
+        if (!sceneFile) {
+            continue;
+        }
+        const descriptor = await readCompilerSceneDescriptor(projectTree, sceneFile);
+        if (descriptor) {
+            entries.push([scenePath, descriptor.interface]);
+            continue;
+        }
+        const template = parseSceneTemplate(await readProjectFileText(projectTree, sceneFile));
+        entries.push([scenePath, template.interface]);
+    }
+    return Object.fromEntries(entries);
+}
+
+function collectSceneInstancePaths(nodes: readonly SceneTemplateNode[], paths = new Set<string>()) {
+    for (const node of nodes) {
+        if (node.kind === 'pixi') {
+            collectSceneInstancePaths(node.children, paths);
+            continue;
+        }
+        if (node.kind === 'sceneInstance') {
+            paths.add(node.scene);
+            for (const children of Object.values(node.slots)) {
+                collectSceneInstancePaths(children, paths);
+            }
+        }
+    }
+    return paths;
 }
 
 function compilerSceneDescriptorPath(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
