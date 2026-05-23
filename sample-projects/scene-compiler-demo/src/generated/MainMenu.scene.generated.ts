@@ -25,7 +25,7 @@ export function mountMainMenuScene(root: Container, actions: Record<string, () =
   const bodyText = new Text({ text: "Button and Panel are independent Scene scripts. Panel exposes slots; Button exposes props and click.", style: { fontSize: 18, fill: 13162482 } });
   bodyText.label = "bodyText";
   bodyText.position.set(0, 0);
-  mount(settingsPanel, bodyText, "default");
+  mount(settingsPanel, bodyText, "content");
   const startButton = new Button();
   startButton.label = "Start";
   connectSceneEvent(startButton.click, "startGame", root, actions);

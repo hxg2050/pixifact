@@ -34,8 +34,8 @@ export function mountPanelScene(root: Container) {
   contentHost.label = "contentHost";
   contentHost.position.set(32, 96);
   root.addChild(contentHost);
-  __pixifactSlots["default"] = contentHost;
-  registerSlot(root, "default", contentHost);
+  __pixifactSlots["content"] = contentHost;
+  registerSlot(root, "content", contentHost);
   const footerHost = new Container();
   footerHost.label = "footerHost";
   footerHost.position.set(300, 208);

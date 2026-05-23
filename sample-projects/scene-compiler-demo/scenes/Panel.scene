@@ -3,7 +3,7 @@
   <Graphics id="headerRule" shape="rect" x="28" y="72" width="464" height="1" fill="#39506f" />
   <Text id="titleText" text="Panel" x="30" y="28" fontSize="24" fontWeight="800" fill="#ffffff" />
   <Container id="contentHost" x="32" y="96">
-    <slot />
+    <slot name="content" />
   </Container>
   <Container id="footerHost" x="300" y="208">
     <slot name="footer" />
