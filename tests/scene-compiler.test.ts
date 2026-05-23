@@ -190,7 +190,7 @@ describe('Pixifact scene compiler spike', () => {
                 this.labelText.text = value;
             }
 
-            onSceneReady() {
+            onReady() {
                 this.readyText = this.labelText.text;
             }
         }
