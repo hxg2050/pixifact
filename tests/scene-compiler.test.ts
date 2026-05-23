@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Container, Text } from 'pixi.js';
+import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import {
     compileSceneTemplateToTs,
     mount,
@@ -13,6 +16,7 @@ import {
     scene,
     slot,
 } from 'pixifact/compiler';
+import { compileScenes } from 'pixifact/compiler-node';
 
 describe('Pixifact scene compiler spike', () => {
     it('parses a restricted XML scene template with scene props and slot outlet', () => {
@@ -227,5 +231,28 @@ describe('Pixifact scene compiler spike', () => {
               </Container>
             </Scene>
         `)).toThrow('Scene "DuplicateIds" has duplicate id "labelText".');
+    });
+
+    it('generates scene registry files from a project scenes directory', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
+        try {
+            await mkdir(join(root, 'scenes'));
+            await writeFile(join(root, 'scenes', 'Button.scene'), `
+                <Scene name="Button" script="../src/scenes/Button.ts" class="Button" width="120" height="40">
+                  <Text id="labelText" text="Button" />
+                </Scene>
+            `);
+
+            await compileScenes({ projectRoot: root });
+
+            const generated = await readFile(join(root, 'src', 'generated', 'Button.scene.generated.ts'), 'utf8');
+            const registry = await readFile(join(root, 'src', 'generated', 'scenes.generated.ts'), 'utf8');
+
+            expect(generated).toContain('registerScene("./scenes/Button.scene"');
+            expect(generated).toContain('export function mountButtonScene(root: Container)');
+            expect(registry).toBe("import './Button.scene.generated';\n");
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
     });
 });

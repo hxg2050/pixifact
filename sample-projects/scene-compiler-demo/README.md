@@ -24,3 +24,4 @@ bun run build
 ```
 
 `dev` / `build` 会先执行 `bun run compile:scenes`，把 `scenes/*.scene` 生成到 `src/generated/`。
+实际扫描和生成逻辑由 `pixifact/compiler-node` 的 `compileScenes()` 提供；本示例的 `scripts/compile-scenes.ts` 只是项目本地入口。

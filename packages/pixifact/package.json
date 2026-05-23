@@ -57,6 +57,11 @@
       "import": "./dist/compiler/index.js",
       "require": "./dist/compiler/index.js"
     },
+    "./compiler-node": {
+      "types": "./dist/compiler-node/index.d.ts",
+      "import": "./dist/compiler-node/index.js",
+      "require": "./dist/compiler-node/index.js"
+    },
     "./authoring": {
       "types": "./dist/authoring/index.d.ts",
       "import": "./dist/authoring/index.js",

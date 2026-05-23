@@ -26,6 +26,9 @@
       "pixifact": [
         "packages/pixifact/src/index.ts"
       ],
+      "pixifact/compiler-node": [
+        "packages/pixifact/src/compiler-node/index.ts"
+      ],
       "pixifact/*": [
         "packages/pixifact/src/*"
       ]
