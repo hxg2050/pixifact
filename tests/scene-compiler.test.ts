@@ -83,7 +83,7 @@ describe('Pixifact scene compiler spike', () => {
         expect(code).toContain('label: Text;');
         expect(code).toContain('iconHost: Container;');
         expect(code).toContain('slots: Record<string, Container>;');
-        expect(code).toContain('export function mountButtonScene(root: Container, actions: Record<string, () => void> = {}) {');
+        expect(code).toContain('export function mountButtonScene(root: Container) {');
         expect(code).toContain('const __pixifactSlots: Record<string, Container> = {};');
         expect(code).toContain('root.width = 180;');
         expect(code).toContain('const background = new Graphics();');
@@ -142,6 +142,7 @@ describe('Pixifact scene compiler spike', () => {
 
         const code = compileSceneTemplateToTs(template);
 
+        expect(code).toContain('export function mountMainMenuScene(root: Container, actions: Record<string, () => void> = {}) {');
         expect(code).toContain('const startButton = new Button();');
         expect(code).toContain('startButton.position.set(390, 300);');
         expect(code).toContain('startButton.label = "Start";');

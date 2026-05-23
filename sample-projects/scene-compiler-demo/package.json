@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite . --host 127.0.0.1 --port 5175 --strictPort",
-    "build": "vite build . --config vite.config.ts"
+    "compile:scenes": "bun scripts/compile-scenes.ts",
+    "dev": "bun run compile:scenes && vite . --host 127.0.0.1 --port 5175 --strictPort",
+    "build": "bun run compile:scenes && vite build . --config vite.config.ts"
   },
   "dependencies": {
     "pixi.js": "8.18.1",

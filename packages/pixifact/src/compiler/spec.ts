@@ -76,6 +76,7 @@ export interface CompileSceneTemplateOptions {
     functionName?: string;
     actionsParameter?: string;
     registrationPath?: string;
+    sceneImports?: Record<string, string>;
 }
 
 export interface SceneScriptInterface {

@@ -38,7 +38,7 @@ class CompileContext {
         const actionsParameter = this.options.actionsParameter || 'actions';
         const partsType = this.#formatPartsType();
 
-        this.#lines.push(`export function ${functionName}(root: Container, ${actionsParameter}: Record<string, () => void> = {}) {`);
+        this.#lines.push(`export function ${functionName}(root: Container${this.#hasEvents() ? `, ${actionsParameter}: Record<string, () => void> = {}` : ''}) {`);
         this.#lines.push('  const __pixifactSlots: Record<string, Container> = {};');
         this.#applyPixiProps('root', this.template.props);
         for (const child of this.template.children) {
@@ -65,6 +65,9 @@ class CompileContext {
     #formatImports() {
         const imports = ['Container', ...[...this.#imports].filter((item) => item !== 'Container').sort()];
         const lines = [`import { ${imports.join(', ')} } from 'pixi.js';`];
+        for (const [name, source] of Object.entries(this.options.sceneImports ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
+            lines.push(`import { ${name} } from ${JSON.stringify(source)};`);
+        }
         if (this.#runtimeImports.size > 0) {
             lines.push(`import { ${[...this.#runtimeImports].sort().join(', ')} } from 'pixifact/compiler';`);
         }
@@ -171,7 +174,6 @@ class CompileContext {
         if (node.kind === 'sceneInstance') {
             const variable = node.id || this.#anonymousName(node.type);
             this.#lines.push(`  const ${variable} = new ${node.type}();`);
-            this.#applyNodeId(variable, node.id);
             this.#applyPixiProps(variable, node.props, true);
             for (const [name, action] of Object.entries(node.events)) {
                 this.#lines.push(`  ${variable}.${name}.connect(${actionsParameter}.${action});`);
@@ -260,10 +262,32 @@ class CompileContext {
         for (const key of ['fontSize', 'fontFamily', 'fontWeight', 'fill']) {
             const value = props[key];
             if (value !== undefined) {
-                entries.push(`${key}: ${this.#value(value)}`);
+                entries.push(`${key}: ${key === 'fontWeight' ? JSON.stringify(String(value)) : this.#value(value)}`);
             }
         }
         return entries.length > 0 ? `{ ${entries.join(', ')} }` : undefined;
+    }
+
+    #hasEvents() {
+        for (const child of this.template.children) {
+            if (this.#nodeHasEvents(child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    #nodeHasEvents(node: SceneTemplateNode): boolean {
+        if (node.kind === 'slotOutlet') {
+            return false;
+        }
+        if (node.kind === 'sceneInstance') {
+            if (Object.keys(node.events).length > 0) {
+                return true;
+            }
+            return Object.values(node.slots).some((children) => children.some((child) => this.#nodeHasEvents(child)));
+        }
+        return node.children.some((child) => this.#nodeHasEvents(child));
     }
 
     #isTextStyleProp(key: string) {
