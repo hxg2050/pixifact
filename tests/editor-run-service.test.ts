@@ -47,6 +47,7 @@ vi.mock('../apps/editor/src/services/hostBridge', () => ({
     startHostRunProcess: host.startHostRunProcess,
     getHostRunProcessStatus: host.getHostRunProcessStatus,
     stopHostRunProcess: host.stopHostRunProcess,
+    watchHostProjectFiles: vi.fn(),
 }));
 
 function projectTree(): ProjectFileTreeNode {

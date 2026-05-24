@@ -13,14 +13,23 @@ interface TauriCore {
     invoke<T>(command: string, args?: Record<string, unknown>): Promise<T>;
 }
 
+interface TauriEventApi {
+    listen<T>(event: string, handler: (event: { payload: T }) => void): Promise<() => void>;
+}
+
 interface WindowWithTauri extends Window {
     __TAURI__?: {
         core?: TauriCore;
+        event?: TauriEventApi;
     };
 }
 
 function tauriCore() {
     return (window as WindowWithTauri).__TAURI__?.core;
+}
+
+function tauriEvent() {
+    return (window as WindowWithTauri).__TAURI__?.event;
 }
 
 export async function invokeHost<T>(command: string, args?: Record<string, unknown>) {
@@ -35,6 +44,26 @@ export function hostErrorMessage(error: unknown) {
     return error instanceof Error ? error.message : String(error);
 }
 
+export interface HostProjectFileChangedEvent {
+    projectRootPath: string;
+    path: string;
+    kind: string;
+}
+
+export const hostProjectFileChangedEventName = 'pixifact://project-file-changed';
+
+export async function listenHostProjectFileChanged(
+    handler: (event: HostProjectFileChangedEvent) => void,
+) {
+    const events = tauriEvent();
+    if (!events) {
+        throw new Error('当前环境不是 Pixifact 桌面版，无法监听项目文件变化。');
+    }
+    return events.listen<HostProjectFileChangedEvent>(hostProjectFileChangedEventName, (event) => {
+        handler(event.payload);
+    });
+}
+
 export async function pickHostProjectFolder() {
     const tree = await invokeHost<HostProjectFileTreeNode | null>('pick_project_folder');
     return tree ?? undefined;
@@ -42,6 +71,10 @@ export async function pickHostProjectFolder() {
 
 export async function readHostProjectFileTree(projectRootPath: string) {
     return invokeHost<HostProjectFileTreeNode>('read_project_file_tree', { projectRootPath });
+}
+
+export async function watchHostProjectFiles(projectRootPath: string) {
+    await invokeHost<void>('watch_project_files', { projectRootPath });
 }
 
 export async function readHostProjectFileText(projectRootPath: string, filePath: string) {

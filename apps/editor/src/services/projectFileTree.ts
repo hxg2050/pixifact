@@ -24,6 +24,7 @@ import {
     readHostProjectFileText,
     readHostProjectFileTree,
     renameHostProjectEntry,
+    watchHostProjectFiles,
     writeHostProjectFileText,
 } from './hostBridge';
 import type { HostProjectFileTreeNode } from './hostBridge';
@@ -102,7 +103,11 @@ export function componentTypeFromPath(path: string) {
 
 export async function openProjectFolder() {
     const tree = await pickHostProjectFolder();
-    return tree ? projectFileTreeFromHost(tree) : undefined;
+    if (!tree) {
+        return undefined;
+    }
+    await watchHostProjectFiles(tree.systemPath);
+    return projectFileTreeFromHost(tree);
 }
 
 export function countProjectFileTree(node: ProjectFileTreeNode): number {
@@ -473,7 +478,9 @@ export async function saveOpenedSceneFile(
 }
 
 export async function refreshProjectFileTree(projectTree: ProjectFileTreeNode) {
-    return projectFileTreeFromHost(await readHostProjectFileTree(ensureProjectRootPath(projectTree)));
+    const projectRootPath = ensureProjectRootPath(projectTree);
+    await watchHostProjectFiles(projectRootPath);
+    return projectFileTreeFromHost(await readHostProjectFileTree(projectRootPath));
 }
 
 export async function readProjectFileText(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {

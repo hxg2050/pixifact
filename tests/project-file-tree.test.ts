@@ -287,6 +287,7 @@ vi.mock('../apps/editor/src/services/hostBridge', () => ({
     readHostProjectFileText: host.readProjectFileText,
     readHostProjectFileTree: host.readProjectFileTree,
     renameHostProjectEntry: host.renameProjectEntry,
+    watchHostProjectFiles: vi.fn(),
     writeHostProjectFileText: host.writeProjectFileText,
 }));
 

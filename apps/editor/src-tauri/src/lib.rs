@@ -1,3 +1,4 @@
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use std::{
     collections::{HashMap, VecDeque},
@@ -7,7 +8,9 @@ use std::{
     sync::{Arc, Mutex},
     thread,
 };
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
+
+const PROJECT_FILE_CHANGED_EVENT: &str = "pixifact://project-file-changed";
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,6 +28,16 @@ struct ProjectFileTreeNode {
 #[derive(Default)]
 struct RunProcessStore {
     sessions: Mutex<HashMap<String, RunProcessSession>>,
+}
+
+#[derive(Default)]
+struct ProjectWatcherStore {
+    watcher: Mutex<Option<ProjectWatcherSession>>,
+}
+
+struct ProjectWatcherSession {
+    _project_root_path: String,
+    _watcher: RecommendedWatcher,
 }
 
 struct RunProcessSession {
@@ -50,6 +63,14 @@ struct RunProcessStatus {
     stderr: Vec<String>,
 }
 
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ProjectFileChangedPayload {
+    project_root_path: String,
+    path: String,
+    kind: String,
+}
+
 #[tauri::command]
 fn pick_project_folder() -> Result<Option<ProjectFileTreeNode>, String> {
     let Some(path) = rfd::FileDialog::new().pick_folder() else {
@@ -62,6 +83,37 @@ fn pick_project_folder() -> Result<Option<ProjectFileTreeNode>, String> {
 fn read_project_file_tree(project_root_path: String) -> Result<ProjectFileTreeNode, String> {
     let root = canonicalize_existing_path(&project_root_path)?;
     read_directory(&root, &root, 0)
+}
+
+#[tauri::command]
+fn watch_project_files(
+    app: AppHandle,
+    store: State<ProjectWatcherStore>,
+    project_root_path: String,
+) -> Result<(), String> {
+    let root = canonicalize_existing_path(&project_root_path)?;
+    let normalized_root = path_to_string(&root);
+    let emit_root = root.clone();
+    let app_handle = app.clone();
+    let mut watcher = notify::recommended_watcher(move |result: notify::Result<notify::Event>| {
+        let Ok(event) = result else {
+            return;
+        };
+        for path in event.paths {
+            emit_project_file_change(&app_handle, &emit_root, &path);
+        }
+    })
+    .map_err(error_message)?;
+    watcher
+        .watch(&root, RecursiveMode::Recursive)
+        .map_err(error_message)?;
+
+    let mut session = store.watcher.lock().map_err(error_message)?;
+    *session = Some(ProjectWatcherSession {
+        _project_root_path: normalized_root,
+        _watcher: watcher,
+    });
+    Ok(())
 }
 
 #[tauri::command]
@@ -273,9 +325,11 @@ fn stop_run_process(
 pub fn run() {
     tauri::Builder::default()
         .manage(RunProcessStore::default())
+        .manage(ProjectWatcherStore::default())
         .invoke_handler(tauri::generate_handler![
             pick_project_folder,
             read_project_file_tree,
+            watch_project_files,
             read_project_file_text,
             read_project_file_bytes,
             write_project_file_text,
@@ -352,6 +406,41 @@ fn read_directory(root: &Path, directory: &Path, depth: usize) -> Result<Project
 
 fn is_hidden_project_directory(name: &str) -> bool {
     matches!(name, "node_modules" | "dist")
+}
+
+fn emit_project_file_change(app: &AppHandle, root: &Path, path: &Path) {
+    if path.is_dir() || path_contains_hidden_directory(root, path) {
+        return;
+    }
+    let Ok(relative_path) = relative_project_path(root, path) else {
+        return;
+    };
+    let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
+        return;
+    };
+    let kind = project_file_kind(file_name, &relative_path);
+    if !matches!(kind.as_str(), "scene" | "script" | "component") {
+        return;
+    }
+    let _ = app.emit(
+        PROJECT_FILE_CHANGED_EVENT,
+        ProjectFileChangedPayload {
+            project_root_path: path_to_string(root),
+            path: relative_path,
+            kind,
+        },
+    );
+}
+
+fn path_contains_hidden_directory(root: &Path, path: &Path) -> bool {
+    path.strip_prefix(root)
+        .map(|relative| {
+            relative
+                .components()
+                .filter_map(|component| component.as_os_str().to_str())
+                .any(is_hidden_project_directory)
+        })
+        .unwrap_or(false)
 }
 
 fn project_file_kind(name: &str, path: &str) -> String {

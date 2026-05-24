@@ -34,6 +34,7 @@ import {
 import type { EditorRunStatus } from './services/editorRunService';
 import { startLiveEditorAgentClient } from './agent/liveEditorClient';
 import { pixifactAgentBridgeUrl } from './agent/liveBridge';
+import { listenHostProjectFileChanged } from './services/hostBridge';
 import 'dockview/dist/styles/dockview.css';
 
 type EditorPanelParams = Record<string, never>;
@@ -133,6 +134,12 @@ function countCompilerSceneNodes(nodes: readonly CompilerSceneTemplateNode[]): n
         }
     }
     return count;
+}
+
+function isCompilerBindingSourceChange(event: { path: string; kind: string }) {
+    return event.kind === 'scene'
+        || event.path.startsWith('src/scenes/')
+        || event.path.includes('/src/scenes/');
 }
 
 function WelcomePage({ onOpenFolder }: { onOpenFolder: () => void }) {
@@ -267,34 +274,53 @@ export function EditorApp() {
     }, [projectTree]);
 
     useEffect(() => {
-        if (!projectTree || !openedScenePath) {
-            setBindingSyncError('');
-            return undefined;
-        }
+        let unsubscribe: (() => void) | undefined;
+        let cancelled = false;
 
-        const refreshBinding = async () => {
-            const document = getCompilerSceneDocument();
-            if (!document || document.scenePath !== openedScenePath) {
+        void listenHostProjectFileChanged(async (event) => {
+            const currentProjectTree = useEditorStore.getState().projectTree;
+            const currentScenePath = useEditorStore.getState().openedScenePath;
+            if (!currentProjectTree || !currentScenePath) {
                 setBindingSyncError('');
                 return;
             }
-            const file = findFileByPath(projectTree, openedScenePath);
+            const currentRootPath = currentProjectTree.projectRootPath ?? currentProjectTree.systemPath;
+            if (event.projectRootPath !== currentRootPath || !isCompilerBindingSourceChange(event)) {
+                return;
+            }
+            const document = getCompilerSceneDocument();
+            if (!document || document.scenePath !== currentScenePath) {
+                setBindingSyncError('');
+                return;
+            }
+            const file = findFileByPath(currentProjectTree, currentScenePath);
             if (!file || file.kind !== 'scene') {
                 setBindingSyncError('');
                 return;
             }
             try {
-                await refreshCompilerSceneBindingSnapshot(projectTree, file, document.template);
+                await refreshCompilerSceneBindingSnapshot(currentProjectTree, file, document.template);
                 setBindingSyncError('');
             } catch (error) {
                 setBindingSyncError(error instanceof Error ? error.message : String(error));
             }
-        };
+        }).then((dispose) => {
+            if (cancelled) {
+                dispose();
+                return;
+            }
+            unsubscribe = dispose;
+        }).catch((error) => {
+            if (!cancelled) {
+                setBindingSyncError(error instanceof Error ? error.message : String(error));
+            }
+        });
 
-        void refreshBinding();
-        const interval = window.setInterval(() => void refreshBinding(), 1500);
-        return () => window.clearInterval(interval);
-    }, [openedScenePath, projectTree]);
+        return () => {
+            cancelled = true;
+            unsubscribe?.();
+        };
+    }, []);
 
     useEffect(() => {
         if (!runStatus.sessionId || !['starting', 'running'].includes(runStatus.state)) {
