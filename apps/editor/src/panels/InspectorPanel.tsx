@@ -390,6 +390,29 @@ interface CompilerFieldSection {
     fields: InspectorFieldModel[];
 }
 
+interface CompilerSceneInstanceSlotRow {
+    name: string;
+    childCount: number;
+}
+
+export function compilerSceneInstanceSlotRows(
+    node: SelectedCompilerItem,
+    sceneInterface?: CompilerSceneTemplateInterface,
+): CompilerSceneInstanceSlotRow[] {
+    if (!node || node.kind !== 'sceneInstance') {
+        return [];
+    }
+    return [
+        ...new Set([
+            ...Object.keys(sceneInterface?.slots ?? {}),
+            ...Object.keys(node.slots),
+        ]),
+    ].map((name) => ({
+        name,
+        childCount: node.slots[name]?.length ?? 0,
+    }));
+}
+
 function compilerPropSections(node: SelectedCompilerItem, sceneInterface?: CompilerSceneTemplateInterface): CompilerFieldSection[] {
     if (!node || node.kind === 'slot' || node.kind === 'slotOutlet') {
         return [];
@@ -717,11 +740,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
         const selectedSceneInterface = selectedCompiler?.kind === 'sceneInstance'
             ? compilerDocument.sceneInterfaces[selectedCompiler.scene]
             : undefined;
-        const selectedSlots = selectedCompiler?.kind === 'sceneInstance'
-            ? Object.keys(selectedSceneInterface?.slots ?? selectedCompiler.slots)
-            : selectedCompiler?.kind === 'slotOutlet'
-                ? [selectedCompiler.name]
-                : [];
+        const selectedSlotRows = compilerSceneInstanceSlotRows(selectedCompiler, selectedSceneInterface);
         const compilerTransformEditorFields = compilerTransformFields(selectedCompiler);
         const compilerDisplayEditorFields = compilerDisplayFields(selectedCompiler);
         const compilerPropEditorSections = compilerPropSections(selectedCompiler, selectedSceneInterface);
@@ -956,11 +975,17 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                                 </div>
                             </section>
                         ) : null}
-                        {selectedSlots.length ? (
+                        {selectedSlotRows.length ? (
                             <section className="inspectorSection">
                                 <h3>Slots</h3>
                                 <div className="fieldStack">
-                                    <FieldRow label="slots" value={selectedSlots.join(', ')} />
+                                    {selectedSlotRows.map((slot) => (
+                                        <FieldRow
+                                            key={slot.name}
+                                            label={`slot:${slot.name}`}
+                                            value={`${slot.childCount} children`}
+                                        />
+                                    ))}
                                 </div>
                             </section>
                         ) : null}

@@ -20,6 +20,7 @@ import {
 import type { CompilerSceneDocument } from '../apps/editor/src/document/compilerSceneDocumentController';
 import { useEditorStore } from '../apps/editor/src/editorStore';
 import { buildCompilerHierarchyTreeItems } from '../apps/editor/src/panels/HierarchyPanel';
+import { compilerSceneInstanceSlotRows } from '../apps/editor/src/panels/InspectorPanel';
 import {
     collectFolderPaths,
     createAndOpenSceneFile,
@@ -937,6 +938,42 @@ describe('project file tree service', () => {
             kind: 'pixi',
             id: 'footerText',
         });
+    });
+
+    it('builds read-only inspector rows for compiler Scene instance slots', () => {
+        const rows = compilerSceneInstanceSlotRows({
+            kind: 'sceneInstance',
+            type: 'Panel',
+            id: 'settingsPanel',
+            scene: 'scenes/Panel.scene',
+            props: {},
+            events: {},
+            slots: {
+                footer: [{
+                    kind: 'pixi',
+                    type: 'Text',
+                    id: 'footerText',
+                    props: {
+                        text: 'OK',
+                    },
+                    children: [],
+                }],
+                custom: [],
+            },
+        }, {
+            props: {},
+            events: {},
+            slots: {
+                default: {},
+                footer: {},
+            },
+        });
+
+        expect(rows).toEqual([
+            { name: 'default', childCount: 0 },
+            { name: 'footer', childCount: 1 },
+            { name: 'custom', childCount: 0 },
+        ]);
     });
 
     it('updates compiler Scene template nodes in memory', async () => {
