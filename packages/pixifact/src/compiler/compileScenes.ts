@@ -48,6 +48,7 @@ export async function compileScenes(options: CompileScenesOptions) {
             registrationPath,
             scriptImport: scriptImportFor(template, projectRoot, generatedDir),
             sceneImports: sceneImportsFor(file, sceneFiles, templates, projectRoot, generatedDir),
+            textureImports: textureImportsFor(template, projectRoot, generatedDir),
         });
 
         await writeFile(path.join(generatedDir, outputFile), code);
@@ -55,6 +56,19 @@ export async function compileScenes(options: CompileScenesOptions) {
     }
 
     await writeFile(path.join(generatedDir, 'scenes.generated.ts'), `${registryImports.join('\n')}\n`);
+}
+
+function textureImportsFor(template: SceneTemplate, projectRoot: string, generatedDir: string) {
+    const textures = new Set<string>();
+    for (const child of template.children) {
+        collectTextureReferences(child, textures);
+    }
+    return Object.fromEntries([...textures].map((texture) => {
+        const normalized = texture.replace(/^\.\/+/, '').replace(/^\/+/, '');
+        const assetPath = path.resolve(projectRoot, normalized);
+        const source = path.relative(generatedDir, assetPath).replaceAll(path.sep, '/');
+        return [texture, `${source.startsWith('.') ? source : `./${source}`}?url`];
+    }));
 }
 
 function scriptImportFor(template: SceneTemplate, projectRoot: string, generatedDir: string) {
@@ -128,5 +142,25 @@ function collectSceneInstanceTypes(node: SceneTemplateNode, types: Set<string>) 
     }
     for (const child of node.children) {
         collectSceneInstanceTypes(child, types);
+    }
+}
+
+function collectTextureReferences(node: SceneTemplateNode, textures: Set<string>) {
+    if (node.kind === 'slotOutlet') {
+        return;
+    }
+    if (node.kind === 'pixi') {
+        if (typeof node.props.texture === 'string') {
+            textures.add(node.props.texture);
+        }
+        for (const child of node.children) {
+            collectTextureReferences(child, textures);
+        }
+        return;
+    }
+    for (const children of Object.values(node.slots)) {
+        for (const child of children) {
+            collectTextureReferences(child, textures);
+        }
     }
 }

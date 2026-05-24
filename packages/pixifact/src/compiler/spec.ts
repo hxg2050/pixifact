@@ -80,6 +80,7 @@ export interface CompileSceneTemplateOptions {
         source: string;
     };
     sceneImports?: Record<string, string>;
+    textureImports?: Record<string, string>;
 }
 
 export interface SceneScriptInterface {

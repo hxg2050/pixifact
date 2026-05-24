@@ -159,7 +159,8 @@ describe('Pixifact scene compiler spike', () => {
         expect(code).toContain('startButton.label = "Start";');
         expect(code).toContain('connectSceneEvent(startButton.click, "startGame", root, actions);');
         expect(code).toContain('root.addChild(startButton);');
-        expect(code).toContain('const playIcon = Sprite.from("assets/icons/play.png");');
+        expect(code).toContain('const __pixifactTexture1 = await Assets.load("assets/icons/play.png");');
+        expect(code).toContain('const playIcon = new Sprite({ texture: __pixifactTexture1 });');
         expect(code).toContain('playIcon.anchor.set(0.5, 0.5);');
         expect(code).toContain('playIcon.tint = 16711680;');
         expect(code).toContain('mount(startButton, playIcon, "icon");');
@@ -181,11 +182,13 @@ describe('Pixifact scene compiler spike', () => {
 
         expect(code).toContain('BitmapText');
         expect(code).toContain('NineSliceSprite');
-        expect(code).toContain('Texture');
-        expect(code).toContain('const panel = new NineSliceSprite({ texture: Texture.from("assets/panel.png") });');
+        expect(code).toContain('Assets');
+        expect(code).toContain('const __pixifactTexture1 = await Assets.load("assets/panel.png");');
+        expect(code).toContain('const __pixifactTexture2 = await Assets.load("assets/pattern.png");');
+        expect(code).toContain('const panel = new NineSliceSprite({ texture: __pixifactTexture1 });');
         expect(code).toContain('panel.leftWidth = 12;');
         expect(code).toContain('panel.bottomHeight = 8;');
-        expect(code).toContain('const pattern = new TilingSprite({ texture: Texture.from("assets/pattern.png") });');
+        expect(code).toContain('const pattern = new TilingSprite({ texture: __pixifactTexture2 });');
         expect(code).toContain('pattern.tilePosition.set(4, 8);');
         expect(code).toContain('pattern.tileScale.set(0.5, 0.75);');
         expect(code).toContain('pattern.tileRotation = 0.2;');
@@ -325,8 +328,11 @@ describe('Pixifact scene compiler spike', () => {
             await writeFile(join(root, 'scenes', 'Button.scene'), `
                 <Scene name="Button" script="src/scenes/Button.ts" width="120" height="40">
                   <Text id="labelText" text="Button" />
+                  <Sprite id="icon" texture="assets/btn.png" />
                 </Scene>
             `);
+            await mkdir(join(root, 'assets'), { recursive: true });
+            await writeFile(join(root, 'assets', 'btn.png'), 'fake-png');
             await writeFile(join(root, 'src', 'scenes', 'Button.ts'), `
                 import { Container, Text } from 'pixi.js';
                 import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
@@ -356,6 +362,8 @@ describe('Pixifact scene compiler spike', () => {
             expect(generated).toContain('registerScene("scenes/Button.scene"');
             expect(generated).toContain('registerSceneClass(Button, "scenes/Button.scene");');
             expect(generated).toContain('import { Button } from "../scenes/Button";');
+            expect(generated).toContain('import __pixifactTextureUrl1 from "../../assets/btn.png?url";');
+            expect(generated).toContain('const __pixifactTexture1 = await Assets.load(__pixifactTextureUrl1);');
             expect(generated).toContain('export function mountButtonScene(root: Container)');
             expect(source).not.toContain('<Interface>');
             expect(registry).toBe("import './Button.scene.generated';\n");

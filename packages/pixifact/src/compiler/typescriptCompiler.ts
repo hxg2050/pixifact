@@ -32,7 +32,9 @@ class CompileContext {
     readonly #runtimeImports = new Set<string>();
     readonly #lines: string[] = [];
     readonly #parts: { id: string; type: string }[] = [];
+    readonly #textures = new Map<string, string>();
     #nextId = 0;
+    #nextTextureId = 0;
 
     constructor(
         private readonly template: SceneTemplate,
@@ -43,11 +45,13 @@ class CompileContext {
         for (const child of this.template.children) {
             this.#collectImports(child);
             this.#collectParts(child);
+            this.#collectTextures(child);
         }
 
         const functionName = this.options.functionName || `mount${this.template.name}Scene`;
         const actionsParameter = this.options.actionsParameter || 'actions';
         const partsType = this.#formatPartsType();
+        const textureLoads = this.#formatTextureLoads();
 
         this.#lines.push(`export function ${functionName}(root: Container${this.#hasEvents() ? `, ${actionsParameter}: Record<string, () => void> = {}` : ''}) {`);
         this.#lines.push('  const __pixifactSlots: Record<string, Container> = {};');
@@ -76,7 +80,12 @@ class CompileContext {
         }
 
         const imports = this.#formatImports();
-        return `${imports}\n\n${partsType}\n\n${this.#lines.join('\n')}\n`;
+        return [
+            imports,
+            textureLoads,
+            partsType,
+            this.#lines.join('\n'),
+        ].filter(Boolean).join('\n\n') + '\n';
     }
 
     #formatImports() {
@@ -86,6 +95,9 @@ class CompileContext {
             ...[...this.#pixiImports].sort(),
         ])];
         const lines = [`import { ${imports.join(', ')} } from 'pixi.js';`];
+        for (const [texture, variable] of this.#textureImportEntries()) {
+            lines.push(`import ${variable} from ${JSON.stringify(this.options.textureImports?.[texture])};`);
+        }
         for (const [name, source] of Object.entries(this.options.sceneImports ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
             lines.push(`import { ${name} } from ${JSON.stringify(source)};`);
         }
@@ -147,6 +159,36 @@ class CompileContext {
                 }
             }
         }
+    }
+
+    #collectTextures(node: SceneTemplateNode) {
+        if (node.kind === 'slotOutlet') {
+            return;
+        }
+        if (node.kind === 'pixi') {
+            if (typeof node.props.texture === 'string') {
+                this.#textureVariable(node.props.texture);
+            }
+            for (const child of node.children) {
+                this.#collectTextures(child);
+            }
+            return;
+        }
+        for (const children of Object.values(node.slots)) {
+            for (const child of children) {
+                this.#collectTextures(child);
+            }
+        }
+    }
+
+    #formatTextureLoads() {
+        if (this.#textures.size === 0) {
+            return '';
+        }
+        this.#pixiImports.add('Assets');
+        return [...this.#textures.entries()]
+            .map(([texture, variable]) => `const ${variable} = await Assets.load(${this.#textureLoadSource(texture)});`)
+            .join('\n');
     }
 
     #compileNode(node: SceneTemplateNode, parent: string, actionsParameter: string) {
@@ -235,7 +277,7 @@ class CompileContext {
         if (node.type === 'Sprite') {
             return node.props.texture === undefined
                 ? 'new Sprite()'
-                : `Sprite.from(${this.#value(node.props.texture)})`;
+                : `new Sprite({ texture: ${this.#textureValue(node.props.texture)} })`;
         }
         if (node.type === 'NineSliceSprite') {
             return `new NineSliceSprite(${this.#spriteTextureOptions(node.props)})`;
@@ -368,12 +410,9 @@ class CompileContext {
     }
 
     #spriteTextureOptions(props: Record<string, SceneTemplateValue>) {
-        if (props.texture !== undefined) {
-            this.#pixiImports.add('Texture');
-        }
         return props.texture === undefined
             ? '{}'
-            : `{ texture: Texture.from(${this.#value(props.texture)}) }`;
+            : `{ texture: ${this.#textureValue(props.texture)} }`;
     }
 
     #hasEvents() {
@@ -405,6 +444,38 @@ class CompileContext {
     #anonymousName(type: string) {
         this.#nextId += 1;
         return `${type.charAt(0).toLowerCase()}${type.slice(1)}${this.#nextId}`;
+    }
+
+    #textureVariable(texture: string) {
+        const existing = this.#textures.get(texture);
+        if (existing) {
+            return existing;
+        }
+        this.#nextTextureId += 1;
+        const variable = `__pixifactTexture${this.#nextTextureId}`;
+        this.#textures.set(texture, variable);
+        return variable;
+    }
+
+    #textureImportEntries() {
+        return [...this.#textures.keys()]
+            .filter((texture) => this.options.textureImports?.[texture])
+            .map((texture, index) => [texture, `__pixifactTextureUrl${index + 1}`] as const);
+    }
+
+    #textureImportVariable(texture: string) {
+        const index = [...this.#textures.keys()]
+            .filter((key) => this.options.textureImports?.[key])
+            .indexOf(texture);
+        return index >= 0 ? `__pixifactTextureUrl${index + 1}` : undefined;
+    }
+
+    #textureLoadSource(texture: string) {
+        return this.#textureImportVariable(texture) ?? this.#value(texture);
+    }
+
+    #textureValue(value: SceneTemplateValue) {
+        return typeof value === 'string' ? this.#textureVariable(value) : this.#value(value);
     }
 
     #value(value: SceneTemplateValue) {
