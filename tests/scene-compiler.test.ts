@@ -364,4 +364,24 @@ describe('Pixifact scene compiler spike', () => {
             await rm(root, { recursive: true, force: true });
         }
     });
+
+    it('rejects scene files whose name does not match the bound @scene class', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
+        try {
+            await mkdir(join(root, 'scenes'));
+            await mkdir(join(root, 'src', 'scenes'), { recursive: true });
+            await writeFile(join(root, 'scenes', 'Button.scene'), '<Scene name="Button" script="src/scenes/Button.ts" />');
+            await writeFile(join(root, 'src', 'scenes', 'Button.ts'), `
+                import { Container } from 'pixi.js';
+                import { scene } from 'pixifact/compiler';
+
+                @scene()
+                export class PrimaryButton extends Container {}
+            `);
+
+            await expect(compileScenes({ projectRoot: root })).rejects.toThrow('Scene "scenes/Button.scene" name "Button" must match @scene class "PrimaryButton".');
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
+    });
 });

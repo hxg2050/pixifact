@@ -108,7 +108,11 @@ async function readBoundSceneScript(projectRoot: string, scenePath: string, temp
     }
     const scriptPath = path.resolve(projectRoot, template.script.path);
     const scriptSource = await readFile(scriptPath, 'utf8');
-    return extractSceneScriptInterface(scriptSource, scriptPath, { scene: scenePath });
+    const descriptor = extractSceneScriptInterface(scriptSource, scriptPath, { scene: scenePath });
+    if (descriptor.className !== template.name) {
+        throw new Error(`Scene "${scenePath}" name "${template.name}" must match @scene class "${descriptor.className}".`);
+    }
+    return descriptor;
 }
 
 function collectSceneInstanceTypes(node: SceneTemplateNode, types: Set<string>) {

@@ -53,6 +53,9 @@ export async function readCompilerSceneTemplateBinding(
         scriptFile.path,
         { scene: scenePath },
     );
+    if (descriptor.className !== template.name) {
+        throw new Error(`Scene ${file.name} 的 name "${template.name}" 必须等于脚本 @scene 类名 "${descriptor.className}"。`);
+    }
 
     const boundTemplate: SceneTemplate = {
         ...template,

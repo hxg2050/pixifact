@@ -426,6 +426,7 @@ describe('project file tree service', () => {
 
         const created = await createSceneFile(tree, scenes!, 'menu panel');
         const refreshed = await readHostTree();
+        const script = await host.readProjectFileText('/tmp/GameProject', 'GameProject/src/scenes/MenuPanel.ts');
 
         expect(created.path).toBe('GameProject/scenes/MenuPanel.scene');
         expect(created.scriptPath).toBe('GameProject/src/scenes/MenuPanel.ts');
@@ -448,6 +449,16 @@ describe('project file tree service', () => {
             children: [],
         });
         expect(created.content).toBe('<Scene name="MenuPanel" script="src/scenes/MenuPanel.ts" width="960" height="540">\n</Scene>\n');
+        expect(script).toBe([
+            "import { Container } from 'pixi.js';",
+            "import { scene } from 'pixifact/compiler';",
+            '',
+            '@scene()',
+            'export class MenuPanel extends Container {',
+            '    onMounted() {}',
+            '}',
+            '',
+        ].join('\n'));
         expect(refreshed.children?.[0].children?.[0].name).toBe('MenuPanel.scene');
         expect(findFileByPath(refreshed, 'GameProject/src/scenes/MenuPanel.ts')).toBeDefined();
     });
@@ -703,6 +714,64 @@ describe('project file tree service', () => {
         expect(compilerDocument?.descriptor?.interface.props.label.default).toBe('Button');
         expect(compilerDocument?.selection).toEqual({ type: 'scene' });
         expect(compilerDocument?.sceneInterfaces).toEqual({});
+    });
+
+    it('rejects compiler Scene files without a bound script', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file('<Scene name="Button" />'),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+
+        await expect(openCompilerSceneFile(tree, sceneFile!)).rejects.toThrow('Scene Button.scene 必须绑定脚本');
+    });
+
+    it('rejects compiler Scene files when the bound script is missing', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file('<Scene name="Button" script="src/scenes/Button.ts" />'),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+
+        await expect(openCompilerSceneFile(tree, sceneFile!)).rejects.toThrow('找不到 Scene 脚本 src/scenes/Button.ts');
+    });
+
+    it('rejects compiler Scene files whose name does not match the @scene class', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file('<Scene name="Button" script="src/scenes/Button.ts" />'),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.ts': emptySceneScript('PrimaryButton'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+
+        await expect(openCompilerSceneFile(tree, sceneFile!)).rejects.toThrow('Scene Button.scene 的 name "Button" 必须等于脚本 @scene 类名 "PrimaryButton"');
+    });
+
+    it('rejects compiler Scene files whose script has no @scene class', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file('<Scene name="Button" script="src/scenes/Button.ts" />'),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.ts': host.file('export class Button {}'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+
+        await expect(openCompilerSceneFile(tree, sceneFile!)).rejects.toThrow('No @scene decorator found');
     });
 
     it('indexes compiler Scene script bindings as derived contracts', async () => {
@@ -1732,6 +1801,7 @@ describe('project file tree service', () => {
 
         expect(opened.created.path).toBe('GameProject/scenes/StatusPanel.scene');
         expect(opened.openedScenePath).toBe('GameProject/scenes/StatusPanel.scene');
+        expect(opened.descriptor.className).toBe('StatusPanel');
         expect(opened.template).toEqual(compilerDocument?.template);
         expect(compilerDocument?.scenePath).toBe('GameProject/scenes/StatusPanel.scene');
         expect(compilerDocument?.template).toMatchObject({
