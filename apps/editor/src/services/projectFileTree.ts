@@ -1,14 +1,16 @@
 import type { SceneDocument } from 'pixifact';
-import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
 import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
-import { extractSceneScriptInterface } from '../../../../packages/pixifact/src/compiler/scriptInterfaceExtractor';
 import type {
     SceneScriptInterface,
     SceneTemplate,
     SceneTemplateInterface,
     SceneTemplateNode,
 } from '../../../../packages/pixifact/src/compiler/spec';
-import { loadCompilerSceneDocument, markCompilerSceneSaved, refreshCompilerSceneDescriptor } from '../document/compilerSceneDocumentController';
+import {
+    loadCompilerSceneDocument,
+    markCompilerSceneSaved,
+    refreshCompilerSceneBindingSnapshot as refreshCompilerSceneDocumentBindingSnapshot,
+} from '../document/compilerSceneDocumentController';
 import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { editorDragDataTypes } from './dragPayload';
 import {
@@ -25,6 +27,7 @@ import {
     writeHostProjectFileText,
 } from './hostBridge';
 import type { HostProjectFileTreeNode } from './hostBridge';
+import { readCompilerSceneBindingIndex, readCompilerSceneTemplateBinding, sceneInterfacesForCompilerTemplate } from './sceneBindingIndex';
 import { sceneAssetName, sceneFileName } from './sceneNaming';
 
 export type ProjectFileKind = 'folder' | 'scene' | 'script' | 'component' | 'asset' | 'doc' | 'unknown';
@@ -418,15 +421,14 @@ export async function openCompilerSceneFile(
     projectTree: ProjectFileTreeNode,
     file: ProjectFileTreeNode,
 ) {
-    const content = await readProjectFileText(projectTree, file);
-    const template = parseSceneTemplate(content);
-    const descriptor = await readBoundCompilerSceneDescriptor(projectTree, file, template);
-    if (!template.script) {
+    const bindingIndex = await readCompilerSceneBindingIndex(projectTree);
+    const binding = bindingIndex[projectFileRelativePath(projectTree, file)];
+    if (!binding) {
         throw new ProjectFileOperationError(`Scene ${file.name} 必须绑定脚本。`);
     }
-    template.script.className = descriptor.className;
-    template.interface = descriptor.interface;
-    const sceneInterfaces = await readReferencedCompilerSceneInterfaces(projectTree, template.children);
+    const template = binding.template;
+    const descriptor = binding.descriptor;
+    const sceneInterfaces = sceneInterfacesForCompilerTemplate(bindingIndex, template.children);
     loadCompilerSceneDocument({
         scenePath: file.path,
         template,
@@ -478,35 +480,20 @@ export async function readProjectFileText(projectTree: ProjectFileTreeNode, file
     return readHostProjectFileText(ensureProjectRootPath(projectTree), file.path);
 }
 
-export async function readCompilerScenePublicInterface(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
-    const template = parseSceneTemplate(await readProjectFileText(projectTree, file));
-    const descriptor = await readCompilerSceneScriptInterface(projectTree, file, template);
-    return {
-        className: descriptor.className,
-        interface: descriptor.interface,
-    };
-}
-
-export async function readCompilerSceneScriptInterface(
+export async function refreshCompilerSceneBindingSnapshot(
     projectTree: ProjectFileTreeNode,
     file: ProjectFileTreeNode,
     template: SceneTemplate,
 ) {
-    return readBoundCompilerSceneDescriptor(projectTree, file, template);
-}
-
-export async function refreshCompilerSceneScriptInterface(
-    projectTree: ProjectFileTreeNode,
-    file: ProjectFileTreeNode,
-    template: SceneTemplate,
-) {
-    const descriptor = await readCompilerSceneScriptInterface(projectTree, file, template);
+    const binding = await readCompilerSceneTemplateBinding(projectTree, file, template);
+    const descriptor = binding.descriptor;
     if (!template.script) {
         throw new ProjectFileOperationError(`Scene ${file.name} 必须绑定脚本。`);
     }
-    template.script.className = descriptor.className;
-    refreshCompilerSceneDescriptor(descriptor);
-    return descriptor;
+    const bindingIndex = await readCompilerSceneBindingIndex(projectTree);
+    const sceneInterfaces = sceneInterfacesForCompilerTemplate(bindingIndex, template.children);
+    refreshCompilerSceneDocumentBindingSnapshot({ descriptor, sceneInterfaces });
+    return { descriptor, sceneInterfaces };
 }
 
 export async function openCompilerSceneScriptFile(
@@ -521,48 +508,6 @@ export async function openCompilerSceneScriptFile(
         throw new ProjectFileOperationError(`找不到 Scene 脚本 ${template.script.path}。`);
     }
     await openProjectCodeFile(projectTree, scriptFile);
-}
-
-async function readBoundCompilerSceneDescriptor(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode, template: SceneTemplate) {
-    if (!template.script) {
-        throw new ProjectFileOperationError(`Scene ${file.name} 必须绑定脚本。`);
-    }
-    const scriptFile = findFileByPath(projectTree, `${projectTree.path}/${template.script.path}`);
-    if (!scriptFile) {
-        throw new ProjectFileOperationError(`找不到 Scene 脚本 ${template.script.path}。`);
-    }
-    const scenePath = projectFileRelativePath(projectTree, file);
-    return extractSceneScriptInterface(await readProjectFileText(projectTree, scriptFile), scriptFile.path, { scene: scenePath });
-}
-
-async function readReferencedCompilerSceneInterfaces(projectTree: ProjectFileTreeNode, nodes: readonly SceneTemplateNode[]) {
-    const scenePaths = [...collectSceneInstancePaths(nodes)];
-    const entries: [string, SceneTemplateInterface][] = [];
-    for (const scenePath of scenePaths) {
-        const sceneFile = findFileByPath(projectTree, `${projectTree.path}/${scenePath}`);
-        if (!sceneFile) {
-            continue;
-        }
-        const publicInterface = await readCompilerScenePublicInterface(projectTree, sceneFile);
-        entries.push([scenePath, publicInterface.interface]);
-    }
-    return Object.fromEntries(entries);
-}
-
-function collectSceneInstancePaths(nodes: readonly SceneTemplateNode[], paths = new Set<string>()) {
-    for (const node of nodes) {
-        if (node.kind === 'pixi') {
-            collectSceneInstancePaths(node.children, paths);
-            continue;
-        }
-        if (node.kind === 'sceneInstance') {
-            paths.add(node.scene);
-            for (const children of Object.values(node.slots)) {
-                collectSceneInstancePaths(children, paths);
-            }
-        }
-    }
-    return paths;
 }
 
 export async function readProjectFileBytes(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {

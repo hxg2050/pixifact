@@ -125,6 +125,39 @@ export function refreshCompilerSceneDescriptor(descriptor: CompilerSceneScriptIn
     emitCompilerSceneUpdate();
 }
 
+export function refreshCompilerSceneBindingSnapshot(updates: {
+    descriptor: CompilerSceneScriptInterface;
+    sceneInterfaces: Record<string, SceneTemplateInterface>;
+}) {
+    if (!document) {
+        return;
+    }
+    if (
+        JSON.stringify(document.descriptor) === JSON.stringify(updates.descriptor)
+        && JSON.stringify(document.sceneInterfaces) === JSON.stringify(updates.sceneInterfaces)
+        && document.template.script?.className === updates.descriptor.className
+        && JSON.stringify(document.template.interface) === JSON.stringify(updates.descriptor.interface)
+    ) {
+        return;
+    }
+    document = {
+        ...document,
+        descriptor: updates.descriptor,
+        sceneInterfaces: updates.sceneInterfaces,
+        template: {
+            ...document.template,
+            script: document.template.script
+                ? {
+                    ...document.template.script,
+                    className: updates.descriptor.className,
+                }
+                : undefined,
+            interface: updates.descriptor.interface,
+        },
+    };
+    emitCompilerSceneUpdate();
+}
+
 export function updateCompilerSceneNode(
     locator: string,
     updates: {

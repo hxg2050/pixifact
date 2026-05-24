@@ -17,7 +17,12 @@ import { InspectorPanel } from './panels/InspectorPanel';
 import { SummaryBar } from './panels/SummaryBar';
 import { ViewportPanel } from './panels/ViewportPanel';
 import { useCompilerSceneRevision } from './panels/common';
-import { openProjectFolder, saveCompilerSceneFile } from './services/projectFileTree';
+import {
+    findFileByPath,
+    openProjectFolder,
+    refreshCompilerSceneBindingSnapshot,
+    saveCompilerSceneFile,
+} from './services/projectFileTree';
 import type { CompilerSceneTemplateNode } from './services/projectFileTree';
 import {
     compileCompilerScenes,
@@ -205,6 +210,7 @@ export function EditorApp() {
     const [saveStatusKey, setSaveStatusKey] = useState<'closed' | 'treeLoaded' | 'noScene' | 'savedFile' | 'compiledFile' | 'compileFailed'>('closed');
     const [savedFileName, setSavedFileName] = useState('');
     const [saveError, setSaveError] = useState('');
+    const [bindingSyncError, setBindingSyncError] = useState('');
     const [runStatus, setRunStatus] = useState<EditorRunStatus>({
         state: 'unconfigured',
         stdout: [],
@@ -259,6 +265,36 @@ export function EditorApp() {
                 stderr: [],
             }));
     }, [projectTree]);
+
+    useEffect(() => {
+        if (!projectTree || !openedScenePath) {
+            setBindingSyncError('');
+            return undefined;
+        }
+
+        const refreshBinding = async () => {
+            const document = getCompilerSceneDocument();
+            if (!document || document.scenePath !== openedScenePath) {
+                setBindingSyncError('');
+                return;
+            }
+            const file = findFileByPath(projectTree, openedScenePath);
+            if (!file || file.kind !== 'scene') {
+                setBindingSyncError('');
+                return;
+            }
+            try {
+                await refreshCompilerSceneBindingSnapshot(projectTree, file, document.template);
+                setBindingSyncError('');
+            } catch (error) {
+                setBindingSyncError(error instanceof Error ? error.message : String(error));
+            }
+        };
+
+        void refreshBinding();
+        const interval = window.setInterval(() => void refreshBinding(), 1500);
+        return () => window.clearInterval(interval);
+    }, [openedScenePath, projectTree]);
 
     useEffect(() => {
         if (!runStatus.sessionId || !['starting', 'running'].includes(runStatus.state)) {
@@ -349,6 +385,7 @@ export function EditorApp() {
             <span>{compilerSceneOpened ? `${currentSceneName}.scene` : currentSceneName}</span>
             <span className={currentSceneDirty ? 'statusPill dirty' : 'statusPill saved'}>{currentSceneDirty ? t('dirtyUnsaved') : t('saved')}</span>
             <span data-testid="save-status">{saveStatus}</span>
+            {bindingSyncError ? <span className="statusPill dirty">Binding: {bindingSyncError}</span> : null}
             <span>{t(`runState_${runStatus.state}`)}</span>
             <span>AI Ready</span>
             <SummaryBar />

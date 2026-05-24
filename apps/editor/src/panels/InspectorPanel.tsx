@@ -51,8 +51,8 @@ import type {
 import {
     findFileByPath,
     openCompilerSceneScriptFile,
-    readCompilerSceneScriptInterface,
 } from '../services/projectFileTree';
+import { readCompilerSceneBinding } from '../services/sceneBindingIndex';
 import { hostErrorMessage } from '../services/hostBridge';
 import { FieldRow, formatValue, parseTextValue, selectedNodeId, useCompilerSceneRevision, useDocumentRevision } from './common';
 import { useEditorStore } from '../editorStore';
@@ -311,14 +311,14 @@ async function readCompilerSceneBindingStatus(
         };
     }
     try {
-        const descriptor = await readCompilerSceneScriptInterface(projectTree, sceneFile, template);
+        const binding = await readCompilerSceneBinding(projectTree, sceneFile);
         return {
             ok: true,
             message: '绑定正常',
             scenePath,
-            scriptPath: template.script.path,
-            className: descriptor.className,
-            contractScene: descriptor.scene,
+            scriptPath: binding.template.script?.path,
+            className: binding.className,
+            contractScene: binding.scenePath,
         };
     } catch (error) {
         return {

@@ -43,8 +43,12 @@ import {
     saveOpenedSceneFile,
     saveCompilerSceneFile,
     saveSceneFile,
-    refreshCompilerSceneScriptInterface,
+    refreshCompilerSceneBindingSnapshot,
 } from '../apps/editor/src/services/projectFileTree';
+import {
+    readCompilerSceneBindingIndex,
+    sceneInterfacesForCompilerTemplate,
+} from '../apps/editor/src/services/sceneBindingIndex';
 import { createSceneInstanceNode } from '../apps/editor/src/services/sceneInstance';
 import { sceneAssetName, sceneFileName, sceneRootKey } from '../apps/editor/src/services/sceneNaming';
 
@@ -291,8 +295,8 @@ async function readHostTree() {
     return tree as Awaited<ReturnType<typeof import('../apps/editor/src/services/projectFileTree')['refreshProjectFileTree']>>;
 }
 
-function sceneScript(className: string, members = '') {
-    return host.file(`
+function sceneScriptSource(className: string, members = '') {
+    return `
         import { Container, Text } from 'pixi.js';
         import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
@@ -300,7 +304,11 @@ function sceneScript(className: string, members = '') {
         export class ${className} extends Container {
             ${members}
         }
-    `);
+    `;
+}
+
+function sceneScript(className: string, members = '') {
+    return host.file(sceneScriptSource(className, members));
 }
 
 function emptySceneScript(className: string) {
@@ -696,6 +704,40 @@ describe('project file tree service', () => {
         expect(compilerDocument?.sceneInterfaces).toEqual({});
     });
 
+    it('indexes compiler Scene script bindings as derived contracts', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file('<Scene name="Button" script="src/scenes/Button.ts" />'),
+                'MainMenu.scene': host.file(`
+                    <Scene name="MainMenu" script="src/scenes/MainMenu.ts">
+                      <Button id="startButton" scene="scenes/Button.scene" label="Start" @click="startGame" />
+                    </Scene>
+                `),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.ts': buttonSceneScript({ disabled: true }),
+                    'MainMenu.ts': emptySceneScript('MainMenu'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+
+        const index = await readCompilerSceneBindingIndex(tree);
+        const button = index['scenes/Button.scene'];
+        const mainMenu = index['scenes/MainMenu.scene'];
+        const sceneInterfaces = sceneInterfacesForCompilerTemplate(index, mainMenu.template.children);
+
+        expect(Object.keys(index).sort()).toEqual(['scenes/Button.scene', 'scenes/MainMenu.scene']);
+        expect(button.className).toBe('Button');
+        expect(button.template.script).toEqual({ path: 'src/scenes/Button.ts', className: 'Button' });
+        expect(button.template.interface).toBe(button.interface);
+        expect(button.interface.props.disabled.default).toBe(false);
+        expect(button.interface.events.click).toEqual({ type: 'action' });
+        expect(button.interface.slots.icon).toEqual({});
+        expect(sceneInterfaces['scenes/Button.scene']).toBe(button.interface);
+    });
+
     it('opens and refreshes the bound compiler Scene script contract', async () => {
         host.reset({
             scenes: host.directory({
@@ -707,7 +749,7 @@ describe('project file tree service', () => {
             }),
             src: host.directory({
                 scenes: host.directory({
-                    'Button.ts': buttonSceneScript({ disabled: true }),
+                    'Button.ts': buttonSceneScript(),
                 }),
             }),
         });
@@ -716,13 +758,18 @@ describe('project file tree service', () => {
 
         const opened = await openCompilerSceneFile(tree, sceneFile!);
         await openCompilerSceneScriptFile(tree, opened.template);
-        const descriptor = await refreshCompilerSceneScriptInterface(tree, sceneFile!, opened.template);
+        await host.writeProjectFileText('/tmp/GameProject', 'GameProject/src/scenes/Button.ts', sceneScriptSource('Button', `
+            @prop({ type: 'boolean', default: false })
+            accessor disabled = false;
+        `));
+        const { descriptor } = await refreshCompilerSceneBindingSnapshot(tree, sceneFile!, opened.template);
         const compilerDocument = getCompilerSceneDocument();
 
         expect(host.openHostCodeFile).toHaveBeenCalledWith('/tmp/GameProject', 'src/scenes/Button.ts');
         expect(descriptor.scene).toBe('scenes/Button.scene');
         expect(compilerDocument?.descriptor?.interface.props.disabled.default).toBe(false);
         expect(compilerDocument?.template.interface.props.disabled.default).toBe(false);
+        expect(opened.template.interface.props.disabled).toBeUndefined();
         expect(compilerDocument?.dirty).toBe(false);
     });
 

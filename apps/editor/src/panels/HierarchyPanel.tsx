@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ComponentSpec, SceneDocument, NodeSpec, SceneSpec } from 'pixifact';
 import { ComponentRegistry } from 'pixifact';
-import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
 import { pixiSceneNodeAcceptsChildren } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import { DragSource, DropZone, SystemIcon, TreeView } from '../components/system';
 import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/system';
@@ -34,8 +33,9 @@ import {
 import { createSceneInstanceNode } from '../services/sceneInstance';
 import { hierarchyNodeDragPayload } from '../services/dragPayload';
 import { editorDragDataTypes } from '../services/dragPayload';
-import { findFileByPath, sceneDragDataType, readCompilerScenePublicInterface, readProjectFileText, projectFileRelativePath } from '../services/projectFileTree';
+import { findFileByPath, sceneDragDataType, readProjectFileText } from '../services/projectFileTree';
 import type { CompilerSceneTemplateNode } from '../services/projectFileTree';
+import { readCompilerSceneBinding } from '../services/sceneBindingIndex';
 import { collectHierarchy, getNodeLocator, selectedNodeId, useCompilerSceneRevision, useDocumentRevision } from './common';
 
 interface HierarchyTreeNode {
@@ -1024,14 +1024,13 @@ export function CompilerSceneHierarchyTree() {
             return;
         }
 
-        const source = parseSceneTemplate(await readProjectFileText(projectTree, file));
-        const publicInterface = await readCompilerScenePublicInterface(projectTree, file);
+        const binding = await readCompilerSceneBinding(projectTree, file);
         const result = addCompilerSceneInstanceNode(
             parent,
-            projectFileRelativePath(projectTree, file),
-            source,
-            publicInterface.interface,
-            publicInterface.className,
+            binding.scenePath,
+            binding.template,
+            binding.interface,
+            binding.className,
         );
         if (!result.ok) {
             setError(result.error);

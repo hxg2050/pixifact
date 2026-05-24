@@ -336,3 +336,13 @@ sample-projects/space-hud-game/src/Button.ts
 1. 补齐 Scene Binding Index，让 Editor 感知脚本变化后自动刷新 virtual contract。
 2. 继续完善 editor hierarchy / inspector 对 virtual contract 的展示和投放体验。
 3. 给 `@scene()` + `.scene script` 绑定模型补端到端测试和 source map 方案。
+
+## 当前新增决策：Scene Binding Index
+
+Editor 需要把 `.scene -> script -> public contract` 当作只读派生快照处理：
+
+- `.scene` 只保存视觉模板和 `script="src/scenes/X.ts"` 绑定，不写入 Interface。
+- 脚本装饰器是 `props / events / slots / parts` 的单一权威源。
+- `SceneBindingIndex` 扫描项目内 `.scene`，读取绑定脚本，并生成以 scene 相对路径为 key 的派生索引。
+- 打开 `.scene`、拖入 Scene Instance、Inspector 绑定状态和 Scene Instance 的 public contract 都应从这个索引读取。
+- 编辑器可以自动重新读取脚本并刷新内存中的 virtual contract；这个刷新不保存 `.scene`，不标记 dirty。
