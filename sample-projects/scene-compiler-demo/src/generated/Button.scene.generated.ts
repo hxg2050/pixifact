@@ -1,6 +1,9 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { Container, Graphics, Sprite, Text, Assets } from 'pixi.js';
+import __pixifactTextureUrl1 from "../../assets/btn.png?url";
 import { Button } from "../scenes/Button";
 import { registerScene, registerSceneClass, registerSlot } from 'pixifact/compiler';
+
+const __pixifactTexture1 = await Assets.load(__pixifactTextureUrl1);
 
 export type ButtonParts = {
   root: Container;
@@ -8,6 +11,7 @@ export type ButtonParts = {
     background: Graphics;
     iconHost: Container;
     labelText: Text;
+    sprite1: Sprite;
   };
   slots: Record<string, Container>;
 };
@@ -30,9 +34,12 @@ export function mountButtonScene(root: Container) {
   labelText.label = "labelText";
   labelText.position.set(54, 13);
   root.addChild(labelText);
+  const sprite1 = new Sprite({ texture: __pixifactTexture1 });
+  sprite1.label = "sprite1";
+  root.addChild(sprite1);
   return {
     root,
-    parts: { background, iconHost, labelText },
+    parts: { background, iconHost, labelText, sprite1 },
     slots: __pixifactSlots,
   };
 }

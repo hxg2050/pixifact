@@ -4,4 +4,5 @@
     <slot name="icon" />
   </Container>
   <Text id="labelText" text="Button" x="54" y="13" fontSize="17" fontWeight="700" fill="#ffffff" />
+  <Sprite id="sprite1" texture="assets/btn.png" />
 </Scene>
