@@ -59,10 +59,6 @@ export async function readCompilerSceneTemplateBinding(
 
     const boundTemplate: SceneTemplate = {
         ...template,
-        script: {
-            ...template.script,
-            className: descriptor.className,
-        },
         interface: descriptor.interface,
     };
 

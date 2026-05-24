@@ -1,4 +1,4 @@
-import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { SceneTemplate, SceneTemplateNode } from './spec';
@@ -32,7 +32,6 @@ export async function compileScenes(options: CompileScenesOptions) {
         if (!template.script) {
             throw new Error(`Scene "scenes/${file}" must declare script.`);
         }
-        template.script.className = descriptor.className;
         template.interface = descriptor.interface;
         templates.set(file, template);
     }
@@ -52,7 +51,6 @@ export async function compileScenes(options: CompileScenesOptions) {
         });
 
         await writeFile(path.join(generatedDir, outputFile), code);
-        await rm(path.join(generatedDir, `${path.basename(file, '.scene')}.scene.interface.json`), { force: true });
         registryImports.push(`import './${outputFile.replace(/\.ts$/, '')}';`);
     }
 
@@ -66,7 +64,7 @@ function scriptImportFor(template: SceneTemplate, projectRoot: string, generated
     const scriptPath = path.resolve(projectRoot, template.script.path);
     const source = path.relative(generatedDir, scriptPath).replaceAll(path.sep, '/').replace(/\.ts$/, '');
     return {
-        className: template.script.className,
+        className: template.name,
         source: source.startsWith('.') ? source : `./${source}`,
     };
 }
@@ -91,12 +89,12 @@ function sceneImportsFor(
 
     for (const sceneFile of sceneFiles) {
         const sceneTemplate = templates.get(sceneFile);
-        if (!sceneTemplate?.script || !sceneInstanceTypes.has(sceneTemplate.script.className)) {
+        if (!sceneTemplate?.script || !sceneInstanceTypes.has(sceneTemplate.name)) {
             continue;
         }
         const scriptPath = path.resolve(projectRoot, sceneTemplate.script.path);
         const source = path.relative(generatedDir, scriptPath).replaceAll(path.sep, '/').replace(/\.ts$/, '');
-        imports[sceneTemplate.script.className] = source.startsWith('.') ? source : `./${source}`;
+        imports[sceneTemplate.name] = source.startsWith('.') ? source : `./${source}`;
     }
 
     return imports;

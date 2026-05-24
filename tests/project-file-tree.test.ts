@@ -435,7 +435,6 @@ describe('project file tree service', () => {
             name: 'MenuPanel',
             script: {
                 path: 'src/scenes/MenuPanel.ts',
-                className: 'MenuPanel',
             },
             props: {
                 width: 960,
@@ -800,7 +799,7 @@ describe('project file tree service', () => {
 
         expect(Object.keys(index).sort()).toEqual(['scenes/Button.scene', 'scenes/MainMenu.scene']);
         expect(button.className).toBe('Button');
-        expect(button.template.script).toEqual({ path: 'src/scenes/Button.ts', className: 'Button' });
+        expect(button.template.script).toEqual({ path: 'src/scenes/Button.ts' });
         expect(button.template.interface).toBe(button.interface);
         expect(button.interface.props.disabled.default).toBe(false);
         expect(button.interface.events.click).toEqual({ type: 'action' });
@@ -1024,7 +1023,6 @@ describe('project file tree service', () => {
             },
             script: {
                 path: 'src/scenes/Button.ts',
-                className: 'Button',
             },
         });
 
@@ -1034,7 +1032,6 @@ describe('project file tree service', () => {
             name: 'PrimaryButton',
             script: {
                 path: 'src/scenes/Button.ts',
-                className: 'Button',
             },
             props: {
                 width: 180,
@@ -1714,7 +1711,6 @@ describe('project file tree service', () => {
             },
             script: {
                 path: 'src/scenes/Button.ts',
-                className: 'Button',
             },
         });
         updateCompilerSceneNode('1:labelText', {

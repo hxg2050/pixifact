@@ -135,7 +135,6 @@ export function refreshCompilerSceneBindingSnapshot(updates: {
     if (
         JSON.stringify(document.descriptor) === JSON.stringify(updates.descriptor)
         && JSON.stringify(document.sceneInterfaces) === JSON.stringify(updates.sceneInterfaces)
-        && document.template.script?.className === updates.descriptor.className
         && JSON.stringify(document.template.interface) === JSON.stringify(updates.descriptor.interface)
     ) {
         return;
@@ -146,12 +145,6 @@ export function refreshCompilerSceneBindingSnapshot(updates: {
         sceneInterfaces: updates.sceneInterfaces,
         template: {
             ...document.template,
-            script: document.template.script
-                ? {
-                    ...document.template.script,
-                    className: updates.descriptor.className,
-                }
-                : undefined,
             interface: updates.descriptor.interface,
         },
     };
@@ -221,7 +214,7 @@ export function createCompilerSceneInstanceTemplateNode(
     scene: SceneTemplate,
     scenePath: string,
     sceneInterface: SceneTemplateInterface = scene.interface,
-    className = scene.script?.className ?? scene.name,
+    className = scene.name,
 ): CompilerSceneTemplateNode {
     return {
         kind: 'sceneInstance',
@@ -246,7 +239,7 @@ export function addCompilerSceneInstanceNode(
     scenePath: string,
     scene: SceneTemplate,
     sceneInterface: SceneTemplateInterface = scene.interface,
-    className = scene.script?.className ?? scene.name,
+    className = scene.name,
 ) {
     if (!document) {
         return {

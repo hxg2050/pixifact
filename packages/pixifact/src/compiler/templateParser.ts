@@ -45,7 +45,6 @@ export function parseSceneTemplate(source: string): SceneTemplate {
     const script = root.attributes.script
         ? {
             path: root.attributes.script,
-            className: name,
         }
         : undefined;
 

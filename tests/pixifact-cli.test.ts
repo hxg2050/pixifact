@@ -302,7 +302,6 @@ describe('Pixifact CLI', () => {
         });
         expect(generated).toContain('export function mountButtonScene(root: Container)');
         expect(generated).toContain('registerSceneClass(Button, "scenes/Button.scene");');
-        expect(fs.existsSync(path.join(projectRoot, 'src', 'generated', 'Button.scene.interface.json'))).toBe(false);
     });
 
     it('does not overwrite an existing Scene file', async () => {

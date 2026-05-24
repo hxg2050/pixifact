@@ -288,7 +288,7 @@ async function readCompilerSceneBindingStatus(
             message: '未打开项目。',
             scenePath,
             scriptPath: template.script?.path,
-            className: template.script?.className,
+            className: compilerDocument.descriptor?.className,
             contractScene: compilerDocument.descriptor?.scene,
         };
     }
@@ -306,7 +306,7 @@ async function readCompilerSceneBindingStatus(
             message: `找不到 Scene 文件 ${scenePath}。`,
             scenePath,
             scriptPath: template.script.path,
-            className: template.script.className,
+            className: compilerDocument.descriptor?.className,
             contractScene: compilerDocument.descriptor?.scene,
         };
     }
@@ -326,7 +326,7 @@ async function readCompilerSceneBindingStatus(
             message: hostErrorMessage(error),
             scenePath,
             scriptPath: template.script.path,
-            className: template.script.className,
+            className: compilerDocument.descriptor?.className,
             contractScene: compilerDocument.descriptor?.scene,
         };
     }
@@ -705,8 +705,8 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
         projectTree,
         compilerDocument?.scenePath,
         compilerDocument?.template.script?.path,
-        compilerDocument?.template.script?.className,
         compilerDocument?.descriptor?.scene,
+        compilerDocument?.descriptor?.className,
     ]);
 
     if (openedScenePath && compilerDocument?.scenePath === openedScenePath) {
@@ -750,7 +750,6 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                 script: path
                     ? {
                         path,
-                        className: compilerDocument.descriptor?.className ?? compilerDocument.template.script?.className ?? compilerDocument.template.name,
                     }
                     : undefined,
             });
@@ -833,7 +832,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                             label="script"
                             onCommit={commitCompilerSceneScriptPath}
                         />
-                        <FieldRow label="class" value={compilerDocument.descriptor?.className ?? compilerDocument.template.script?.className} />
+                        <FieldRow label="class" value={compilerDocument.descriptor?.className} />
                         <FieldRow label="path" value={compilerDocument.scenePath} />
                     </div>
                 </section>
@@ -848,7 +847,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                         <FieldRow label="scene" value={compilerBindingStatus?.scenePath ?? compilerDocument.scenePath} />
                         <FieldRow label="contract" value={compilerBindingStatus?.contractScene ?? compilerDocument.descriptor?.scene} />
                         <FieldRow label="script" value={compilerBindingStatus?.scriptPath ?? compilerDocument.template.script?.path} />
-                        <FieldRow label="class" value={compilerBindingStatus?.className ?? compilerDocument.template.script?.className} />
+                        <FieldRow label="class" value={compilerBindingStatus?.className ?? compilerDocument.descriptor?.className} />
                         <div className="inspectorActionRow">
                             <button onClick={openCompilerScript} type="button">打开脚本</button>
                         </div>

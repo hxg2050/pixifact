@@ -14,7 +14,6 @@ export type SceneTemplateValue = string | number | boolean;
 
 export interface SceneTemplateScript {
     path: string;
-    className: string;
 }
 
 export interface SceneTemplatePropContract {

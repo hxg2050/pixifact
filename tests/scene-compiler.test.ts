@@ -36,7 +36,6 @@ describe('Pixifact scene compiler spike', () => {
         expect(template.name).toBe('Button');
         expect(template.script).toEqual({
             path: 'src/scenes/Button.ts',
-            className: 'Button',
         });
         expect(template.interface).toEqual({
             props: {},

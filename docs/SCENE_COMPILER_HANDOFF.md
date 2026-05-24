@@ -103,7 +103,7 @@ export class Button extends Container {
 - 新建 `.scene` 时编辑器应自动生成配套脚本。
 - 打开或编译无脚本 `.scene` 时应提示迁移或直接失败。
 
-## Interface 来源
+## Public Contract 来源
 
 `props / events / slots / parts` 不要求用户同时改 `.scene` 和脚本。脚本装饰器是单一权威源，`.scene` 只保存视觉模板和 `script` 绑定。
 

@@ -215,7 +215,6 @@ export function createBlankCompilerScene(name: string): SceneTemplate {
         name: assetName,
         script: {
             path: `src/scenes/${assetName}.ts`,
-            className: assetName,
         },
         props: {
             width: 960,
