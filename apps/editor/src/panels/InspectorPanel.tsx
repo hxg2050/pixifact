@@ -224,47 +224,47 @@ function selectedCompilerSlot(nodes: readonly CompilerSceneTemplateNode[], locat
         : undefined;
 }
 
-function compilerNodeKind(node: SelectedCompilerItem) {
+function compilerNodeKind(node: SelectedCompilerItem, t: Translate) {
     if (!node) {
-        return 'Scene';
+        return t('compilerSceneSection');
     }
     if (node.kind === 'slot') {
-        return 'slot';
+        return t('compilerSlotPlacementLabel');
     }
     if (node.kind === 'slotOutlet') {
-        return 'slot';
+        return t('compilerSlotOutletLabel');
     }
     if (node.kind === 'sceneInstance') {
-        return 'Scene Instance';
+        return t('compilerSceneInstanceKind');
     }
     return node.type;
 }
 
-function compilerNodeName(node: SelectedCompilerItem, sceneName: string) {
+function compilerNodeName(node: SelectedCompilerItem, sceneName: string, t: Translate) {
     if (!node) {
         return sceneName;
     }
     if (node.kind === 'slot') {
-        return `slot: ${node.name}`;
+        return t('compilerSlotLabel', { name: node.name });
     }
     if (node.kind === 'slotOutlet') {
         return node.name;
     }
-    return node.id ?? compilerNodeKind(node);
+    return node.id ?? compilerNodeKind(node, t);
 }
 
 function contractCount(contract: CompilerSceneScriptInterface['interface'] | undefined, key: keyof CompilerSceneScriptInterface['interface']) {
     return Object.keys(contract?.[key] ?? {}).length;
 }
 
-function contractNames(contract: CompilerSceneScriptInterface['interface'] | undefined, key: keyof CompilerSceneScriptInterface['interface']) {
+function contractNames(contract: CompilerSceneScriptInterface['interface'] | undefined, key: keyof CompilerSceneScriptInterface['interface'], t: Translate) {
     const names = Object.keys(contract?.[key] ?? {});
-    return names.length ? names.join(', ') : 'none';
+    return names.length ? names.join(', ') : t('compilerNoContractItems');
 }
 
-function partNames(descriptor: CompilerSceneScriptInterface | undefined) {
+function partNames(descriptor: CompilerSceneScriptInterface | undefined, t: Translate) {
     const names = Object.entries(descriptor?.parts ?? {}).map(([property, id]) => property === id ? property : `${property} -> ${id}`);
-    return names.length ? names.join(', ') : 'none';
+    return names.length ? names.join(', ') : t('compilerNoContractItems');
 }
 
 interface CompilerSceneBindingStatus {
@@ -280,12 +280,13 @@ async function readCompilerSceneBindingStatus(
     projectTree: ProjectFileTreeNode | undefined,
     scenePath: string,
     compilerDocument: NonNullable<ReturnType<typeof getCompilerSceneDocument>>,
+    t: Translate,
 ): Promise<CompilerSceneBindingStatus> {
     const template = compilerDocument.template;
     if (!projectTree) {
         return {
             ok: false,
-            message: '未打开项目。',
+            message: t('compilerProjectNotOpened'),
             scenePath,
             scriptPath: template.script?.path,
             className: compilerDocument.descriptor?.className,
@@ -314,7 +315,7 @@ async function readCompilerSceneBindingStatus(
         const binding = await readCompilerSceneBinding(projectTree, sceneFile);
         return {
             ok: true,
-            message: '绑定正常',
+            message: t('compilerBindingOk'),
             scenePath,
             scriptPath: binding.template.script?.path,
             className: binding.className,
@@ -713,7 +714,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
             return;
         }
         let cancelled = false;
-        void readCompilerSceneBindingStatus(projectTree, openedScenePath, compilerDocument)
+        void readCompilerSceneBindingStatus(projectTree, openedScenePath, compilerDocument, t)
             .then((status) => {
                 if (!cancelled) {
                     setCompilerBindingStatus(status);
@@ -726,6 +727,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
         compilerDocument,
         openedScenePath,
         projectTree,
+        t,
         compilerDocument?.scenePath,
         compilerDocument?.template.script?.path,
         compilerDocument?.descriptor?.scene,
@@ -809,7 +811,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
         };
         const openCompilerScript = async () => {
             if (!projectTree) {
-                setError('未打开项目。');
+                setError(t('compilerProjectNotOpened'));
                 return;
             }
             try {
@@ -824,12 +826,12 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
             <div className="panelSurface inspectorSurface" data-testid="compiler-scene-inspector">
                 {error ? <div className="errorBox">{error}</div> : null}
                 <section className="identity">
-                    <span>Compiler Scene</span>
-                    <strong>{compilerNodeName(selectedCompiler, compilerDocument.template.name)}</strong>
-                    <small>{compilerNodeKind(selectedCompiler)}</small>
+                    <span>{t('compilerSceneKind')}</span>
+                    <strong>{compilerNodeName(selectedCompiler, compilerDocument.template.name, t)}</strong>
+                    <small>{compilerNodeKind(selectedCompiler, t)}</small>
                 </section>
                 <section className="inspectorSection">
-                    <h3>Scene</h3>
+                    <h3>{t('compilerSceneSection')}</h3>
                     <div className="fieldStack">
                         <EditableFieldRow
                             field={compilerField('name', compilerDocument.template.name)}
@@ -851,41 +853,41 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                             label="script"
                             onCommit={commitCompilerSceneScriptPath}
                         />
-                        <FieldRow label="class" value={compilerDocument.descriptor?.className} />
-                        <FieldRow label="path" value={compilerDocument.scenePath} />
+                        <FieldRow label={t('compilerClass')} value={compilerDocument.descriptor?.className} />
+                        <FieldRow label={t('compilerPath')} value={compilerDocument.scenePath} />
                     </div>
                 </section>
                 <section className="inspectorSection">
                     <div className="sectionHeader">
-                        <h3>Script Binding</h3>
+                        <h3>{t('compilerScriptBindingSection')}</h3>
                         <span className={compilerBindingStatus?.ok ? 'bindingState ok' : 'bindingState error'}>
-                            {compilerBindingStatus?.message ?? '检查中'}
+                            {compilerBindingStatus?.message ?? t('compilerBindingChecking')}
                         </span>
                     </div>
                     <div className="fieldStack">
                         <FieldRow label="scene" value={compilerBindingStatus?.scenePath ?? compilerDocument.scenePath} />
-                        <FieldRow label="contract" value={compilerBindingStatus?.contractScene ?? compilerDocument.descriptor?.scene} />
+                        <FieldRow label={t('compilerContract')} value={compilerBindingStatus?.contractScene ?? compilerDocument.descriptor?.scene} />
                         <FieldRow label="script" value={compilerBindingStatus?.scriptPath ?? compilerDocument.template.script?.path} />
-                        <FieldRow label="class" value={compilerBindingStatus?.className ?? compilerDocument.descriptor?.className} />
+                        <FieldRow label={t('compilerClass')} value={compilerBindingStatus?.className ?? compilerDocument.descriptor?.className} />
                         <div className="inspectorActionRow">
-                            <button onClick={openCompilerScript} type="button">打开脚本</button>
+                            <button onClick={openCompilerScript} type="button">{t('compilerOpenScript')}</button>
                         </div>
                     </div>
                 </section>
                 <section className="inspectorSection">
-                    <h3>Public Contract</h3>
-                    <p className="inspectorHint">来自脚本装饰器；.scene 只保存模板和 script 绑定。</p>
+                    <h3>{t('compilerPublicContractSection')}</h3>
+                    <p className="inspectorHint">{t('compilerPublicContractHint')}</p>
                     <div className="fieldStack">
-                        <FieldRow label="props" value={`${contractCount(publicInterface, 'props')}: ${contractNames(publicInterface, 'props')}`} />
-                        <FieldRow label="events" value={`${contractCount(publicInterface, 'events')}: ${contractNames(publicInterface, 'events')}`} />
-                        <FieldRow label="slots" value={`${contractCount(publicInterface, 'slots')}: ${contractNames(publicInterface, 'slots')}`} />
-                        <FieldRow label="parts" value={partNames(compilerDocument.descriptor)} />
+                        <FieldRow label="props" value={`${contractCount(publicInterface, 'props')}: ${contractNames(publicInterface, 'props', t)}`} />
+                        <FieldRow label="events" value={`${contractCount(publicInterface, 'events')}: ${contractNames(publicInterface, 'events', t)}`} />
+                        <FieldRow label="slots" value={`${contractCount(publicInterface, 'slots')}: ${contractNames(publicInterface, 'slots', t)}`} />
+                        <FieldRow label="parts" value={partNames(compilerDocument.descriptor, t)} />
                     </div>
                 </section>
                 {selectedCompiler ? (
                     <>
                         <section className="inspectorSection">
-                            <h3>Identity</h3>
+                            <h3>{t('compilerIdentitySection')}</h3>
                             <div className="fieldStack">
                                 {'id' in selectedCompiler ? (
                                     <EditableFieldRow
@@ -905,17 +907,17 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                                 ) : null}
                                 {selectedCompiler.kind === 'slot' ? (
                                     <>
-                                        <FieldRow label="kind" value="slot" />
+                                        <FieldRow label="kind" value={t('compilerSlotPlacementLabel')} />
                                         <FieldRow label="name" value={selectedCompiler.name} />
-                                        <FieldRow label="owner" value={selectedCompiler.owner} />
-                                        <FieldRow label="children" value={selectedCompiler.childCount} />
+                                        <FieldRow label={t('compilerOwner')} value={selectedCompiler.owner} />
+                                        <FieldRow label={t('compilerChildrenLabel')} value={t('compilerChildrenCount', { count: selectedCompiler.childCount })} />
                                     </>
                                 ) : null}
                             </div>
                         </section>
                         {compilerTransformEditorFields.length ? (
                             <section className="inspectorSection">
-                                <h3>Transform</h3>
+                                <h3>{t('compilerTransformSection')}</h3>
                                 <div className="fieldStack">
                                     {compilerTransformEditorFields.map((field) => (
                                         <EditableFieldRow
@@ -930,7 +932,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                         ) : null}
                         {compilerDisplayEditorFields.length ? (
                             <section className="inspectorSection">
-                                <h3>Display</h3>
+                                <h3>{t('compilerDisplaySection')}</h3>
                                 <div className="fieldStack">
                                     {compilerDisplayEditorFields.map((field) => (
                                         <EditableFieldRow
@@ -946,7 +948,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                         {compilerPropEditorSections.map((section) => (
                             section.fields.length ? (
                                 <section className="inspectorSection" key={section.title}>
-                                    <h3>{section.title}</h3>
+                                    <h3>{section.title === 'Props' ? t('compilerPropsSection') : section.title}</h3>
                                     <div className="fieldStack">
                                         {section.fields.map((field) => (
                                             <EditableFieldRow
@@ -962,7 +964,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                         ))}
                         {compilerEventEditorFields.length ? (
                             <section className="inspectorSection">
-                                <h3>Events</h3>
+                                <h3>{t('compilerEventsSection')}</h3>
                                 <div className="fieldStack">
                                     {compilerEventEditorFields.map((field) => (
                                         <EditableFieldRow
@@ -977,13 +979,14 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                         ) : null}
                         {selectedSlotRows.length ? (
                             <section className="inspectorSection">
-                                <h3>Slots</h3>
+                                <h3>{t('compilerSlotsSection')}</h3>
+                                <p className="inspectorHint">{t('compilerSlotsReadonlyHint')}</p>
                                 <div className="fieldStack">
                                     {selectedSlotRows.map((slot) => (
                                         <FieldRow
                                             key={slot.name}
-                                            label={`slot:${slot.name}`}
-                                            value={`${slot.childCount} children`}
+                                            label={t('compilerSlotLabel', { name: slot.name })}
+                                            value={t('compilerChildrenCount', { count: slot.childCount })}
                                         />
                                     ))}
                                 </div>
