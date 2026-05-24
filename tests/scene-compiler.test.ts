@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
+    checkSceneProposal,
     connectSceneEvent,
     compileSceneTemplateToTs,
     createSceneRevision,
@@ -68,6 +69,99 @@ describe('Pixifact scene compiler spike', () => {
                     childCount: 0,
                 },
             ],
+        });
+    });
+
+    it('checks compiler scene proposals without applying them', () => {
+        const current = serializeSceneTemplate(parseSceneTemplate(`
+            <Scene name="Button" script="src/scenes/Button.ts" width="180">
+              <Text id="label" text="Start" x="10" />
+            </Scene>
+        `));
+        const proposed = `
+            <Scene name="Button" script="src/scenes/Button.ts" width="180">
+              <Text id="label" text="Play" x="10" />
+              <Sprite id="icon" texture="assets/play.png" />
+            </Scene>
+        `;
+
+        const result = checkSceneProposal({
+            currentContent: current,
+            proposal: {
+                kind: 'pixifact.sceneProposal.v1',
+                scene: 'scenes/Button.scene',
+                baseRevision: createSceneRevision(current),
+                content: proposed,
+            },
+        });
+
+        expect(result).toMatchObject({
+            ok: true,
+            scene: 'scenes/Button.scene',
+            current: { name: 'Button' },
+            proposed: { name: 'Button' },
+        });
+        expect(result.ok && result.canonicalContent).toContain('<Text id="label" text="Play" x="10" />');
+        expect(result.ok && result.diffs).toEqual([
+            {
+                kind: 'nodePropChanged',
+                path: '0:label',
+                node: 'Text#label',
+                prop: 'text',
+                before: 'Start',
+                after: 'Play',
+            },
+            {
+                kind: 'nodeInserted',
+                path: '1:icon',
+                node: 'Sprite#icon',
+            },
+            {
+                kind: 'childrenChanged',
+                path: '__scene__',
+                before: ['Text#label'],
+                after: ['Text#label', 'Sprite#icon'],
+            },
+        ]);
+    });
+
+    it('rejects stale compiler scene proposals', () => {
+        const current = '<Scene name="Button"><Text id="label" text="Start" /></Scene>';
+        const result = checkSceneProposal({
+            currentContent: current,
+            proposal: {
+                kind: 'pixifact.sceneProposal.v1',
+                scene: 'scenes/Button.scene',
+                baseRevision: 'sha256:stale',
+                content: '<Scene name="Button"><Text id="label" text="Play" /></Scene>',
+            },
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            scene: 'scenes/Button.scene',
+            baseRevision: 'sha256:stale',
+            currentRevision: createSceneRevision(current),
+            error: 'Scene proposal baseRevision does not match current scene revision.',
+        });
+    });
+
+    it('rejects proposals that change the scene name', () => {
+        const current = '<Scene name="Button"><Text id="label" text="Start" /></Scene>';
+        const result = checkSceneProposal({
+            currentContent: current,
+            proposal: {
+                kind: 'pixifact.sceneProposal.v1',
+                scene: 'scenes/Button.scene',
+                baseRevision: createSceneRevision(current),
+                content: '<Scene name="Other"><Text id="label" text="Play" /></Scene>',
+            },
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            scene: 'scenes/Button.scene',
+            error: 'Scene proposal cannot change Scene name from "Button" to "Other".',
         });
     });
 
