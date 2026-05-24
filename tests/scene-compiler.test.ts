@@ -6,11 +6,13 @@ import { tmpdir } from 'node:os';
 import {
     connectSceneEvent,
     compileSceneTemplateToTs,
+    createSceneRevision,
     mount,
     parseSceneTemplate,
     part,
     prop,
     serializeSceneTemplate,
+    inspectSceneTemplate,
     createEvent,
     event,
     registerScene,
@@ -22,6 +24,53 @@ import {
 import { compileScenes } from 'pixifact/compiler-node';
 
 describe('Pixifact scene compiler spike', () => {
+    it('creates stable revisions for canonical compiler scene source', () => {
+        const first = createSceneRevision('<Scene name="Button"><Text id="label" text="Play" /></Scene>');
+        const second = createSceneRevision(`
+            <Scene name="Button">
+              <Text id="label" text="Play" />
+            </Scene>
+        `);
+
+        expect(first).toBe(second);
+        expect(first).toMatch(/^scene:\d+:[a-f0-9]{8}$/);
+    });
+
+    it('inspects compiler scene templates for external agents', () => {
+        const summary = inspectSceneTemplate(parseSceneTemplate(`
+            <Scene name="Button" script="src/scenes/Button.ts" width="180">
+              <Container id="root" x="10">
+                <Text id="label" text="Play" />
+              </Container>
+            </Scene>
+        `));
+
+        expect(summary).toEqual({
+            name: 'Button',
+            script: 'src/scenes/Button.ts',
+            props: { width: 180 },
+            nodeCount: 2,
+            nodes: [
+                {
+                    id: 'root',
+                    kind: 'pixi',
+                    type: 'Container',
+                    path: '0:root',
+                    propKeys: ['x'],
+                    childCount: 1,
+                },
+                {
+                    id: 'label',
+                    kind: 'pixi',
+                    type: 'Text',
+                    path: '0:root/0:label',
+                    propKeys: ['text'],
+                    childCount: 0,
+                },
+            ],
+        });
+    });
+
     it('parses a restricted XML scene template with scene props and slot outlet', () => {
         const template = parseSceneTemplate(`
             <Scene name="Button" script="src/scenes/Button.ts" width="180" height="52">
