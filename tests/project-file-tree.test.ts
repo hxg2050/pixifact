@@ -49,6 +49,7 @@ import {
     readCompilerSceneBindingIndex,
     sceneInterfacesForCompilerTemplate,
 } from '../apps/editor/src/services/sceneBindingIndex';
+import { isCompilerBindingSourceChange } from '../apps/editor/src/services/compilerSceneBindingSync';
 import { addDroppedCompilerSceneInstance } from '../apps/editor/src/services/compilerSceneDrop';
 import { createSceneInstanceNode } from '../apps/editor/src/services/sceneInstance';
 import { sceneAssetName, sceneFileName, sceneRootKey } from '../apps/editor/src/services/sceneNaming';
@@ -806,6 +807,14 @@ describe('project file tree service', () => {
         expect(button.interface.events.click).toEqual({ type: 'action' });
         expect(button.interface.slots.icon).toEqual({});
         expect(sceneInterfaces['scenes/Button.scene']).toBe(button.interface);
+    });
+
+    it('detects compiler binding source file changes', () => {
+        expect(isCompilerBindingSourceChange({ path: 'scenes/Button.scene', kind: 'scene' })).toBe(true);
+        expect(isCompilerBindingSourceChange({ path: 'src/scenes/Button.ts', kind: 'script' })).toBe(true);
+        expect(isCompilerBindingSourceChange({ path: 'GameProject/src/scenes/Button.ts', kind: 'script' })).toBe(true);
+        expect(isCompilerBindingSourceChange({ path: 'src/logic/actions.ts', kind: 'script' })).toBe(false);
+        expect(isCompilerBindingSourceChange({ path: 'assets/button.png', kind: 'asset' })).toBe(false);
     });
 
     it('opens and refreshes the bound compiler Scene script contract', async () => {

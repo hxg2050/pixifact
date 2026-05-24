@@ -35,6 +35,7 @@ import type { EditorRunStatus } from './services/editorRunService';
 import { startLiveEditorAgentClient } from './agent/liveEditorClient';
 import { pixifactAgentBridgeUrl } from './agent/liveBridge';
 import { listenHostProjectFileChanged } from './services/hostBridge';
+import { isCompilerBindingSourceChange } from './services/compilerSceneBindingSync';
 import 'dockview/dist/styles/dockview.css';
 
 type EditorPanelParams = Record<string, never>;
@@ -134,12 +135,6 @@ function countCompilerSceneNodes(nodes: readonly CompilerSceneTemplateNode[]): n
         }
     }
     return count;
-}
-
-function isCompilerBindingSourceChange(event: { path: string; kind: string }) {
-    return event.kind === 'scene'
-        || event.path.startsWith('src/scenes/')
-        || event.path.includes('/src/scenes/');
 }
 
 function WelcomePage({ onOpenFolder }: { onOpenFolder: () => void }) {
