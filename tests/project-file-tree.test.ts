@@ -1848,6 +1848,55 @@ describe('project file tree service', () => {
         expect(saved).toContain('<Button id="startButton" scene="scenes/Button.scene" label="Continue" x="24" y="36" width="188" height="48" scaleX="1.2" scaleY="0.9" rotation="0.25" alpha="0.8" visible="true" zIndex="10" disabled="true" @click="resumeGame" />');
     });
 
+    it('reopens saved compiler Scene instance slot children from XML', async () => {
+        host.reset({
+            scenes: host.directory({
+                'MainMenu.scene': host.file(`
+                    <Scene name="MainMenu" script="src/scenes/MainMenu.ts">
+                      <Panel id="settingsPanel" scene="scenes/Panel.scene">
+                        <Text slot="footer" id="footerText" text="Footer" fill="#ffffff" />
+                      </Panel>
+                    </Scene>
+                `),
+                'Panel.scene': host.file('<Scene name="Panel" script="src/scenes/Panel.ts" />'),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'MainMenu.ts': emptySceneScript('MainMenu'),
+                    'Panel.ts': panelSceneScript(),
+                }),
+            }),
+        });
+        let tree = await readHostTree();
+        let sceneFile = findFileByPath(tree, 'GameProject/scenes/MainMenu.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+        const compilerDocument = getCompilerSceneDocument();
+
+        expect(await saveCompilerSceneFile(tree, 'GameProject/scenes/MainMenu.scene', compilerDocument!)).toBe(true);
+
+        tree = await readHostTree();
+        sceneFile = findFileByPath(tree, 'GameProject/scenes/MainMenu.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        const reopenedPanel = getCompilerSceneDocument()?.template.children[0];
+        expect(reopenedPanel).toMatchObject({
+            kind: 'sceneInstance',
+            id: 'settingsPanel',
+            slots: {
+                footer: [{
+                    kind: 'pixi',
+                    type: 'Text',
+                    id: 'footerText',
+                    props: {
+                        text: 'Footer',
+                        fill: 0xffffff,
+                    },
+                }],
+            },
+        });
+    });
+
     it('creates and opens a compiler Scene and saves it as XML', async () => {
         host.reset({
             scenes: host.directory(),
