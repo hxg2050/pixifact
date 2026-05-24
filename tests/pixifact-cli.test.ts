@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { container, scene, text } from 'pixifact';
 import type { SceneCommand } from 'pixifact';
+import { createSceneRevision } from 'pixifact/compiler';
 import { executePixifactCli } from '../packages/pixifact-cli/src/pixifact-cli';
 import {
     getSceneDocument,
@@ -116,10 +117,29 @@ function createEmptyTempProject() {
     return root;
 }
 
+function createCompilerSceneProject() {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-compiler-cli-'));
+    tempRoots.push(root);
+    fs.mkdirSync(path.join(root, 'scenes'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'scenes', 'Button.scene'), [
+        '<Scene name="Button" script="src/scenes/Button.ts">',
+        '  <Text id="label" text="Start" />',
+        '</Scene>',
+        '',
+    ].join('\n'), 'utf8');
+    return root;
+}
+
 function writeCommands(root: string, commands: unknown) {
     const commandsPath = path.join(root, 'commands.json');
     fs.writeFileSync(commandsPath, JSON.stringify(commands), 'utf8');
     return commandsPath;
+}
+
+function writeSceneProposal(root: string, proposal: unknown) {
+    const proposalPath = path.join(root, 'proposal.json');
+    fs.writeFileSync(proposalPath, JSON.stringify(proposal), 'utf8');
+    return proposalPath;
 }
 
 async function runCli(argv: string[], input?: string) {
@@ -302,6 +322,126 @@ describe('Pixifact CLI', () => {
         });
         expect(generated).toContain('export function mountButtonScene(root: Container)');
         expect(generated).toContain('registerSceneClass(Button, "scenes/Button.scene");');
+    });
+
+    it('inspects compiler scene files for external agents', async () => {
+        const projectRoot = createCompilerSceneProject();
+
+        const result = await runCli([
+            'scene',
+            'inspect',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Button.scene',
+        ]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json).toMatchObject({
+            ok: true,
+            scenePath: 'scenes/Button.scene',
+            revision: createSceneRevision(fs.readFileSync(path.join(projectRoot, 'scenes', 'Button.scene'), 'utf8')),
+            summary: {
+                name: 'Button',
+                script: 'src/scenes/Button.ts',
+                nodeCount: 1,
+            },
+        });
+    });
+
+    it('checks compiler scene proposals without writing files', async () => {
+        const projectRoot = createCompilerSceneProject();
+        const scenePath = path.join(projectRoot, 'scenes', 'Button.scene');
+        const current = fs.readFileSync(scenePath, 'utf8');
+        const proposalPath = writeSceneProposal(projectRoot, {
+            kind: 'pixifact.sceneProposal.v1',
+            scene: 'scenes/Button.scene',
+            baseRevision: createSceneRevision(current),
+            content: '<Scene name="Button" script="src/scenes/Button.ts"><Text id="label" text="Play" /></Scene>',
+        });
+
+        const result = await runCli([
+            'scene',
+            'proposal',
+            'check',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Button.scene',
+            '--proposal',
+            proposalPath,
+        ]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json.ok).toBe(true);
+        expect(result.json.diffs[0]).toMatchObject({
+            kind: 'nodePropChanged',
+            prop: 'text',
+            before: 'Start',
+            after: 'Play',
+        });
+        expect(fs.readFileSync(scenePath, 'utf8')).toBe(current);
+    });
+
+    it('applies compiler scene proposals and writes canonical source', async () => {
+        const projectRoot = createCompilerSceneProject();
+        const scenePath = path.join(projectRoot, 'scenes', 'Button.scene');
+        const current = fs.readFileSync(scenePath, 'utf8');
+        const proposalPath = writeSceneProposal(projectRoot, {
+            kind: 'pixifact.sceneProposal.v1',
+            scene: 'scenes/Button.scene',
+            baseRevision: createSceneRevision(current),
+            content: '<Scene name="Button" script="src/scenes/Button.ts"><Text id="label" text="Play" /></Scene>',
+        });
+
+        const result = await runCli([
+            'scene',
+            'proposal',
+            'apply',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Button.scene',
+            '--proposal',
+            proposalPath,
+        ]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json.ok).toBe(true);
+        expect(fs.readFileSync(scenePath, 'utf8')).toBe([
+            '<Scene name="Button" script="src/scenes/Button.ts">',
+            '  <Text id="label" text="Play" />',
+            '</Scene>',
+            '',
+        ].join('\n'));
+    });
+
+    it('rejects stale compiler scene proposals through the CLI', async () => {
+        const projectRoot = createCompilerSceneProject();
+        const proposalPath = writeSceneProposal(projectRoot, {
+            kind: 'pixifact.sceneProposal.v1',
+            scene: 'scenes/Button.scene',
+            baseRevision: 'sha256:stale',
+            content: '<Scene name="Button"><Text id="label" text="Play" /></Scene>',
+        });
+
+        const result = await runCli([
+            'scene',
+            'proposal',
+            'apply',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Button.scene',
+            '--proposal',
+            proposalPath,
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            error: 'Scene proposal baseRevision does not match current scene revision.',
+        });
     });
 
     it('does not overwrite an existing Scene file', async () => {

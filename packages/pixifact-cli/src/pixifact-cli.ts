@@ -99,6 +99,14 @@ async function readCommands(flags: Record<string, string | true>, input: string 
     return JSON.parse(text);
 }
 
+async function readProposal(flags: Record<string, string | true>, input: string | NodeJS.ReadableStream | undefined) {
+    const proposalPath = requireFlag(flags, 'proposal');
+    const text = proposalPath === '-'
+        ? await readInput(input)
+        : await fs.readFile(proposalPath, 'utf8');
+    return JSON.parse(text);
+}
+
 function jsonLine(value: unknown) {
     return `${JSON.stringify(value, null, 2)}\n`;
 }
@@ -139,6 +147,29 @@ async function executeFileCommand(positionals: string[], flags: Record<string, s
             projectRoot: requireFlag(flags, 'project-root'),
             scenePath: requireFlag(flags, 'scene'),
             name: requireFlag(flags, 'name'),
+        });
+    }
+
+    if (area === 'scene' && action === 'inspect') {
+        return automation.inspectCompilerScene({
+            projectRoot: requireFlag(flags, 'project-root'),
+            scenePath: requireFlag(flags, 'scene'),
+        });
+    }
+
+    if (area === 'scene' && action === 'proposal' && subaction === 'check') {
+        return automation.checkCompilerSceneProposal({
+            projectRoot: requireFlag(flags, 'project-root'),
+            scenePath: requireFlag(flags, 'scene'),
+            proposal: await readProposal(flags, input),
+        });
+    }
+
+    if (area === 'scene' && action === 'proposal' && subaction === 'apply') {
+        return automation.applyCompilerSceneProposal({
+            projectRoot: requireFlag(flags, 'project-root'),
+            scenePath: requireFlag(flags, 'scene'),
+            proposal: await readProposal(flags, input),
         });
     }
 
@@ -234,6 +265,9 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'summary',
                         'scene create',
                         'scene get',
+                        'scene inspect',
+                        'scene proposal check',
+                        'scene proposal apply',
                         'node inspect',
                         'commands dry-run',
                         'commands apply',

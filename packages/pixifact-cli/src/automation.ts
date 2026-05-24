@@ -1,6 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+    applySceneProposal,
+    checkSceneProposal,
+    createSceneRevision,
+    inspectSceneTemplate,
+    parseSceneTemplate,
+} from 'pixifact/compiler';
+import {
     applyCommand,
     commandFailureDetails,
     container,
@@ -37,6 +44,7 @@ interface ToolInput {
     parent?: unknown;
     key?: unknown;
     label?: unknown;
+    proposal?: unknown;
 }
 
 type DetailedNode = NodeSpec & {
@@ -110,6 +118,10 @@ function readJsonFile(filePath: string): unknown {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
+function readTextFile(filePath: string) {
+    return fs.readFileSync(filePath, 'utf8');
+}
+
 function readPixifactProjectSummary(root: string) {
     const configPath = path.join(root, pixifactProjectConfigFileName);
     if (!fs.existsSync(configPath)) {
@@ -120,6 +132,10 @@ function readPixifactProjectSummary(root: string) {
 
 function writeJsonFile(filePath: string, value: unknown) {
     fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
+}
+
+function writeTextFile(filePath: string, value: string) {
+    fs.writeFileSync(filePath, value, 'utf8');
 }
 
 function writeNewJsonFile(filePath: string, value: unknown) {
@@ -173,6 +189,30 @@ function loadEditableDocument(projectRoot: unknown, scenePath: unknown): Editabl
         target,
         document,
         isProjectFile: false,
+    };
+}
+
+function assertProposal(value: unknown) {
+    const proposal = assertRecord(value, 'proposal');
+    if (proposal.kind !== 'pixifact.sceneProposal.v1') {
+        throw new Error('proposal.kind must be "pixifact.sceneProposal.v1".');
+    }
+    return {
+        kind: 'pixifact.sceneProposal.v1' as const,
+        scene: assertString(proposal.scene, 'proposal.scene'),
+        baseRevision: assertString(proposal.baseRevision, 'proposal.baseRevision'),
+        content: assertString(proposal.content, 'proposal.content'),
+    };
+}
+
+function loadCompilerScene(projectRoot: unknown, scenePath: unknown) {
+    const { root, target } = resolveProjectPath(projectRoot, scenePath);
+    const content = readTextFile(target);
+    return {
+        root,
+        target,
+        scenePath: path.relative(root, target),
+        content,
     };
 }
 
@@ -340,6 +380,46 @@ export function createPixifactAutomation() {
                 scenePath: path.relative(root, target),
                 scene: nextScene,
                 summary: summarizeScene(nextScene),
+            };
+        },
+
+        inspectCompilerScene(input: unknown) {
+            const args = assertRecord(input, 'input') as ToolInput;
+            const loaded = loadCompilerScene(args.projectRoot, args.scenePath);
+            const template = parseSceneTemplate(loaded.content);
+            return {
+                ok: true,
+                scenePath: loaded.scenePath,
+                revision: createSceneRevision(loaded.content),
+                summary: inspectSceneTemplate(template),
+            };
+        },
+
+        checkCompilerSceneProposal(input: unknown) {
+            const args = assertRecord(input, 'input') as ToolInput;
+            const loaded = loadCompilerScene(args.projectRoot, args.scenePath);
+            const proposal = assertProposal(args.proposal);
+            return checkSceneProposal({
+                currentContent: loaded.content,
+                proposal,
+            });
+        },
+
+        applyCompilerSceneProposal(input: unknown) {
+            const args = assertRecord(input, 'input') as ToolInput;
+            const loaded = loadCompilerScene(args.projectRoot, args.scenePath);
+            const proposal = assertProposal(args.proposal);
+            const result = applySceneProposal({
+                currentContent: loaded.content,
+                proposal,
+            });
+            if (!result.ok) {
+                return result;
+            }
+            writeTextFile(loaded.target, result.content);
+            return {
+                ...result,
+                scenePath: loaded.scenePath,
             };
         },
 
