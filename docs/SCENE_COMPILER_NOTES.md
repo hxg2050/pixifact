@@ -2,19 +2,27 @@
 
 本文记录关于 Pixifact 代码层定位的阶段性讨论结论，暂不作为实施计划，不改动当前 runtime / editor / CLI 代码。
 
+Agent authoring 的最新结论见 [Agent Scene Authoring](./AI_SCENE_AUTHORING.md)。本文中关于 `SceneCommand` 作为 compiler scene AI 修改入口的内容是历史讨论，不再作为最终方向。
+
 ## 当前工作假设
 
-Pixifact 后续更贴近 `Pixifact Compiler`：
+Pixifact 后续更贴近 `Pixifact Compiler`。历史讨论链路是：
 
 ```txt
 .scene template -> typed Scene AST -> SceneCommand -> compiler -> PixiJS TypeScript
+```
+
+最新 agent authoring 链路已经调整为：
+
+```txt
+.scene proposal -> parse -> normalize -> validate -> diff -> apply -> compiler -> PixiJS TypeScript
 ```
 
 - `.scene` 是可编辑、可预览、AI 可理解、可读取、可操作的结构源文件。
 - `.scene` 更像 PixiJS 世界里的 Vue / React 组件模板，不是普通数据文件。
 - Pixifact 负责编译 `.scene` 到 PixiJS TypeScript 代码。
 - PixiJS 是最终运行时心智，不再让用户围绕 Pixifact 自定义 runtime framework 编程。
-- Editor / CLI / SceneCommand / dry-run / diff / apply 仍然是 Pixifact 的 authoring 和 AI 操作价值。
+- Editor / CLI / proposal check / diff / apply 仍然是 Pixifact 的 authoring 和 agent 操作价值。
 
 类比：
 
@@ -527,12 +535,14 @@ Transform 来自实例自身
 
 ## AI 友好性
 
+本节保留历史分析。最终 compiler scene agent authoring 方向以 [Agent Scene Authoring](./AI_SCENE_AUTHORING.md) 为准：Agent 产出 `.scene proposal`，Pixifact 执行 parse / normalize / validate / diff / apply。
+
 对 AI 最友好的组合是：
 
 ```txt
 人和 AI 阅读：受限 XML / Vue-like template
 机器操作：typed Scene AST
-AI 修改：SceneCommand
+历史方案中的 AI 修改：SceneCommand
 ```
 
 原因：
@@ -540,7 +550,7 @@ AI 修改：SceneCommand
 - XML-like template 对 AI 更接近组件心智。
 - props / events / slots / children 层级比深层 JSON 更直观。
 - AI 可以理解一个 Scene Instance 是整体，不需要展开内部节点。
-- 真正修改仍通过 SceneCommand，便于 validate / dry-run / diff / apply。
+- 历史方案中，真正修改仍通过 SceneCommand，便于 validate / dry-run / diff / apply。
 
 AI 在编辑父 Scene 时，只能改：
 

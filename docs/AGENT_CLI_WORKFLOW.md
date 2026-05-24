@@ -1,6 +1,8 @@
 # Agent CLI Workflow
 
-本文档定义外部 Agent 使用 Pixifact CLI 修改 Scene 的固定流程。目标是让 Agent 可以高效工作，同时保持 `SceneDocument` 和 `SceneCommand` 作为唯一受控修改路径。
+本文档定义外部 Agent 使用 Pixifact CLI 修改 legacy `SceneSpec` Scene 的固定流程。目标是让 Agent 可以高效工作，同时保持 `SceneDocument` 和 `SceneCommand` 作为 legacy SceneSpec 的唯一受控修改路径。
+
+Compiler `.scene` 不使用本文档的 `SceneCommand[]` 流程。Compiler scene 的最终方向是 `.scene proposal -> parse -> normalize -> validate -> diff -> apply`，见 [Agent Scene Authoring](./AI_SCENE_AUTHORING.md)。
 
 ## 1. 不可变规则
 
@@ -8,7 +10,7 @@
 - 不把 Zustand、React state 或 editor UI state 当项目数据源。
 - 不生成旧 MCP 请求或旧协议 payload。
 - 不创建兼容层、别名、fallback 或 deprecation shim。
-- 所有真实修改必须表达为 `SceneCommand[]`。
+- legacy `SceneSpec` 的所有真实修改必须表达为 `SceneCommand[]`。
 - apply 前必须先 dry-run。
 
 ## 2. 文件模式流程
@@ -187,7 +189,7 @@ Agent 生成的 `commands.json` 必须是数组：
 给外部 Agent 的任务可以使用下面的格式：
 
 ```txt
-使用 Pixifact CLI 修改当前 Scene。
+使用 Pixifact CLI 修改当前 legacy SceneSpec Scene。
 先运行 summary / scene get 获取上下文。
 如果目标 Scene 不存在，先运行 scene create。
 如果要创建常见结构，优先运行 template add dry-run/apply。

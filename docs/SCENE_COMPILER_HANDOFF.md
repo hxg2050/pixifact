@@ -2,13 +2,17 @@
 
 本文用于新会话快速接续 Pixifact Compiler 方向。完整背景见 `docs/SCENE_COMPILER_NOTES.md`。
 
+Agent authoring 的最新结论见 `docs/AI_SCENE_AUTHORING.md`。本文中 `SceneCommand` 作为 compiler scene 修改入口的描述是历史阶段结论，不再作为最终方向。
+
 ## 核心结论
 
 Pixifact 后续定位应从 runtime framework 收敛为 PixiJS Scene compiler / authoring toolchain。
 
 ```txt
-.scene template -> typed Scene AST -> SceneCommand -> compiler -> PixiJS TypeScript
+.scene proposal -> parse -> normalize -> validate -> diff -> apply -> compiler -> PixiJS TypeScript
 ```
+
+历史讨论曾考虑让 `.scene template -> typed Scene AST -> SceneCommand -> compiler -> PixiJS TypeScript` 成为 agent 修改链路。最新方向不再让 compiler scene agent workflows 依赖 `SceneCommand[]`。
 
 心智类比：
 
@@ -36,7 +40,7 @@ public contract
 Scene Instance
 slot
 Inspector schema
-SceneCommand / dry-run / diff / apply
+proposal check / diff / apply
 compiler output
 ```
 

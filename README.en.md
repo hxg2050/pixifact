@@ -10,8 +10,19 @@ Codex, Claude Code, and similar coding agents are the primary AI entry points. P
 
 Pixifact uses a Godot-style unified `Scene` asset model. It does not use a Unity-style split between Scene resources and Prefab resources.
 
+There are currently two Scene authoring paths:
+
+- Legacy `SceneSpec`: `SceneCommand[]` is the agent edit entry point for the existing `container` / `image` / `text` / `input` / `shape` semantic layer.
+- Compiler `.scene`: the `.scene` source file is the agent edit entry point. Agents produce `.scene proposal` payloads, and Pixifact runs parse / normalize / validate / diff / apply before compiling generated TypeScript. See [Agent Scene Authoring](./docs/AI_SCENE_AUTHORING.md).
+
 ```txt
 Codex / Claude Code -> Pixifact CLI -> SceneCommand -> Validate / Dry Run -> SceneDocument -> Editor Preview -> Runtime
+```
+
+The flow above describes legacy `SceneSpec`. Compiler scene targets this flow:
+
+```txt
+Codex / Claude Code -> Pixifact CLI -> .scene proposal -> Check -> Apply -> Compile -> Editor Preview -> Runtime
 ```
 
 - `.scene` files store `SceneSpec`.
@@ -65,7 +76,9 @@ Desktop development and packaging require Rust / Cargo. Users who install the pa
 
 ## CLI
 
-The CLI is the primary entry point for external agents operating on Pixifact projects. Pixifact does not treat built-in chat as the main AI path; agents should read context, generate structured `SceneCommand[]`, dry-run, then apply after validation succeeds.
+The CLI is the primary entry point for external agents operating on Pixifact projects. Pixifact does not treat built-in chat as the main AI path.
+
+For legacy `SceneSpec`, agents should read context, generate structured `SceneCommand[]`, dry-run, then apply after validation succeeds:
 
 ```bash
 bun run pixifact -- summary --project-root /path/to/project
@@ -73,10 +86,16 @@ bun run pixifact -- summary --project-root /path/to/project
 
 CLI commands read and write `SceneCommand` changes against `.scene` or `pixifact.aiEditorProject` files. Live mode operates on the currently open editor; file mode reads and writes local project files directly.
 
-The full agent workflow is documented in:
+The legacy agent workflow is documented in:
 
 ```txt
 docs/AGENT_CLI_WORKFLOW.md
+```
+
+The target compiler `.scene` agent workflow is documented in:
+
+```txt
+docs/AI_SCENE_AUTHORING.md
 ```
 
 ## Project Asset Boundary
@@ -89,9 +108,11 @@ Pixifact Editor provides project asset browsing, lightweight previews, resource 
 - Script files are not edited inside the Editor; opening a script delegates to an external code editor.
 - Codex / Claude Code still owns full game code development. Pixifact owns the visual Scene, UI, lightweight scene, and resource-reference layer.
 
-## AI Gateway
+## Legacy Gateway Sample
 
-Start the local gateway adapter:
+Gateway is not the primary agent path for compiler `.scene`. The recommended flow is external agents such as Codex and Claude Code calling Pixifact CLI. This section only keeps the legacy gateway adapter sample.
+
+Start the gateway adapter:
 
 ```bash
 bun run editor:gateway
@@ -109,7 +130,7 @@ Default Remote endpoint:
 http://localhost:8788/proposal
 ```
 
-The gateway only returns structured proposals. It does not mutate `SceneDocument` and does not write project files.
+The gateway only returns legacy structured proposals. It does not mutate `SceneDocument` and does not write project files.
 
 ## Package Entry Points
 

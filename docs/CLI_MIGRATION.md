@@ -1,6 +1,10 @@
 # Pixifact CLI
 
-Pixifact 已经从 stdio MCP server 迁移到本地 CLI。CLI 是外部 Agent 操作 Pixifact 项目的主入口，只负责参数解析、JSON 输入输出和调用受控能力；真实修改继续走 `SceneCommand` 和 `dryRunProposal()`。live editor 模式应用命令时继续使用当前打开的 `SceneDocument`。
+Pixifact 已经从 stdio MCP server 迁移到本地 CLI。CLI 是外部 Agent 操作 Pixifact 项目的主入口，只负责参数解析、JSON 输入输出和调用受控能力。
+
+本文档记录 legacy `SceneSpec` / `SceneCommand[]` CLI 流程。Compiler `.scene` 的最终 Agent authoring 方向是 `.scene proposal -> parse -> normalize -> validate -> diff -> apply`，见 [Agent Scene Authoring](./AI_SCENE_AUTHORING.md)。
+
+Legacy SceneSpec 的真实修改继续走 `SceneCommand` 和 `dryRunProposal()`。live editor 模式应用命令时继续使用当前打开的 `SceneDocument`。
 
 ## 1. 当前状态
 
@@ -111,7 +115,7 @@ Live mode 会操作当前打开的 `SceneDocument`，刷新 editor preview，并
 ]
 ```
 
-CLI 不接受自由文本修改请求。Agent 必须先把意图转换成结构化 `SceneCommand[]`。
+Legacy SceneSpec CLI 不接受自由文本修改请求。Agent 必须先把意图转换成结构化 `SceneCommand[]`。Compiler `.scene` 不使用这条规则，目标流程以 `.scene proposal` 为入口。
 
 ## 5. Template / Macro
 
@@ -175,10 +179,10 @@ bun run pixifact -- live template add apply \
 
 ## 7. Agent 约束
 
-Agent 使用 CLI 时必须遵守：
+Agent 使用 legacy SceneSpec CLI 时必须遵守：
 
 - 先读上下文，再写命令：`summary` -> `scene get` -> 必要时 `node inspect`。
-- 只生成 `SceneCommand[]`，不直接编辑 `.scene` JSON。
+- 只生成 `SceneCommand[]`，不直接编辑 legacy `.scene` JSON。
 - 先 `commands dry-run`，确认 `ok: true` 后再 `commands apply`。
 - 创建常见 UI 时优先使用 `template add dry-run/apply`，不要手写大量重复 `createNode` JSON。
 - 使用稳定 locator：节点用 `key` / `id`，组件用 `id`，文件用 project-relative path。
