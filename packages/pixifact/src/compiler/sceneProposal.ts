@@ -168,6 +168,21 @@ export function checkSceneProposal(options: CheckSceneProposalOptions): ScenePro
     }
 }
 
+export type SceneProposalApplyResult =
+    | (Extract<SceneProposalCheckResult, { ok: true }> & { content: string })
+    | Extract<SceneProposalCheckResult, { ok: false }>;
+
+export function applySceneProposal(options: CheckSceneProposalOptions): SceneProposalApplyResult {
+    const result = checkSceneProposal(options);
+    if (!result.ok) {
+        return result;
+    }
+    return {
+        ...result,
+        content: result.canonicalContent,
+    };
+}
+
 function diffSceneTemplates(before: SceneTemplate, after: SceneTemplate): SceneProposalDiffEntry[] {
     return [
         ...diffProps(before.props, after.props).map((entry) => ({

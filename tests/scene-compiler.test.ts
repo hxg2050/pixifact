@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
+    applySceneProposal,
     checkSceneProposal,
     connectSceneEvent,
     compileSceneTemplateToTs,
@@ -162,6 +163,31 @@ describe('Pixifact scene compiler spike', () => {
             ok: false,
             scene: 'scenes/Button.scene',
             error: 'Scene proposal cannot change Scene name from "Button" to "Other".',
+        });
+    });
+
+    it('applies compiler scene proposals by returning canonical content', () => {
+        const current = '<Scene name="Button"><Text id="label" text="Start" /></Scene>';
+        const result = applySceneProposal({
+            currentContent: current,
+            proposal: {
+                kind: 'pixifact.sceneProposal.v1',
+                scene: 'scenes/Button.scene',
+                baseRevision: createSceneRevision(current),
+                content: '<Scene name="Button"><Text id="label" text="Play" /></Scene>',
+            },
+        });
+
+        expect(result).toMatchObject({
+            ok: true,
+            scene: 'scenes/Button.scene',
+        });
+        expect(result.ok && result.content).toBe('<Scene name="Button">\n  <Text id="label" text="Play" />\n</Scene>\n');
+        expect(result.ok && result.diffs[0]).toMatchObject({
+            kind: 'nodePropChanged',
+            prop: 'text',
+            before: 'Start',
+            after: 'Play',
         });
     });
 
