@@ -23,7 +23,7 @@ export function mountMainMenuScene(root: Container, actions: Record<string, () =
   settingsPanel.position.set(220, 118);
   settingsPanel.title = "Scene Compiler Demo";
   root.addChild(settingsPanel);
-  const bodyText = new Text({ text: "Button and Panel are independent Scene scripts. Panel exposes slots; Button exposes props and click.", style: { fontSize: 18, fill: 13162482 } });
+  const bodyText = new Text({ text: "Panel and Button are independent Scene scripts. Slots accept external children; props and events stay public.", style: { fontSize: 18, fill: 13162482 } });
   bodyText.label = "bodyText";
   bodyText.position.set(0, 0);
   mount(settingsPanel, bodyText, "content");
