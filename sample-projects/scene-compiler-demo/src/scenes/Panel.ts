@@ -1,7 +1,7 @@
 import { Container, Text } from 'pixi.js';
 import { part, prop, scene, slot } from 'pixifact/compiler';
 
-@scene('scenes/Panel.scene')
+@scene()
 export class Panel extends Container {
     @part()
     protected declare titleText: Text;

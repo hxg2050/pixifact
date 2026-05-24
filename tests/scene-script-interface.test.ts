@@ -15,7 +15,7 @@ describe('scene script interface extractor', () => {
             import { Container, Text } from 'pixi.js';
             import { event, part, prop, scene, slot } from 'pixifact/compiler';
 
-            @scene('./Button.scene')
+            @scene()
             export class Button extends Container {
                 @prop({ type: 'string', default: 'Button' })
                 accessor label = 'Button';
@@ -35,10 +35,10 @@ describe('scene script interface extractor', () => {
                 @slot()
                 icon!: Container;
             }
-        `);
+        `, 'Button.ts', { scene: 'scenes/Button.scene' });
 
         expect(contract).toEqual({
-            scene: './Button.scene',
+            scene: 'scenes/Button.scene',
             className: 'Button',
             interface: {
                 props: {
@@ -69,7 +69,7 @@ describe('scene script interface extractor', () => {
 
     it('supports explicit event and slot names', () => {
         const contract = extractSceneScriptInterface(`
-            @scene({ scene: './Panel.scene' })
+            @scene()
             export class Panel {
                 @event({ name: 'close' })
                 readonly closeEvent = createEvent();
@@ -77,7 +77,7 @@ describe('scene script interface extractor', () => {
                 @slot({ name: 'footer' })
                 footerSlot!: unknown;
             }
-        `);
+        `, 'Panel.ts', { scene: 'scenes/Panel.scene' });
 
         expect(contract.interface.events).toEqual({
             close: {
@@ -91,7 +91,7 @@ describe('scene script interface extractor', () => {
 
     it('emits a stable JSON descriptor for editor and AI consumption', () => {
         const descriptor = emitSceneScriptInterfaceDescriptor(`
-            @scene('./Button.scene')
+            @scene()
             export class Button {
                 @prop({ type: 'string', default: 'Button' })
                 accessor label = 'Button';
@@ -102,10 +102,10 @@ describe('scene script interface extractor', () => {
                 @slot()
                 icon!: unknown;
             }
-        `);
+        `, 'Button.ts', { scene: 'scenes/Button.scene' });
 
         expect(JSON.parse(descriptor)).toEqual({
-            scene: './Button.scene',
+            scene: 'scenes/Button.scene',
             className: 'Button',
             interface: {
                 props: {
@@ -129,8 +129,7 @@ describe('scene script interface extractor', () => {
     });
 
     it('exports no-op decorator factories for real scene scripts', () => {
-        expect(typeof scene('./Button.scene')).toBe('function');
-        expect(typeof scene({ scene: './Button.scene' })).toBe('function');
+        expect(typeof scene()).toBe('function');
         expect(typeof part()).toBe('function');
         expect(typeof part({ id: 'labelText' })).toBe('function');
         expect(typeof prop({ type: 'string', default: 'Button' })).toBe('function');
@@ -142,11 +141,18 @@ describe('scene script interface extractor', () => {
         expect(() => extractSceneScriptInterface(`
             const defaults = { type: 'string' };
 
-            @scene('./Button.scene')
+            @scene()
             export class Button {
                 @prop(defaults)
                 accessor label = 'Button';
             }
-        `)).toThrow('@prop argument must be an object literal.');
+        `, 'Button.ts', { scene: 'scenes/Button.scene' })).toThrow('@prop argument must be an object literal.');
+    });
+
+    it('rejects @scene arguments because the .scene file owns script binding', () => {
+        expect(() => extractSceneScriptInterface(`
+            @scene('scenes/Button.scene')
+            export class Button {}
+        `, 'Button.ts', { scene: 'scenes/Button.scene' })).toThrow('@scene does not accept arguments.');
     });
 });

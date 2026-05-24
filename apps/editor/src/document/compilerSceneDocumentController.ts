@@ -110,7 +110,7 @@ export function updateCompilerSceneTemplate(updates: {
     emitCompilerSceneUpdate();
 }
 
-export function updateCompilerSceneDescriptor(descriptor: CompilerSceneScriptInterface) {
+export function refreshCompilerSceneDescriptor(descriptor: CompilerSceneScriptInterface) {
     if (!document) {
         return;
     }
@@ -121,7 +121,6 @@ export function updateCompilerSceneDescriptor(descriptor: CompilerSceneScriptInt
             ...document.template,
             interface: descriptor.interface,
         },
-        dirty: true,
     };
     emitCompilerSceneUpdate();
 }

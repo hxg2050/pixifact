@@ -43,7 +43,7 @@ import {
     saveOpenedSceneFile,
     saveCompilerSceneFile,
     saveSceneFile,
-    syncCompilerSceneScriptInterface,
+    refreshCompilerSceneScriptInterface,
 } from '../apps/editor/src/services/projectFileTree';
 import { createSceneInstanceNode } from '../apps/editor/src/services/sceneInstance';
 import { sceneAssetName, sceneFileName, sceneRootKey } from '../apps/editor/src/services/sceneNaming';
@@ -296,7 +296,7 @@ function sceneScript(className: string, members = '') {
         import { Container, Text } from 'pixi.js';
         import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
-        @scene('scenes/${className}.scene')
+        @scene()
         export class ${className} extends Container {
             ${members}
         }
@@ -696,7 +696,7 @@ describe('project file tree service', () => {
         expect(compilerDocument?.sceneInterfaces).toEqual({});
     });
 
-    it('opens and syncs the bound compiler Scene script', async () => {
+    it('opens and refreshes the bound compiler Scene script contract', async () => {
         host.reset({
             scenes: host.directory({
                 'Button.scene': host.file(`
@@ -716,14 +716,14 @@ describe('project file tree service', () => {
 
         const opened = await openCompilerSceneFile(tree, sceneFile!);
         await openCompilerSceneScriptFile(tree, opened.template);
-        const descriptor = await syncCompilerSceneScriptInterface(tree, sceneFile!, opened.template);
+        const descriptor = await refreshCompilerSceneScriptInterface(tree, sceneFile!, opened.template);
         const compilerDocument = getCompilerSceneDocument();
 
         expect(host.openHostCodeFile).toHaveBeenCalledWith('/tmp/GameProject', 'src/scenes/Button.ts');
         expect(descriptor.scene).toBe('scenes/Button.scene');
         expect(compilerDocument?.descriptor?.interface.props.disabled.default).toBe(false);
         expect(compilerDocument?.template.interface.props.disabled.default).toBe(false);
-        expect(compilerDocument?.dirty).toBe(true);
+        expect(compilerDocument?.dirty).toBe(false);
     });
 
     it('loads public interfaces for compiler Scene instances', async () => {
@@ -1622,7 +1622,7 @@ describe('project file tree service', () => {
         expect(getCompilerSceneDocument()?.dirty).toBe(false);
 
         const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene');
-        expect(saved).toContain('<Scene name="PrimaryButton" script="src/scenes/Button.ts" class="Button" width="180" height="52">');
+        expect(saved).toContain('<Scene name="PrimaryButton" script="src/scenes/Button.ts" width="180" height="52">');
         expect(saved).toContain('<Text id="titleText" text="Start" x="40" y="10" fontSize="16" fill="#ffffff" pivotX="8" pivotY="4" skewX="0.1" skewY="0.2" alpha="0.9" eventMode="static" cursor="pointer" label="title" />');
     });
 

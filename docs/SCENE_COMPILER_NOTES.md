@@ -95,14 +95,7 @@ TextInput.ts
 示意：
 
 ```xml
-<Scene name="Button" script="src/scenes/Button.ts" class="Button">
-  <Interface>
-    <Prop name="label" type="string" default="Button" />
-    <Prop name="disabled" type="boolean" default="false" />
-    <Event name="click" />
-    <Slot name="icon" />
-  </Interface>
-
+<Scene name="Button" script="src/scenes/Button.ts">
   <Graphics id="background" shape="roundRect" width="180" height="52" radius="8" fill="#4169e1" />
   <Text id="label" text="Button" x="72" y="16" fontSize="16" fill="#ffffff" />
   <Container id="iconHost" x="20" y="14">
@@ -114,7 +107,7 @@ TextInput.ts
 父 Scene 使用它：
 
 ```xml
-<Scene name="MainMenu" script="src/scenes/MainMenu.ts" class="MainMenu">
+<Scene name="MainMenu" script="src/scenes/MainMenu.ts">
   <Button id="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">
     <Sprite id="playIcon" slot="icon" texture="assets/icons/play.png" />
   </Button>
@@ -179,10 +172,10 @@ src/scenes/Button.ts
 src/generated/pixifact/Button.scene.generated.ts
 ```
 
-`.scene` 和脚本做双向声明：
+`.scene` 负责绑定脚本，脚本用 `@scene()` 标记自己是 Scene 类：
 
 ```xml
-<Scene name="Button" script="src/scenes/Button.ts" class="Button" width="180" height="52">
+<Scene name="Button" script="src/scenes/Button.ts" width="180" height="52">
 </Scene>
 ```
 
@@ -190,7 +183,7 @@ src/generated/pixifact/Button.scene.generated.ts
 import { Container } from 'pixi.js';
 import { scene } from 'pixifact/compiler';
 
-@scene('scenes/Button.scene')
+@scene()
 export class Button extends Container {
   onMounted() {}
 }
@@ -199,10 +192,9 @@ export class Button extends Container {
 绑定规则：
 
 - `.scene` 的 `script` 使用项目根相对路径，例如 `src/scenes/Button.ts`。
-- 脚本的 `@scene()` 使用项目根相对路径，例如 `scenes/Button.scene`。
-- `.scene` 的 `class` 必须等于被 `@scene` 装饰的导出类名。
-- 两边不一致时 compiler 报错。
-- compiler 可以从任意一边定位另一边，但会校验双向一致性。
+- 脚本的 `@scene()` 不接收路径参数。
+- `.scene` 不保存 `class`；类名从脚本中被 `@scene()` 装饰的导出类推导。
+- compiler 从 `.scene script` 找到脚本，再从脚本装饰器派生 public contract。
 
 外部使用时只面对脚本公开 API：
 
@@ -229,8 +221,8 @@ contract 不应只从 TS 脚本 getter / setter 中推断。Editor 和 AI 需要
 但 public contract 的权威来源应是脚本装饰器，而不是 `.scene` 中手写的 `Interface`。用户不应同时维护两份信息。
 
 ```txt
-Button.ts decorators -> compiler -> Button.scene <Interface>
-权威来源               同步结果     给 editor / AI / Scene Instance 快速读取
+Button.scene script="src/scenes/Button.ts" -> Button.ts decorators -> virtual contract
+绑定来源                                  权威来源              给 editor / AI / Scene Instance 读取
 ```
 
 脚本示意：
@@ -239,7 +231,7 @@ Button.ts decorators -> compiler -> Button.scene <Interface>
 import { Container, Text } from 'pixi.js';
 import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
-@scene('scenes/Button.scene')
+@scene()
 export class Button extends Container {
   @part()
   declare protected labelText: Text;
@@ -259,23 +251,13 @@ export class Button extends Container {
 }
 ```
 
-同步后的 `.scene` 可以包含只读快照：
-
-```xml
-<Interface>
-  <Prop name="label" type="string" default="Button" />
-  <Event name="click" />
-  <Slot name="icon" />
-</Interface>
-```
-
 规则：
 
 - 有脚本时，compiler 从脚本装饰器提取 `props / events / slots / parts`。
-- `.scene <Interface>` 是 compiler 同步结果，供 editor / AI / other Scene 快速读取。
-- 保存/编译时脚本装饰器覆盖 `.scene <Interface>`。
+- virtual contract 是 compiler 从脚本装饰器派生的结果，供 editor / AI / other Scene 读取。
+- 保存/编译不会写入 Interface。
 - Editor 默认只读展示 Public Contract，不作为日常编辑入口。
-- 脚本和 `.scene <Interface>` 不一致时，脚本赢。
+- `.scene` 不保存 Interface，脚本装饰器是 contract 唯一来源。
 
 示意：
 

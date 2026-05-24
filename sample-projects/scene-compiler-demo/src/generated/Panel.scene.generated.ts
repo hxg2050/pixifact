@@ -1,5 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { registerScene, registerSlot } from 'pixifact/compiler';
+import { Panel } from "../scenes/Panel";
+import { registerScene, registerSceneClass, registerSlot } from 'pixifact/compiler';
 
 export type PanelParts = {
   root: Container;
@@ -52,3 +53,4 @@ export function mountPanelScene(root: Container) {
 registerScene("scenes/Panel.scene", {
   mount: mountPanelScene,
 });
+registerSceneClass(Panel, "scenes/Panel.scene");

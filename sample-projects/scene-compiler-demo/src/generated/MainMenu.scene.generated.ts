@@ -1,7 +1,8 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { Button } from "../scenes/Button";
 import { Panel } from "../scenes/Panel";
-import { connectSceneEvent, mount, registerScene } from 'pixifact/compiler';
+import { MainMenu } from "../scenes/MainMenu";
+import { connectSceneEvent, mount, registerScene, registerSceneClass } from 'pixifact/compiler';
 
 export type MainMenuParts = {
   root: Container;
@@ -44,3 +45,4 @@ export function mountMainMenuScene(root: Container, actions: Record<string, () =
 registerScene("scenes/MainMenu.scene", {
   mount: mountMainMenuScene,
 });
+registerSceneClass(MainMenu, "scenes/MainMenu.scene");

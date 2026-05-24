@@ -2,7 +2,6 @@ import type {
     PixiTemplateNode,
     SceneInstanceTemplateNode,
     SceneTemplate,
-    SceneTemplateInterface,
     SceneTemplateNode,
     SceneTemplatePrimitiveType,
     SceneTemplateValue,
@@ -39,62 +38,36 @@ export function parseSceneTemplate(source: string): SceneTemplate {
         throw new Error('Scene template is missing name.');
     }
 
-    const interfaceElement = root.children.find((child) => child.name === 'Interface');
-    const templateChildren = root.children.filter((child) => child.name !== 'Interface');
+    if (root.attributes.class !== undefined) {
+        throw new Error('Scene class is derived from the bound script; remove the class attribute.');
+    }
 
     const script = root.attributes.script
         ? {
             path: root.attributes.script,
-            className: root.attributes.class || name,
+            className: name,
         }
         : undefined;
 
-    const children = templateChildren.map(parseTemplateNode);
+    const children = root.children.map(parseTemplateNode);
     assertUniqueIds(name, children);
 
     return {
         version: 2,
         name,
         script,
-        props: parseProps(root, ['name', 'script', 'class']),
-        interface: parseInterface(interfaceElement),
+        props: parseProps(root, ['name', 'script']),
+        interface: emptyInterface(),
         children,
     };
 }
 
-function parseInterface(element: XmlElement | undefined): SceneTemplateInterface {
-    const result: SceneTemplateInterface = {
+function emptyInterface() {
+    return {
         props: {},
         events: {},
         slots: {},
     };
-
-    if (!element) {
-        return result;
-    }
-
-    for (const child of element.children) {
-        if (child.name === 'Prop') {
-            const name = requiredAttribute(child, 'name');
-            result.props[name] = {
-                type: requiredAttribute(child, 'type'),
-                ...(child.attributes.default !== undefined ? { default: parseAttributeValue(child.attributes.default) } : {}),
-            };
-            continue;
-        }
-        if (child.name === 'Event') {
-            result.events[requiredAttribute(child, 'name')] = { type: 'action' };
-            continue;
-        }
-        if (child.name === 'Slot') {
-            const name = requiredAttribute(child, 'name');
-            result.slots[name] = {};
-            continue;
-        }
-        throw new Error(`Unsupported interface tag <${child.name}>.`);
-    }
-
-    return result;
 }
 
 function parseTemplateNode(element: XmlElement): SceneTemplateNode {
@@ -188,14 +161,6 @@ function parseAttributeValue(value: string): SceneTemplateValue {
     if (value === 'false') return false;
     if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
     if (/^#[0-9a-fA-F]{6}$/.test(value)) return Number.parseInt(value.slice(1), 16);
-    return value;
-}
-
-function requiredAttribute(element: XmlElement, name: string) {
-    const value = element.attributes[name];
-    if (value === undefined) {
-        throw new Error(`<${element.name}> is missing ${name}.`);
-    }
     return value;
 }
 

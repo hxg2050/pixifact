@@ -7,15 +7,22 @@ import type {
     SceneTemplateValue,
 } from './spec';
 
-export function extractSceneScriptInterface(source: string, fileName = 'scene-script.ts'): SceneScriptInterface {
+export interface ExtractSceneScriptInterfaceOptions {
+    scene: string;
+}
+
+export function extractSceneScriptInterface(
+    source: string,
+    fileName = 'scene-script.ts',
+    options: ExtractSceneScriptInterfaceOptions,
+): SceneScriptInterface {
     const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 
     for (const statement of sourceFile.statements) {
         if (!ts.isClassDeclaration(statement)) {
             continue;
         }
-        const scene = sceneDecorator(statement);
-        if (!scene) {
+        if (!hasSceneDecorator(statement)) {
             continue;
         }
         const className = statement.name?.text;
@@ -59,7 +66,7 @@ export function extractSceneScriptInterface(source: string, fileName = 'scene-sc
         }
 
         return {
-            scene,
+            scene: options.scene,
             className,
             interface: {
                 props,
@@ -73,28 +80,24 @@ export function extractSceneScriptInterface(source: string, fileName = 'scene-sc
     throw new Error('No @scene decorator found.');
 }
 
-export function emitSceneScriptInterfaceDescriptor(source: string, fileName = 'scene-script.ts') {
-    return `${JSON.stringify(extractSceneScriptInterface(source, fileName), null, 2)}\n`;
+export function emitSceneScriptInterfaceDescriptor(
+    source: string,
+    fileName = 'scene-script.ts',
+    options: ExtractSceneScriptInterfaceOptions,
+) {
+    return `${JSON.stringify(extractSceneScriptInterface(source, fileName, options), null, 2)}\n`;
 }
 
-function sceneDecorator(node: ts.ClassDeclaration) {
+function hasSceneDecorator(node: ts.ClassDeclaration) {
     const decorator = decorators(node).find((item) => decoratorName(item) === 'scene');
     if (!decorator) {
-        return undefined;
+        return false;
     }
     const args = decoratorArguments(decorator);
-    if (args.length !== 1) {
-        throw new Error('@scene requires exactly one argument.');
+    if (args.length !== 0) {
+        throw new Error('@scene does not accept arguments. Bind scripts with <Scene script="...">.');
     }
-    if (ts.isObjectLiteralExpression(args[0])) {
-        const options = objectLiteralValue(args[0], '@scene argument');
-        const scene = options.scene;
-        if (typeof scene !== 'string') {
-            throw new Error('@scene requires string scene.');
-        }
-        return scene;
-    }
-    return stringLiteralValue(args[0], '@scene argument');
+    return true;
 }
 
 function memberDecoratorOptions(member: ts.ClassElement, name: string) {
@@ -177,14 +180,6 @@ function literalValue(expression: ts.Expression, label: string): SceneTemplateVa
         return -Number(expression.operand.text);
     }
     throw new Error(`${label} must be a string, number, or boolean literal.`);
-}
-
-function stringLiteralValue(expression: ts.Expression, label: string) {
-    const value = literalValue(expression, label);
-    if (typeof value !== 'string') {
-        throw new Error(`${label} must be a string literal.`);
-    }
-    return value;
 }
 
 function requiredString(options: Record<string, SceneTemplateValue>, key: string, label: string) {

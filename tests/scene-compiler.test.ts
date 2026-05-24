@@ -14,6 +14,7 @@ import {
     createEvent,
     event,
     registerScene,
+    registerSceneClass,
     registerSlot,
     scene,
     slot,
@@ -23,14 +24,7 @@ import { compileScenes } from 'pixifact/compiler-node';
 describe('Pixifact scene compiler spike', () => {
     it('parses a restricted XML scene template with scene props and slot outlet', () => {
         const template = parseSceneTemplate(`
-            <Scene name="Button" script="src/scenes/Button.ts" class="Button" width="180" height="52">
-              <Interface>
-                <Prop name="label" type="string" default="Button" />
-                <Prop name="disabled" type="boolean" default="false" />
-                <Event name="click" />
-                <Slot name="icon" />
-              </Interface>
-
+            <Scene name="Button" script="src/scenes/Button.ts" width="180" height="52">
               <Graphics id="background" shape="roundRect" width="180" height="52" radius="8" fill="#4169e1" />
               <Text id="label" text="Button" x="72" y="16" fontSize="16" fill="#ffffff" />
               <Container id="iconHost" x="20" y="14">
@@ -44,16 +38,11 @@ describe('Pixifact scene compiler spike', () => {
             path: 'src/scenes/Button.ts',
             className: 'Button',
         });
-        expect(template.interface.props.label).toEqual({
-            type: 'string',
-            default: 'Button',
+        expect(template.interface).toEqual({
+            props: {},
+            events: {},
+            slots: {},
         });
-        expect(template.interface.props.disabled).toEqual({
-            type: 'boolean',
-            default: false,
-        });
-        expect(template.interface.events.click).toEqual({ type: 'action' });
-        expect(template.interface.slots.icon).toEqual({});
         expect(template.props).toEqual({
             width: 180,
             height: 52,
@@ -206,7 +195,34 @@ describe('Pixifact scene compiler spike', () => {
     });
 
     it('mounts registered scene content through runtime decorators in plain TypeScript', () => {
-        registerScene('./RuntimeButton.scene', {
+        let RuntimeButton: typeof Container;
+
+        @scene()
+        class RuntimeButtonScene extends Container {
+            @part()
+            declare protected labelText: Text;
+
+            @slot()
+            declare readonly icon: Container;
+
+            @event()
+            readonly click = createEvent();
+
+            readyText = '';
+
+            @prop({ type: 'string', default: 'Play' })
+            set labelTextValue(value: string) {
+                this.labelText.text = value;
+            }
+
+            onMounted() {
+                this.readyText = this.labelText.text;
+            }
+        }
+
+        RuntimeButton = RuntimeButtonScene;
+
+        registerScene('scenes/RuntimeButton.scene', {
             mount(root) {
                 const labelText = new Text({ text: 'Button' });
                 labelText.label = 'labelText';
@@ -228,29 +244,7 @@ describe('Pixifact scene compiler spike', () => {
                 };
             },
         });
-
-        @scene('./RuntimeButton.scene')
-        class RuntimeButton extends Container {
-            @part()
-            declare protected labelText: Text;
-
-            @slot()
-            declare readonly icon: Container;
-
-            @event()
-            readonly click = createEvent();
-
-            readyText = '';
-
-            @prop({ type: 'string', default: 'Play' })
-            set labelTextValue(value: string) {
-                this.labelText.text = value;
-            }
-
-            onMounted() {
-                this.readyText = this.labelText.text;
-            }
-        }
+        registerSceneClass(RuntimeButton, 'scenes/RuntimeButton.scene');
 
         const button = new RuntimeButton();
         let clicked = false;
@@ -307,12 +301,7 @@ describe('Pixifact scene compiler spike', () => {
 
     it('serializes a compiler scene template back to restricted XML', () => {
         const template = parseSceneTemplate(`
-            <Scene name="MainMenu" script="src/scenes/MainMenu.ts" class="MainMenu" width="960" height="540">
-              <Interface>
-                <Prop name="title" type="string" default="Menu" />
-                <Event name="start" />
-                <Slot name="footer" />
-              </Interface>
+            <Scene name="MainMenu" script="src/scenes/MainMenu.ts" width="960" height="540">
               <Button id="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">
                 <Text slot="footer" id="hintText" text="Press Enter" fill="#ffffff" />
               </Button>
@@ -323,7 +312,7 @@ describe('Pixifact scene compiler spike', () => {
         const next = parseSceneTemplate(source);
 
         expect(source).toContain('<Scene name="MainMenu" script="src/scenes/MainMenu.ts" width="960" height="540">');
-        expect(source).toContain('<Prop name="title" type="string" default="Menu" />');
+        expect(source).not.toContain('<Interface>');
         expect(source).toContain('<Button id="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">');
         expect(source).toContain('<Text id="hintText" slot="footer" text="Press Enter" fill="#ffffff" />');
         expect(next).toEqual(template);
@@ -335,7 +324,7 @@ describe('Pixifact scene compiler spike', () => {
             await mkdir(join(root, 'scenes'));
             await mkdir(join(root, 'src', 'scenes'), { recursive: true });
             await writeFile(join(root, 'scenes', 'Button.scene'), `
-                <Scene name="Button" script="src/scenes/Button.ts" class="Button" width="120" height="40">
+                <Scene name="Button" script="src/scenes/Button.ts" width="120" height="40">
                   <Text id="labelText" text="Button" />
                 </Scene>
             `);
@@ -343,7 +332,7 @@ describe('Pixifact scene compiler spike', () => {
                 import { Container, Text } from 'pixi.js';
                 import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
-                @scene('scenes/Button.scene')
+                @scene()
                 export class Button extends Container {
                     @part()
                     protected declare labelText: Text;
@@ -362,34 +351,14 @@ describe('Pixifact scene compiler spike', () => {
             await compileScenes({ projectRoot: root });
 
             const generated = await readFile(join(root, 'src', 'generated', 'Button.scene.generated.ts'), 'utf8');
-            const descriptor = await readFile(join(root, 'src', 'generated', 'Button.scene.interface.json'), 'utf8');
             const registry = await readFile(join(root, 'src', 'generated', 'scenes.generated.ts'), 'utf8');
+            const source = await readFile(join(root, 'scenes', 'Button.scene'), 'utf8');
 
             expect(generated).toContain('registerScene("scenes/Button.scene"');
+            expect(generated).toContain('registerSceneClass(Button, "scenes/Button.scene");');
+            expect(generated).toContain('import { Button } from "../scenes/Button";');
             expect(generated).toContain('export function mountButtonScene(root: Container)');
-            expect(JSON.parse(descriptor)).toEqual({
-                scene: 'scenes/Button.scene',
-                className: 'Button',
-                interface: {
-                    props: {
-                        label: {
-                            type: 'string',
-                            default: 'Button',
-                        },
-                    },
-                    events: {
-                        click: {
-                            type: 'action',
-                        },
-                    },
-                    slots: {
-                        icon: {},
-                    },
-                },
-                parts: {
-                    labelText: 'labelText',
-                },
-            });
+            expect(source).not.toContain('<Interface>');
             expect(registry).toBe("import './Button.scene.generated';\n");
         } finally {
             await rm(root, { recursive: true, force: true });

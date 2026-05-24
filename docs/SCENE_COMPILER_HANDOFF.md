@@ -77,10 +77,10 @@ hud.score = value;
 
 后续规则收敛为：每个 `.scene` 必须绑定一个 TypeScript 脚本。脚本继承 PixiJS `Container`，是这个 Scene 的公开 API 权威来源。
 
-绑定采用双向声明：
+绑定采用 `.scene` 单向声明，脚本用 `@scene()` 标记自己是 Scene 类：
 
 ```xml
-<Scene name="Button" script="src/scenes/Button.ts" class="Button" width="180" height="52">
+<Scene name="Button" script="src/scenes/Button.ts" width="180" height="52">
 </Scene>
 ```
 
@@ -88,7 +88,7 @@ hud.score = value;
 import { Container } from 'pixi.js';
 import { scene } from 'pixifact/compiler';
 
-@scene('scenes/Button.scene')
+@scene()
 export class Button extends Container {
   onMounted() {}
 }
@@ -97,19 +97,19 @@ export class Button extends Container {
 约定：
 
 - `.scene` 的 `script` 使用项目根相对路径，例如 `src/scenes/Button.ts`。
-- 脚本的 `@scene()` 使用项目根相对路径，例如 `scenes/Button.scene`。
-- `.scene` 的 `class` 必须等于被 `@scene` 装饰的导出类名。
-- 两边不一致时 compiler 报错。
+- `.scene` 不保存 `class`；类名从脚本中被 `@scene()` 装饰的导出类推导。
+- 脚本中的 `@scene()` 不接收路径参数，避免脚本和 `.scene` 维护两份绑定关系。
+- `.scene` 的 `name` 必须等于被 `@scene()` 装饰的导出类名；不一致时 compiler 报错。
 - 新建 `.scene` 时编辑器应自动生成配套脚本。
 - 打开或编译无脚本 `.scene` 时应提示迁移或直接失败。
 
 ## Interface 来源
 
-`props / events / slots / parts` 不要求用户同时改 `.scene` 和脚本。脚本装饰器是单一权威源，`.scene <Interface>` 是 compiler 同步出来的只读快照。
+`props / events / slots / parts` 不要求用户同时改 `.scene` 和脚本。脚本装饰器是单一权威源，`.scene` 只保存视觉模板和 `script` 绑定。
 
 ```txt
-Button.ts decorators -> compiler -> Button.scene <Interface>
-权威来源               同步结果     给 editor / AI / Scene Instance 快速读取
+Button.scene script="src/scenes/Button.ts" -> Button.ts decorators -> virtual contract
+绑定来源                                  权威来源              给 editor / AI / Scene Instance 读取
 ```
 
 脚本示例：
@@ -129,7 +129,7 @@ export class Button extends Container {
 import { Container, Text } from 'pixi.js';
 import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
-@scene('./Button.scene')
+@scene()
 export class Button extends Container {
   @part()
   declare protected labelText: Text;
@@ -156,14 +156,14 @@ export class Button extends Container {
 
 `@scene` 当前已具备普通 TS 运行时能力：它会在用户 constructor 执行后挂载已注册的 `.scene`，绑定 `@part` 和 `@slot`，应用 `@prop` 默认值，然后调用 `onMounted()`。因此 constructor 中不要访问 `@part`；需要访问内部节点的初始化逻辑放在 `onMounted()`。
 
-工具链仍可静态提取装饰器生成 interface descriptor。Editor / AI / Inspector 读取生成后的 descriptor，不直接执行用户代码，也不在运行时解析 TS。
+工具链静态提取装饰器得到 virtual contract。Editor / AI / Inspector 读取这个派生结果，不直接执行用户代码，也不把 Interface 写回 `.scene`。
 
 约束：
 
 - 只支持字面量参数。
 - 不支持动态表达式，例如 `@prop(makeSchema())`。
-- 装饰器是作者体验；生成后的 interface descriptor 是工具链契约。
-- 有脚本时，保存/编译会用脚本装饰器覆盖 `.scene <Interface>`。
+- 装饰器是作者体验；派生出的 virtual contract 是工具链契约。
+- 保存/编译不会写入 Interface。
 - Editor 中 Public Contract 默认只读显示；不作为日常手写入口。
 
 ## Scene Instance
@@ -273,10 +273,10 @@ packages/pixifact/src/compiler/
 
 - `parseSceneTemplate(source)`：解析受限 XML 到 typed Scene AST。
 - `compileSceneTemplateToTs(template)`：生成最小 PixiJS TS mount function，可注册到 runtime scene registry。
-- `pixifact/compiler-node` 提供 `compileScenes(options)`：扫描项目 `scenes/*.scene`，生成 `src/generated/*.scene.generated.ts`、`*.scene.interface.json` 与 registry 入口。
+- `pixifact/compiler-node` 提供 `compileScenes(options)`：扫描项目 `scenes/*.scene`，从绑定脚本提取 virtual contract，生成 `src/generated/*.scene.generated.ts` 与 registry 入口。
 - Pixifact CLI 提供 `compile-scenes` 命令，内部调用 `compileScenes({ projectRoot })`。
-- `extractSceneScriptInterface(source)`：静态提取 `@scene/@prop/@event/@slot/@part`。
-- `emitSceneScriptInterfaceDescriptor(source)`：输出稳定 JSON descriptor。
+- `extractSceneScriptInterface(source, fileName, { scene })`：静态提取 `@scene/@prop/@event/@slot/@part`。
+- `emitSceneScriptInterfaceDescriptor(source, fileName, { scene })`：输出稳定 JSON descriptor，仅作为派生结果，不落回 `.scene`。
 - `scene/part/prop/event/slot`：装饰器 API；`@scene` 可在普通 TS 环境中挂载已注册 `.scene`。
 - `registerScene(path, definition)`：注册编译后的 `.scene`。
 - `mount(target, child, slot?)`：向 Scene 暴露的 slot 投放 PixiJS 节点或 Scene Instance。
@@ -286,7 +286,7 @@ packages/pixifact/src/compiler/
 当前 `.scene` 结构：
 
 ```xml
-<Scene name="Button" script="src/scenes/Button.ts" class="Button" width="188" height="48">
+<Scene name="Button" script="src/scenes/Button.ts" width="188" height="48">
   <Graphics id="background" shape="roundRect" width="188" height="48" radius="10" fill="#2f6fed" />
   <Container id="iconHost" x="18" y="14">
     <slot name="icon" />
@@ -333,7 +333,6 @@ sample-projects/space-hud-game/src/Button.ts
 
 优先继续做“最小闭环”，不要大迁移：
 
-1. 生成 interface descriptor 文件，例如 `Button.scene.interface.json`。
-2. 让 `.scene` 去掉 `<Interface>`，只保留模板结构和 script 绑定。
-3. 用一个 `Button.scene + Button.ts + MainMenu.scene` 样例串起 parse / extract / compile。
-4. 再讨论 editor hierarchy / inspector 如何接入 descriptor。
+1. 补齐 Scene Binding Index，让 Editor 感知脚本变化后自动刷新 virtual contract。
+2. 继续完善 editor hierarchy / inspector 对 virtual contract 的展示和投放体验。
+3. 给 `@scene()` + `.scene script` 绑定模型补端到端测试和 source map 方案。

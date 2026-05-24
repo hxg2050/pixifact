@@ -1,5 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { registerScene, registerSlot } from 'pixifact/compiler';
+import { Button } from "../scenes/Button";
+import { registerScene, registerSceneClass, registerSlot } from 'pixifact/compiler';
 
 export type ButtonParts = {
   root: Container;
@@ -39,3 +40,4 @@ export function mountButtonScene(root: Container) {
 registerScene("scenes/Button.scene", {
   mount: mountButtonScene,
 });
+registerSceneClass(Button, "scenes/Button.scene");

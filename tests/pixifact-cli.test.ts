@@ -273,7 +273,7 @@ describe('Pixifact CLI', () => {
         const projectRoot = createEmptyTempProject();
         fs.mkdirSync(path.join(projectRoot, 'src', 'scenes'), { recursive: true });
         fs.writeFileSync(path.join(projectRoot, 'scenes', 'Button.scene'), `
-            <Scene name="Button" script="src/scenes/Button.ts" class="Button" width="120" height="40">
+            <Scene name="Button" script="src/scenes/Button.ts" width="120" height="40">
               <Text id="labelText" text="Button" />
             </Scene>
         `);
@@ -281,7 +281,7 @@ describe('Pixifact CLI', () => {
             import { Container, Text } from 'pixi.js';
             import { part, prop, scene } from 'pixifact/compiler';
 
-            @scene('scenes/Button.scene')
+            @scene()
             export class Button extends Container {
                 @part()
                 protected declare labelText: Text;
@@ -293,7 +293,6 @@ describe('Pixifact CLI', () => {
 
         const result = await runCli(['compile-scenes', '--project-root', projectRoot]);
         const generated = fs.readFileSync(path.join(projectRoot, 'src', 'generated', 'Button.scene.generated.ts'), 'utf8');
-        const descriptor = JSON.parse(fs.readFileSync(path.join(projectRoot, 'src', 'generated', 'Button.scene.interface.json'), 'utf8'));
 
         expect(result.exitCode).toBe(0);
         expect(result.json).toMatchObject({
@@ -301,21 +300,8 @@ describe('Pixifact CLI', () => {
             projectRoot,
         });
         expect(generated).toContain('export function mountButtonScene(root: Container)');
-        expect(descriptor).toMatchObject({
-            scene: 'scenes/Button.scene',
-            className: 'Button',
-            interface: {
-                props: {
-                    label: {
-                        type: 'string',
-                        default: 'Button',
-                    },
-                },
-            },
-            parts: {
-                labelText: 'labelText',
-            },
-        });
+        expect(generated).toContain('registerSceneClass(Button, "scenes/Button.scene");');
+        expect(fs.existsSync(path.join(projectRoot, 'src', 'generated', 'Button.scene.interface.json'))).toBe(false);
     });
 
     it('does not overwrite an existing Scene file', async () => {

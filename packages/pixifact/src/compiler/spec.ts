@@ -76,6 +76,10 @@ export interface CompileSceneTemplateOptions {
     functionName?: string;
     actionsParameter?: string;
     registrationPath?: string;
+    scriptImport?: {
+        className: string;
+        source: string;
+    };
     sceneImports?: Record<string, string>;
 }
 
@@ -88,10 +92,6 @@ export interface SceneScriptInterface {
 
 export type SceneClassDecorator = ClassDecorator;
 export type SceneMemberDecorator = PropertyDecorator & MethodDecorator;
-
-export interface SceneDecoratorOptions {
-    scene: string;
-}
 
 export interface ScenePropDecoratorOptions {
     type: string;

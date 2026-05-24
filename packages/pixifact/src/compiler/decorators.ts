@@ -3,14 +3,13 @@ import type {
 } from 'pixi.js';
 import type {
     SceneClassDecorator,
-    SceneDecoratorOptions,
     SceneEventDecoratorOptions,
     SceneMemberDecorator,
     ScenePartDecoratorOptions,
     ScenePropDecoratorOptions,
     SceneSlotDecoratorOptions,
 } from './spec';
-import { mountScene } from './sceneRuntime';
+import { mountSceneClass } from './sceneRuntime';
 
 type SceneConstructor = new (...args: unknown[]) => object;
 
@@ -22,16 +21,13 @@ interface SceneMetadata {
 
 const metadataByConstructor = new WeakMap<object, SceneMetadata>();
 
-export function scene(path: string): SceneClassDecorator;
-export function scene(options: SceneDecoratorOptions): SceneClassDecorator;
-export function scene(options: string | SceneDecoratorOptions): SceneClassDecorator {
-    const path = typeof options === 'string' ? options : options.scene;
+export function scene(): SceneClassDecorator {
     return ((constructor: SceneConstructor) => {
         const SceneClass = class extends constructor {
             constructor(...args: unknown[]) {
                 super(...args);
 
-                const result = mountScene(this as object as Container, path);
+                const result = mountSceneClass(this as object as Container, SceneClass);
                 const metadata = sceneMetadata(constructor);
                 for (const [property, id] of metadata.parts) {
                     Object.defineProperty(this, property, {

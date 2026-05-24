@@ -1,10 +1,9 @@
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { SceneTemplate, SceneTemplateNode } from './spec';
 import { extractSceneScriptInterface } from './scriptInterfaceExtractor';
 import { parseSceneTemplate } from './templateParser';
-import { serializeSceneTemplate } from './templateSerializer';
 import { compileSceneTemplateToTs } from './typescriptCompiler';
 
 export interface CompileScenesOptions {
@@ -26,15 +25,16 @@ export async function compileScenes(options: CompileScenesOptions) {
     await mkdir(generatedDir, { recursive: true });
 
     const templates = new Map<string, SceneTemplate>();
-    const descriptors = new Map<string, ReturnType<typeof extractSceneScriptInterface>>();
     for (const file of sceneFiles) {
         const source = await readFile(path.join(scenesDir, file), 'utf8');
         const template = parseSceneTemplate(source);
         const descriptor = await readBoundSceneScript(projectRoot, `scenes/${file}`, template);
+        if (!template.script) {
+            throw new Error(`Scene "scenes/${file}" must declare script.`);
+        }
+        template.script.className = descriptor.className;
         template.interface = descriptor.interface;
         templates.set(file, template);
-        descriptors.set(file, descriptor);
-        await writeFile(path.join(scenesDir, file), serializeSceneTemplate(template));
     }
 
     const registryImports: string[] = [];
@@ -47,23 +47,28 @@ export async function compileScenes(options: CompileScenesOptions) {
         const registrationPath = `scenes/${file}`;
         const code = compileSceneTemplateToTs(template, {
             registrationPath,
+            scriptImport: scriptImportFor(template, projectRoot, generatedDir),
             sceneImports: sceneImportsFor(file, sceneFiles, templates, projectRoot, generatedDir),
         });
 
         await writeFile(path.join(generatedDir, outputFile), code);
-        const descriptor = descriptors.get(file);
-        if (!descriptor) {
-            throw new Error(`Missing script descriptor for ${file}.`);
-        }
-        const interfaceFile = `${path.basename(file, '.scene')}.scene.interface.json`;
-        await writeFile(
-            path.join(generatedDir, interfaceFile),
-            `${JSON.stringify(descriptor, null, 2)}\n`,
-        );
+        await rm(path.join(generatedDir, `${path.basename(file, '.scene')}.scene.interface.json`), { force: true });
         registryImports.push(`import './${outputFile.replace(/\.ts$/, '')}';`);
     }
 
     await writeFile(path.join(generatedDir, 'scenes.generated.ts'), `${registryImports.join('\n')}\n`);
+}
+
+function scriptImportFor(template: SceneTemplate, projectRoot: string, generatedDir: string) {
+    if (!template.script) {
+        throw new Error(`Scene "${template.name}" must declare script.`);
+    }
+    const scriptPath = path.resolve(projectRoot, template.script.path);
+    const source = path.relative(generatedDir, scriptPath).replaceAll(path.sep, '/').replace(/\.ts$/, '');
+    return {
+        className: template.script.className,
+        source: source.startsWith('.') ? source : `./${source}`,
+    };
 }
 
 function sceneImportsFor(
@@ -99,18 +104,11 @@ function sceneImportsFor(
 
 async function readBoundSceneScript(projectRoot: string, scenePath: string, template: SceneTemplate) {
     if (!template.script) {
-        throw new Error(`Scene "${scenePath}" must declare script and class.`);
+        throw new Error(`Scene "${scenePath}" must declare script.`);
     }
     const scriptPath = path.resolve(projectRoot, template.script.path);
     const scriptSource = await readFile(scriptPath, 'utf8');
-    const descriptor = extractSceneScriptInterface(scriptSource, scriptPath);
-    if (descriptor.scene !== scenePath) {
-        throw new Error(`Scene "${scenePath}" script @scene must reference "${scenePath}", received "${descriptor.scene}".`);
-    }
-    if (descriptor.className !== template.script.className) {
-        throw new Error(`Scene "${scenePath}" class must be "${descriptor.className}", received "${template.script.className}".`);
-    }
-    return descriptor;
+    return extractSceneScriptInterface(scriptSource, scriptPath, { scene: scenePath });
 }
 
 function collectSceneInstanceTypes(node: SceneTemplateNode, types: Set<string>) {

@@ -52,7 +52,6 @@ import {
     findFileByPath,
     openCompilerSceneScriptFile,
     readCompilerSceneScriptInterface,
-    syncCompilerSceneScriptInterface,
 } from '../services/projectFileTree';
 import { hostErrorMessage } from '../services/hostBridge';
 import { FieldRow, formatValue, parseTextValue, selectedNodeId, useCompilerSceneRevision, useDocumentRevision } from './common';
@@ -274,7 +273,7 @@ interface CompilerSceneBindingStatus {
     scenePath: string;
     scriptPath?: string;
     className?: string;
-    decoratorScene?: string;
+    contractScene?: string;
 }
 
 async function readCompilerSceneBindingStatus(
@@ -290,7 +289,7 @@ async function readCompilerSceneBindingStatus(
             scenePath,
             scriptPath: template.script?.path,
             className: template.script?.className,
-            decoratorScene: compilerDocument.descriptor?.scene,
+            contractScene: compilerDocument.descriptor?.scene,
         };
     }
     if (!template.script) {
@@ -308,7 +307,7 @@ async function readCompilerSceneBindingStatus(
             scenePath,
             scriptPath: template.script.path,
             className: template.script.className,
-            decoratorScene: compilerDocument.descriptor?.scene,
+            contractScene: compilerDocument.descriptor?.scene,
         };
     }
     try {
@@ -318,8 +317,8 @@ async function readCompilerSceneBindingStatus(
             message: '绑定正常',
             scenePath,
             scriptPath: template.script.path,
-            className: template.script.className,
-            decoratorScene: descriptor.scene,
+            className: descriptor.className,
+            contractScene: descriptor.scene,
         };
     } catch (error) {
         return {
@@ -328,7 +327,7 @@ async function readCompilerSceneBindingStatus(
             scenePath,
             scriptPath: template.script.path,
             className: template.script.className,
-            decoratorScene: compilerDocument.descriptor?.scene,
+            contractScene: compilerDocument.descriptor?.scene,
         };
     }
 }
@@ -751,21 +750,9 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                 script: path
                     ? {
                         path,
-                        className: compilerDocument.template.script?.className ?? compilerDocument.template.name,
+                        className: compilerDocument.descriptor?.className ?? compilerDocument.template.script?.className ?? compilerDocument.template.name,
                     }
                     : undefined,
-            });
-        };
-        const commitCompilerSceneScriptClass = (value: unknown) => {
-            if (!compilerDocument.template.script?.path) {
-                return;
-            }
-            const className = typeof value === 'string' ? value : '';
-            updateCompilerSceneTemplate({
-                script: {
-                    path: compilerDocument.template.script.path,
-                    className: className || compilerDocument.template.name,
-                },
             });
         };
         const commitCompilerId = (value: unknown) => {
@@ -801,31 +788,6 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
             updateCompilerSceneNode(compilerSelection, {
                 slotName: typeof value === 'string' ? value : '',
             });
-        };
-        const syncCompilerInterface = async () => {
-            if (!projectTree) {
-                setError('未打开项目。');
-                return;
-            }
-            const sceneFile = findFileByPath(projectTree, compilerDocument.scenePath);
-            if (!sceneFile) {
-                setError(`找不到 Scene 文件 ${compilerDocument.scenePath}。`);
-                return;
-            }
-            try {
-                const descriptor = await syncCompilerSceneScriptInterface(projectTree, sceneFile, compilerDocument.template);
-                setCompilerBindingStatus({
-                    ok: true,
-                    message: '绑定正常',
-                    scenePath: compilerDocument.scenePath,
-                    scriptPath: compilerDocument.template.script?.path,
-                    className: compilerDocument.template.script?.className,
-                    decoratorScene: descriptor.scene,
-                });
-                setError(undefined);
-            } catch (syncError) {
-                setError(hostErrorMessage(syncError));
-            }
         };
         const openCompilerScript = async () => {
             if (!projectTree) {
@@ -871,12 +833,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                             label="script"
                             onCommit={commitCompilerSceneScriptPath}
                         />
-                        <EditableFieldRow
-                            field={compilerField('class', compilerDocument.template.script?.className ?? compilerDocument.template.name)}
-                            label="class"
-                            locked={!compilerDocument.template.script?.path}
-                            onCommit={commitCompilerSceneScriptClass}
-                        />
+                        <FieldRow label="class" value={compilerDocument.descriptor?.className ?? compilerDocument.template.script?.className} />
                         <FieldRow label="path" value={compilerDocument.scenePath} />
                     </div>
                 </section>
@@ -889,18 +846,17 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                     </div>
                     <div className="fieldStack">
                         <FieldRow label="scene" value={compilerBindingStatus?.scenePath ?? compilerDocument.scenePath} />
-                        <FieldRow label="@scene" value={compilerBindingStatus?.decoratorScene ?? compilerDocument.descriptor?.scene} />
+                        <FieldRow label="contract" value={compilerBindingStatus?.contractScene ?? compilerDocument.descriptor?.scene} />
                         <FieldRow label="script" value={compilerBindingStatus?.scriptPath ?? compilerDocument.template.script?.path} />
                         <FieldRow label="class" value={compilerBindingStatus?.className ?? compilerDocument.template.script?.className} />
                         <div className="inspectorActionRow">
                             <button onClick={openCompilerScript} type="button">打开脚本</button>
-                            <button onClick={syncCompilerInterface} type="button">同步 Interface</button>
                         </div>
                     </div>
                 </section>
                 <section className="inspectorSection">
                     <h3>Public Contract</h3>
-                    <p className="inspectorHint">来自脚本装饰器；保存或编译时同步到 .scene。</p>
+                    <p className="inspectorHint">来自脚本装饰器；.scene 只保存模板和 script 绑定。</p>
                     <div className="fieldStack">
                         <FieldRow label="props" value={`${contractCount(publicInterface, 'props')}: ${contractNames(publicInterface, 'props')}`} />
                         <FieldRow label="events" value={`${contractCount(publicInterface, 'events')}: ${contractNames(publicInterface, 'events')}`} />

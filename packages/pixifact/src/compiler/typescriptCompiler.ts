@@ -63,10 +63,16 @@ class CompileContext {
         this.#lines.push('}');
         if (this.options.registrationPath) {
             this.#runtimeImports.add('registerScene');
+            if (this.options.scriptImport) {
+                this.#runtimeImports.add('registerSceneClass');
+            }
             this.#lines.push('');
             this.#lines.push(`registerScene(${JSON.stringify(this.options.registrationPath)}, {`);
             this.#lines.push(`  mount: ${functionName},`);
             this.#lines.push('});');
+            if (this.options.scriptImport) {
+                this.#lines.push(`registerSceneClass(${this.options.scriptImport.className}, ${JSON.stringify(this.options.registrationPath)});`);
+            }
         }
 
         const imports = this.#formatImports();
@@ -82,6 +88,9 @@ class CompileContext {
         const lines = [`import { ${imports.join(', ')} } from 'pixi.js';`];
         for (const [name, source] of Object.entries(this.options.sceneImports ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
             lines.push(`import { ${name} } from ${JSON.stringify(source)};`);
+        }
+        if (this.options.scriptImport) {
+            lines.push(`import { ${this.options.scriptImport.className} } from ${JSON.stringify(this.options.scriptImport.source)};`);
         }
         if (this.#runtimeImports.size > 0) {
             lines.push(`import { ${[...this.#runtimeImports].sort().join(', ')} } from 'pixifact/compiler';`);

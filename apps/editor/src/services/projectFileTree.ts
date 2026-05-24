@@ -8,7 +8,7 @@ import type {
     SceneTemplateInterface,
     SceneTemplateNode,
 } from '../../../../packages/pixifact/src/compiler/spec';
-import { loadCompilerSceneDocument, markCompilerSceneSaved, updateCompilerSceneDescriptor } from '../document/compilerSceneDocumentController';
+import { loadCompilerSceneDocument, markCompilerSceneSaved, refreshCompilerSceneDescriptor } from '../document/compilerSceneDocumentController';
 import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { editorDragDataTypes } from './dragPayload';
 import {
@@ -228,7 +228,7 @@ function createBlankCompilerSceneScript(name: string) {
         "import { Container } from 'pixi.js';",
         "import { scene } from 'pixifact/compiler';",
         '',
-        `@scene('scenes/${assetName}.scene')`,
+        '@scene()',
         `export class ${assetName} extends Container {`,
         '    onMounted() {}',
         '}',
@@ -421,6 +421,10 @@ export async function openCompilerSceneFile(
     const content = await readProjectFileText(projectTree, file);
     const template = parseSceneTemplate(content);
     const descriptor = await readBoundCompilerSceneDescriptor(projectTree, file, template);
+    if (!template.script) {
+        throw new ProjectFileOperationError(`Scene ${file.name} 必须绑定脚本。`);
+    }
+    template.script.className = descriptor.className;
     template.interface = descriptor.interface;
     const sceneInterfaces = await readReferencedCompilerSceneInterfaces(projectTree, template.children);
     loadCompilerSceneDocument({
@@ -491,13 +495,17 @@ export async function readCompilerSceneScriptInterface(
     return readBoundCompilerSceneDescriptor(projectTree, file, template);
 }
 
-export async function syncCompilerSceneScriptInterface(
+export async function refreshCompilerSceneScriptInterface(
     projectTree: ProjectFileTreeNode,
     file: ProjectFileTreeNode,
     template: SceneTemplate,
 ) {
     const descriptor = await readCompilerSceneScriptInterface(projectTree, file, template);
-    updateCompilerSceneDescriptor(descriptor);
+    if (!template.script) {
+        throw new ProjectFileOperationError(`Scene ${file.name} 必须绑定脚本。`);
+    }
+    template.script.className = descriptor.className;
+    refreshCompilerSceneDescriptor(descriptor);
     return descriptor;
 }
 
@@ -523,15 +531,8 @@ async function readBoundCompilerSceneDescriptor(projectTree: ProjectFileTreeNode
     if (!scriptFile) {
         throw new ProjectFileOperationError(`找不到 Scene 脚本 ${template.script.path}。`);
     }
-    const descriptor = extractSceneScriptInterface(await readProjectFileText(projectTree, scriptFile), scriptFile.path);
     const scenePath = projectFileRelativePath(projectTree, file);
-    if (descriptor.scene !== scenePath) {
-        throw new ProjectFileOperationError(`Scene 脚本 @scene 必须指向 ${scenePath}，当前是 ${descriptor.scene}。`);
-    }
-    if (descriptor.className !== template.script.className) {
-        throw new ProjectFileOperationError(`Scene class 必须是 ${descriptor.className}，当前是 ${template.script.className}。`);
-    }
-    return descriptor;
+    return extractSceneScriptInterface(await readProjectFileText(projectTree, scriptFile), scriptFile.path, { scene: scenePath });
 }
 
 async function readReferencedCompilerSceneInterfaces(projectTree: ProjectFileTreeNode, nodes: readonly SceneTemplateNode[]) {

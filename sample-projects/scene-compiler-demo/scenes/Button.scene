@@ -1,10 +1,4 @@
 <Scene name="Button" script="src/scenes/Button.ts" width="188" height="48">
-  <Interface>
-    <Prop name="label" type="string" default="Button" />
-    <Prop name="disabled" type="boolean" default="false" />
-    <Event name="click" />
-    <Slot name="icon" />
-  </Interface>
   <Graphics id="background" shape="roundRect" width="188" height="48" radius="10" fill="#2f6fed" />
   <Container id="iconHost" x="18" y="14">
     <slot name="icon" />

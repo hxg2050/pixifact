@@ -2,7 +2,7 @@ import { Container, Text } from 'pixi.js';
 import { part, scene } from 'pixifact/compiler';
 import { Button } from './Button';
 
-@scene('scenes/MainMenu.scene')
+@scene()
 export class MainMenu extends Container {
     @part()
     protected declare bodyText: Text;
