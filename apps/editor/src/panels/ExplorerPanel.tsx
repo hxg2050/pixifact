@@ -39,6 +39,7 @@ import {
     openProjectCodeFile,
     openProjectDefaultFile,
     openCompilerSceneFile,
+    assetDragPayload,
     readProjectFileBytes,
     refreshProjectFileTree,
     renameProjectEntry,
@@ -119,6 +120,9 @@ function fileDragPayload(file: ProjectFileTreeNode) {
     if (file.kind === 'component') {
         const componentType = componentTypeFromPath(file.path);
         return componentType ? componentDragPayload(componentType, file.name) : undefined;
+    }
+    if (file.kind === 'asset') {
+        return assetDragPayload(file);
     }
     return undefined;
 }

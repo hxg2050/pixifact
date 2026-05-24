@@ -13,6 +13,7 @@ import {
 } from '../document/compilerSceneDocumentController';
 import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { editorDragDataTypes } from './dragPayload';
+import type { EditorDragPayload } from './dragPayload';
 import {
     createHostProjectDirectory,
     createHostProjectFile,
@@ -33,6 +34,7 @@ import { sceneAssetName, sceneFileName } from './sceneNaming';
 
 export type ProjectFileKind = 'folder' | 'scene' | 'script' | 'component' | 'asset' | 'doc' | 'unknown';
 export const sceneDragDataType = editorDragDataTypes.scene;
+export const assetDragDataType = editorDragDataTypes.asset;
 export type {
     SceneScriptInterface as CompilerSceneScriptInterface,
     SceneTemplateInterface as CompilerSceneTemplateInterface,
@@ -149,6 +151,31 @@ export function projectFileRelativePath(projectTree: ProjectFileTreeNode, file: 
         return '';
     }
     return file.path.slice(projectTree.path.length + 1);
+}
+
+export function assetDragPayload(file: ProjectFileTreeNode): EditorDragPayload | undefined {
+    return file.kind === 'asset'
+        ? {
+            data: file.path,
+            label: file.name,
+            type: assetDragDataType,
+        }
+        : undefined;
+}
+
+export function resolveProjectAssetReference(projectTree: ProjectFileTreeNode, path: string) {
+    const file = findFileByPath(projectTree, path);
+    if (!file || file.kind !== 'asset') {
+        return {
+            ok: false as const,
+            error: '拖入的文件不是图片资源。',
+        };
+    }
+
+    return {
+        ok: true as const,
+        value: projectFileRelativePath(projectTree, file),
+    };
 }
 
 export function findParentDirectory(

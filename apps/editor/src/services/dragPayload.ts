@@ -4,6 +4,7 @@ export const editorDragDataTypes = {
     component: 'application/x-pixifact-component',
     hierarchyNode: 'application/x-pixifact-hierarchy-node',
     scene: 'application/x-pixifact-scene',
+    asset: 'application/x-pixifact-asset',
 } as const;
 
 export type EditorDragDataType = typeof editorDragDataTypes[keyof typeof editorDragDataTypes];

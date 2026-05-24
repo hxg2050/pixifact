@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
     Application as PixiApplication,
+    Assets,
     BitmapText,
     Container,
     Graphics,
@@ -30,6 +31,7 @@ import type {
 import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import {
     findFileByPath,
+    readProjectFileBytes,
     readProjectFileText,
 } from '../services/projectFileTree';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
@@ -52,6 +54,8 @@ interface RenderContext {
     sceneRootPath: string;
     locatorPath: string;
     templates: Map<string, SceneTemplate>;
+    objectUrls: string[];
+    textures: Map<string, Texture>;
 }
 
 const previewWidth = 960;
@@ -107,6 +111,29 @@ async function loadSceneTemplate(context: RenderContext, scene: string) {
     return template;
 }
 
+async function loadProjectTexture(context: RenderContext, texture: string) {
+    const cached = context.textures.get(texture);
+    if (cached) {
+        return cached;
+    }
+
+    const normalized = texture.replace(/^\.\/+/, '').replace(/^\/+/, '');
+    const path = normalized.startsWith(`${context.projectTree.path}/`)
+        ? normalized
+        : `${context.projectTree.path}/${normalized}`;
+    const file = findFileByPath(context.projectTree, path);
+    if (!file || file.kind !== 'asset') {
+        throw new Error(`找不到贴图：${texture}`);
+    }
+
+    const bytes = await readProjectFileBytes(context.projectTree, file);
+    const objectUrl = URL.createObjectURL(new Blob([bytes.slice().buffer]));
+    context.objectUrls.push(objectUrl);
+    const loaded = await Assets.load({ src: objectUrl, parser: 'texture' });
+    context.textures.set(texture, loaded);
+    return loaded;
+}
+
 function createTextNode(node: PixiTemplateNode) {
     return new Text({
         text: stringProp(node.props.text),
@@ -114,7 +141,7 @@ function createTextNode(node: PixiTemplateNode) {
     });
 }
 
-function createPixiNode(node: PixiTemplateNode) {
+async function createPixiNode(node: PixiTemplateNode, context: RenderContext) {
     if (node.type === 'Text') {
         return createTextNode(node);
     }
@@ -132,17 +159,21 @@ function createPixiNode(node: PixiTemplateNode) {
     }
     if (node.type === 'Sprite') {
         const texture = node.props.texture;
-        return typeof texture === 'string' ? Sprite.from(texture) : new Sprite();
+        return typeof texture === 'string'
+            ? new Sprite({ texture: await loadProjectTexture(context, texture) })
+            : new Sprite();
     }
     if (node.type === 'NineSliceSprite') {
         const texture = node.props.texture;
         return typeof texture === 'string'
-            ? new NineSliceSprite({ texture: Texture.from(texture) })
+            ? new NineSliceSprite({ texture: await loadProjectTexture(context, texture) })
             : new NineSliceSprite(Texture.EMPTY);
     }
     if (node.type === 'TilingSprite') {
         const texture = node.props.texture;
-        return new TilingSprite(typeof texture === 'string' ? { texture: Texture.from(texture) } : {});
+        return new TilingSprite(typeof texture === 'string'
+            ? { texture: await loadProjectTexture(context, texture) }
+            : {});
     }
     if (node.type === 'Graphics') {
         return new Graphics();
@@ -359,7 +390,7 @@ async function renderNode(
         return display;
     }
 
-    const display = createPixiNode(node);
+    const display = await createPixiNode(node, context);
     display.label = node.id ?? node.type;
     applyNodeProps(display, node.props);
     const locator = compilerSceneNodeLocator(node, path);
@@ -419,6 +450,7 @@ export function CompilerSceneViewport({ document, projectTree }: CompilerSceneVi
         let cancelled = false;
         let initialized = false;
         let destroyed = false;
+        const objectUrls: string[] = [];
         const app = new PixiApplication();
 
         const destroyApp = () => {
@@ -452,6 +484,8 @@ export function CompilerSceneViewport({ document, projectTree }: CompilerSceneVi
                     sceneRootPath: sceneProjectRootPath(projectTree, document.scenePath),
                     locatorPath: '',
                     templates: new Map([[document.scenePath, document.template]]),
+                    objectUrls,
+                    textures: new Map(),
                 };
                 const rendered = await renderScene(document.template, context);
 
@@ -481,6 +515,9 @@ export function CompilerSceneViewport({ document, projectTree }: CompilerSceneVi
 
         return () => {
             cancelled = true;
+            for (const objectUrl of objectUrls) {
+                URL.revokeObjectURL(objectUrl);
+            }
             outlineRef.current = undefined;
             nodesRef.current = new Map();
             destroyApp();

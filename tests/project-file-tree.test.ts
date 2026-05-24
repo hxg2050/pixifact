@@ -44,6 +44,8 @@ import {
     saveCompilerSceneFile,
     saveSceneFile,
     refreshCompilerSceneBindingSnapshot,
+    assetDragPayload,
+    resolveProjectAssetReference,
 } from '../apps/editor/src/services/projectFileTree';
 import {
     readCompilerSceneBindingIndex,
@@ -1043,6 +1045,35 @@ describe('project file tree service', () => {
         });
         expect(compilerDocument?.selection).toEqual({ type: 'node', node: '1:titleText' });
         expect(compilerDocument?.dirty).toBe(true);
+    });
+
+    it('resolves dropped image assets as project-relative compiler texture references', async () => {
+        host.reset({
+            assets: host.directory({
+                'hero.png': host.file('png bytes'),
+            }),
+            scripts: host.directory({
+                'logic.ts': host.file(),
+            }),
+        });
+        const tree = await readHostTree();
+        const hero = findFileByPath(tree, 'GameProject/assets/hero.png');
+        const script = findFileByPath(tree, 'GameProject/scripts/logic.ts');
+
+        expect(assetDragPayload(hero!)).toEqual({
+            data: 'GameProject/assets/hero.png',
+            label: 'hero.png',
+            type: 'application/x-pixifact-asset',
+        });
+        expect(assetDragPayload(script!)).toBeUndefined();
+        expect(resolveProjectAssetReference(tree, hero!.path)).toEqual({
+            ok: true,
+            value: 'assets/hero.png',
+        });
+        expect(resolveProjectAssetReference(tree, script!.path)).toEqual({
+            ok: false,
+            error: '拖入的文件不是图片资源。',
+        });
     });
 
     it('updates compiler Scene root metadata in memory', async () => {

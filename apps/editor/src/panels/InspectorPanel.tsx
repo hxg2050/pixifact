@@ -51,6 +51,8 @@ import type {
 import {
     findFileByPath,
     openCompilerSceneScriptFile,
+    assetDragDataType,
+    resolveProjectAssetReference,
 } from '../services/projectFileTree';
 import { readCompilerSceneBinding } from '../services/sceneBindingIndex';
 import { hostErrorMessage } from '../services/hostBridge';
@@ -535,6 +537,7 @@ interface EditableFieldRowProps {
     locked?: boolean;
     actions?: readonly { key: string; label?: string }[];
     onCommit(value: unknown): void;
+    onAssetDrop?(path: string): void;
     onToggleLock?(): void;
 }
 
@@ -545,6 +548,7 @@ function EditableFieldRow({
     locked = false,
     actions = [],
     onCommit,
+    onAssetDrop,
     onToggleLock,
 }: EditableFieldRowProps) {
     const t = useI18n();
@@ -649,7 +653,7 @@ function EditableFieldRow({
         );
     }
 
-    return (
+    const row = (
         <div className={warning ? 'editableFieldRow warning' : 'editableFieldRow'}>
             <label>
                 <span>{label}</span>
@@ -667,6 +671,16 @@ function EditableFieldRow({
             {warning ? <small>{warning}</small> : null}
         </div>
     );
+
+    return onAssetDrop ? (
+        <DropZone
+            acceptedTypes={[assetDragDataType]}
+            className="fieldDropZone"
+            onPayloadDrop={(payload) => onAssetDrop(payload.data)}
+        >
+            {row}
+        </DropZone>
+    ) : row;
 }
 
 function nodePropField(key: 'id' | 'key' | 'role' | 'name', value: unknown, t: Translate): InspectorFieldModel {
@@ -790,6 +804,19 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                     [key]: value as string | number | boolean | undefined,
                 },
             });
+        };
+        const commitCompilerTextureAsset = (key: string, path: string) => {
+            if (!projectTree) {
+                setError(t('compilerProjectNotOpened'));
+                return;
+            }
+            const resolved = resolveProjectAssetReference(projectTree, path);
+            if (!resolved.ok) {
+                setError(resolved.error);
+                return;
+            }
+            commitCompilerProp(key, resolved.value);
+            setError(undefined);
         };
         const commitCompilerEvent = (key: string, value: unknown) => {
             if (!canEditCompilerNode || selectedCompiler?.kind !== 'sceneInstance') {
@@ -955,6 +982,9 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                                                 field={field}
                                                 key={field.key}
                                                 label={field.label}
+                                                onAssetDrop={field.key === 'texture'
+                                                    ? (path) => commitCompilerTextureAsset(field.key, path)
+                                                    : undefined}
                                                 onCommit={(value) => commitCompilerProp(field.key, value)}
                                             />
                                         ))}
