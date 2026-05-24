@@ -110,6 +110,22 @@ export function updateCompilerSceneTemplate(updates: {
     emitCompilerSceneUpdate();
 }
 
+export function updateCompilerSceneDescriptor(descriptor: CompilerSceneScriptInterface) {
+    if (!document) {
+        return;
+    }
+    document = {
+        ...document,
+        descriptor,
+        template: {
+            ...document.template,
+            interface: descriptor.interface,
+        },
+        dirty: true,
+    };
+    emitCompilerSceneUpdate();
+}
+
 export function updateCompilerSceneNode(
     locator: string,
     updates: {

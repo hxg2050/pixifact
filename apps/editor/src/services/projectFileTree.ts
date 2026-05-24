@@ -8,7 +8,7 @@ import type {
     SceneTemplateInterface,
     SceneTemplateNode,
 } from '../../../../packages/pixifact/src/compiler/spec';
-import { loadCompilerSceneDocument, markCompilerSceneSaved } from '../document/compilerSceneDocumentController';
+import { loadCompilerSceneDocument, markCompilerSceneSaved, updateCompilerSceneDescriptor } from '../document/compilerSceneDocumentController';
 import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { editorDragDataTypes } from './dragPayload';
 import {
@@ -476,11 +476,43 @@ export async function readProjectFileText(projectTree: ProjectFileTreeNode, file
 
 export async function readCompilerScenePublicInterface(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
     const template = parseSceneTemplate(await readProjectFileText(projectTree, file));
-    const descriptor = await readBoundCompilerSceneDescriptor(projectTree, file, template);
+    const descriptor = await readCompilerSceneScriptInterface(projectTree, file, template);
     return {
         className: descriptor.className,
         interface: descriptor.interface,
     };
+}
+
+export async function readCompilerSceneScriptInterface(
+    projectTree: ProjectFileTreeNode,
+    file: ProjectFileTreeNode,
+    template: SceneTemplate,
+) {
+    return readBoundCompilerSceneDescriptor(projectTree, file, template);
+}
+
+export async function syncCompilerSceneScriptInterface(
+    projectTree: ProjectFileTreeNode,
+    file: ProjectFileTreeNode,
+    template: SceneTemplate,
+) {
+    const descriptor = await readCompilerSceneScriptInterface(projectTree, file, template);
+    updateCompilerSceneDescriptor(descriptor);
+    return descriptor;
+}
+
+export async function openCompilerSceneScriptFile(
+    projectTree: ProjectFileTreeNode,
+    template: SceneTemplate,
+) {
+    if (!template.script) {
+        throw new ProjectFileOperationError(`Scene ${template.name} 必须绑定脚本。`);
+    }
+    const scriptFile = findFileByPath(projectTree, `${projectTree.path}/${template.script.path}`);
+    if (!scriptFile) {
+        throw new ProjectFileOperationError(`找不到 Scene 脚本 ${template.script.path}。`);
+    }
+    await openProjectCodeFile(projectTree, scriptFile);
 }
 
 async function readBoundCompilerSceneDescriptor(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode, template: SceneTemplate) {

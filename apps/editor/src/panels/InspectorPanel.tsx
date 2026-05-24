@@ -46,7 +46,15 @@ import type {
     CompilerSceneScriptInterface,
     CompilerSceneTemplateInterface,
     CompilerSceneTemplateNode,
+    ProjectFileTreeNode,
 } from '../services/projectFileTree';
+import {
+    findFileByPath,
+    openCompilerSceneScriptFile,
+    readCompilerSceneScriptInterface,
+    syncCompilerSceneScriptInterface,
+} from '../services/projectFileTree';
+import { hostErrorMessage } from '../services/hostBridge';
 import { FieldRow, formatValue, parseTextValue, selectedNodeId, useCompilerSceneRevision, useDocumentRevision } from './common';
 import { useEditorStore } from '../editorStore';
 
@@ -258,6 +266,71 @@ function contractNames(contract: CompilerSceneScriptInterface['interface'] | und
 function partNames(descriptor: CompilerSceneScriptInterface | undefined) {
     const names = Object.entries(descriptor?.parts ?? {}).map(([property, id]) => property === id ? property : `${property} -> ${id}`);
     return names.length ? names.join(', ') : 'none';
+}
+
+interface CompilerSceneBindingStatus {
+    ok: boolean;
+    message: string;
+    scenePath: string;
+    scriptPath?: string;
+    className?: string;
+    decoratorScene?: string;
+}
+
+async function readCompilerSceneBindingStatus(
+    projectTree: ProjectFileTreeNode | undefined,
+    scenePath: string,
+    compilerDocument: NonNullable<ReturnType<typeof getCompilerSceneDocument>>,
+): Promise<CompilerSceneBindingStatus> {
+    const template = compilerDocument.template;
+    if (!projectTree) {
+        return {
+            ok: false,
+            message: '未打开项目。',
+            scenePath,
+            scriptPath: template.script?.path,
+            className: template.script?.className,
+            decoratorScene: compilerDocument.descriptor?.scene,
+        };
+    }
+    if (!template.script) {
+        return {
+            ok: false,
+            message: 'Scene 未绑定脚本。',
+            scenePath,
+        };
+    }
+    const sceneFile = findFileByPath(projectTree, scenePath);
+    if (!sceneFile) {
+        return {
+            ok: false,
+            message: `找不到 Scene 文件 ${scenePath}。`,
+            scenePath,
+            scriptPath: template.script.path,
+            className: template.script.className,
+            decoratorScene: compilerDocument.descriptor?.scene,
+        };
+    }
+    try {
+        const descriptor = await readCompilerSceneScriptInterface(projectTree, sceneFile, template);
+        return {
+            ok: true,
+            message: '绑定正常',
+            scenePath,
+            scriptPath: template.script.path,
+            className: template.script.className,
+            decoratorScene: descriptor.scene,
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            message: hostErrorMessage(error),
+            scenePath,
+            scriptPath: template.script.path,
+            className: template.script.className,
+            decoratorScene: compilerDocument.descriptor?.scene,
+        };
+    }
 }
 
 function compilerFieldType(key: string, value: unknown) {
@@ -597,18 +670,45 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
     useCompilerSceneRevision();
     const t = useI18n();
     const openedScenePath = useEditorStore((state) => state.openedScenePath);
+    const projectTree = useEditorStore((state) => state.projectTree);
     const compilerDocument = getCompilerSceneDocument();
     const selected = document ? selectedNodeId(document) : undefined;
     const model = document?.getInspectorModel();
     const [error, setError] = useState<string>();
     const [componentPickerOpen, setComponentPickerOpen] = useState(false);
     const [actionText, setActionText] = useState(() => t('inspectorDefaultAction'));
+    const [compilerBindingStatus, setCompilerBindingStatus] = useState<CompilerSceneBindingStatus>();
 
     useEffect(() => {
         setError(undefined);
         setComponentPickerOpen(false);
         setActionText(t('inspectorDefaultAction'));
     }, [revision, selected, t]);
+
+    useEffect(() => {
+        if (!openedScenePath || !compilerDocument || compilerDocument.scenePath !== openedScenePath) {
+            setCompilerBindingStatus(undefined);
+            return;
+        }
+        let cancelled = false;
+        void readCompilerSceneBindingStatus(projectTree, openedScenePath, compilerDocument)
+            .then((status) => {
+                if (!cancelled) {
+                    setCompilerBindingStatus(status);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        compilerDocument,
+        openedScenePath,
+        projectTree,
+        compilerDocument?.scenePath,
+        compilerDocument?.template.script?.path,
+        compilerDocument?.template.script?.className,
+        compilerDocument?.descriptor?.scene,
+    ]);
 
     if (openedScenePath && compilerDocument?.scenePath === openedScenePath) {
         const publicInterface = compilerDocument.descriptor?.interface ?? compilerDocument.template.interface;
@@ -702,9 +802,47 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                 slotName: typeof value === 'string' ? value : '',
             });
         };
+        const syncCompilerInterface = async () => {
+            if (!projectTree) {
+                setError('未打开项目。');
+                return;
+            }
+            const sceneFile = findFileByPath(projectTree, compilerDocument.scenePath);
+            if (!sceneFile) {
+                setError(`找不到 Scene 文件 ${compilerDocument.scenePath}。`);
+                return;
+            }
+            try {
+                const descriptor = await syncCompilerSceneScriptInterface(projectTree, sceneFile, compilerDocument.template);
+                setCompilerBindingStatus({
+                    ok: true,
+                    message: '绑定正常',
+                    scenePath: compilerDocument.scenePath,
+                    scriptPath: compilerDocument.template.script?.path,
+                    className: compilerDocument.template.script?.className,
+                    decoratorScene: descriptor.scene,
+                });
+                setError(undefined);
+            } catch (syncError) {
+                setError(hostErrorMessage(syncError));
+            }
+        };
+        const openCompilerScript = async () => {
+            if (!projectTree) {
+                setError('未打开项目。');
+                return;
+            }
+            try {
+                await openCompilerSceneScriptFile(projectTree, compilerDocument.template);
+                setError(undefined);
+            } catch (openError) {
+                setError(hostErrorMessage(openError));
+            }
+        };
 
         return (
             <div className="panelSurface inspectorSurface" data-testid="compiler-scene-inspector">
+                {error ? <div className="errorBox">{error}</div> : null}
                 <section className="identity">
                     <span>Compiler Scene</span>
                     <strong>{compilerNodeName(selectedCompiler, compilerDocument.template.name)}</strong>
@@ -743,7 +881,26 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                     </div>
                 </section>
                 <section className="inspectorSection">
+                    <div className="sectionHeader">
+                        <h3>Script Binding</h3>
+                        <span className={compilerBindingStatus?.ok ? 'bindingState ok' : 'bindingState error'}>
+                            {compilerBindingStatus?.message ?? '检查中'}
+                        </span>
+                    </div>
+                    <div className="fieldStack">
+                        <FieldRow label="scene" value={compilerBindingStatus?.scenePath ?? compilerDocument.scenePath} />
+                        <FieldRow label="@scene" value={compilerBindingStatus?.decoratorScene ?? compilerDocument.descriptor?.scene} />
+                        <FieldRow label="script" value={compilerBindingStatus?.scriptPath ?? compilerDocument.template.script?.path} />
+                        <FieldRow label="class" value={compilerBindingStatus?.className ?? compilerDocument.template.script?.className} />
+                        <div className="inspectorActionRow">
+                            <button onClick={openCompilerScript} type="button">打开脚本</button>
+                            <button onClick={syncCompilerInterface} type="button">同步 Interface</button>
+                        </div>
+                    </div>
+                </section>
+                <section className="inspectorSection">
                     <h3>Public Contract</h3>
+                    <p className="inspectorHint">来自脚本装饰器；保存或编译时同步到 .scene。</p>
                     <div className="fieldStack">
                         <FieldRow label="props" value={`${contractCount(publicInterface, 'props')}: ${contractNames(publicInterface, 'props')}`} />
                         <FieldRow label="events" value={`${contractCount(publicInterface, 'events')}: ${contractNames(publicInterface, 'events')}`} />

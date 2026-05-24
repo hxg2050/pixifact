@@ -33,6 +33,7 @@ import {
     mergeExpandedFolderPaths,
     nearestExistingPath,
     openCompilerSceneFile,
+    openCompilerSceneScriptFile,
     openSceneFile,
     openProjectCodeFile,
     openProjectDefaultFile,
@@ -42,6 +43,7 @@ import {
     saveOpenedSceneFile,
     saveCompilerSceneFile,
     saveSceneFile,
+    syncCompilerSceneScriptInterface,
 } from '../apps/editor/src/services/projectFileTree';
 import { createSceneInstanceNode } from '../apps/editor/src/services/sceneInstance';
 import { sceneAssetName, sceneFileName, sceneRootKey } from '../apps/editor/src/services/sceneNaming';
@@ -692,6 +694,36 @@ describe('project file tree service', () => {
         expect(compilerDocument?.descriptor?.interface.props.label.default).toBe('Button');
         expect(compilerDocument?.selection).toEqual({ type: 'scene' });
         expect(compilerDocument?.sceneInterfaces).toEqual({});
+    });
+
+    it('opens and syncs the bound compiler Scene script', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file(`
+                    <Scene name="Button" script="src/scenes/Button.ts" width="120" height="40">
+                      <Text id="labelText" text="Button" />
+                    </Scene>
+                `),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.ts': buttonSceneScript({ disabled: true }),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+
+        const opened = await openCompilerSceneFile(tree, sceneFile!);
+        await openCompilerSceneScriptFile(tree, opened.template);
+        const descriptor = await syncCompilerSceneScriptInterface(tree, sceneFile!, opened.template);
+        const compilerDocument = getCompilerSceneDocument();
+
+        expect(host.openHostCodeFile).toHaveBeenCalledWith('/tmp/GameProject', 'src/scenes/Button.ts');
+        expect(descriptor.scene).toBe('scenes/Button.scene');
+        expect(compilerDocument?.descriptor?.interface.props.disabled.default).toBe(false);
+        expect(compilerDocument?.template.interface.props.disabled.default).toBe(false);
+        expect(compilerDocument?.dirty).toBe(true);
     });
 
     it('loads public interfaces for compiler Scene instances', async () => {
