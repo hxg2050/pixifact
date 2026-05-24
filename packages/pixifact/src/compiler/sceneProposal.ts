@@ -227,7 +227,10 @@ function diffNode(path: string, before: SceneTemplateNode, after: SceneTemplateN
         return [{ kind: 'nodeTypeChanged', path, before: beforeLabel, after: afterLabel }];
     }
 
-    if (before.kind === 'slotOutlet' || after.kind === 'slotOutlet') {
+    if (before.kind === 'slotOutlet') {
+        if (after.kind !== 'slotOutlet') {
+            return [{ kind: 'nodeTypeChanged', path, before: beforeLabel, after: afterLabel }];
+        }
         return before.name === after.name ? [] : [{
             kind: 'nodePropChanged',
             path,
@@ -236,6 +239,9 @@ function diffNode(path: string, before: SceneTemplateNode, after: SceneTemplateN
             before: before.name,
             after: after.name,
         }];
+    }
+    if (after.kind === 'slotOutlet') {
+        return [{ kind: 'nodeTypeChanged', path, before: beforeLabel, after: afterLabel }];
     }
 
     const diffs = diffProps(before.props, after.props).map((entry) => ({
