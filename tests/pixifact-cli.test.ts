@@ -444,6 +444,104 @@ describe('Pixifact CLI', () => {
         });
     });
 
+    it('rejects compiler scene proposals with missing texture assets through the CLI', async () => {
+        const projectRoot = createCompilerSceneProject();
+        const scenePath = path.join(projectRoot, 'scenes', 'Button.scene');
+        const current = fs.readFileSync(scenePath, 'utf8');
+        const proposalPath = writeSceneProposal(projectRoot, {
+            kind: 'pixifact.sceneProposal.v1',
+            scene: 'scenes/Button.scene',
+            baseRevision: createSceneRevision(current),
+            content: '<Scene name="Button" script="src/scenes/Button.ts"><Sprite id="icon" texture="assets/missing.png" /></Scene>',
+        });
+
+        const result = await runCli([
+            'scene',
+            'proposal',
+            'check',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Button.scene',
+            '--proposal',
+            proposalPath,
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            error: 'Scene proposal validation failed.',
+            diagnostics: [{
+                path: '0:icon',
+                prop: 'texture',
+                expected: 'existing project asset',
+                actual: 'assets/missing.png',
+            }],
+        });
+    });
+
+    it('rejects private compiler Scene instance props through the CLI', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'scenes', 'Button.scene'), [
+            '<Scene name="Button" script="src/scenes/Button.ts" />',
+            '',
+        ].join('\n'), 'utf8');
+        fs.writeFileSync(path.join(projectRoot, 'scenes', 'MainMenu.scene'), [
+            '<Scene name="MainMenu" script="src/scenes/MainMenu.ts">',
+            '  <Button id="start" scene="scenes/Button.scene" label="Start" />',
+            '</Scene>',
+            '',
+        ].join('\n'), 'utf8');
+        fs.mkdirSync(path.join(projectRoot, 'src', 'scenes'), { recursive: true });
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
+            'import { Container } from "pixi.js";',
+            'import { prop, scene } from "pixifact/compiler";',
+            '',
+            '@scene()',
+            'export class Button extends Container {',
+            '  @prop({ type: "string", default: "Button" })',
+            '  accessor label = "Button";',
+            '}',
+            '',
+        ].join('\n'), 'utf8');
+        const scenePath = path.join(projectRoot, 'scenes', 'MainMenu.scene');
+        const current = fs.readFileSync(scenePath, 'utf8');
+        const proposalPath = writeSceneProposal(projectRoot, {
+            kind: 'pixifact.sceneProposal.v1',
+            scene: 'scenes/MainMenu.scene',
+            baseRevision: createSceneRevision(current),
+            content: [
+                '<Scene name="MainMenu" script="src/scenes/MainMenu.ts">',
+                '  <Button id="start" scene="scenes/Button.scene" label="Start" secret="true" />',
+                '</Scene>',
+            ].join('\n'),
+        });
+
+        const result = await runCli([
+            'scene',
+            'proposal',
+            'check',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/MainMenu.scene',
+            '--proposal',
+            proposalPath,
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            error: 'Scene proposal validation failed.',
+            diagnostics: [{
+                path: '0:start',
+                prop: 'secret',
+                expected: 'public prop declared by scenes/Button.scene',
+                actual: 'unknown prop',
+            }],
+        });
+    });
+
     it('does not overwrite an existing Scene file', async () => {
         const projectRoot = createTempProject();
 

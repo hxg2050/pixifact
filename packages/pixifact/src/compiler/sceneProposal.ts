@@ -1,4 +1,11 @@
-import type { SceneInstanceTemplateNode, SceneTemplate, SceneTemplateNode, SceneTemplateValue } from './spec';
+import type { SceneInstanceTemplateNode, SceneTemplate, SceneTemplateInterface, SceneTemplateNode, SceneTemplateValue } from './spec';
+import {
+    isPixiSceneNodeType,
+    pixiSceneFieldSchema,
+    pixiSceneNodePropKeys,
+    pixiSceneTransformProps,
+    pixiSceneDisplayProps,
+} from './pixiNodeSchema';
 import { parseSceneTemplate } from './templateParser';
 import { serializeSceneTemplate } from './templateSerializer';
 
@@ -34,6 +41,14 @@ export type SceneProposalDiffEntry =
     | { kind: 'nodePropChanged'; path: string; node: string; prop: string; before?: SceneTemplateValue; after?: SceneTemplateValue }
     | { kind: 'childrenChanged'; path: string; before: string[]; after: string[] };
 
+export interface SceneProposalDiagnostic {
+    path: string;
+    prop: string;
+    expected: string;
+    actual: string;
+    hint?: string;
+}
+
 export type SceneProposalCheckResult =
     | {
         ok: true;
@@ -51,6 +66,7 @@ export type SceneProposalCheckResult =
         baseRevision?: string;
         currentRevision?: string;
         error: string;
+        diagnostics?: SceneProposalDiagnostic[];
         hint?: string;
     };
 
@@ -117,6 +133,8 @@ export function inspectSceneTemplate(template: SceneTemplate): SceneTemplateInsp
 export interface CheckSceneProposalOptions {
     currentContent: string;
     proposal: SceneProposalEnvelope;
+    existingAssets?: ReadonlySet<string>;
+    sceneInterfaces?: Record<string, SceneTemplateInterface>;
 }
 
 export function checkSceneProposal(options: CheckSceneProposalOptions): SceneProposalCheckResult {
@@ -143,6 +161,19 @@ export function checkSceneProposal(options: CheckSceneProposalOptions): ScenePro
                 currentRevision,
                 error: `Scene proposal cannot change Scene name from "${currentTemplate.name}" to "${proposedTemplate.name}".`,
                 hint: 'Create or rename scenes through a dedicated project operation instead of a scene proposal.',
+            };
+        }
+
+        const diagnostics = validateSceneTemplateProposal(proposedTemplate, options);
+        if (diagnostics.length > 0) {
+            return {
+                ok: false,
+                scene: options.proposal.scene,
+                baseRevision: options.proposal.baseRevision,
+                currentRevision,
+                error: 'Scene proposal validation failed.',
+                diagnostics,
+                hint: 'Fix the listed diagnostics, then run scene proposal check again.',
             };
         }
 
@@ -181,6 +212,271 @@ export function applySceneProposal(options: CheckSceneProposalOptions): ScenePro
         ...result,
         content: result.canonicalContent,
     };
+}
+
+function validateSceneTemplateProposal(
+    template: SceneTemplate,
+    options: CheckSceneProposalOptions,
+): SceneProposalDiagnostic[] {
+    return template.children.flatMap((child, index) => validateSceneNodeProposal(
+        child,
+        nodePathSegment(index, child),
+        options,
+    ));
+}
+
+function validateSceneNodeProposal(
+    node: SceneTemplateNode,
+    path: string,
+    options: CheckSceneProposalOptions,
+): SceneProposalDiagnostic[] {
+    if (node.kind === 'slotOutlet') {
+        return [];
+    }
+
+    if (node.kind === 'pixi') {
+        return [
+            ...validatePixiNodeProposal(node, path, options.existingAssets),
+            ...node.children.flatMap((child, index) => validateSceneNodeProposal(
+                child,
+                `${path}/${nodePathSegment(index, child)}`,
+                options,
+            )),
+        ];
+    }
+
+    return [
+        ...validateSceneInstanceNodeProposal(node, path, options),
+        ...Object.entries(node.slots).flatMap(([slot, children]) => children.flatMap((child, index) => validateSceneNodeProposal(
+            child,
+            `${path}/slot:${slot}/${nodePathSegment(index, child)}`,
+            options,
+        ))),
+    ];
+}
+
+function validatePixiNodeProposal(
+    node: Exclude<SceneTemplateNode, SceneInstanceTemplateNode | { kind: 'slotOutlet' }>,
+    path: string,
+    existingAssets: ReadonlySet<string> | undefined,
+): SceneProposalDiagnostic[] {
+    if (!isPixiSceneNodeType(node.type)) {
+        return [{
+            path,
+            prop: 'type',
+            expected: 'supported compiler Pixi node type',
+            actual: node.type,
+            hint: 'Use Container, Sprite, NineSliceSprite, TilingSprite, Text, BitmapText, HTMLText, or Graphics.',
+        }];
+    }
+
+    const diagnostics: SceneProposalDiagnostic[] = [];
+    const knownProps = new Set<string>([
+        ...pixiSceneTransformProps,
+        ...pixiSceneDisplayProps,
+        ...pixiSceneNodePropKeys(node.type),
+    ]);
+    for (const [prop, value] of Object.entries(node.props)) {
+        if (!knownProps.has(prop)) {
+            diagnostics.push({
+                path,
+                prop,
+                expected: `known ${node.type} prop`,
+                actual: 'unknown prop',
+                hint: unknownPixiPropHint(prop),
+            });
+            continue;
+        }
+
+        const schema = pixiSceneFieldSchema(prop);
+        if (schema && !sceneValueMatchesFieldType(value, schema.type, schema.options)) {
+            diagnostics.push({
+                path,
+                prop,
+                expected: schema.type === 'enum' ? `one of ${schema.options?.map((option) => JSON.stringify(option)).join(', ')}` : schema.type,
+                actual: sceneValueType(value),
+                hint: `Set ${node.type}.${prop} to ${fieldTypeDescription(schema.type)}.`,
+            });
+        }
+    }
+
+    const texture = node.props.texture;
+    if (typeof texture === 'string') {
+        const assetDiagnostic = validateTextureReference(path, texture, existingAssets);
+        if (assetDiagnostic) {
+            diagnostics.push(assetDiagnostic);
+        }
+    }
+    return diagnostics;
+}
+
+function validateSceneInstanceNodeProposal(
+    node: SceneInstanceTemplateNode,
+    path: string,
+    options: CheckSceneProposalOptions,
+): SceneProposalDiagnostic[] {
+    const sceneInterface = options.sceneInterfaces?.[node.scene];
+    if (!sceneInterface) {
+        if (options.sceneInterfaces) {
+            return [{
+                path,
+                prop: 'scene',
+                expected: 'known compiler Scene contract',
+                actual: node.scene,
+                hint: 'Ensure the referenced .scene file exists and has a readable bound script.',
+            }];
+        }
+        return [];
+    }
+
+    const diagnostics: SceneProposalDiagnostic[] = [];
+    const allowedProps = new Set<string>([
+        ...pixiSceneTransformProps,
+        ...pixiSceneDisplayProps,
+        ...Object.keys(sceneInterface.props),
+    ]);
+    for (const [prop, value] of Object.entries(node.props)) {
+        if (!allowedProps.has(prop)) {
+            diagnostics.push({
+                path,
+                prop,
+                expected: `public prop declared by ${node.scene}`,
+                actual: 'unknown prop',
+                hint: 'Expose the property with @prop on the child Scene script before setting it from a parent Scene.',
+            });
+            continue;
+        }
+
+        const schema = pixiSceneFieldSchema(prop);
+        const contract = sceneInterface.props[prop];
+        const expectedType = contract?.type ?? schema?.type;
+        if (expectedType && !sceneValueMatchesContractType(value, expectedType, schema?.options)) {
+            diagnostics.push({
+                path,
+                prop,
+                expected: expectedType,
+                actual: sceneValueType(value),
+                hint: `Set ${node.type}.${prop} to ${fieldTypeDescription(expectedType)}.`,
+            });
+        }
+    }
+
+    for (const eventName of Object.keys(node.events)) {
+        if (!sceneInterface.events[eventName]) {
+            diagnostics.push({
+                path,
+                prop: `@${eventName}`,
+                expected: `public event declared by ${node.scene}`,
+                actual: 'unknown event',
+                hint: 'Expose the event with @event on the child Scene script before binding it from a parent Scene.',
+            });
+        }
+    }
+
+    for (const slot of Object.keys(node.slots)) {
+        if (!sceneInterface.slots[slot]) {
+            diagnostics.push({
+                path: `${path}/slot:${slot}`,
+                prop: 'slot',
+                expected: `public slot declared by ${node.scene}`,
+                actual: 'unknown slot',
+                hint: 'Expose the slot with @slot on the child Scene script before placing children into it.',
+            });
+        }
+    }
+
+    return diagnostics;
+}
+
+function validateTextureReference(
+    path: string,
+    texture: string,
+    existingAssets: ReadonlySet<string> | undefined,
+): SceneProposalDiagnostic | undefined {
+    if (!isProjectRelativeAssetPath(texture)) {
+        return {
+            path,
+            prop: 'texture',
+            expected: 'project-relative asset path inside project root',
+            actual: texture,
+            hint: 'Use a project-relative path such as "assets/play.png".',
+        };
+    }
+    if (existingAssets && !existingAssets.has(normalizeAssetPath(texture))) {
+        return {
+            path,
+            prop: 'texture',
+            expected: 'existing project asset',
+            actual: texture,
+            hint: 'Use an asset path that exists in the project before applying the proposal.',
+        };
+    }
+    return undefined;
+}
+
+function isProjectRelativeAssetPath(value: string) {
+    if (
+        value.trim() === ''
+        || value.startsWith('/')
+        || value.startsWith('./')
+        || value.includes('\\')
+        || /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(value)
+    ) {
+        return false;
+    }
+    return !value.split('/').includes('..');
+}
+
+function normalizeAssetPath(value: string) {
+    return value.split('/').filter((part) => part !== '' && part !== '.').join('/');
+}
+
+function sceneValueMatchesFieldType(
+    value: SceneTemplateValue,
+    type: string,
+    options?: readonly (string | number)[],
+) {
+    if (type === 'enum') {
+        return options?.includes(value as string | number) ?? false;
+    }
+    return sceneValueMatchesContractType(value, type);
+}
+
+function sceneValueMatchesContractType(value: SceneTemplateValue, type: string, options?: readonly (string | number)[]) {
+    if (type === 'enum') {
+        return options?.includes(value as string | number) ?? false;
+    }
+    if (type === 'number' || type === 'color') {
+        return typeof value === 'number';
+    }
+    if (type === 'boolean') {
+        return typeof value === 'boolean';
+    }
+    return typeof value === 'string';
+}
+
+function sceneValueType(value: SceneTemplateValue) {
+    return typeof value;
+}
+
+function fieldTypeDescription(type: string) {
+    if (type === 'number') {
+        return 'a numeric value';
+    }
+    if (type === 'color') {
+        return 'a color value such as "#ffffff"';
+    }
+    if (type === 'enum') {
+        return 'one of the allowed values';
+    }
+    return `a ${type} value`;
+}
+
+function unknownPixiPropHint(prop: string) {
+    if (prop === 'textrue') {
+        return 'Use "texture" for Sprite image assets.';
+    }
+    return 'Use the editor inspector or scene inspect command to list supported props for this node type.';
 }
 
 function diffSceneTemplates(before: SceneTemplate, after: SceneTemplate): SceneProposalDiffEntry[] {

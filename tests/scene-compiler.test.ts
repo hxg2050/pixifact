@@ -166,6 +166,171 @@ describe('Pixifact scene compiler spike', () => {
         });
     });
 
+    it('rejects unknown compiler Pixi node props', () => {
+        const current = '<Scene name="Button"><Sprite id="icon" texture="assets/play.png" /></Scene>';
+        const result = checkSceneProposal({
+            currentContent: current,
+            proposal: {
+                kind: 'pixifact.sceneProposal.v1',
+                scene: 'scenes/Button.scene',
+                baseRevision: createSceneRevision(current),
+                content: '<Scene name="Button"><Sprite id="icon" textrue="assets/play.png" /></Scene>',
+            },
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            scene: 'scenes/Button.scene',
+            error: 'Scene proposal validation failed.',
+            diagnostics: [{
+                path: '0:icon',
+                prop: 'textrue',
+                expected: 'known Sprite prop',
+                actual: 'unknown prop',
+                hint: 'Use "texture" for Sprite image assets.',
+            }],
+        });
+    });
+
+    it('rejects compiler Pixi node props with invalid value types', () => {
+        const current = '<Scene name="Button"><Text id="label" text="Start" fontSize="16" /></Scene>';
+        const result = checkSceneProposal({
+            currentContent: current,
+            proposal: {
+                kind: 'pixifact.sceneProposal.v1',
+                scene: 'scenes/Button.scene',
+                baseRevision: createSceneRevision(current),
+                content: '<Scene name="Button"><Text id="label" text="Start" fontSize="large" /></Scene>',
+            },
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            scene: 'scenes/Button.scene',
+            error: 'Scene proposal validation failed.',
+            diagnostics: [{
+                path: '0:label',
+                prop: 'fontSize',
+                expected: 'number',
+                actual: 'string',
+                hint: 'Set Text.fontSize to a numeric value.',
+            }],
+        });
+    });
+
+    it('rejects missing or unsafe compiler texture references when assets are provided', () => {
+        const current = '<Scene name="Button"><Sprite id="icon" texture="assets/play.png" /></Scene>';
+        const result = checkSceneProposal({
+            currentContent: current,
+            existingAssets: new Set(['assets/play.png']),
+            proposal: {
+                kind: 'pixifact.sceneProposal.v1',
+                scene: 'scenes/Button.scene',
+                baseRevision: createSceneRevision(current),
+                content: '<Scene name="Button"><Sprite id="icon" texture="../secret.png" /></Scene>',
+            },
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            scene: 'scenes/Button.scene',
+            error: 'Scene proposal validation failed.',
+            diagnostics: [{
+                path: '0:icon',
+                prop: 'texture',
+                expected: 'project-relative asset path inside project root',
+                actual: '../secret.png',
+                hint: 'Use a project-relative path such as "assets/play.png".',
+            }],
+        });
+    });
+
+    it('validates Scene instance proposals against public contracts', () => {
+        const current = '<Scene name="MainMenu"><Button id="start" scene="scenes/Button.scene" label="Start" /></Scene>';
+        const result = checkSceneProposal({
+            currentContent: current,
+            sceneInterfaces: {
+                'scenes/Button.scene': {
+                    props: {
+                        label: { type: 'string' },
+                        disabled: { type: 'boolean' },
+                    },
+                    events: {
+                        click: { type: 'action' },
+                    },
+                    slots: {
+                        icon: {},
+                    },
+                },
+            },
+            proposal: {
+                kind: 'pixifact.sceneProposal.v1',
+                scene: 'scenes/MainMenu.scene',
+                baseRevision: createSceneRevision(current),
+                content: [
+                    '<Scene name="MainMenu">',
+                    '  <Button id="start" scene="scenes/Button.scene" label="Start" secret="true" @submit="submitForm">',
+                    '    <Text slot="footer" id="footerText" text="Footer" />',
+                    '  </Button>',
+                    '</Scene>',
+                ].join('\n'),
+            },
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            scene: 'scenes/MainMenu.scene',
+            error: 'Scene proposal validation failed.',
+            diagnostics: [
+                {
+                    path: '0:start',
+                    prop: 'secret',
+                    expected: 'public prop declared by scenes/Button.scene',
+                    actual: 'unknown prop',
+                },
+                {
+                    path: '0:start',
+                    prop: '@submit',
+                    expected: 'public event declared by scenes/Button.scene',
+                    actual: 'unknown event',
+                },
+                {
+                    path: '0:start/slot:footer',
+                    prop: 'slot',
+                    expected: 'public slot declared by scenes/Button.scene',
+                    actual: 'unknown slot',
+                },
+            ],
+        });
+    });
+
+    it('rejects Scene instance proposals when a contract index is provided but the instance contract is missing', () => {
+        const current = '<Scene name="MainMenu"><Button id="start" scene="scenes/Button.scene" label="Start" /></Scene>';
+        const result = checkSceneProposal({
+            currentContent: current,
+            sceneInterfaces: {},
+            proposal: {
+                kind: 'pixifact.sceneProposal.v1',
+                scene: 'scenes/MainMenu.scene',
+                baseRevision: createSceneRevision(current),
+                content: '<Scene name="MainMenu"><Button id="start" scene="scenes/Button.scene" label="Start" /></Scene>',
+            },
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            scene: 'scenes/MainMenu.scene',
+            error: 'Scene proposal validation failed.',
+            diagnostics: [{
+                path: '0:start',
+                prop: 'scene',
+                expected: 'known compiler Scene contract',
+                actual: 'scenes/Button.scene',
+                hint: 'Ensure the referenced .scene file exists and has a readable bound script.',
+            }],
+        });
+    });
+
     it('applies compiler scene proposals by returning canonical content', () => {
         const current = '<Scene name="Button"><Text id="label" text="Start" /></Scene>';
         const result = applySceneProposal({

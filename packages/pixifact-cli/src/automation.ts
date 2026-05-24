@@ -4,6 +4,7 @@ import {
     applySceneProposal,
     checkSceneProposal,
     createSceneRevision,
+    extractSceneScriptInterface,
     inspectSceneTemplate,
     parseSceneTemplate,
 } from 'pixifact/compiler';
@@ -21,6 +22,7 @@ import {
 } from 'pixifact';
 import type { CommandResult, SceneCommand, SceneSpec, NodeSpec } from 'pixifact';
 import type { SceneProjectState } from 'pixifact';
+import type { SceneTemplate, SceneTemplateInterface } from 'pixifact/compiler';
 
 interface ProjectFileSummary {
     path: string;
@@ -216,6 +218,58 @@ function loadCompilerScene(projectRoot: unknown, scenePath: unknown) {
     };
 }
 
+function collectProjectAssets(root: string) {
+    const assets = new Set<string>();
+    const assetsRoot = path.join(root, 'assets');
+    if (!fs.existsSync(assetsRoot)) {
+        return assets;
+    }
+    collectAssetFiles(root, assetsRoot, assets);
+    return assets;
+}
+
+function collectAssetFiles(root: string, directory: string, assets: Set<string>) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        const absolute = path.join(directory, entry.name);
+        if (entry.isDirectory()) {
+            collectAssetFiles(root, absolute, assets);
+            continue;
+        }
+        if (entry.isFile()) {
+            assets.add(path.relative(root, absolute).replaceAll(path.sep, '/'));
+        }
+    }
+}
+
+function collectCompilerSceneInterfaces(root: string) {
+    const scenesRoot = path.join(root, 'scenes');
+    const interfaces: Record<string, SceneTemplateInterface> = {};
+    if (!fs.existsSync(scenesRoot)) {
+        return interfaces;
+    }
+
+    for (const file of fs.readdirSync(scenesRoot).filter((item) => item.endsWith('.scene')).sort()) {
+        const scenePath = `scenes/${file}`;
+        const template = parseSceneTemplate(readTextFile(path.join(scenesRoot, file)));
+        const sceneInterface = readCompilerSceneInterface(root, scenePath, template);
+        if (sceneInterface) {
+            interfaces[scenePath] = sceneInterface;
+        }
+    }
+    return interfaces;
+}
+
+function readCompilerSceneInterface(root: string, scenePath: string, template: SceneTemplate) {
+    if (!template.script) {
+        return undefined;
+    }
+    const scriptPath = path.resolve(root, template.script.path);
+    if (!isInside(root, scriptPath) || !fs.existsSync(scriptPath)) {
+        return undefined;
+    }
+    return extractSceneScriptInterface(readTextFile(scriptPath), scriptPath, { scene: scenePath }).interface;
+}
+
 function saveEditableScene(editable: EditableDocument, scene: SceneSpec) {
     if (editable.isProjectFile) {
         writeJsonFile(editable.target, {
@@ -401,6 +455,8 @@ export function createPixifactAutomation() {
             const proposal = assertProposal(args.proposal);
             return checkSceneProposal({
                 currentContent: loaded.content,
+                existingAssets: collectProjectAssets(loaded.root),
+                sceneInterfaces: collectCompilerSceneInterfaces(loaded.root),
                 proposal,
             });
         },
@@ -411,6 +467,8 @@ export function createPixifactAutomation() {
             const proposal = assertProposal(args.proposal);
             const result = applySceneProposal({
                 currentContent: loaded.content,
+                existingAssets: collectProjectAssets(loaded.root),
+                sceneInterfaces: collectCompilerSceneInterfaces(loaded.root),
                 proposal,
             });
             if (!result.ok) {
