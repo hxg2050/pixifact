@@ -7,7 +7,6 @@ import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/sy
 import { refreshSceneDocument } from '../document/sceneDocumentController';
 import {
     addCompilerSceneNode,
-    addCompilerSceneInstanceNode,
     compilerPixiTypeFromNodeTemplate,
     createCompilerPixiTemplateNode,
     createCompilerSceneToolTemplateNode,
@@ -35,7 +34,7 @@ import { hierarchyNodeDragPayload } from '../services/dragPayload';
 import { editorDragDataTypes } from '../services/dragPayload';
 import { findFileByPath, sceneDragDataType, readProjectFileText } from '../services/projectFileTree';
 import type { CompilerSceneTemplateNode } from '../services/projectFileTree';
-import { readCompilerSceneBinding } from '../services/sceneBindingIndex';
+import { addDroppedCompilerSceneInstance } from '../services/compilerSceneDrop';
 import { collectHierarchy, getNodeLocator, selectedNodeId, useCompilerSceneRevision, useDocumentRevision } from './common';
 
 interface HierarchyTreeNode {
@@ -1013,27 +1012,14 @@ export function CompilerSceneHierarchyTree() {
         setError(undefined);
     };
     const addCompilerSceneUnderNode = async (scenePath: string, parent: string) => {
-        if (scenePath === openedScenePath) {
-            setError(t('sceneCannotDropSelf'));
-            return;
-        }
-
-        const file = projectTree ? findFileByPath(projectTree, scenePath) : undefined;
-        if (!projectTree || !file || file.kind !== 'scene') {
-            setError(t('droppedFileNotScene'));
-            return;
-        }
-
-        const binding = await readCompilerSceneBinding(projectTree, file);
-        const result = addCompilerSceneInstanceNode(
-            parent,
-            binding.scenePath,
-            binding.template,
-            binding.interface,
-            binding.className,
-        );
+        const result = await addDroppedCompilerSceneInstance({
+            openedScenePath,
+            projectTree,
+            scenePath,
+            parentLocator: parent,
+        });
         if (!result.ok) {
-            setError(result.error);
+            setError('errorKey' in result ? t(result.errorKey) : result.error);
             return;
         }
         setDropTarget(undefined);

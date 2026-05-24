@@ -7,7 +7,6 @@ import {
 } from '../apps/editor/src/document/sceneDocumentController';
 import {
     addCompilerSceneNode,
-    addCompilerSceneInstanceNode,
     compilerPixiTypeFromNodeTemplate,
     createCompilerPixiTemplateNode,
     createCompilerSceneToolTemplateNode,
@@ -49,6 +48,7 @@ import {
     readCompilerSceneBindingIndex,
     sceneInterfacesForCompilerTemplate,
 } from '../apps/editor/src/services/sceneBindingIndex';
+import { addDroppedCompilerSceneInstance } from '../apps/editor/src/services/compilerSceneDrop';
 import { createSceneInstanceNode } from '../apps/editor/src/services/sceneInstance';
 import { sceneAssetName, sceneFileName, sceneRootKey } from '../apps/editor/src/services/sceneNaming';
 
@@ -1289,32 +1289,43 @@ describe('project file tree service', () => {
         const buttonFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
 
         await openCompilerSceneFile(tree, mainMenuFile!);
-        const buttonTemplate = parseSceneTemplate(await host.readProjectFileText('/tmp/GameProject', buttonFile!.path));
-        const buttonInterface = {
-            props: {
-                label: {
-                    type: 'string',
-                    default: 'Button',
-                },
-            },
-            events: {
-                click: {
-                    type: 'action' as const,
-                },
-            },
-            slots: {
-                icon: {},
-            },
-        };
-
-        const rootResult = addCompilerSceneInstanceNode('__scene__', projectFileRelativePath(tree, buttonFile!), buttonTemplate, buttonInterface, 'Button');
-        const containerResult = addCompilerSceneInstanceNode('0:content', projectFileRelativePath(tree, buttonFile!), buttonTemplate, buttonInterface, 'Button');
-        const slotResult = addCompilerSceneInstanceNode('1:settingsPanel/slot:footer', projectFileRelativePath(tree, buttonFile!), buttonTemplate, buttonInterface, 'Button');
+        const rootResult = await addDroppedCompilerSceneInstance({
+            openedScenePath: mainMenuFile?.path,
+            projectTree: tree,
+            scenePath: buttonFile!.path,
+            parentLocator: '__scene__',
+        });
+        const containerResult = await addDroppedCompilerSceneInstance({
+            openedScenePath: mainMenuFile?.path,
+            projectTree: tree,
+            scenePath: buttonFile!.path,
+            parentLocator: '0:content',
+        });
+        const slotResult = await addDroppedCompilerSceneInstance({
+            openedScenePath: mainMenuFile?.path,
+            projectTree: tree,
+            scenePath: buttonFile!.path,
+            parentLocator: '1:settingsPanel/slot:footer',
+        });
+        const selfResult = await addDroppedCompilerSceneInstance({
+            openedScenePath: mainMenuFile?.path,
+            projectTree: tree,
+            scenePath: mainMenuFile!.path,
+            parentLocator: '__scene__',
+        });
+        const invalidResult = await addDroppedCompilerSceneInstance({
+            openedScenePath: mainMenuFile?.path,
+            projectTree: tree,
+            scenePath: 'GameProject/src/scenes/Button.ts',
+            parentLocator: '__scene__',
+        });
 
         const compilerDocument = getCompilerSceneDocument();
         expect(rootResult).toEqual({ ok: true, locator: '2:button1' });
         expect(containerResult).toEqual({ ok: true, locator: '0:content/0:button2' });
         expect(slotResult).toEqual({ ok: true, locator: '1:settingsPanel/slot:footer/0:button3' });
+        expect(selfResult).toEqual({ ok: false, errorKey: 'sceneCannotDropSelf' });
+        expect(invalidResult).toEqual({ ok: false, errorKey: 'droppedFileNotScene' });
         expect(compilerDocument?.template.children[2]).toMatchObject({
             kind: 'sceneInstance',
             type: 'Button',
@@ -1344,7 +1355,22 @@ describe('project file tree service', () => {
                 }],
             },
         });
-        expect(compilerDocument?.sceneInterfaces['scenes/Button.scene']).toEqual(buttonInterface);
+        expect(compilerDocument?.sceneInterfaces['scenes/Button.scene']).toEqual({
+            props: {
+                label: {
+                    type: 'string',
+                    default: 'Button',
+                },
+            },
+            events: {
+                click: {
+                    type: 'action',
+                },
+            },
+            slots: {
+                icon: {},
+            },
+        });
         expect(compilerDocument?.selection).toEqual({ type: 'node', node: '1:settingsPanel/slot:footer/0:button3' });
         expect(compilerDocument?.dirty).toBe(true);
     });
