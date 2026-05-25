@@ -158,7 +158,7 @@ const pixiSceneFieldSchemas: Partial<Record<string, PixiSceneFieldSchema>> = {
     text: { key: 'text', type: 'string' },
     fontSize: { key: 'fontSize', type: 'number' },
     fontFamily: { key: 'fontFamily', type: 'string' },
-    fontWeight: { key: 'fontWeight', type: 'enum', options: ['400', '500', '600', '700', 'bold'] },
+    fontWeight: { key: 'fontWeight', type: 'enum', options: [400, 500, 600, 700, '400', '500', '600', '700', 'bold'] },
     fill: { key: 'fill', type: 'color' },
     shape: { key: 'shape', type: 'enum', options: ['roundRect', 'rect'] },
     radius: { key: 'radius', type: 'number' },

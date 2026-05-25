@@ -1,18 +1,28 @@
 # Agent Scene Authoring
 
-Pixifact uses source-level agent editing with guarded apply as the final authoring model for compiler scenes. The target user flow is external coding agents such as Claude Code and Codex using Pixifact CLI tools. Pixifact does not need an integrated AI chat or model gateway for this flow.
+Pixifact uses source-level agent editing as the final authoring model for compiler scenes. The target user flow is external coding agents such as Claude Code and Codex using Pixifact CLI tools. Pixifact does not need an integrated AI chat or model gateway for this flow.
 
 ## Decision
 
-External agents read and propose changes to `.scene` source files. Pixifact parses, validates, diffs, applies, and compiles those proposals. Generated TypeScript is always treated as a build artifact.
+External agents edit `.scene` source files. Pixifact parses, validates, and compiles those files. Generated TypeScript is always treated as a build artifact.
+
+The default workflow is direct source editing plus validation:
 
 ```txt
 Claude Code / Codex reads .scene
-Claude Code / Codex returns a .scene proposal
-Pixifact parses the proposal
-Pixifact validates the AST, prop types, asset refs, and scene contracts
-Pixifact produces a reviewable diff
-User approves apply through the agent workflow
+Claude Code / Codex edits .scene
+Pixifact validates the file
+Pixifact compiles generated TypeScript
+Editor refreshes preview
+```
+
+For higher-risk edits, agents may use the guarded proposal workflow:
+
+```txt
+Claude Code / Codex reads .scene
+Claude Code / Codex writes a .scene proposal envelope
+Pixifact checks base revision, validation, and semantic diff
+User or agent applies the proposal after review
 Pixifact writes the .scene file
 Pixifact compiles generated TypeScript
 Editor refreshes preview
@@ -34,9 +44,32 @@ Pixifact = validation and apply boundary
 
 Agents should not edit `generated.ts`, because generated code contains renderer details, resource loading details, temporary variables, and compiler structure that are not the user's intent.
 
-## Guarded Apply
+## Default Direct Editing
 
-Agent proposals are not written directly to disk. Pixifact must treat a proposal as untrusted input and pass it through a guarded apply pipeline:
+Direct source editing is the default because Codex and Claude Code already know how to read and edit files. Pixifact's responsibility is not to duplicate those tools; Pixifact owns the domain validation boundary.
+
+Agents should follow this loop:
+
+1. Inspect the current scene.
+2. Edit only `scenes/*.scene` and related source assets/scripts requested by the user.
+3. Run `scene validate` on every edited compiler scene.
+4. Run `compile-scenes`.
+5. Run the smallest relevant project build or test.
+
+Example:
+
+```bash
+bun run pixifact -- scene inspect --project-root sample-projects/scene-compiler-demo --scene scenes/Button.scene
+bun run pixifact -- scene validate --project-root sample-projects/scene-compiler-demo --scene scenes/Button.scene
+bun run pixifact -- compile-scenes --project-root sample-projects/scene-compiler-demo
+cd sample-projects/scene-compiler-demo && bun run build
+```
+
+`scene validate` checks parse errors, prop names, prop value types, asset references, and public Scene instance contracts. It is the required safety check after direct `.scene` edits.
+
+## Guarded Proposal Workflow
+
+Proposal envelopes are optional. Use them when the edit needs base-revision protection, semantic diff review before writing, or an explicit apply/reject step. Pixifact treats a proposal as untrusted input and passes it through a guarded apply pipeline:
 
 1. Parse the proposed `.scene` content.
 2. Normalize it with the canonical formatter.
@@ -56,11 +89,12 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 - `.scene` files are the only agent-editable source for compiler scenes.
 - `src/generated/*.scene.generated.ts` is never an agent editing target.
 - Every editable node must have a stable ID.
+- Direct edits must be followed by `scene validate`.
 - Proposal apply must check the base scene revision.
 - Pixifact must use a canonical formatter before diff and apply.
 - Pixifact must reject proposals that fail parse, validation, contract checks, or asset checks.
-- CLI and editor save flows must use the same parse, validate, diff, and apply pipeline.
-- Agents may produce a full-file proposal, but Pixifact owns normalization and final file output.
+- CLI and editor save flows must use the same parse and validate rules.
+- Agents may directly edit `.scene` files or produce a full-file proposal; Pixifact owns validation and generated output.
 
 ## Non-Goals
 
@@ -85,9 +119,28 @@ External agents should receive a concise authoring context instead of raw projec
 
 Large scenes should support scoped context. For example, an agent task may include only the selected subtree plus a compact ancestor path and referenced contracts.
 
+## Agent Prompt
+
+Use this prompt when asking Codex or Claude Code to edit a compiler scene:
+
+```txt
+You are editing a Pixifact compiler scene.
+
+Rules:
+- Edit scenes/*.scene as the source of truth.
+- Do not edit src/generated/*.scene.generated.ts or src/generated/scenes.generated.ts.
+- Use Pixifact CLI to inspect and validate scenes.
+- After editing any .scene file, run:
+  bun run pixifact -- scene validate --project-root <project-root> --scene <scene-path>
+- Then run:
+  bun run pixifact -- compile-scenes --project-root <project-root>
+- Finally run the smallest relevant build or test.
+- If scene validate reports diagnostics, fix the .scene source and run validation again.
+```
+
 ## Proposal Shape
 
-The primary agent output is a `.scene` proposal. The exact transport may be full-file text, a structured object containing full-file text, or a patch envelope. The semantic contract is the same: Pixifact receives proposed `.scene` source and decides whether it can be applied.
+The optional proposal output is a `.scene` proposal envelope. The exact transport may be full-file text, a structured object containing full-file text, or a patch envelope. The semantic contract is the same: Pixifact receives proposed `.scene` source and decides whether it can be applied.
 
 Recommended envelope:
 
@@ -120,10 +173,16 @@ Text diff can still be available as a secondary view, but approval should be bas
 Compiler scene agent workflows should move toward these commands:
 
 ```bash
-pixifact scene inspect scenes/Button.scene
-pixifact scene proposal check --scene scenes/Button.scene --proposal proposal.json
-pixifact scene proposal apply --scene scenes/Button.scene --proposal proposal.json
-pixifact compile-scenes
+bun run pixifact -- scene inspect --project-root <project-root> --scene scenes/Button.scene
+bun run pixifact -- scene validate --project-root <project-root> --scene scenes/Button.scene
+bun run pixifact -- compile-scenes --project-root <project-root>
+```
+
+Optional guarded proposal flow:
+
+```bash
+bun run pixifact -- scene proposal check --project-root <project-root> --scene scenes/Button.scene --proposal proposal.json
+bun run pixifact -- scene proposal apply --project-root <project-root> --scene scenes/Button.scene --proposal proposal.json
 ```
 
 Legacy `commands dry-run/apply` may remain for legacy SceneSpec documents. It should not be the primary path for compiler scenes.
@@ -150,4 +209,4 @@ These costs are acceptable because they keep the final authoring model simple an
 
 Existing legacy agent flows based on `SceneCommand[]` should remain available for legacy SceneSpec documents until those flows are retired. Compiler XML scenes should not add new `SceneCommand` surface area unless it is purely internal.
 
-The live editor bridge currently rejects legacy SceneCommand editing for compiler XML scenes. That behavior matches this decision. The next step is to add proposal check/apply support for compiler scenes instead of teaching legacy SceneCommand to edit compiler XML.
+The live editor bridge currently rejects legacy SceneCommand editing for compiler XML scenes. That behavior matches this decision. Compiler scene edits should use direct `.scene` source changes followed by `scene validate`, or the optional proposal check/apply flow when a guarded review step is needed.

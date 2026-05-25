@@ -218,6 +218,24 @@ describe('Pixifact scene compiler spike', () => {
         });
     });
 
+    it('accepts numeric font weight values parsed from scene attributes', () => {
+        const current = '<Scene name="Button"><Text id="label" text="Start" fontWeight="700" /></Scene>';
+        const result = checkSceneProposal({
+            currentContent: current,
+            proposal: {
+                kind: 'pixifact.sceneProposal.v1',
+                scene: 'scenes/Button.scene',
+                baseRevision: createSceneRevision(current),
+                content: '<Scene name="Button"><Text id="label" text="Play" fontWeight="700" /></Scene>',
+            },
+        });
+
+        expect(result).toMatchObject({
+            ok: true,
+            scene: 'scenes/Button.scene',
+        });
+    });
+
     it('rejects missing or unsafe compiler texture references when assets are provided', () => {
         const current = '<Scene name="Button"><Sprite id="icon" texture="assets/play.png" /></Scene>';
         const result = checkSceneProposal({

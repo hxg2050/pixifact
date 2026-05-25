@@ -13,16 +13,16 @@ Pixifact 使用 Godot-style 统一 `Scene` 资产，不做 Unity 式 Scene + Pre
 当前存在两条 Scene authoring 路线：
 
 - Legacy `SceneSpec`：`SceneCommand[]` 是 Agent 修改入口，适用于现有 `container` / `image` / `text` / `input` / `shape` 语义层。
-- Compiler `.scene`：`.scene` 源文件是 Agent 修改入口，Agent 产出 `.scene proposal`，Pixifact 执行 parse / normalize / validate / diff / apply，再编译 generated TypeScript。详见 [Agent Scene Authoring](./docs/AI_SCENE_AUTHORING.md)。
+- Compiler `.scene`：`.scene` 源文件是 Agent 修改入口。默认流程是 Agent 直接编辑 `.scene`，Pixifact 执行 `scene validate` 和 `compile-scenes`；需要防覆盖或审查时再使用 `.scene proposal` 的 check/apply 流程。详见 [Agent Scene Authoring](./docs/AI_SCENE_AUTHORING.md)。
 
 ```txt
 Codex / Claude Code -> Pixifact CLI -> SceneCommand -> Validate / Dry Run -> SceneDocument -> Editor Preview -> Runtime
 ```
 
-上面的链路描述 legacy `SceneSpec` 流程。Compiler scene 的目标链路是：
+上面的链路描述 legacy `SceneSpec` 流程。Compiler scene 的默认目标链路是：
 
 ```txt
-Codex / Claude Code -> Pixifact CLI -> .scene proposal -> Check -> Apply -> Compile -> Editor Preview -> Runtime
+Codex / Claude Code -> edit .scene -> Pixifact CLI validate -> Compile -> Editor Preview -> Runtime
 ```
 
 - `.scene` 文件保存 `SceneSpec`。
@@ -98,6 +98,13 @@ Compiler `.scene` 的目标 Agent 流程见：
 
 ```txt
 docs/AI_SCENE_AUTHORING.md
+```
+
+常用检查命令：
+
+```bash
+bun run pixifact -- scene validate --project-root /path/to/project --scene scenes/Button.scene
+bun run pixifact -- compile-scenes --project-root /path/to/project
 ```
 
 ## 项目资产边界

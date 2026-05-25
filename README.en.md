@@ -13,16 +13,16 @@ Pixifact uses a Godot-style unified `Scene` asset model. It does not use a Unity
 There are currently two Scene authoring paths:
 
 - Legacy `SceneSpec`: `SceneCommand[]` is the agent edit entry point for the existing `container` / `image` / `text` / `input` / `shape` semantic layer.
-- Compiler `.scene`: the `.scene` source file is the agent edit entry point. Agents produce `.scene proposal` payloads, and Pixifact runs parse / normalize / validate / diff / apply before compiling generated TypeScript. See [Agent Scene Authoring](./docs/AI_SCENE_AUTHORING.md).
+- Compiler `.scene`: the `.scene` source file is the agent edit entry point. The default flow is direct `.scene` editing followed by `scene validate` and `compile-scenes`; use `.scene proposal` check/apply only when stale-write protection or explicit review is needed. See [Agent Scene Authoring](./docs/AI_SCENE_AUTHORING.md).
 
 ```txt
 Codex / Claude Code -> Pixifact CLI -> SceneCommand -> Validate / Dry Run -> SceneDocument -> Editor Preview -> Runtime
 ```
 
-The flow above describes legacy `SceneSpec`. Compiler scene targets this flow:
+The flow above describes legacy `SceneSpec`. Compiler scene defaults to this flow:
 
 ```txt
-Codex / Claude Code -> Pixifact CLI -> .scene proposal -> Check -> Apply -> Compile -> Editor Preview -> Runtime
+Codex / Claude Code -> edit .scene -> Pixifact CLI validate -> Compile -> Editor Preview -> Runtime
 ```
 
 - `.scene` files store `SceneSpec`.
@@ -96,6 +96,13 @@ The target compiler `.scene` agent workflow is documented in:
 
 ```txt
 docs/AI_SCENE_AUTHORING.md
+```
+
+Common validation commands:
+
+```bash
+bun run pixifact -- scene validate --project-root /path/to/project --scene scenes/Button.scene
+bun run pixifact -- compile-scenes --project-root /path/to/project
 ```
 
 ## Project Asset Boundary
