@@ -137,6 +137,18 @@ export interface CheckSceneProposalOptions {
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
 }
 
+export interface ValidateSceneContentOptions {
+    scene: string;
+    content: string;
+    existingAssets?: ReadonlySet<string>;
+    sceneInterfaces?: Record<string, SceneTemplateInterface>;
+}
+
+interface SceneValidationContext {
+    existingAssets?: ReadonlySet<string>;
+    sceneInterfaces?: Record<string, SceneTemplateInterface>;
+}
+
 export function checkSceneProposal(options: CheckSceneProposalOptions): SceneProposalCheckResult {
     const currentRevision = createSceneRevision(options.currentContent);
     if (options.proposal.baseRevision !== currentRevision) {
@@ -199,6 +211,54 @@ export function checkSceneProposal(options: CheckSceneProposalOptions): ScenePro
     }
 }
 
+export type SceneContentValidationResult =
+    | {
+        ok: true;
+        scene: string;
+        revision: string;
+        canonicalContent: string;
+        summary: SceneTemplateInspection;
+    }
+    | {
+        ok: false;
+        scene: string;
+        revision?: string;
+        error: string;
+        diagnostics?: SceneProposalDiagnostic[];
+        hint?: string;
+    };
+
+export function validateSceneContent(options: ValidateSceneContentOptions): SceneContentValidationResult {
+    try {
+        const template = parseSceneTemplate(options.content);
+        const diagnostics = validateSceneTemplateProposal(template, options);
+        const revision = createSceneRevision(options.content);
+        if (diagnostics.length > 0) {
+            return {
+                ok: false,
+                scene: options.scene,
+                revision,
+                error: 'Scene validation failed.',
+                diagnostics,
+                hint: 'Fix the listed diagnostics, then run scene validate again.',
+            };
+        }
+        return {
+            ok: true,
+            scene: options.scene,
+            revision,
+            canonicalContent: serializeSceneTemplate(template),
+            summary: inspectSceneTemplate(template),
+        };
+    } catch (error) {
+        return {
+            ok: false,
+            scene: options.scene,
+            error: error instanceof Error ? error.message : String(error),
+        };
+    }
+}
+
 export type SceneProposalApplyResult =
     | (Extract<SceneProposalCheckResult, { ok: true }> & { content: string })
     | Extract<SceneProposalCheckResult, { ok: false }>;
@@ -216,19 +276,19 @@ export function applySceneProposal(options: CheckSceneProposalOptions): ScenePro
 
 function validateSceneTemplateProposal(
     template: SceneTemplate,
-    options: CheckSceneProposalOptions,
+    context: SceneValidationContext,
 ): SceneProposalDiagnostic[] {
     return template.children.flatMap((child, index) => validateSceneNodeProposal(
         child,
         nodePathSegment(index, child),
-        options,
+        context,
     ));
 }
 
 function validateSceneNodeProposal(
     node: SceneTemplateNode,
     path: string,
-    options: CheckSceneProposalOptions,
+    context: SceneValidationContext,
 ): SceneProposalDiagnostic[] {
     if (node.kind === 'slotOutlet') {
         return [];
@@ -236,21 +296,21 @@ function validateSceneNodeProposal(
 
     if (node.kind === 'pixi') {
         return [
-            ...validatePixiNodeProposal(node, path, options.existingAssets),
+            ...validatePixiNodeProposal(node, path, context.existingAssets),
             ...node.children.flatMap((child, index) => validateSceneNodeProposal(
                 child,
                 `${path}/${nodePathSegment(index, child)}`,
-                options,
+                context,
             )),
         ];
     }
 
     return [
-        ...validateSceneInstanceNodeProposal(node, path, options),
+        ...validateSceneInstanceNodeProposal(node, path, context),
         ...Object.entries(node.slots).flatMap(([slot, children]) => children.flatMap((child, index) => validateSceneNodeProposal(
             child,
             `${path}/slot:${slot}/${nodePathSegment(index, child)}`,
-            options,
+            context,
         ))),
     ];
 }
@@ -313,11 +373,11 @@ function validatePixiNodeProposal(
 function validateSceneInstanceNodeProposal(
     node: SceneInstanceTemplateNode,
     path: string,
-    options: CheckSceneProposalOptions,
+    context: SceneValidationContext,
 ): SceneProposalDiagnostic[] {
-    const sceneInterface = options.sceneInterfaces?.[node.scene];
+    const sceneInterface = context.sceneInterfaces?.[node.scene];
     if (!sceneInterface) {
-        if (options.sceneInterfaces) {
+        if (context.sceneInterfaces) {
             return [{
                 path,
                 prop: 'scene',

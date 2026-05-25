@@ -349,6 +349,63 @@ describe('Pixifact CLI', () => {
         });
     });
 
+    it('validates compiler scene files after direct edits', async () => {
+        const projectRoot = createCompilerSceneProject();
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Button.scene',
+        ]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json).toMatchObject({
+            ok: true,
+            scenePath: 'scenes/Button.scene',
+            revision: createSceneRevision(fs.readFileSync(path.join(projectRoot, 'scenes', 'Button.scene'), 'utf8')),
+            summary: {
+                name: 'Button',
+                script: 'src/scenes/Button.ts',
+                nodeCount: 1,
+            },
+        });
+    });
+
+    it('rejects invalid directly edited compiler scene files', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'scenes', 'Button.scene'), [
+            '<Scene name="Button" script="src/scenes/Button.ts">',
+            '  <Sprite id="icon" textrue="assets/missing.png" />',
+            '</Scene>',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Button.scene',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'scenes/Button.scene',
+            error: 'Scene validation failed.',
+            diagnostics: [{
+                path: '0:icon',
+                prop: 'textrue',
+                expected: 'known Sprite prop',
+                actual: 'unknown prop',
+            }],
+        });
+    });
+
     it('checks compiler scene proposals without writing files', async () => {
         const projectRoot = createCompilerSceneProject();
         const scenePath = path.join(projectRoot, 'scenes', 'Button.scene');

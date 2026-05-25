@@ -7,6 +7,7 @@ import {
     extractSceneScriptInterface,
     inspectSceneTemplate,
     parseSceneTemplate,
+    validateSceneContent,
 } from 'pixifact/compiler';
 import {
     applyCommand,
@@ -446,6 +447,24 @@ export function createPixifactAutomation() {
                 scenePath: loaded.scenePath,
                 revision: createSceneRevision(loaded.content),
                 summary: inspectSceneTemplate(template),
+            };
+        },
+
+        validateCompilerScene(input: unknown) {
+            const args = assertRecord(input, 'input') as ToolInput;
+            const loaded = loadCompilerScene(args.projectRoot, args.scenePath);
+            const result = validateSceneContent({
+                scene: loaded.scenePath,
+                content: loaded.content,
+                existingAssets: collectProjectAssets(loaded.root),
+                sceneInterfaces: collectCompilerSceneInterfaces(loaded.root),
+            });
+            if (!result.ok) {
+                return result;
+            }
+            return {
+                ...result,
+                scenePath: loaded.scenePath,
             };
         },
 

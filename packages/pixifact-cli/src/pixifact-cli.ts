@@ -157,6 +157,13 @@ async function executeFileCommand(positionals: string[], flags: Record<string, s
         });
     }
 
+    if (area === 'scene' && action === 'validate') {
+        return automation.validateCompilerScene({
+            projectRoot: requireFlag(flags, 'project-root'),
+            scenePath: requireFlag(flags, 'scene'),
+        });
+    }
+
     if (area === 'scene' && action === 'proposal' && subaction === 'check') {
         return automation.checkCompilerSceneProposal({
             projectRoot: requireFlag(flags, 'project-root'),
@@ -266,6 +273,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'scene create',
                         'scene get',
                         'scene inspect',
+                        'scene validate',
                         'scene proposal check',
                         'scene proposal apply',
                         'node inspect',
