@@ -405,7 +405,7 @@ fn read_directory(root: &Path, directory: &Path, depth: usize) -> Result<Project
 }
 
 fn is_hidden_project_directory(name: &str) -> bool {
-    matches!(name, "node_modules" | "dist")
+    matches!(name, "node_modules" | "dist" | ".pixifact")
 }
 
 fn emit_project_file_change(app: &AppHandle, root: &Path, path: &Path) {

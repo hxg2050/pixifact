@@ -40,6 +40,7 @@ import {
     projectFileKind,
     projectFileRelativePath,
     renameProjectEntry,
+    refreshProjectFileTree,
     saveOpenedSceneFile,
     saveCompilerSceneFile,
     saveSceneFile,
@@ -296,8 +297,16 @@ vi.mock('../apps/editor/src/services/hostBridge', () => ({
 }));
 
 async function readHostTree() {
-    const tree = await host.readProjectFileTree('/tmp/GameProject');
-    return tree as Awaited<ReturnType<typeof import('../apps/editor/src/services/projectFileTree')['refreshProjectFileTree']>>;
+    return refreshProjectFileTree({
+        id: 'GameProject',
+        name: 'GameProject',
+        path: 'GameProject',
+        kind: 'folder',
+        depth: 0,
+        systemPath: '/tmp/GameProject',
+        projectRootPath: '/tmp/GameProject',
+        children: [],
+    });
 }
 
 function sceneScriptSource(className: string, members = '') {
@@ -394,6 +403,12 @@ describe('project file tree service', () => {
             dist: host.directory({
                 'bundle.js': host.file(),
             }),
+            '.pixifact': host.directory({
+                generated: host.directory({
+                    'Button.scene.generated.ts': host.file(),
+                    'scenes.generated.ts': host.file(),
+                }),
+            }),
             'README.md': host.file(),
             'atlas.png': host.file(),
         });
@@ -415,6 +430,7 @@ describe('project file tree service', () => {
         ]);
         expect(findFileByPath(tree, 'GameProject/node_modules')).toBeUndefined();
         expect(findFileByPath(tree, 'GameProject/dist')).toBeUndefined();
+        expect(findFileByPath(tree, 'GameProject/.pixifact')).toBeUndefined();
         expect(projectFileKind('Button.scene', 'GameProject/scenes/Button.scene')).toBe('scene');
         expect(projectFileKind('logic.ts', 'GameProject/scripts/logic.ts')).toBe('script');
         expect(projectFileKind('atlas.png', 'GameProject/atlas.png')).toBe('asset');

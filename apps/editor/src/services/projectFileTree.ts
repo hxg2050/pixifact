@@ -56,6 +56,7 @@ export interface ProjectFileTreeNode {
 const imageExtensions = new Set(['.png', '.jpg', '.jpeg', '.webp', '.gif', '.svg']);
 const scriptExtensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
 const docExtensions = new Set(['.md', '.txt']);
+const hiddenProjectDirectories = new Set(['node_modules', 'dist', '.pixifact']);
 const invalidProjectEntryNamePattern = /[\\/:*?"<>|\u0000-\u001F]/;
 
 export class ProjectFileOperationError extends Error {
@@ -76,6 +77,10 @@ function ensureProjectRootPath(projectTree: ProjectFileTreeNode) {
 function extension(name: string) {
     const index = name.lastIndexOf('.');
     return index >= 0 ? name.slice(index).toLowerCase() : '';
+}
+
+function isHiddenProjectDirectory(name: string) {
+    return hiddenProjectDirectories.has(name);
 }
 
 export function projectFileKind(name: string, path: string): ProjectFileKind {
@@ -568,7 +573,9 @@ function projectFileTreeFromHost(
         depth: node.depth,
         systemPath: node.systemPath,
         projectRootPath,
-        children: node.children?.map((child) => projectFileTreeFromHost(child, projectRootPath)),
+        children: node.children
+            ?.filter((child) => child.kind !== 'folder' || !isHiddenProjectDirectory(child.name))
+            .map((child) => projectFileTreeFromHost(child, projectRootPath)),
         detail: node.detail,
     };
 }
