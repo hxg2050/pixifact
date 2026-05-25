@@ -177,7 +177,7 @@ bun run example:build
 The repository-owned Codex skill lives at:
 
 ```txt
-skills/pixifact-editor
+skills/pixifact
 ```
 
 Install from the source checkout:

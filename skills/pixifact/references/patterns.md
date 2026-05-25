@@ -1,6 +1,6 @@
 # Pixifact Runtime Implementation Patterns
 
-These patterns describe the runtime foundation used by Pixifact Scene instantiation, the editor, MCP, and exported runtime code. Keep runtime changes aligned with Scene semantics, viewport preview, command application, and export.
+These patterns describe the runtime foundation used by Pixifact Scene instantiation, the editor, CLI workflows, and exported runtime code. Keep runtime changes aligned with Scene semantics, viewport preview, command application, scene compilation, and export.
 
 ## Application And Updates
 

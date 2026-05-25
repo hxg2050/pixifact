@@ -185,7 +185,7 @@ docs/TESTING.md
 仓库维护的 Codex skill 位于：
 
 ```txt
-skills/pixifact-editor
+skills/pixifact
 ```
 
 源码仓库内安装：

@@ -1,27 +1,29 @@
 ---
-name: pixifact-editor
-description: Build, maintain, and document the Pixifact framework, editor, and MCP tooling. Use when working in this repository on packages/pixifact, packages/pixifact-mcp, apps/editor, SceneDocument, SceneSpec, SceneCommand, AI proposal/repair flow, runtime preview, or underlying pixifact runtime code involving Application, GameObject, Group, Component lifecycles, Layout, GridLayout, FlexGroup/Flex, Graphics, Label, Image, NineSliceImage, Button templates, ScrollView, Input, Textarea, package exports, examples, tests, or PixiJS v8 integration patterns.
+name: pixifact
+description: Use when working on Pixifact repository or Pixifact consumer projects involving compiler .scene files, scene validate/compile workflows, packages/pixifact runtime or authoring APIs, packages/pixifact-cli, apps/editor, SceneDocument, SceneSpec, SceneCommand, scene proposals, runtime preview, generated scene output, Application, GameObject, Group, Component lifecycles, Layout, GridLayout, FlexGroup/Flex, Graphics, Label, Image, NineSliceImage, Button templates, ScrollView, Input, Textarea, examples, tests, or PixiJS v8 integration.
 ---
 
-# Pixifact Framework, Editor, And MCP
+# Pixifact
 
 ## Workflow
 
-Use this skill for Pixifact editor architecture and the runtime conventions that support it. If the task depends on raw PixiJS v8 behavior, also consult the PixiJS skill or official PixiJS v8 docs for that lower-level API.
+Use this skill for Pixifact scene authoring, runtime, CLI, editor architecture, and generated scene workflows. If the task depends on raw PixiJS v8 behavior, also consult the PixiJS skill or official PixiJS v8 docs for that lower-level API.
 
 Start by identifying whether the work is inside this repository or in a consumer app:
 
-- For repository work, read `README.md`, `PLAN.md`, and the relevant files under `packages/pixifact/`, `packages/pixifact-mcp/`, or `apps/editor/`.
+- For repository work, read `README.md`, `PLAN.md`, and the relevant files under `packages/pixifact/`, `packages/pixifact-cli/`, or `apps/editor/`.
+- For compiler `.scene` authoring, read `references/compiler-scene-agent.md`.
 - For consumer code, prefer public imports from `pixifact`, `pixifact/runtime`, `pixifact/scene`, `pixifact/commands`, or `pixifact/authoring`.
 - For repository orientation, read `references/project-map.md`.
 - For implementation conventions, read `references/patterns.md`.
 
 ## Core Rules
 
-- Treat `packages/pixifact/` as the public Scene semantic layer consumed by the editor, MCP, and agents.
-- Runtime changes should serve Scene instantiation, editor workflows, viewport preview, command application, MCP, or export.
+- Treat `packages/pixifact/` as the public Scene semantic layer consumed by the editor, CLI, and agents.
+- Runtime changes should serve Scene instantiation, editor workflows, viewport preview, command application, CLI validation/compilation, or export.
 - `SceneDocument` is the only source of truth for editor and agent Scene edits.
-- AI does not mutate projects directly; it produces structured commands / proposals that are validated before application.
+- Legacy `SceneSpec` agent edits use `SceneCommand` / proposal validation. Compiler `.scene` files use direct source edits plus `scene validate` by default.
+- Do not manually edit `src/generated/*.scene.generated.ts` or `src/generated/scenes.generated.ts`; generated scene TypeScript is build output.
 - Public authored node kinds are only `container`, `image`, `text`, `input`, and `shape`.
 - Only `container` nodes can contain children.
 - Display data belongs to node fields such as `text.value`, `image.src`, `input.value`, and `shape.color`.

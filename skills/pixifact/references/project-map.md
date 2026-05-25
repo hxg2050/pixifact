@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Pixifact is a standalone 2D UI and lightweight scene framework. The editor, MCP server, and external agents consume the same Scene semantic layer from `packages/pixifact/`.
+Pixifact is a standalone 2D UI and lightweight scene framework. The editor, CLI, and external agents consume the same Scene semantic layer from `packages/pixifact/`.
 
 ## Important Paths
 
@@ -12,7 +12,7 @@ Pixifact is a standalone 2D UI and lightweight scene framework. The editor, MCP 
 - `packages/pixifact/src/scene/` - Scene spec, templates, DSL, and runtime instantiation.
 - `packages/pixifact/src/commands/` - SceneCommand validation and application.
 - `packages/pixifact/src/authoring/` - SceneDocument, AI context/proposal, diff, action/logic/memory authoring models.
-- `packages/pixifact-mcp/` - MCP server for local Scene automation.
+- `packages/pixifact-cli/` - Pixifact CLI for scene inspection, validation, compilation, and proposal workflows.
 - `apps/editor/` - Pixifact desktop editor product.
 - `apps/editor/src-tauri/` - Tauri desktop host.
 - `apps/editor/src/panels/` - editor panels.
@@ -21,7 +21,7 @@ Pixifact is a standalone 2D UI and lightweight scene framework. The editor, MCP 
 - `apps/editor/src/services/` - editor application services.
 - `apps/editor/src/gateway/` - real AI gateway adapter sample.
 - `examples/basic/` - runtime example app.
-- `tests/` - unit, editor-domain, and MCP tests.
+- `tests/` - unit, editor-domain, CLI, and scene compiler tests.
 - `PLAN.md` - current Scene migration and project plan.
 - `skills/` - repository-owned Codex skills.
 - `scripts/install-skills.mjs` - installs repository skills into Codex's skills directory.

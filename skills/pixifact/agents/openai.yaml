@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pixifact"
+  short_description: "Build and maintain Pixifact scenes and runtime"
+  default_prompt: "Use $pixifact for Pixifact scene, runtime, CLI, or editor work."

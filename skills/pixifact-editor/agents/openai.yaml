@@ -1,4 +1,0 @@
-interface:
-  display_name: "Pixifact Editor"
-  short_description: "Build and maintain the Pixifact editor and runtime foundation"
-  default_prompt: "Use $pixifact-editor for Pixifact editor work or runtime foundation changes."
