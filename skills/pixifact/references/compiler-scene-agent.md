@@ -23,7 +23,7 @@ bun run build
 ## Hard Rules
 
 - Edit `scenes/*.scene` as source of truth.
-- Do not edit `src/generated/*.scene.generated.ts` or `src/generated/scenes.generated.ts`.
+- Do not edit `.pixifact/generated/*.scene.generated.ts` or `.pixifact/generated/scenes.generated.ts`.
 - Run `scene validate` after every edited compiler scene.
 - Run `compile-scenes` after validation passes.
 - If validation reports diagnostics, fix the `.scene` source and validate again.

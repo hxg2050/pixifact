@@ -177,7 +177,7 @@ hud.score = value;
 ```txt
 scenes/Button.scene
 src/scenes/Button.ts
-src/generated/pixifact/Button.scene.generated.ts
+.pixifact/generated/Button.scene.generated.ts
 ```
 
 `.scene` 负责绑定脚本，脚本用 `@scene()` 标记自己是 Scene 类：
@@ -301,7 +301,7 @@ Scene public contract -> Inspector fields
 编译器生成内部 mount 函数和 typed parts。
 
 ```txt
-Button.scene -> Button.scene.generated.ts
+Button.scene -> .pixifact/generated/Button.scene.generated.ts
 ```
 
 生成代码负责：

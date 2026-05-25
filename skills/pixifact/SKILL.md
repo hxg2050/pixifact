@@ -23,7 +23,7 @@ Start by identifying whether the work is inside this repository or in a consumer
 - Runtime changes should serve Scene instantiation, editor workflows, viewport preview, command application, CLI validation/compilation, or export.
 - `SceneDocument` is the only source of truth for editor and agent Scene edits.
 - Legacy `SceneSpec` agent edits use `SceneCommand` / proposal validation. Compiler `.scene` files use direct source edits plus `scene validate` by default.
-- Do not manually edit `src/generated/*.scene.generated.ts` or `src/generated/scenes.generated.ts`; generated scene TypeScript is build output.
+- Do not manually edit `.pixifact/generated/*.scene.generated.ts` or `.pixifact/generated/scenes.generated.ts`; generated scene TypeScript is build output.
 - Public authored node kinds are only `container`, `image`, `text`, `input`, and `shape`.
 - Only `container` nodes can contain children.
 - Display data belongs to node fields such as `text.value`, `image.src`, `input.value`, and `shape.color`.

@@ -277,7 +277,7 @@ packages/pixifact/src/compiler/
 
 - `parseSceneTemplate(source)`：解析受限 XML 到 typed Scene AST。
 - `compileSceneTemplateToTs(template)`：生成最小 PixiJS TS mount function，可注册到 runtime scene registry。
-- `pixifact/compiler-node` 提供 `compileScenes(options)`：扫描项目 `scenes/*.scene`，从绑定脚本提取 virtual contract，生成 `src/generated/*.scene.generated.ts` 与 registry 入口。
+- `pixifact/compiler-node` 提供 `compileScenes(options)`：扫描项目 `scenes/*.scene`，从绑定脚本提取 virtual contract，生成 `.pixifact/generated/*.scene.generated.ts` 与 registry 入口。
 - Pixifact CLI 提供 `compile-scenes` 命令，内部调用 `compileScenes({ projectRoot })`。
 - `extractSceneScriptInterface(source, fileName, { scene })`：静态提取 `@scene/@prop/@event/@slot/@part`。
 - `emitSceneScriptInterfaceDescriptor(source, fileName, { scene })`：输出稳定 JSON descriptor，仅作为派生结果，不落回 `.scene`。
@@ -395,7 +395,7 @@ Demo 当前状态：
 - `Panel.scene` 暴露 `content` 和 `footer` slots，以及 `title` prop。
 - `Button.scene` 暴露 `icon` slot、`label` / `disabled` props，以及 `click` event。
 - `MainMenu.scene` 展示 `Panel` Scene Instance、`Button` Scene Instance、slot 投放、public props 和 `@click="startGame"`。
-- 生成产物在 `sample-projects/scene-compiler-demo/src/generated/`，由 Pixifact CLI 生成。
+- 生成产物在 `sample-projects/scene-compiler-demo/.pixifact/generated/`，由 Pixifact CLI 生成。
 
 Demo 常用命令：
 

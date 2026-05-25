@@ -313,7 +313,7 @@ describe('Pixifact CLI', () => {
         `);
 
         const result = await runCli(['compile-scenes', '--project-root', projectRoot]);
-        const generated = fs.readFileSync(path.join(projectRoot, 'src', 'generated', 'Button.scene.generated.ts'), 'utf8');
+        const generated = fs.readFileSync(path.join(projectRoot, '.pixifact', 'generated', 'Button.scene.generated.ts'), 'utf8');
 
         expect(result.exitCode).toBe(0);
         expect(result.json).toMatchObject({

@@ -17,7 +17,7 @@ export async function compileScenes(options: CompileScenesOptions) {
         ? options.projectRoot
         : fileURLToPath(options.projectRoot);
     const scenesDir = path.resolve(projectRoot, options.scenesDir ?? 'scenes');
-    const generatedDir = path.resolve(projectRoot, options.generatedDir ?? 'src/generated');
+    const generatedDir = path.resolve(projectRoot, options.generatedDir ?? '.pixifact/generated');
     const sceneFiles = (await readdir(scenesDir))
         .filter((file) => file.endsWith('.scene'))
         .sort();

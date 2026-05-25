@@ -87,7 +87,7 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 ## Hard Rules
 
 - `.scene` files are the only agent-editable source for compiler scenes.
-- `src/generated/*.scene.generated.ts` is never an agent editing target.
+- `.pixifact/generated/*.scene.generated.ts` is never an agent editing target.
 - Every editable node must have a stable ID.
 - Direct edits must be followed by `scene validate`.
 - Proposal apply must check the base scene revision.
@@ -128,7 +128,7 @@ You are editing a Pixifact compiler scene.
 
 Rules:
 - Edit scenes/*.scene as the source of truth.
-- Do not edit src/generated/*.scene.generated.ts or src/generated/scenes.generated.ts.
+- Do not edit .pixifact/generated/*.scene.generated.ts or .pixifact/generated/scenes.generated.ts.
 - Use Pixifact CLI to inspect and validate scenes.
 - After editing any .scene file, run:
   bun run pixifact -- scene validate --project-root <project-root> --scene <scene-path>

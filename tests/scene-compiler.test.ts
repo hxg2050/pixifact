@@ -23,7 +23,7 @@ import {
     scene,
     slot,
 } from 'pixifact/compiler';
-import { compileScenes } from 'pixifact/compiler-node';
+import { compileScenes, pixifactScenesPlugin } from 'pixifact/compiler-node';
 
 describe('Pixifact scene compiler spike', () => {
     it('creates stable revisions for canonical compiler scene source', () => {
@@ -707,13 +707,13 @@ describe('Pixifact scene compiler spike', () => {
 
             await compileScenes({ projectRoot: root });
 
-            const generated = await readFile(join(root, 'src', 'generated', 'Button.scene.generated.ts'), 'utf8');
-            const registry = await readFile(join(root, 'src', 'generated', 'scenes.generated.ts'), 'utf8');
+            const generated = await readFile(join(root, '.pixifact', 'generated', 'Button.scene.generated.ts'), 'utf8');
+            const registry = await readFile(join(root, '.pixifact', 'generated', 'scenes.generated.ts'), 'utf8');
             const source = await readFile(join(root, 'scenes', 'Button.scene'), 'utf8');
 
             expect(generated).toContain('registerScene("scenes/Button.scene"');
             expect(generated).toContain('registerSceneClass(Button, "scenes/Button.scene");');
-            expect(generated).toContain('import { Button } from "../scenes/Button";');
+            expect(generated).toContain('import { Button } from "../../src/scenes/Button";');
             expect(generated).toContain('import __pixifactTextureUrl1 from "../../assets/btn.png?url";');
             expect(generated).toContain('const __pixifactTexture1 = await Assets.load(__pixifactTextureUrl1);');
             expect(generated).toContain('export function mountButtonScene(root: Container)');
@@ -722,6 +722,15 @@ describe('Pixifact scene compiler spike', () => {
         } finally {
             await rm(root, { recursive: true, force: true });
         }
+    });
+
+    it('resolves the Vite virtual scene registry to the generated project cache', () => {
+        const plugin = pixifactScenesPlugin({
+            projectRoot: '/projects/game',
+        });
+
+        expect(plugin.resolveId('pixifact:scenes')).toBe(join('/projects/game', '.pixifact', 'generated', 'scenes.generated.ts'));
+        expect(plugin.resolveId('pixifact:other')).toBeUndefined();
     });
 
     it('rejects scene files whose name does not match the bound @scene class', async () => {

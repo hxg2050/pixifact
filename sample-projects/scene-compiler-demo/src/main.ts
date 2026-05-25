@@ -1,5 +1,5 @@
 import './styles.css';
-import './generated/scenes.generated';
+import 'pixifact:scenes';
 import { Application } from 'pixi.js';
 import { MainMenu } from './scenes/MainMenu';
 

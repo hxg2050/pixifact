@@ -25,12 +25,12 @@ cd sample-projects/scene-compiler-demo
 bun run build
 ```
 
-`dev` / `build` 会先执行 `bun run compile:scenes`，把 `scenes/*.scene` 生成到 `src/generated/`。
+`dev` / `build` 会先执行 `bun run compile:scenes`，把 `scenes/*.scene` 生成到 `.pixifact/generated/`。
 实际扫描和生成逻辑由 `pixifact/compiler-node` 的 `compileScenes()` 提供；本示例通过 Pixifact CLI 的 `compile-scenes` 命令调用它。
 
 ## Agent 修改流程
 
-Codex / Claude Code 修改这个示例时，默认直接编辑 `scenes/*.scene`。不要编辑 `src/generated/*.scene.generated.ts` 或 `src/generated/scenes.generated.ts`，这些文件由 compiler 生成。
+Codex / Claude Code 修改这个示例时，默认直接编辑 `scenes/*.scene`。不要编辑 `.pixifact/generated/*.scene.generated.ts` 或 `.pixifact/generated/scenes.generated.ts`，这些文件由 compiler 生成。
 
 推荐流程：
 
@@ -48,7 +48,7 @@ cd sample-projects/scene-compiler-demo && bun run build
 把 Button.scene 里的 Text#labelText 文案从 "Button" 改成 "Play"。
 只修改 scenes/Button.scene。
 修改后运行 scene validate、compile-scenes 和 sample build。
-不要手动修改 src/generated。
+不要手动修改 .pixifact/generated。
 ```
 
 需要防止旧内容覆盖或需要先审查 diff 时，再使用 `scene proposal check/apply`。

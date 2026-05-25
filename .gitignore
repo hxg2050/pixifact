@@ -19,6 +19,8 @@ dist-ssr
 coverage
 coverage.lcov
 test-results/
+.pixifact/
+**/.pixifact/
 apps/editor/src-tauri/gen/
 apps/editor/src-tauri/target/
 *.local
