@@ -170,6 +170,13 @@ MVP 成功标准：
 10. 运行失败时 Editor 显示错误日志。
 11. 点击停止能终止 Editor 启动的 dev server。
 
+当前验收状态：
+
+- [x] `sample-projects/space-hud-game` 已新增并提交。
+- [x] 示例项目使用 Pixifact compiler runtime 加载 `.scene`。
+- [x] `bun run build`、相关 run config / run service 测试和样例项目测试已通过。
+- [x] 已由人工通过 Pixifact Editor 完整手动验收：打开项目、预览 HUD、运行真实游戏、浏览器操作、HUD 随 gameplay 更新、保存后重新运行、停止进程。
+
 ## 7. Agent 参与方式
 
 Codex / Claude Code 是完整游戏开发入口。给 Agent 的推荐任务格式：
@@ -186,14 +193,14 @@ Scene 修改必须生成 SceneCommand[]，先 dry-run，ok 后 apply。
 
 ## 8. 实现顺序
 
-1. 定义 `pixifact.project.json` schema 和读取服务。
-2. 为 Tauri host 增加受控进程启动、日志、停止能力。
-3. 将 Editor toolbar 的 `运行` 按钮接入 run service。
-4. 展示运行状态和日志摘要。
-5. 新增 `sample-projects/space-hud-game`。
-6. 示例游戏接入 Pixifact runtime 并加载 `.scene`。
-7. 补 service / host / CLI-adjacent 测试。
-8. 手动验收完整运行闭环。
+1. [x] 定义 `pixifact.project.json` schema 和读取服务。
+2. [x] 为 Tauri host 增加受控进程启动、日志、停止能力。
+3. [x] 将 Editor toolbar 的 `运行` 按钮接入 run service。
+4. [x] 展示运行状态和日志摘要。
+5. [x] 新增 `sample-projects/space-hud-game`。
+6. [x] 示例游戏接入 Pixifact runtime 并加载 `.scene`。
+7. [x] 补 service / host / CLI-adjacent 测试。
+8. [x] 手动验收完整运行闭环。
 
 不在 MVP 中实现：
 

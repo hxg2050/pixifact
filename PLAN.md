@@ -59,8 +59,8 @@ apps/editor/src-tauri/            Tauri host
 
 ## 5. 下一阶段
 
-- [ ] 跑通运行真实游戏的 MVP 闭环，详见 `docs/RUN_MVP_PLAN.md`。
-- [ ] 新增完整示例游戏 `sample-projects/space-hud-game`，作为运行、Scene 集成和 Agent 工作流的黄金路径。
+- [x] 跑通运行真实游戏的 MVP 闭环，详见 `docs/RUN_MVP_PLAN.md`。
+- [x] 新增完整示例游戏 `sample-projects/space-hud-game`，作为运行、Scene 集成和 Agent 工作流的黄金路径。
 - [ ] 将 editor 主流程从 Alpha proposal 审查器继续收敛为 Agent / CLI-first 审查和预览工作流。
 - [ ] 继续优化桌面版本机能力：文件打开、系统默认程序打开、外部代码编辑器跳转。
 - [ ] 扩充 Scene 模板库：常用 HUD 组合。
