@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import { createPixifactAutomation } from './automation';
 import { hintForCommandError } from 'pixifact';
-import { compileScenes } from 'pixifact/compiler-node';
+import { CompileSceneError, compileScenes } from 'pixifact/compiler-node';
+import type { SceneProposalDiagnostic } from 'pixifact/compiler';
 import { createLiveBridgeServer } from './liveBridgeServer';
 
 type Automation = ReturnType<typeof createPixifactAutomation>;
@@ -98,12 +99,85 @@ function isFailedResult(value: unknown): value is CliJsonResult {
         && (value as CliJsonResult).ok === false;
 }
 
+function compileScenesFailure(error: unknown): CliJsonResult {
+    const message = error instanceof Error ? error.message : String(error);
+    if (error instanceof CompileSceneError) {
+        const sourceDiagnostic = sourceDiagnosticFromMessage(error.source ?? '', message);
+        if (sourceDiagnostic) {
+            return {
+                ok: false,
+                scene: error.scene,
+                error: 'Scene compile failed.',
+                diagnostics: [sourceDiagnostic],
+                hint: 'Fix the listed diagnostics, then run compile-scenes again.',
+            };
+        }
+    }
+    const classMismatch = message.match(/^Scene "([^"]+)" name "([^"]+)" must match @scene class "([^"]+)"\.$/);
+    if (classMismatch) {
+        const [, scene, actual, expectedClass] = classMismatch;
+        return {
+            ok: false,
+            scene,
+            error: 'Scene compile failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: 'name',
+                expected: `@scene class name "${expectedClass}"`,
+                actual,
+                hint: 'Rename the <Scene name> to match the bound @scene class, or update the class name in the bound script.',
+            } satisfies SceneProposalDiagnostic],
+            hint: 'Fix the listed diagnostics, then run compile-scenes again.',
+        };
+    }
+    return {
+        ok: false,
+        error: message,
+        hint: hintForCommandError(message),
+    };
+}
+
+function sourceDiagnosticFromMessage(source: string, message: string): SceneProposalDiagnostic | undefined {
+    if (!message.includes('offset')) {
+        return undefined;
+    }
+    return {
+        path: '__scene__',
+        prop: 'source',
+        expected: 'valid Pixifact .scene source',
+        actual: message,
+        hint: 'Fix the .scene source syntax near the reported location.',
+        ...sourcePositionFromMessage(source, message),
+    };
+}
+
+function sourcePositionFromMessage(source: string, message: string) {
+    const match = message.match(/\boffset (\d+)\b/);
+    if (!match) {
+        return {};
+    }
+    const offset = Number(match[1]);
+    if (!Number.isInteger(offset) || offset < 0) {
+        return {};
+    }
+    const before = source.slice(0, offset);
+    const lines = before.split('\n');
+    return {
+        line: lines.length,
+        column: lines.at(-1)!.length + 1,
+    };
+}
+
 async function executeFileCommand(positionals: string[], flags: Record<string, string | true>, automation: Automation, input: string | NodeJS.ReadableStream | undefined) {
     const [area, action, subaction] = positionals;
 
     if (area === 'compile-scenes' && action === undefined) {
         const projectRoot = typeof flags['project-root'] === 'string' ? flags['project-root'] : process.cwd();
-        await compileScenes({ projectRoot });
+        try {
+            await compileScenes({ projectRoot });
+        } catch (error) {
+            return compileScenesFailure(error);
+        }
         return {
             ok: true,
             projectRoot,

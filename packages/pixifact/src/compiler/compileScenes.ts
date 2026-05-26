@@ -12,6 +12,17 @@ export interface CompileScenesOptions {
     generatedDir?: string;
 }
 
+export class CompileSceneError extends Error {
+    constructor(
+        message: string,
+        public readonly scene: string,
+        public readonly source?: string,
+    ) {
+        super(message);
+        this.name = 'CompileSceneError';
+    }
+}
+
 export async function compileScenes(options: CompileScenesOptions) {
     const projectRoot = typeof options.projectRoot === 'string'
         ? options.projectRoot
@@ -27,13 +38,18 @@ export async function compileScenes(options: CompileScenesOptions) {
     const templates = new Map<string, SceneTemplate>();
     for (const file of sceneFiles) {
         const source = await readFile(path.join(scenesDir, file), 'utf8');
-        const template = parseSceneTemplate(source);
-        const descriptor = await readBoundSceneScript(projectRoot, `scenes/${file}`, template);
-        if (!template.script) {
-            throw new Error(`Scene "scenes/${file}" must declare script.`);
+        const scenePath = `scenes/${file}`;
+        try {
+            const template = parseSceneTemplate(source);
+            const descriptor = await readBoundSceneScript(projectRoot, scenePath, template);
+            if (!template.script) {
+                throw new Error(`Scene "${scenePath}" must declare script.`);
+            }
+            template.interface = descriptor.interface;
+            templates.set(file, template);
+        } catch (error) {
+            throw new CompileSceneError(error instanceof Error ? error.message : String(error), scenePath, source);
         }
-        template.interface = descriptor.interface;
-        templates.set(file, template);
     }
 
     const registryImports: string[] = [];

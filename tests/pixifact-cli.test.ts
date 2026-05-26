@@ -437,6 +437,99 @@ describe('Pixifact CLI', () => {
         });
     });
 
+    it('returns repairable diagnostics for malformed compiler scene files', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'scenes', 'Button.scene'), [
+            '<Scene name="Button" script="src/scenes/Button.ts">',
+            '  <Text id="label" text="Start" ',
+            '</Scene>',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'scenes/Button.scene',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'scenes/Button.scene',
+            error: 'Scene parse failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: 'source',
+                expected: 'valid Pixifact .scene source',
+                actual: expect.stringContaining('Expected name at offset'),
+                line: 3,
+                column: 1,
+            }],
+            hint: 'Fix the listed diagnostics, then run scene validate again.',
+        });
+    });
+
+    it('returns repairable diagnostics when compile-scenes rejects a scene', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.mkdirSync(path.join(projectRoot, 'src', 'scenes'), { recursive: true });
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
+            'import { Container } from "pixi.js";',
+            'import { scene } from "pixifact/compiler";',
+            '',
+            '@scene()',
+            'export class PrimaryButton extends Container {}',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli(['compile-scenes', '--project-root', projectRoot]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'scenes/Button.scene',
+            error: 'Scene compile failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: 'name',
+                expected: '@scene class name "PrimaryButton"',
+                actual: 'Button',
+                hint: 'Rename the <Scene name> to match the bound @scene class, or update the class name in the bound script.',
+            }],
+            hint: 'Fix the listed diagnostics, then run compile-scenes again.',
+        });
+    });
+
+    it('returns repairable diagnostics when compile-scenes cannot parse a scene', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'scenes', 'Button.scene'), [
+            '<Scene name="Button" script="src/scenes/Button.ts">',
+            '  <Text id="label" text="Start" ',
+            '</Scene>',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli(['compile-scenes', '--project-root', projectRoot]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'scenes/Button.scene',
+            error: 'Scene compile failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: 'source',
+                expected: 'valid Pixifact .scene source',
+                actual: expect.stringContaining('Expected name at offset'),
+                line: 3,
+                column: 1,
+            }],
+            hint: 'Fix the listed diagnostics, then run compile-scenes again.',
+        });
+    });
+
     it('checks compiler scene proposals without writing files', async () => {
         const projectRoot = createCompilerSceneProject();
         const scenePath = path.join(projectRoot, 'scenes', 'Button.scene');

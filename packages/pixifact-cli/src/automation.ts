@@ -222,7 +222,7 @@ function collectAssetFiles(root: string, directory: string, assets: Set<string>)
     }
 }
 
-function collectCompilerSceneInterfaces(root: string) {
+function collectCompilerSceneInterfaces(root: string, skippedScene?: string) {
     const scenesRoot = path.join(root, 'scenes');
     const interfaces: Record<string, SceneTemplateInterface> = {};
     if (!fs.existsSync(scenesRoot)) {
@@ -231,6 +231,9 @@ function collectCompilerSceneInterfaces(root: string) {
 
     for (const file of fs.readdirSync(scenesRoot).filter((item) => item.endsWith('.scene')).sort()) {
         const scenePath = `scenes/${file}`;
+        if (scenePath === skippedScene) {
+            continue;
+        }
         const template = parseSceneTemplate(readTextFile(path.join(scenesRoot, file)));
         const sceneInterface = readCompilerSceneInterface(root, scenePath, template);
         if (sceneInterface) {
@@ -413,7 +416,7 @@ export function createPixifactAutomation() {
                 scene: loaded.scenePath,
                 content: loaded.content,
                 existingAssets: collectProjectAssets(loaded.root),
-                sceneInterfaces: collectCompilerSceneInterfaces(loaded.root),
+                sceneInterfaces: collectCompilerSceneInterfaces(loaded.root, loaded.scenePath),
             });
             if (!result.ok) {
                 return result;

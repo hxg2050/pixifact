@@ -47,6 +47,8 @@ export interface SceneProposalDiagnostic {
     expected: string;
     actual: string;
     hint?: string;
+    line?: number;
+    column?: number;
 }
 
 export type SceneProposalCheckResult =
@@ -251,12 +253,43 @@ export function validateSceneContent(options: ValidateSceneContentOptions): Scen
             summary: inspectSceneTemplate(template),
         };
     } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         return {
             ok: false,
             scene: options.scene,
-            error: error instanceof Error ? error.message : String(error),
+            error: 'Scene parse failed.',
+            diagnostics: [sceneSourceDiagnostic(options.content, message)],
+            hint: 'Fix the listed diagnostics, then run scene validate again.',
         };
     }
+}
+
+function sceneSourceDiagnostic(source: string, message: string): SceneProposalDiagnostic {
+    return {
+        path: '__scene__',
+        prop: 'source',
+        expected: 'valid Pixifact .scene source',
+        actual: message,
+        hint: 'Fix the .scene source syntax near the reported location.',
+        ...sourcePositionFromMessage(source, message),
+    };
+}
+
+function sourcePositionFromMessage(source: string, message: string) {
+    const match = message.match(/\boffset (\d+)\b/);
+    if (!match) {
+        return {};
+    }
+    const offset = Number(match[1]);
+    if (!Number.isInteger(offset) || offset < 0) {
+        return {};
+    }
+    const before = source.slice(0, offset);
+    const lines = before.split('\n');
+    return {
+        line: lines.length,
+        column: lines.at(-1)!.length + 1,
+    };
 }
 
 export type SceneProposalApplyResult =
