@@ -134,4 +134,26 @@ describe('Pixifact project run config', () => {
             },
         });
     });
+
+    it('parses the scene compiler demo project config', () => {
+        const config = parsePixifactProjectConfig(JSON.parse(fs.readFileSync(
+            path.resolve('sample-projects/scene-compiler-demo/pixifact.project.json'),
+            'utf8',
+        )));
+
+        expect(config).toMatchObject({
+            name: 'Scene Compiler Demo',
+            scenes: {
+                mainMenu: 'scenes/MainMenu.scene',
+                button: 'scenes/Button.scene',
+                panel: 'scenes/Panel.scene',
+            },
+            run: {
+                command: 'bun',
+                args: ['run', 'dev'],
+                cwd: '.',
+                url: 'http://localhost:5175',
+            },
+        });
+    });
 });

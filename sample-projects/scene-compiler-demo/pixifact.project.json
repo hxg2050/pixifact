@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "Scene Compiler Demo",
+  "scenes": {
+    "mainMenu": "scenes/MainMenu.scene",
+    "button": "scenes/Button.scene",
+    "panel": "scenes/Panel.scene"
+  },
+  "run": {
+    "command": "bun",
+    "args": ["run", "dev"],
+    "cwd": ".",
+    "url": "http://localhost:5175"
+  }
+}
