@@ -10,7 +10,19 @@ bun run build
 
 The game uses `720x1280` as its portrait design size and scales that design into the current window while keeping the full scene visible across different aspect ratios.
 
-## Agent Proposal Review
+## Agent Workflow
+
+The default Agent workflow is direct `.scene` editing followed by Pixifact validation and compile checks:
+
+```bash
+cd ../..
+bun run pixifact -- scene inspect --project-root sample-projects/space-hud-game --scene scenes/Hud.scene
+bun run pixifact -- scene validate --project-root sample-projects/space-hud-game --scene scenes/Hud.scene
+bun run pixifact -- compile-scenes --project-root sample-projects/space-hud-game
+cd sample-projects/space-hud-game && bun run build
+```
+
+## Optional Proposal Review
 
 `proposals/hud-hint-mobile.proposal.json` is a small `.scene proposal` for testing the Editor Agent review flow. It changes the HUD hint text from keyboard-only controls to a mobile-friendly hint.
 

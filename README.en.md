@@ -1,8 +1,10 @@
 # Pixifact
 
-Pixifact is a Scene, UI, lightweight scene, and project asset management layer for AI-assisted full game development. PixiJS is the rendering implementation underneath; Pixifact exposes Scene, node, behavior component, command, and authoring document semantics.
+Pixifact is a Scene, UI, lightweight scene, and project asset management layer for AI-assisted full game development. PixiJS is the rendering implementation underneath; Pixifact exposes Scene, node, behavior component, command, compiler `.scene`, and validation semantics.
 
-Codex, Claude Code, and similar coding agents are the primary AI entry points. Pixifact CLI is the controlled tool layer those agents use to operate on Scenes; the desktop editor lives in `apps/editor/` and is used to preview, review, and manually refine agent-produced Scene changes; the runtime loads `.scene` assets in the game.
+Codex, Claude Code, and similar coding agents are the primary AI entry points. Pixifact CLI is the tool layer those agents use to understand, edit, validate, and compile Scenes; the desktop editor lives in `apps/editor/` and is used for preview, asset browsing, validation feedback, and manual refinement; the runtime loads `.scene` assets in the game.
+
+Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestration, Git branches / commits / reverts, task management, CI, PRs, and long-term project management belong to specialized external tools instead of Pixifact.
 
 [中文](./README.md)
 
@@ -77,6 +79,8 @@ Desktop development and packaging require Rust / Cargo. Users who install the pa
 ## CLI
 
 The CLI is the primary entry point for external agents operating on Pixifact projects. Pixifact does not treat built-in chat as the main AI path.
+
+For compiler `.scene`, the default agent flow is direct `.scene` source editing followed by Pixifact CLI domain validation and compilation. `.scene proposal` is only for stale-write protection, explicit review, or collaborative audit workflows; it is not the default AI development path.
 
 For legacy `SceneSpec`, agents should read context, generate structured `SceneCommand[]`, dry-run, then apply after validation succeeds:
 

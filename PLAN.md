@@ -1,14 +1,16 @@
 # Pixifact Scene Migration Plan
 
-本文档记录当前 Pixifact 最终目标和迁移状态。项目已经从 editor-only 目标收敛为面向 AI 完整游戏开发的 `pixifact` framework + CLI + editor + runtime：核心包提供 Scene 语义，外部 Agent 通过 CLI 修改 Scene，编辑器负责预览、审查、资产浏览和人工微调。
+本文档记录当前 Pixifact 最终目标和迁移状态。项目已经从 editor-only 目标收敛为面向 AI 完整游戏开发的 `pixifact` framework + CLI + editor + runtime：核心包提供 Scene 语义，外部 Agent 通过 CLI 理解、修改、验证和编译 Scene，编辑器负责预览、资产浏览、校验结果展示和人工微调。
 
 ## 1. 最终定位
 
 - Pixifact 是面向 AI 完整游戏开发的 Scene / UI / 轻场景与项目资产管理层。
 - PixiJS 只作为底层渲染实现，不作为用户 authoring 心智。
 - Codex、Claude Code 等 coding agent 是主要 AI 入口。
-- CLI 是 Agent 操作 Pixifact Scene 的主入口。
-- 编辑器用于预览、审查 Agent 生成结果和手动调整。
+- Pixifact 只提供 AI 可操作的 Scene 能力：inspect、edit、validate、compile、preview 和 diagnose。
+- CLI 是 Agent 操作 Pixifact Scene 能力的主入口。
+- Git 分支 / commit / revert、Agent 编排、任务管理、CI、PR 和长期项目管理交给外部专业工具。
+- 编辑器用于预览、资产浏览、校验结果展示和手动调整。
 - 编辑器提供轻量资产预览、资源引用和校验，但不编辑图片、音频、脚本等源资源。
 - 双击具体资源调用系统默认程序；打开脚本调用外部代码编辑器。
 - Runtime 在游戏中加载 `.scene`。
@@ -61,7 +63,7 @@ apps/editor/src-tauri/            Tauri host
 
 - [x] 跑通运行真实游戏的 MVP 闭环，详见 `docs/RUN_MVP_PLAN.md`。
 - [x] 新增完整示例游戏 `sample-projects/space-hud-game`，作为运行、Scene 集成和 Agent 工作流的黄金路径。
-- [ ] 将 editor 主流程从 Alpha proposal 审查器继续收敛为 Agent / CLI-first 审查和预览工作流。
+- [ ] 将 editor 主流程从 Alpha proposal 审查器继续收敛为 Agent / CLI-first 的 Scene 预览、校验反馈和自动刷新工作流。
 - [ ] 继续优化桌面版本机能力：文件打开、系统默认程序打开、外部代码编辑器跳转。
 - [ ] 扩充 Scene 模板库：常用 HUD 组合。
 - [ ] 增加 `.scene` 创建、保存、CLI 修改和 editor 预览的 E2E 覆盖。

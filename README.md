@@ -1,8 +1,10 @@
 # Pixifact
 
-Pixifact 是面向 AI 完整游戏开发的 Scene / UI / 轻场景与项目资产管理层。PixiJS 是底层渲染实现，Pixifact 对外暴露 Scene、节点、行为组件、Command 和 authoring document 语义。
+Pixifact 是面向 AI 完整游戏开发的 Scene / UI / 轻场景与项目资产管理层。PixiJS 是底层渲染实现，Pixifact 对外暴露 Scene、节点、行为组件、Command、compiler `.scene` 和验证语义。
 
-Codex、Claude Code 等 coding agent 是主要 AI 入口。Pixifact CLI 是 Agent 操作 Scene 的受控工具层；桌面编辑器位于 `apps/editor/`，用于预览、审查和人工微调 Agent 产出的 Scene 修改；runtime 负责在游戏中加载 `.scene`。
+Codex、Claude Code 等 coding agent 是主要 AI 入口。Pixifact CLI 是 Agent 理解、修改、验证和编译 Scene 的工具层；桌面编辑器位于 `apps/editor/`，用于预览、资产浏览、校验结果展示和人工微调；runtime 负责在游戏中加载 `.scene`。
+
+Pixifact 只专注提供 AI 可操作的 Scene 能力。Agent 编排、Git 分支 / commit / revert、任务管理、CI、PR 和长期项目管理交给外部专业工具，不在 Pixifact 内重复实现。
 
 [English](./README.en.md)
 
@@ -77,6 +79,8 @@ bun run desktop:build
 ## CLI
 
 CLI 是外部 Agent 操作 Pixifact 项目的主入口。Pixifact 不把内置聊天作为主要 AI 路径。
+
+Compiler `.scene` 的默认 Agent 流程是直接编辑 `.scene` 源文件，然后使用 Pixifact CLI 做领域验证和编译。`.scene proposal` 只在需要防覆盖、显式审查或协作审计时使用，不是默认 AI 开发路径。
 
 Legacy `SceneSpec` 流程中，Agent 应先读取上下文，生成结构化 `SceneCommand[]`，dry-run 通过后再 apply：
 

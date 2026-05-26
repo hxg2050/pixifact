@@ -2,6 +2,8 @@
 
 Pixifact uses source-level agent editing as the final authoring model for compiler scenes. The target user flow is external coding agents such as Claude Code and Codex using Pixifact CLI tools. Pixifact does not need an integrated AI chat or model gateway for this flow.
 
+Pixifact is intentionally a focused Scene capability, not a full AI IDE or project manager. It provides inspect, edit, validate, compile, preview, and diagnose support for `.scene` source. Agent orchestration, Git branches, commits, reverts, PRs, CI, and task management belong to external tools.
+
 ## Decision
 
 External agents edit `.scene` source files. Pixifact parses, validates, and compiles those files. Generated TypeScript is always treated as a build artifact.
@@ -22,7 +24,7 @@ For higher-risk edits, agents may use the guarded proposal workflow:
 Claude Code / Codex reads .scene
 Claude Code / Codex writes a .scene proposal envelope
 Pixifact checks base revision, validation, and semantic diff
-User or agent applies the proposal after review
+User or agent applies the proposal when explicit review is required
 Pixifact writes the .scene file
 Pixifact compiles generated TypeScript
 Editor refreshes preview
@@ -65,7 +67,7 @@ bun run pixifact -- compile-scenes --project-root sample-projects/scene-compiler
 cd sample-projects/scene-compiler-demo && bun run build
 ```
 
-`scene validate` checks parse errors, prop names, prop value types, asset references, and public Scene instance contracts. It is the required safety check after direct `.scene` edits.
+`scene validate` checks parse errors, prop names, prop value types, asset references, and public Scene instance contracts. It is the required safety check after direct `.scene` edits. Git state, commits, rollback, branch isolation, and merge strategy are intentionally outside Pixifact; external agents and developer tools should manage them directly.
 
 ## Guarded Proposal Workflow
 
@@ -102,6 +104,7 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 - Do not expose generated TypeScript as an agent-editable representation.
 - Do not let editor live tools bypass `.scene` parsing and validation.
 - Do not build this compiler-scene workflow around an integrated AI chat panel or model gateway.
+- Do not build Pixifact into a Git manager, AI task orchestrator, CI runner, PR tool, or long-term project tracker.
 - Do not add backwards compatibility shims for old compiler-scene proposal formats during alpha development.
 
 ## Agent Context
@@ -187,9 +190,11 @@ bun run pixifact -- scene proposal apply --project-root <project-root> --scene s
 
 Legacy `commands dry-run/apply` may remain for legacy SceneSpec documents. It should not be the primary path for compiler scenes.
 
-## Editor Proposal Review
+## Editor Agent Panel
 
-The Editor Agent panel exposes the guarded proposal flow for the currently opened compiler scene:
+The Editor Agent panel should primarily help external agents use the direct `.scene` workflow by showing the current project root, opened scene path, and exact CLI commands for inspect, validate, compile, and project build/run checks. It is not the main place where AI work is planned or orchestrated.
+
+The panel also exposes the guarded proposal flow for the currently opened compiler scene when explicit review is useful:
 
 1. Open the project folder in Pixifact Editor.
 2. Open the target `scenes/*.scene` file.
@@ -207,9 +212,11 @@ bun run pixifact -- scene proposal check --project-root sample-projects/space-hu
 
 ## Editor Direction
 
-Editor changes and external agent proposals should converge on the same apply boundary. Inspector edits, asset drops, and agent proposals may have different origins, but they should all produce validated `.scene` source changes and pass through the shared compiler scene validation pipeline.
+Editor changes, external direct edits, and optional agent proposals should converge on the same compiler scene validation pipeline. Inspector edits, asset drops, direct agent edits, and proposal applies may have different origins, but they should all produce validated `.scene` source changes.
 
 The editor must make generated files visually read-only when opened from a project and should direct users to the source `.scene` file for edits.
+
+The editor should improve preview refresh, validation feedback, and diagnostics for externally edited `.scene` files instead of duplicating Git workflows or AI orchestration inside the editor.
 
 ## Tradeoffs
 
