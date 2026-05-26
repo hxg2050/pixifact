@@ -16,6 +16,10 @@ import {
 } from '../apps/editor/src/document/compilerSceneDocumentController';
 import { useEditorStore } from '../apps/editor/src/editorStore';
 import { createLiveEditorActionHandlers } from '../apps/editor/src/agent/liveEditorClient';
+import {
+    clearLastExternalSceneSync,
+    setLastExternalSceneSync,
+} from '../apps/editor/src/services/externalSceneSyncState';
 
 const tempRoots: string[] = [];
 
@@ -224,6 +228,7 @@ function openLiveCompilerScene() {
 }
 
 afterEach(() => {
+    clearLastExternalSceneSync();
     resetCompilerSceneDocument();
     for (const root of tempRoots.splice(0)) {
         fs.rmSync(root, { recursive: true, force: true });
@@ -721,6 +726,10 @@ describe('Pixifact CLI', () => {
 
     it('returns live SceneDocument context without writing files', async () => {
         const document = openLiveMenuScene();
+        setLastExternalSceneSync('GameProject/scenes/Menu.scene', {
+            status: 'dirtySkipped',
+            message: '当前打开的 Scene 有未保存修改，已跳过外部文件刷新。',
+        });
         const handlers = createLiveEditorActionHandlers();
         const sceneResult = await handlers['scene.get']({});
         const nodeResult = await handlers['node.inspect']({
@@ -738,6 +747,7 @@ describe('Pixifact CLI', () => {
                 nodeCount: 2,
             },
         });
+        expect(sceneResult).not.toHaveProperty('lastExternalSync');
         expect(nodeResult).toMatchObject({
             kind: 'text',
             key: 'menuLabel',
@@ -771,6 +781,7 @@ describe('Pixifact CLI', () => {
                 nodeCount: 2,
             },
         });
+        expect(sceneResult).not.toHaveProperty('lastExternalSync');
         expect(sceneResult.revision).toBe(createSceneRevision([
             '<Scene name="Menu" script="src/scenes/Menu.ts">',
             '  <Container id="content">',
@@ -788,6 +799,86 @@ describe('Pixifact CLI', () => {
             parent: '0:content',
         });
         expect(host.writeHostProjectFileText).not.toHaveBeenCalled();
+    });
+
+    it('returns the last external compiler scene sync result to live agents', async () => {
+        openLiveCompilerScene();
+        setLastExternalSceneSync('GameProject/scenes/Menu.scene', {
+            status: 'validationFailed',
+            message: '外部 Scene 修改未刷新：校验失败。',
+            validation: {
+                ok: false,
+                scene: 'GameProject/scenes/Menu.scene',
+                revision: 'sha256:invalid',
+                error: 'Scene validation failed.',
+                diagnostics: [{
+                    path: '0:icon',
+                    prop: 'texture',
+                    expected: 'existing project asset',
+                    actual: 'assets/missing.png',
+                    hint: 'Use an asset path that exists in the project before applying the proposal.',
+                }],
+                hint: 'Fix the listed diagnostics, then run scene validate again.',
+            },
+        });
+        const handlers = createLiveEditorActionHandlers();
+
+        const sceneResult = await handlers['scene.get']({});
+
+        expect(sceneResult).toMatchObject({
+            sourceType: 'compiler-scene',
+            lastExternalSync: {
+                status: 'validationFailed',
+                message: '外部 Scene 修改未刷新：校验失败。',
+                validation: {
+                    ok: false,
+                    scene: 'GameProject/scenes/Menu.scene',
+                    diagnostics: [{
+                        path: '0:icon',
+                        prop: 'texture',
+                        expected: 'existing project asset',
+                        actual: 'assets/missing.png',
+                    }],
+                },
+            },
+        });
+    });
+
+    it('does not return external compiler scene sync state from another scene', async () => {
+        openLiveCompilerScene();
+        setLastExternalSceneSync('GameProject/scenes/Other.scene', {
+            status: 'dirtySkipped',
+            message: '当前打开的 Scene 有未保存修改，已跳过外部文件刷新。',
+        });
+        const handlers = createLiveEditorActionHandlers();
+
+        const sceneResult = await handlers['scene.get']({});
+
+        expect(sceneResult).toMatchObject({
+            sourceType: 'compiler-scene',
+            scenePath: 'GameProject/scenes/Menu.scene',
+        });
+        expect(sceneResult).not.toHaveProperty('lastExternalSync');
+    });
+
+    it('keeps the last external compiler scene sync result when ignored events arrive', async () => {
+        openLiveCompilerScene();
+        setLastExternalSceneSync('GameProject/scenes/Menu.scene', {
+            status: 'dirtySkipped',
+            message: '当前打开的 Scene 有未保存修改，已跳过外部文件刷新。',
+        });
+        setLastExternalSceneSync('GameProject/scenes/Menu.scene', { status: 'ignored' });
+        const handlers = createLiveEditorActionHandlers();
+
+        const sceneResult = await handlers['scene.get']({});
+
+        expect(sceneResult).toMatchObject({
+            sourceType: 'compiler-scene',
+            lastExternalSync: {
+                status: 'dirtySkipped',
+                message: '当前打开的 Scene 有未保存修改，已跳过外部文件刷新。',
+            },
+        });
     });
 
     it('does not expose legacy live mutation commands', async () => {

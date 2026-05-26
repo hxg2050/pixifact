@@ -35,6 +35,7 @@ import { pixifactAgentBridgeUrl } from './agent/liveBridge';
 import { listenHostProjectFileChanged } from './services/hostBridge';
 import { syncOpenedCompilerSceneFromHostChange } from './services/compilerSceneExternalSync';
 import type { CompilerSceneExternalSyncResult } from './services/compilerSceneExternalSync';
+import { setLastExternalSceneSync } from './services/externalSceneSyncState';
 import 'dockview/dist/styles/dockview.css';
 
 type EditorPanelParams = Record<string, never>;
@@ -291,6 +292,9 @@ export function EditorApp() {
                     openedScenePath: currentScenePath,
                     event,
                 });
+                if (currentScenePath) {
+                    setLastExternalSceneSync(currentScenePath, result);
+                }
                 setExternalSceneSyncStatusState(externalSceneSyncStatus(result));
             } catch (error) {
                 setExternalSceneSyncStatusState({

@@ -6,6 +6,7 @@ import { getSceneDocument } from '../document/sceneDocumentController';
 import { compilerSceneNodeLocator, getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import type { CompilerSceneTemplateNode } from '../services/projectFileTree';
+import { getLastExternalSceneSync } from '../services/externalSceneSyncState';
 import {
     pixifactAgentBridgeUrl,
     type LiveBridgeClientMessage,
@@ -235,6 +236,7 @@ export function createLiveEditorActionHandlers() {
             const compilerDocument = getCompilerSceneDocument();
             if (store.openedScenePath && compilerDocument?.scenePath === store.openedScenePath) {
                 const content = serializeSceneTemplate(compilerDocument.template);
+                const lastExternalSync = getLastExternalSceneSync(store.openedScenePath);
                 return {
                     connected: true,
                     sourceType: 'compiler-scene',
@@ -244,6 +246,7 @@ export function createLiveEditorActionHandlers() {
                     selection: compilerDocument.selection,
                     template: compilerDocument.template,
                     summary: inspectSceneTemplate(compilerDocument.template),
+                    ...(lastExternalSync ? { lastExternalSync } : {}),
                 };
             }
             const document = getSceneDocument();
