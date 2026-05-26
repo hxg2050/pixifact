@@ -15,7 +15,7 @@ Pixifact 使用 Godot-style 统一 `Scene` 资产，不做 Unity 式 Scene + Pre
 当前 Agent authoring 主路径是 compiler `.scene`：
 
 ```txt
-Codex / Claude Code -> edit .scene -> Pixifact CLI validate -> compile-scenes -> Editor preview -> Runtime
+Codex / Claude Code -> inspect .scene -> edit .scene -> scene validate -> compile-scenes -> repair until valid
 ```
 
 `.scene proposal` 是可选保险路径，用于防覆盖、显式审查或协作审计，不是默认 AI 开发路径。
@@ -25,6 +25,8 @@ Codex / Claude Code -> .scene proposal -> check diff -> apply -> validate / comp
 ```
 
 Editor 是能力增强：提供当前打开 Scene、当前选中节点、预览和资产上下文。没有 Editor 时，Agent 仍然可以通过文件编辑和 CLI 完整开发。
+
+Pixifact 的默认闭环到 `scene validate`、`compile-scenes` 和可选 live context 为止。Git diff、commit、revert、PR、CI 和任务编排由外部工具负责，不是 Pixifact 内建能力。
 
 ## 目录
 
@@ -89,6 +91,8 @@ bun run pixifact -- live summary
 bun run pixifact -- live scene get
 bun run pixifact -- live node inspect --node 0:content/0:label
 ```
+
+有 Editor 时，`live scene get` 可额外返回当前选中节点和最近一次外部 `.scene` 刷新/校验结果，帮助 Agent 判断直接编辑是否需要修复；它不修改项目文件。
 
 ## 项目资产边界
 

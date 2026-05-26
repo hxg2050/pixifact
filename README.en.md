@@ -15,7 +15,7 @@ Pixifact uses a Godot-style unified `Scene` asset model. It does not use a Unity
 The current primary agent authoring path is compiler `.scene`:
 
 ```txt
-Codex / Claude Code -> edit .scene -> Pixifact CLI validate -> compile-scenes -> Editor preview -> Runtime
+Codex / Claude Code -> inspect .scene -> edit .scene -> scene validate -> compile-scenes -> repair until valid
 ```
 
 `.scene proposal` is an optional safety path for stale-write protection, explicit review, or collaborative audit. It is not the default AI development path.
@@ -25,6 +25,8 @@ Codex / Claude Code -> .scene proposal -> check diff -> apply -> validate / comp
 ```
 
 Editor is an enhancer: it provides the currently opened Scene, selected node, preview, and asset context. Without Editor, agents can still develop fully through file editing and the CLI.
+
+Pixifact's default loop ends at `scene validate`, `compile-scenes`, and optional live context. Git diff, commits, reverts, PRs, CI, and task orchestration belong to external tools, not Pixifact built-ins.
 
 ## Repository Layout
 
@@ -89,6 +91,8 @@ bun run pixifact -- live summary
 bun run pixifact -- live scene get
 bun run pixifact -- live node inspect --node 0:content/0:label
 ```
+
+When Editor is running, `live scene get` can also return the selected node and the latest external `.scene` refresh or validation result so an agent can decide whether its direct edit needs repair. It does not modify project files.
 
 ## Project Asset Boundary
 

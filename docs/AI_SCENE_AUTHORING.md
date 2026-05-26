@@ -11,11 +11,12 @@ External agents edit `.scene` source files. Pixifact parses, validates, and comp
 The default workflow is direct source editing plus validation:
 
 ```txt
-Claude Code / Codex reads .scene
+Claude Code / Codex inspects .scene
 Claude Code / Codex edits .scene
-Pixifact validates the file
+Pixifact validates the edited file
 Pixifact compiles generated TypeScript
-Editor refreshes preview
+Agent repairs the .scene if validation or compilation fails
+Editor optionally exposes live context and preview state
 ```
 
 For higher-risk edits, agents may use the guarded proposal workflow:
@@ -56,7 +57,9 @@ Agents should follow this loop:
 2. Edit only `scenes/*.scene` and related source assets/scripts requested by the user.
 3. Run `scene validate` on every edited compiler scene.
 4. Run `compile-scenes`.
-5. Run the smallest relevant project build or test.
+5. If validation or compilation reports diagnostics, repair the `.scene` source and rerun the failing command.
+6. Run the smallest relevant project build or test.
+7. If Editor is running, optionally read `live scene get` for current selection, preview context, and the latest external refresh or validation result.
 
 Example:
 
@@ -68,6 +71,8 @@ cd sample-projects/scene-compiler-demo && bun run build
 ```
 
 `scene validate` checks parse errors, prop names, prop value types, asset references, and public Scene instance contracts. It is the required safety check after direct `.scene` edits. Git state, commits, rollback, branch isolation, and merge strategy are intentionally outside Pixifact; external agents and developer tools should manage them directly.
+
+Pixifact does not decide when to commit or open a PR. Its responsibility is to make the `.scene` edit diagnosable and compilable; Git diff, commit, revert, branch isolation, PR review, CI, and task management remain outside the Pixifact capability boundary.
 
 ## Guarded Proposal Workflow
 
@@ -139,6 +144,8 @@ Rules:
   bun run pixifact -- compile-scenes --project-root <project-root>
 - Finally run the smallest relevant build or test.
 - If scene validate reports diagnostics, fix the .scene source and run validation again.
+- If Editor is available, use `bun run pixifact -- live scene get` as read-only context for the selected node and latest external refresh result.
+- Do not treat Git commit or PR creation as part of Pixifact's required workflow.
 ```
 
 ## Proposal Shape
@@ -194,6 +201,8 @@ Legacy `commands dry-run/apply` and live mutation commands have been removed fro
 
 The Editor Agent panel should primarily help external agents use the direct `.scene` workflow by showing the current project root, opened scene path, and exact CLI commands for inspect, validate, compile, and project build/run checks. It is not the main place where AI work is planned or orchestrated.
 
+The live editor bridge is an optional context source. `live scene get` should help agents see the currently opened compiler scene, current selection, dirty state, revision, and the last external refresh or validation result for that scene. It must remain read-only; it is not a hidden apply channel.
+
 The panel also exposes the guarded proposal flow for the currently opened compiler scene when explicit review is useful:
 
 1. Open the project folder in Pixifact Editor.
@@ -234,4 +243,4 @@ These costs are acceptable because they keep the final authoring model simple an
 
 Existing legacy agent flows based on `SceneCommand[]` are retired from the CLI and live bridge surface. Compiler scene edits should use direct `.scene` source changes followed by `scene validate`, or the optional proposal check/apply flow when a guarded review step is needed.
 
-The live editor bridge is read-only context: `live summary`, `live scene get`, and `live node inspect`. It exists to expose the current editor state and selected node, not to mutate project files.
+The live editor bridge is read-only context: `live summary`, `live scene get`, and `live node inspect`. It exists to expose the current editor state, selected node, and latest external `.scene` refresh or validation result, not to mutate project files.

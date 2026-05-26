@@ -63,6 +63,8 @@ export function createAgentCliWorkflow(input: AgentCliWorkflowInput): AgentCliWo
             'Use Pixifact CLI to inspect and validate the scene.',
             `After editing, run: bun run pixifact -- scene validate --project-root ${projectRootArg} --scene ${sceneArg}`,
             `Then run: bun run pixifact -- compile-scenes --project-root ${projectRootArg}`,
+            `If validation or compilation fails, fix ${scene} and rerun the failing command.`,
+            'If Editor is running, use live scene get only as read-only context.',
             'Finally run the smallest relevant build or test.',
         ].join('\n'),
     };

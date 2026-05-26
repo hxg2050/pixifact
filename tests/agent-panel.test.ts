@@ -45,6 +45,8 @@ describe('Agent CLI workflow panel model', () => {
         ]);
         expect(workflow.agentPrompt).toContain('Edit scenes/Hud.scene');
         expect(workflow.agentPrompt).toContain('Do not edit .pixifact/generated');
+        expect(workflow.agentPrompt).toContain('If validation or compilation fails, fix scenes/Hud.scene and rerun the failing command.');
+        expect(workflow.agentPrompt).toContain('If Editor is running, use live scene get only as read-only context.');
     });
 
     it('falls back to placeholders when no project or scene is open', () => {

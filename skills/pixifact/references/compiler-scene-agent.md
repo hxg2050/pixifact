@@ -12,6 +12,8 @@ bun run pixifact -- scene validate --project-root <project-root> --scene scenes/
 bun run pixifact -- compile-scenes --project-root <project-root>
 ```
 
+If validation or compilation fails, fix the `.scene` source and rerun the failing command. If Editor is running, `bun run pixifact -- live scene get` is optional read-only context for the opened scene, selected node, dirty / revision state, and the latest external `.scene` refresh or validation result.
+
 After compilation, run the smallest relevant project build or test. For the compiler demo:
 
 ```bash
@@ -28,6 +30,7 @@ bun run build
 - Run `compile-scenes` after validation passes.
 - If validation reports diagnostics, fix the `.scene` source and validate again.
 - Treat generated TypeScript as read-only build output unless the user explicitly asks to inspect generated output.
+- Do not treat Git commit, PR creation, CI, or task orchestration as Pixifact workflow steps; external tools own them.
 
 ## Optional Proposal Flow
 
