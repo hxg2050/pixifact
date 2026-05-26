@@ -190,7 +190,7 @@ bun run editor:frontend:build
 
 必须先覆盖：
 
-- `sample-projects/space-hud-game/pixifact.project.json` 符合 run config schema。
+- 新示例项目的 `pixifact.project.json` 符合 run config schema。
 - 示例项目包含 `scenes/MainMenu.scene`、`scenes/Hud.scene`、`scenes/GameOver.scene`。
 - 示例代码通过 Pixifact runtime 加载 `.scene`，不把 Scene 当普通 JSON mock。
 - Hud binding 能把 gameplay state 写入 HP、Score、Wave / Time 等节点。
@@ -202,7 +202,7 @@ bun run editor:frontend:build
 ```bash
 bunx --no-install vitest run tests/project-run-config.test.ts tests/editor-run-service.test.ts
 bun run build
-cd sample-projects/space-hud-game && bun run build
+cd sample-projects/<new-game-sample> && bun run build
 ```
 
 ### 修改 AI Gateway / Model Adapter

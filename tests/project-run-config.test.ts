@@ -113,28 +113,6 @@ describe('Pixifact project run config', () => {
         })).toThrow('run.cwd must stay inside projectRoot');
     });
 
-    it('parses the Space HUD sample project config', () => {
-        const config = parsePixifactProjectConfig(JSON.parse(fs.readFileSync(
-            path.resolve('sample-projects/space-hud-game/pixifact.project.json'),
-            'utf8',
-        )));
-
-        expect(config).toMatchObject({
-            name: 'Space HUD Game',
-            scenes: {
-                mainMenu: 'scenes/MainMenu.scene',
-                hud: 'scenes/Hud.scene',
-                gameOver: 'scenes/GameOver.scene',
-            },
-            run: {
-                command: 'bun',
-                args: ['run', 'dev'],
-                cwd: '.',
-                url: 'http://localhost:5174',
-            },
-        });
-    });
-
     it('parses the scene compiler demo project config', () => {
         const config = parsePixifactProjectConfig(JSON.parse(fs.readFileSync(
             path.resolve('sample-projects/scene-compiler-demo/pixifact.project.json'),
