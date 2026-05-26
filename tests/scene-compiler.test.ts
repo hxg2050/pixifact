@@ -236,6 +236,13 @@ describe('Pixifact scene compiler spike', () => {
         });
     });
 
+    it('keeps known string props as strings when values look numeric', () => {
+        const template = parseSceneTemplate('<Scene name="Hud"><Text id="score" text="000000" /><Text id="wave" text="01" /></Scene>');
+
+        expect(template.children[0].kind === 'pixi' && template.children[0].props.text).toBe('000000');
+        expect(template.children[1].kind === 'pixi' && template.children[1].props.text).toBe('01');
+    });
+
     it('rejects missing or unsafe compiler texture references when assets are provided', () => {
         const current = '<Scene name="Button"><Sprite id="icon" texture="assets/play.png" /></Scene>';
         const result = checkSceneProposal({

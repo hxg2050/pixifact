@@ -187,6 +187,24 @@ bun run pixifact -- scene proposal apply --project-root <project-root> --scene s
 
 Legacy `commands dry-run/apply` may remain for legacy SceneSpec documents. It should not be the primary path for compiler scenes.
 
+## Editor Proposal Review
+
+The Editor Agent panel exposes the guarded proposal flow for the currently opened compiler scene:
+
+1. Open the project folder in Pixifact Editor.
+2. Open the target `scenes/*.scene` file.
+3. Paste a `pixifact.sceneProposal.v1` JSON envelope into `Proposal 审查`.
+4. Click `检查 Proposal` to run the same base revision, parser, asset, scene contract, and semantic diff checks as the CLI proposal check path.
+5. Review the diff shown in the panel.
+6. Click `应用 Proposal` to write the canonical `.scene` source and refresh the current editor preview.
+7. Run `compile-scenes` or use the project run/build flow.
+
+The Space HUD sample includes a copyable proposal:
+
+```bash
+bun run pixifact -- scene proposal check --project-root sample-projects/space-hud-game --scene scenes/Hud.scene --proposal sample-projects/space-hud-game/proposals/hud-hint-mobile.proposal.json
+```
+
 ## Editor Direction
 
 Editor changes and external agent proposals should converge on the same apply boundary. Inspector edits, asset drops, and agent proposals may have different origins, but they should all produce validated `.scene` source changes and pass through the shared compiler scene validation pipeline.

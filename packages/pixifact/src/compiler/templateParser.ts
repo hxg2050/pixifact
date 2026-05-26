@@ -7,6 +7,7 @@ import type {
     SceneTemplateValue,
     SlotOutletTemplateNode,
 } from './spec';
+import { pixiSceneFieldSchema } from './pixiNodeSchema';
 
 interface XmlElement {
     name: string;
@@ -122,7 +123,7 @@ function parseProps(
         if (omitted.includes(name) || shouldOmit(name)) {
             continue;
         }
-        props[name] = parseAttributeValue(value);
+        props[name] = parseAttributeValue(name, value);
     }
     return props;
 }
@@ -155,7 +156,10 @@ function isEventAttribute(name: string) {
     return eventName(name) !== undefined;
 }
 
-function parseAttributeValue(value: string): SceneTemplateValue {
+function parseAttributeValue(name: string, value: string): SceneTemplateValue {
+    if (pixiSceneFieldSchema(name)?.type === 'string') {
+        return value;
+    }
     if (value === 'true') return true;
     if (value === 'false') return false;
     if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
