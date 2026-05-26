@@ -1,3 +1,4 @@
+#!/usr/bin/env bun
 import fs from 'node:fs/promises';
 import { createPixifactAutomation } from './automation';
 import { hintForCommandError } from 'pixifact';

@@ -1,0 +1,19 @@
+{
+  "name": "create-pixifact",
+  "version": "0.1.3",
+  "description": "Create a Pixifact game project.",
+  "type": "module",
+  "bin": {
+    "create-pixifact": "./dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "templates/"
+  ],
+  "scripts": {
+    "build": "bunx --no-install tsc -p tsconfig.build.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
