@@ -7,11 +7,11 @@
 ## 1. 测试原则
 
 - 先写行为，再写实现：新需求先补一个最小失败测试或一个可执行验收场景。
-- 测试公共语义层：优先覆盖 `pixifact` public exports、`SceneDocument`、`SceneCommand`、editor services、CLI entrypoint 和 gateway core。
+- 测试公共语义层：优先覆盖 `pixifact` public exports、compiler `.scene` parser / validator / proposal、`SceneDocument`、editor services 和 CLI entrypoint。
 - 不为旧 API 写兼容测试：项目处于开发阶段，不新增 legacy path、alias、fallback 或 deprecation shim。
 - 不测试静默默认值：除非需求明确，测试应让错误自然暴露，并断言真实失败原因。
-- 不让 UI state 成为项目数据源：测试必须确认项目数据来自 `SceneDocument` 或 `.scene` 文件，而不是 Zustand 副本。
-- 行为测试用稳定 locator：Scene 节点用 `key` / `id`，组件用 `id`，文件用 project-relative path。
+- 不让 UI state 成为项目数据源：测试必须确认项目数据来自 `.scene` 文件、compiler scene document 或必要的 `SceneDocument` 内部状态，而不是 Zustand 副本。
+- 行为测试用稳定 locator：compiler scene 节点用 hierarchy locator / `id`，legacy Scene 节点用 `key` / `id`，组件用 `id`，文件用 project-relative path。
 - 先最小验证，再扩大范围：每次改动优先运行最小相关测试，跨边界改动再运行完整 `bun run test` 和构建。
 
 ## 2. 现有测试地图
@@ -21,16 +21,14 @@
 | `tests/core.test.ts` | runtime foundation | `GameObject`、transform、children、layout、lifecycle、ticker |
 | `tests/ui.test.ts` | DOM-backed runtime nodes | `Input`、`Textarea`、`ScrollRect`、DOM cleanup、viewport transform |
 | `tests/unity-ui.test.ts` | runtime component metadata + template slice | component schema、Button runtime composition、Scene DSL instantiate |
-| `tests/editor.test.ts` | authoring semantic layer | `SceneDocument`、commands、undo/redo、dry-run、diff、locks、memory、logic、AI proposal |
+| `tests/editor.test.ts` | authoring semantic layer | `SceneDocument`、internal commands、undo/redo、locks、memory、logic |
 | `tests/editor-store.test.ts` | editor UI store | Zustand 只持久化轻量偏好，不保存 project data / secrets |
 | `tests/project-file-tree.test.ts` | desktop project file service | `.scene` 创建保存、文件树分类、重命名、删除、scene instance key isolation |
 | `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
 | `tests/editor-run-service.test.ts` | editor run service / host bridge | 运行状态、spawn 参数、stdout / stderr 摘要、停止 session、失败状态 |
-| `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene get、node inspect、commands dry-run/apply/validate、path guard、live bridge routing、exit code |
-| `tests/ai-gateway-adapter.test.ts` | gateway protocol shell | proposal response、auth、invalid request、invalid model proposal |
-| `tests/ai-gateway-config.test.ts` | gateway config | local defaults、env token、model adapter env mapping |
-| `tests/ai-model-adapter.test.ts` | upstream model adapter | Chat Completions / Responses body、URL normalize、secret handling、retry、timeout |
-| `tests/mock-ai-server.test.ts` | mock remote AI | mock proposal protocol、invalid payload |
+| `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate/proposal、path guard、read-only live context、exit code |
+| `tests/agent-proposal-review.test.ts` | Editor proposal review service | proposal check/apply、stale revision、asset validation、semantic diff |
+| `tests/agent-panel-ui.test.ts` | Editor Agent panel | proposal review UI、refresh after apply、compiler scene state |
 
 新增测试应先落到这些既有边界；只有当行为无法归入现有边界时，才新增测试文件。
 
@@ -44,15 +42,15 @@
 
 2. 选测试边界
 
-   - Scene 格式、命令、dry-run、undo：`tests/editor.test.ts`
+   - compiler `.scene` parser / validator / proposal：`tests/pixifact-cli.test.ts`、`tests/agent-proposal-review.test.ts`
+   - SceneDocument 内部命令、undo、memory、logic：`tests/editor.test.ts`
    - runtime、布局、生命周期：`tests/core.test.ts`
    - DOM-backed node：`tests/ui.test.ts`
    - editor 文件树 / host service：`tests/project-file-tree.test.ts`
    - project run config：`tests/project-run-config.test.ts`
    - editor run service：`tests/editor-run-service.test.ts`
    - editor store：`tests/editor-store.test.ts`
-   - CLI / Agent：`tests/pixifact-cli.test.ts`
-   - gateway / model：`tests/ai-*.test.ts`
+   - CLI / Agent live context：`tests/pixifact-cli.test.ts`
 
 3. Red
 
@@ -72,17 +70,48 @@
 
 ## 4. 需求类型到测试的映射
 
-### 新增 SceneCommand
+### 修改 compiler `.scene` authoring
+
+必须先覆盖：
+
+- parser 接受合法 `.scene`。
+- validator 拒绝错误 prop、错误类型、缺失 asset、错误 scene instance contract。
+- serializer 输出 canonical source。
+- proposal check 不写文件并返回 semantic diff。
+- proposal apply 检查 base revision 后才写文件。
+- direct edit 后 `scene validate` 和 `compile-scenes` 通过。
+
+验证命令：
+
+```bash
+bunx --no-install vitest run tests/pixifact-cli.test.ts tests/agent-proposal-review.test.ts
+```
+
+### 修改 Editor live context
+
+必须先覆盖：
+
+- `live summary` 返回项目、当前文件和 scene 列表。
+- `live scene get` 返回当前 compiler scene 或 legacy SceneDocument 的只读上下文。
+- `live node inspect` 返回当前选中或指定节点的稳定 locator、类型和 props。
+- live bridge 不暴露 mutation action。
+
+验证命令：
+
+```bash
+bunx --no-install vitest run tests/pixifact-cli.test.ts
+```
+
+### 修改 SceneDocument 内部命令
 
 必须先覆盖：
 
 - `validateCommand` 接受合法 payload。
 - `validateCommand` 拒绝错误 node、错误 prop、错误 parent 或错误 component。
 - `applySceneCommand` 修改正确字段。
-- `dryRunCommands` 返回 diff 且不改源 Scene。
 - `SceneDocument.apply` 设置 dirty，写入 undo stack。
 - undo / redo 恢复状态。
-- 如果 CLI 暴露该命令，补 `commands dry-run` 和 `commands apply` 文件模式测试。
+- 新能力不重新暴露为外部 Agent CLI mutation 协议。
 
 验证命令：
 
@@ -90,12 +119,11 @@
 bunx --no-install vitest run tests/editor.test.ts tests/pixifact-cli.test.ts
 ```
 
-### 新增 Scene 模板
+### 新增 Scene 模板或 runtime UI 能力
 
 必须先覆盖：
 
-- 模板返回的根节点是 `container`。
-- 组合控件不成为基础 `SceneNodeKind`。
+- 模板返回的根节点结构稳定。
 - 子节点 key / component id 稳定且不冲突。
 - `instantiate` 后 runtime nodes / components 可定位。
 - editor template library 可创建该模板节点。
@@ -110,9 +138,8 @@ bunx --no-install vitest run tests/editor.test.ts tests/unity-ui.test.ts
 
 必须先覆盖：
 
-- 数据流从 UI event 转成 `SceneCommand`。
-- 节点类型专属 display 字段由 `InspectorModel` 过滤：`text` 不展示 image / shape 字段，`input` 不展示 image / shape 字段，`container` 不展示 display data。
-- `SceneDocument` 是唯一 project data source。
+- 数据流写入 compiler scene document 或必要的 `SceneDocument` 内部命令。
+- 节点类型专属 display 字段过滤正确。
 - Zustand 只保存 UI 偏好。
 - 纯图标按钮有 `aria-label` 和 `title`。
 - 中文文案符合 `AGENTS.md` 的中英混用规则。
@@ -120,7 +147,7 @@ bunx --no-install vitest run tests/editor.test.ts tests/unity-ui.test.ts
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/editor-store.test.ts tests/editor.test.ts
+bunx --no-install vitest run tests/editor-store.test.ts tests/editor.test.ts tests/project-file-tree.test.ts
 bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
 bun run editor:frontend:build
 ```
@@ -143,111 +170,22 @@ bun run build
 bun run example:build
 ```
 
-### 修改 CLI / Agent 入口
-
-必须先覆盖：
-
-- `summary`、`scene get`、`node inspect`、`commands dry-run`、`commands apply`、`commands validate`。
-- `scene create` 创建标准 `.scene` 且不覆盖已有文件。
-- 文件模式和 live mode 的 `template add dry-run/apply` 将短参数展开为 `SceneCommand[]`，并复用 dry-run / apply 语义。
-- live bridge connected 和 file mode 两条路径。
-- `projectRoot` path guard。
-- dry-run 不写文件。
-- apply 写回 `.scene`。
-- `--commands` 支持文件和 stdin。
-- 错误输出 JSON，并返回非 0 exit code。
-
-验证命令：
-
-```bash
-bunx --no-install vitest run tests/pixifact-cli.test.ts
-```
-
-### 新增或修改运行功能
-
-必须先覆盖：
-
-- `pixifact.project.json` 解析合法配置。
-- 缺少配置、JSON 错误、缺少 `run.command` 时返回明确错误。
-- `run.cwd` 必须留在 projectRoot 内。
-- `run.command` 和 `run.args` 以数组形式传给 host，不经过 shell 拼接。
-- 点击运行时创建 run session，并进入启动中 / 运行中状态。
-- stdout / stderr 被收集为日志摘要。
-- 配置 `run.url` 时请求系统默认浏览器打开 URL。
-- run command 启动失败或非 0 退出时进入失败状态，并保留错误摘要。
-- stop 只使用本次 run session id，不按命令名杀进程。
-- 运行进程不修改 `SceneDocument`，不成为项目数据源。
-
-验证命令：
-
-```bash
-bunx --no-install vitest run tests/project-run-config.test.ts tests/editor-run-service.test.ts
-bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
-bun run editor:frontend:build
-```
-
-### 新增完整示例游戏
-
-必须先覆盖：
-
-- 新示例项目的 `pixifact.project.json` 符合 run config schema。
-- 示例项目包含 `scenes/MainMenu.scene`、`scenes/Hud.scene`、`scenes/GameOver.scene`。
-- 示例代码通过 Pixifact runtime 加载 `.scene`，不把 Scene 当普通 JSON mock。
-- Hud binding 能把 gameplay state 写入 HP、Score、Wave / Time 等节点。
-- 示例项目 build 通过。
-- Editor run service 可以读取示例项目 run 配置并生成正确 spawn 参数。
-
-验证命令：
-
-```bash
-bunx --no-install vitest run tests/project-run-config.test.ts tests/editor-run-service.test.ts
-bun run build
-cd sample-projects/<new-game-sample> && bun run build
-```
-
-### 修改 AI Gateway / Model Adapter
-
-必须先覆盖：
-
-- request protocol validation。
-- unauthorized request。
-- invalid model proposal。
-- Chat Completions / Responses request body。
-- upstream URL normalize。
-- auth header 和 envKey token。
-- secrets 不进入 prompt。
-- timeout 和 upstream error。
-
-验证命令：
-
-```bash
-bunx --no-install vitest run tests/ai-gateway-adapter.test.ts tests/ai-gateway-config.test.ts tests/ai-model-adapter.test.ts tests/mock-ai-server.test.ts
-```
-
 ## 5. Definition of Done
 
 一个 Pixifact 行为只有同时满足以下条件才算完成：
 
 - BDD 场景能解释用户行为、系统边界和失败状态。
 - 至少一个自动化测试覆盖主要成功路径。
-- 关键失败路径有测试，尤其是 invalid command、locked prop、path guard、invalid protocol、secret handling。
-- 真实修改通过 `SceneDocument` API 或 `SceneCommand`。
-- dry-run 不改变源 Scene，apply 才改变 Scene。
+- 关键失败路径有测试，尤其是 invalid scene、path guard、invalid proposal、stale revision、asset/contract validation。
+- 外部 Agent 修改路径是 `.scene` direct edit + validation，或可选 `.scene proposal`。
+- Editor live context 是只读增强，不写项目文件。
 - editor UI 没有保存 `SceneSpec` / `SceneDocument` 副本到 Zustand。
 - 相关最小验证通过。
 - 涉及 editor 前端时，TypeScript strict check 和 `editor:frontend:build` 通过。
 - 涉及 runtime / public exports 时，`bun run build` 通过。
 - 不提交 `apps/editor/dist`、`packages/pixifact/dist`、`test-results`、`apps/editor/src-tauri/target` 等产物。
 
-## 6. 新测试命名约定
-
-- 文件名沿用 `tests/<area>.test.ts`。
-- `describe` 使用模块或行为边界，例如 `describe('SceneDocument')`。
-- `it` 使用英文、现在时、可读行为描述，例如 `it('dry-runs commands without writing the Scene file')`。
-- 中文产品文案在断言中保留中文，例如 `expect(error).toContain('未通过 Pixifact 校验')`。
-- 一个测试只验证一个行为主轴；跨 editor / CLI / file / runtime 的大闭环用集成测试，不把所有细节塞进单元测试。
-
-## 7. 最小验证速查
+## 6. 最小验证速查
 
 ```bash
 # 全量测试
@@ -258,10 +196,4 @@ bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node 
 
 # Editor 前端构建
 bun run editor:frontend:build
-
-# Runtime / package 构建
-bun run build
-
-# Example 构建
-bun run example:build
 ```

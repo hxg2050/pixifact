@@ -18,10 +18,6 @@ import type { MemorySuggestion, PreferenceMemory } from "./PreferenceMemory";
 import { isSceneProjectState } from "./SceneProjectState";
 import type { SceneProjectState } from "./SceneProjectState";
 import type { DesignTokenSpec } from "./DesignToken";
-import { createProposalHistoryEntry } from "./ProposalHistory";
-import type { ProposalHistoryEntry, ProposalHistoryStatus } from "./ProposalHistory";
-import type { AiProposal } from "./AiProposal";
-import type { ProposalRunResult } from "./ProposalRunner";
 import { upsertAction } from "./ActionRegistry";
 import type { ActionSpec } from "./ActionRegistry";
 import { createLogicGraph, validateLogicGraph } from "./LogicGraph";
@@ -50,7 +46,6 @@ export class SceneDocument {
     public designTokens?: DesignTokenSpec;
     public actions: ActionSpec[] = [];
     public logicGraph: LogicGraphSpec = createLogicGraph();
-    public proposalHistory: ProposalHistoryEntry[] = [];
     private commandStack = new CommandStack();
     private previewContext?: InstantiateContext;
     private previewParent?: Group;
@@ -196,53 +191,6 @@ export class SceneDocument {
         }
     }
 
-    recordProposal(proposal: AiProposal, status: ProposalHistoryStatus = 'generated') {
-        const entry = this.upsertProposalHistory(proposal);
-        entry.status = status;
-        entry.updatedAt = Date.now();
-        this.dirty = true;
-        return entry;
-    }
-
-    recordProposalRun(result: ProposalRunResult) {
-        const entry = this.upsertProposalHistory(result.proposal);
-        entry.status = result.ok ? 'dryRunPassed' : 'dryRunFailed';
-        entry.error = result.error;
-        entry.diffs = structuredClone(result.diffs);
-        entry.warnings = structuredClone(result.warnings);
-        entry.updatedAt = Date.now();
-        this.dirty = true;
-        return entry;
-    }
-
-    markProposalApplied(proposal: AiProposal) {
-        return this.markProposalStatus(proposal, 'applied');
-    }
-
-    markProposalRejected(proposal: AiProposal) {
-        return this.markProposalStatus(proposal, 'rejected');
-    }
-
-    private markProposalStatus(proposal: AiProposal, status: ProposalHistoryStatus) {
-        const entry = this.upsertProposalHistory(proposal);
-        entry.status = status;
-        entry.updatedAt = Date.now();
-        this.dirty = true;
-        return entry;
-    }
-
-    private upsertProposalHistory(proposal: AiProposal) {
-        const existing = this.proposalHistory.find((entry) => entry.id === proposal.id);
-        if (existing) {
-            existing.proposal = structuredClone(proposal);
-            return existing;
-        }
-
-        const entry = createProposalHistoryEntry(proposal);
-        this.proposalHistory.push(entry);
-        return entry;
-    }
-
     private recordOverride(result: Extract<CommandResult, { ok: true }>, source: OverrideSpec['source']) {
         const command = result.command;
         const inverse = result.inverse;
@@ -369,7 +317,6 @@ export class SceneDocument {
             locks: structuredClone(this.locks),
             overrides: structuredClone(this.overrides),
             memory: structuredClone(this.memory),
-            proposalHistory: structuredClone(this.proposalHistory),
         };
     }
 
@@ -391,7 +338,6 @@ export class SceneDocument {
         this.locks = [];
         this.overrides = [];
         this.memory = [];
-        this.proposalHistory = [];
         this.ensureSelectionValid();
         this.dirty = false;
         this.commandStack.clear();
@@ -408,7 +354,6 @@ export class SceneDocument {
         this.locks = structuredClone(state.locks ?? []);
         this.overrides = structuredClone(state.overrides ?? []);
         this.memory = structuredClone(state.memory ?? []);
-        this.proposalHistory = structuredClone(state.proposalHistory ?? []);
         this.ensureSelectionValid();
         this.dirty = false;
         this.commandStack.clear();

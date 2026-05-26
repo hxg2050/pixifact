@@ -8,7 +8,7 @@ import {
 import type { ProjectFileTreeNode } from './services/projectFileTree';
 import type { EditorLanguage } from './i18n';
 
-export const editorRemoteConfigStorageKey = 'pixifact.editor.uiConfig.v1';
+export const editorUiStorageKey = 'pixifact.editor.uiConfig.v1';
 export const defaultEditorLanguage: EditorLanguage = 'zh-CN';
 
 export interface EditorUiState {
@@ -19,7 +19,6 @@ export interface EditorUiState {
     openedScenePath?: string;
     expandedProjectFolders: string[];
     expandedHierarchyNodesByScene: Record<string, string[]>;
-    prompt: string;
     setLanguage(language: EditorLanguage): void;
     setProject(tree: ProjectFileTreeNode): void;
     refreshProject(tree: ProjectFileTreeNode, options?: { selectPath?: string; expandPaths?: string[] }): void;
@@ -27,7 +26,6 @@ export interface EditorUiState {
     setOpenedScene(path: string): void;
     setExpandedProjectFolders(paths: string[]): void;
     setExpandedHierarchyNodes(scenePath: string, paths: string[]): void;
-    setPrompt(prompt: string): void;
 }
 
 export const useEditorStore = create<EditorUiState>()(
@@ -40,7 +38,6 @@ export const useEditorStore = create<EditorUiState>()(
             openedScenePath: undefined,
             expandedProjectFolders: [],
             expandedHierarchyNodesByScene: {},
-            prompt: '创建一个背包界面，四列三行，每个格子有图标、数量和 Use 按钮。',
             setLanguage: (language) => set({ language }),
             setProject: (projectTree) => set({
                 projectName: projectTree.name,
@@ -71,10 +68,9 @@ export const useEditorStore = create<EditorUiState>()(
                     [scenePath]: expandedHierarchyNodes,
                 },
             })),
-            setPrompt: (prompt) => set({ prompt }),
         }),
         {
-            name: editorRemoteConfigStorageKey,
+            name: editorUiStorageKey,
             merge: (persisted, current) => {
                 const saved = (persisted && typeof persisted === 'object' && 'state' in persisted
                     ? (persisted as { state?: Partial<EditorUiState> }).state

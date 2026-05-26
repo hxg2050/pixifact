@@ -43,8 +43,8 @@ describe('Agent CLI workflow panel model', () => {
             'bun run pixifact -- compile-scenes --project-root /repo/sample-projects/space-hud-game',
             'cd /repo/sample-projects/space-hud-game && bun run build',
         ]);
-        expect(workflow.prompt).toContain('Edit scenes/Hud.scene');
-        expect(workflow.prompt).toContain('Do not edit .pixifact/generated');
+        expect(workflow.agentPrompt).toContain('Edit scenes/Hud.scene');
+        expect(workflow.agentPrompt).toContain('Do not edit .pixifact/generated');
     });
 
     it('falls back to placeholders when no project or scene is open', () => {
@@ -71,7 +71,7 @@ describe('Agent CLI workflow panel model', () => {
             "bun run pixifact -- scene inspect --project-root '/repo/sample projects/space hud game' --scene scenes/Hud.scene",
         );
         expect(workflow.commands[3]).toBe("cd '/repo/sample projects/space hud game' && bun run build");
-        expect(workflow.prompt).toContain(
+        expect(workflow.agentPrompt).toContain(
             "bun run pixifact -- scene validate --project-root '/repo/sample projects/space hud game' --scene scenes/Hud.scene",
         );
     });

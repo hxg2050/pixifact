@@ -373,7 +373,6 @@ describe('project file tree service', () => {
             openedScenePath: undefined,
             expandedProjectFolders: [],
             expandedHierarchyNodesByScene: {},
-            prompt: '创建一个背包界面，四列三行，每个格子有图标、数量和 Use 按钮。',
         });
     });
 

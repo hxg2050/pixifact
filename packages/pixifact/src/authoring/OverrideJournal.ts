@@ -8,7 +8,7 @@ export interface LockSpec {
 }
 
 export interface OverrideSpec {
-    source: 'manual' | 'ai';
+    source: 'manual' | 'agent';
     target: string;
     before: unknown;
     after: unknown;

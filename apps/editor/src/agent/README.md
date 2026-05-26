@@ -1,13 +1,13 @@
 # Pixifact Agent Bridge
 
-本目录提供 editor 内的 live agent bridge，让 Pixifact CLI 可以操作当前打开的 `SceneDocument`。
+本目录提供 editor 内的 live agent bridge，让 Pixifact CLI 读取当前 editor 上下文。
 
-CLI 只是外部入口。真实修改必须继续走 `SceneCommand`、`dryRunProposal()` 和 `SceneDocument.apply()`，不要让外部 agent 直接写项目文件或绕过 editor 校验。
+live bridge 是能力增强，不是项目修改通道。外部 Agent 即使没有 Editor，也可以直接编辑 `.scene` 文件并运行 `scene validate` / `compile-scenes` 完成开发；有 Editor 时，可以额外读取当前打开 Scene、选中节点、项目文件列表和预览状态。
 
 ## 模式
 
-- File mode：`bun run pixifact -- ...` 直接读写 `projectRoot + scenePath` 指定的项目文件。
-- Live mode：`bun run pixifact -- live ...` 通过本机 bridge 操作当前打开的 `SceneDocument`，界面会同步刷新。
+- File mode：`bun run pixifact -- ...` 直接读取项目文件，验证或应用 `.scene proposal`。
+- Live mode：`bun run pixifact -- live ...` 通过本机 bridge 读取当前 Editor 上下文。
 
 ## Live Bridge
 
@@ -23,17 +23,17 @@ ws://127.0.0.1:8791/pixifact-agent
 
 ```bash
 bun run pixifact -- summary --project-root /path/to/project
-bun run pixifact -- scene get --project-root /path/to/project --scene scenes/main.scene
-bun run pixifact -- commands dry-run --project-root /path/to/project --scene scenes/main.scene --commands commands.json
-bun run pixifact -- commands apply --project-root /path/to/project --scene scenes/main.scene --commands commands.json
+bun run pixifact -- scene inspect --project-root /path/to/project --scene scenes/main.scene
+bun run pixifact -- scene validate --project-root /path/to/project --scene scenes/main.scene
+bun run pixifact -- compile-scenes --project-root /path/to/project
 ```
 
 Live mode：
 
 ```bash
+bun run pixifact -- live summary
 bun run pixifact -- live scene get
-bun run pixifact -- live commands dry-run --commands commands.json
-bun run pixifact -- live commands apply --commands commands.json
+bun run pixifact -- live node inspect --node 0:content/0:label
 ```
 
-`--commands -` 表示从 stdin 读取 `SceneCommand[]`。
+live mode 不提供 `commands apply`、`template add` 或其他 mutation action。

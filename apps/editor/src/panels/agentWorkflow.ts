@@ -12,7 +12,7 @@ export interface AgentCliWorkflow {
     projectRoot: string;
     scenePath: string;
     commands: string[];
-    prompt: string;
+    agentPrompt: string;
 }
 
 function quoteShellArg(value: string) {
@@ -56,7 +56,7 @@ export function createAgentCliWorkflow(input: AgentCliWorkflowInput): AgentCliWo
             `bun run pixifact -- compile-scenes --project-root ${projectRootArg}`,
             `cd ${projectRootArg} && bun run build`,
         ],
-        prompt: [
+        agentPrompt: [
             'You are editing a Pixifact compiler scene.',
             `Edit ${scene} as the source of truth.`,
             'Do not edit .pixifact/generated or generated TypeScript files.',

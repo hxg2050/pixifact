@@ -26,8 +26,8 @@
 - 组件规则：所有节点都可以挂行为组件。
 - 显示规则：显示数据在节点字段上，例如 `text.value`、`image.src`、`input.value`、`shape.color`。
 - 组合控件：Button、ProgressBar、ScrollView 等是 Scene 模板，不是基础显示节点。
-- 命令协议：`SceneCommand`、`validateSceneCommand`、`applySceneCommand`、`instantiateScene`。
-- Authoring document：`SceneDocument` 是 editor 和 Agent 修改 Scene 的 source of truth。
+- Compiler `.scene`：外部 Agent 和 editor 共享的 source of truth。
+- `SceneCommand`：保留为 `SceneDocument` 内部命令、校验、应用和撤销基础，不作为外部 Agent 修改协议。
 
 ## 3. 当前结构
 
@@ -35,8 +35,9 @@
 packages/pixifact/src/runtime/    runtime foundation
 packages/pixifact/src/nodes/      runtime nodes and behavior components
 packages/pixifact/src/scene/      SceneSpec、DSL、instantiateScene、templates
-packages/pixifact/src/commands/   SceneCommand validate / apply / undo
-packages/pixifact/src/authoring/  SceneDocument、AI context、diff、memory、logic
+packages/pixifact/src/commands/   SceneDocument internal command validate / apply / undo
+packages/pixifact/src/compiler/   compiler .scene parse / validate / proposal / generate
+packages/pixifact/src/authoring/  SceneDocument、diff、memory、logic
 packages/pixifact-cli/            Pixifact CLI
 apps/editor/                      desktop editor frontend
 apps/editor/src-tauri/            Tauri host
@@ -50,12 +51,12 @@ apps/editor/src-tauri/            Tauri host
 - [x] Tauri host 移动到 `apps/editor/src-tauri`。
 - [x] `SceneSpec` / `.scene` / `scene` kind 落地。
 - [x] 基础 authoring 节点收敛为 `container/image/text/input/shape`。
-- [x] `SceneCommand`、`validateSceneCommand`、`applySceneCommand` 和 `setNodeData` 落地。
-- [x] `SceneDocument` 成为编辑器和 Agent 的 source of truth。
+- [x] `SceneCommand`、`validateSceneCommand`、`applySceneCommand` 和 `setNodeData` 作为内部编辑命令落地。
+- [x] Compiler `.scene` 成为外部 Agent 的 source of truth。
 - [x] `instantiateScene` 将 Scene 节点映射到 runtime。
 - [x] 编辑器创建项、Hierarchy、Inspector、Viewport 基于 Scene 语义工作。
-- [x] CLI 命令使用 `scenePath` 和 `SceneCommand`。
-- [x] AI context 只暴露 Scene 节点和行为组件 schema。
+- [x] CLI 提供 `scene inspect`、`scene validate`、`scene proposal check/apply` 和 `compile-scenes`。
+- [x] Editor live bridge 提供只读 `summary`、`scene get`、`node inspect` 上下文能力。
 - [x] Inspector 按公开节点类型展示专属字段，不暴露内部 runtime authoring 组件。
 - [x] Scene 模板库包含 Button、ProgressBar、ScrollView，并通过 editor template library 创建。
 

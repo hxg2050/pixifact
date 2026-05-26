@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSceneRevision } from 'pixifact/compiler';
 import type { ProjectFileTreeNode } from '../apps/editor/src/services/projectFileTree';
 import { useEditorStore } from '../apps/editor/src/editorStore';
-import { AiPanel } from '../apps/editor/src/panels/AiPanel';
+import { AgentPanel } from '../apps/editor/src/panels/AgentPanel';
 import {
     getCompilerSceneDocument,
     resetCompilerSceneDocument,
@@ -205,7 +205,6 @@ function setEditorProject() {
         openedScenePath: 'GameProject/scenes/Button.scene',
         expandedProjectFolders: ['GameProject', 'GameProject/scenes'],
         expandedHierarchyNodesByScene: {},
-        prompt: '',
     });
 }
 
@@ -227,12 +226,12 @@ function buttonByText(container: HTMLElement, text: string) {
     return button as HTMLButtonElement;
 }
 
-async function renderAiPanel() {
+async function renderAgentPanel() {
     const container = document.createElement('div');
     document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
-        root.render(createElement(AiPanel));
+        root.render(createElement(AgentPanel));
     });
     return {
         container,
@@ -277,7 +276,7 @@ afterEach(() => {
 
 describe('Agent panel proposal review UI', () => {
     it('reviews and applies a pasted scene proposal, then refreshes the current compiler scene document', async () => {
-        const view = await renderAiPanel();
+        const view = await renderAgentPanel();
         try {
             await pasteProposal(view.container, proposalText(updatedScene()));
 
@@ -303,7 +302,7 @@ describe('Agent panel proposal review UI', () => {
     });
 
     it('shows stale proposal errors without writing files', async () => {
-        const view = await renderAiPanel();
+        const view = await renderAgentPanel();
         try {
             await pasteProposal(view.container, proposalText(updatedScene(), 'scene:stale'));
 

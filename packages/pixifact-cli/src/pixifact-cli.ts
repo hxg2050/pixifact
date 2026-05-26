@@ -31,17 +31,6 @@ interface ParsedArgs {
     flags: Record<string, string | true>;
 }
 
-const commandActions = {
-    'dry-run': 'commands.dryRun',
-    apply: 'commands.apply',
-    validate: 'commands.validate',
-} as const;
-
-const templateAddActions = {
-    'dry-run': 'template.add.dryRun',
-    apply: 'template.add.apply',
-} as const;
-
 function parseArgs(argv: string[]): ParsedArgs {
     const positionals: string[] = [];
     const flags: Record<string, string | true> = {};
@@ -89,14 +78,6 @@ async function readInput(input: string | NodeJS.ReadableStream | undefined) {
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
     }
     return Buffer.concat(chunks).toString('utf8');
-}
-
-async function readCommands(flags: Record<string, string | true>, input: string | NodeJS.ReadableStream | undefined) {
-    const commandsPath = requireFlag(flags, 'commands');
-    const text = commandsPath === '-'
-        ? await readInput(input)
-        : await fs.readFile(commandsPath, 'utf8');
-    return JSON.parse(text);
 }
 
 async function readProposal(flags: Record<string, string | true>, input: string | NodeJS.ReadableStream | undefined) {
@@ -188,41 +169,10 @@ async function executeFileCommand(positionals: string[], flags: Record<string, s
         });
     }
 
-    if (area === 'commands' && action in commandActions) {
-        const commands = await readCommands(flags, input);
-        const args = {
-            projectRoot: requireFlag(flags, 'project-root'),
-            scenePath: requireFlag(flags, 'scene'),
-            commands,
-        };
-        if (action === 'dry-run') {
-            return automation.dryRunCommands(args);
-        }
-        if (action === 'apply') {
-            return automation.applyCommands(args);
-        }
-        return automation.validateCommands(args);
-    }
-
-    if (area === 'template' && action === 'add' && subaction in templateAddActions) {
-        const args = {
-            projectRoot: requireFlag(flags, 'project-root'),
-            scenePath: requireFlag(flags, 'scene'),
-            kind: requireFlag(flags, 'kind'),
-            parent: flags.parent,
-            key: requireFlag(flags, 'key'),
-            label: flags.label,
-        };
-        if (subaction === 'dry-run') {
-            return automation.dryRunTemplateAdd(args);
-        }
-        return automation.applyTemplateAdd(args);
-    }
-
     throw new Error(`Unknown Pixifact CLI command "${positionals.join(' ')}".`);
 }
 
-async function executeLiveCommand(positionals: string[], flags: Record<string, string | true>, bridge: LiveBridge, input: string | NodeJS.ReadableStream | undefined) {
+async function executeLiveCommand(positionals: string[], flags: Record<string, string | true>, bridge: LiveBridge) {
     if (!bridge.connected && bridge.waitForConnection) {
         await bridge.waitForConnection();
     }
@@ -230,7 +180,7 @@ async function executeLiveCommand(positionals: string[], flags: Record<string, s
         throw new Error('No live Pixifact editor is connected.');
     }
 
-    const [area, action, subaction] = positionals;
+    const [area, action] = positionals;
     if (area === 'summary' && action === undefined) {
         return bridge.callAction('summary', {});
     }
@@ -240,19 +190,6 @@ async function executeLiveCommand(positionals: string[], flags: Record<string, s
     if (area === 'node' && action === 'inspect') {
         return bridge.callAction('node.inspect', {
             node: requireFlag(flags, 'node'),
-        });
-    }
-    if (area === 'commands' && action in commandActions) {
-        return bridge.callAction(commandActions[action as keyof typeof commandActions], {
-            commands: await readCommands(flags, input),
-        });
-    }
-    if (area === 'template' && action === 'add' && subaction in templateAddActions) {
-        return bridge.callAction(templateAddActions[subaction as keyof typeof templateAddActions], {
-            kind: requireFlag(flags, 'kind'),
-            parent: flags.parent,
-            key: requireFlag(flags, 'key'),
-            label: flags.label,
         });
     }
 
@@ -277,15 +214,9 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'scene proposal check',
                         'scene proposal apply',
                         'node inspect',
-                        'commands dry-run',
-                        'commands apply',
-                        'commands validate',
-                        'template add dry-run',
-                        'template add apply',
+                        'live summary',
                         'live scene get',
-                        'live commands apply',
-                        'live template add dry-run',
-                        'live template add apply',
+                        'live node inspect',
                     ],
                 }),
                 stderr: '',
@@ -299,7 +230,6 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                 parsed.positionals.slice(1),
                 parsed.flags,
                 options.liveBridge ?? (ownedBridge = createLiveBridgeServer()),
-                options.input,
             )
             : await executeFileCommand(parsed.positionals, parsed.flags, automation, options.input);
         if (isFailedResult(result)) {

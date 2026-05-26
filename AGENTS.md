@@ -11,7 +11,7 @@
 
 ## 项目概览
 
-Pixifact 是面向 AI 完整游戏开发的 Scene / UI / 轻场景与项目资产管理层。PixiJS 只作为底层渲染实现；Codex、Claude Code 等外部 Agent 通过 Pixifact CLI 使用 Scene 语义层，编辑器负责预览、资产浏览、校验结果展示和人工微调。
+Pixifact 是面向 AI 完整游戏开发的 Scene / UI / 轻场景与项目资产管理层。PixiJS 只作为底层渲染实现；Codex、Claude Code 等外部 Agent 通过 Pixifact CLI 使用 `.scene` 语义层，编辑器负责预览、资产浏览、live context、校验结果展示和人工微调。
 
 Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validate、compile、preview 和 diagnose。Agent 编排、Git 分支 / commit / revert、任务管理、CI、PR 和长期项目管理交给外部专业工具，不在 Pixifact 内重复实现。
 
@@ -21,8 +21,9 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 - `packages/pixifact/src/runtime/`：`Application`、`GameObject`、`Component`、布局、PixiJS bridge。
 - `packages/pixifact/src/nodes/`：runtime 节点和行为组件。
 - `packages/pixifact/src/scene/`：`SceneSpec`、Scene DSL、Scene 实例化、Scene 模板。
-- `packages/pixifact/src/commands/`：`SceneCommand` 校验、应用、撤销基础。
-- `packages/pixifact/src/authoring/`：`SceneDocument`、selection、diff、AI context、locks、actions、logic。
+- `packages/pixifact/src/commands/`：`SceneDocument` 内部 `SceneCommand` 校验、应用、撤销基础。
+- `packages/pixifact/src/compiler/`：compiler `.scene` 解析、校验、proposal、生成。
+- `packages/pixifact/src/authoring/`：`SceneDocument`、selection、diff、locks、actions、logic。
 - `packages/pixifact-cli/`：Pixifact CLI，依赖 `pixifact`，不依赖桌面编辑器。
 - `apps/editor/`：Pixifact 桌面编辑器产品应用。
 - `apps/editor/src-tauri/`：Tauri desktop host。
@@ -31,12 +32,12 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 
 ## 核心架构规则
 
-- Legacy `SceneSpec` 流程中，`SceneDocument` 是 editor 和 Agent 修改 Scene 的 source of truth。
-- Compiler `.scene` 流程中，`.scene` 源文件是外部 Agent 和 editor 共享的 source of truth。
+- Compiler `.scene` 源文件是外部 Agent 和 editor 共享的 source of truth。
+- `SceneDocument` 服务 legacy SceneSpec 和 editor 内部命令/undo，不作为外部 Agent 修改协议。
 - Zustand 只保存 UI 状态，不保存 `SceneSpec` / `SceneDocument` 的副本。
-- Legacy 真实项目修改必须走 `SceneDocument` API 或 `SceneCommand`。
 - Compiler `.scene` 的默认 Agent 路径是直接编辑 `.scene` 源文件，然后运行 Pixifact CLI 的 `scene validate`、`compile-scenes` 和项目最小相关验证。
 - `.scene proposal` 是可选保险路径，用于防覆盖、显式审查或协作审计；不是默认 AI 开发路径。
+- Editor live bridge 只提供 summary、scene get、node inspect 等上下文能力，不提供旧 `SceneCommand` mutation 入口。
 - JSON 是资产格式，不作为主要编辑入口。
 - 不引入 Monaco，不做内嵌代码编辑器。
 - Editor 可以做项目资产浏览、轻量预览、资源引用和校验，但不编辑图片、音频、脚本等源资源。
@@ -81,7 +82,7 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 
 保留英文或中英混用：
 
-- 产品和行业术语：AI-first、Prompt、Dry Run、Diff、Memory、Mock、Remote、CLI、Agent。
+- 产品和行业术语：AI-first、Prompt、Dry Run、Diff、Memory、CLI、Agent。
 - 工程概念：ID、Key、Type、Scene、Command、SceneDocument、ActionRegistry、LogicGraph。
 - 文件和语言名：JSON、TypeScript、TS。
 - 组件 schema 的原始 display name 和 type，例如 `Button`、`ui.Button`。
@@ -174,12 +175,6 @@ bun run desktop
 bun run desktop:build
 ```
 
-本地启动真实 gateway adapter 样例：
-
-```bash
-bun run editor:gateway
-```
-
 ## 工作方式
 
 - 优先保持改动小而聚焦。
@@ -188,6 +183,6 @@ bun run editor:gateway
 - 不要 revert 用户已有改动。
 - 不要把 React state 变成项目数据源。
 - 不要为了 UI 美化破坏 Alpha 核心流程测试。
-- 新增面板或服务时，优先复用现有 `SceneDocument`、command、serializer、validator。
+- 新增面板或服务时，优先复用现有 `.scene` parser、serializer、validator、compiler scene document 和必要的 `SceneDocument` 内部能力。
 - 运行测试或构建后，避免提交 `apps/editor/dist`、`packages/pixifact/dist`、`test-results`、`apps/editor/src-tauri/target` 等临时产物。
 - 每次代码或文档改动完成并通过相关验证后，自动提交 tracked 变动；不要提交未跟踪文件，除非用户明确要求。

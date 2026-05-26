@@ -1,6 +1,6 @@
 # Agent Scene Authoring
 
-Pixifact uses source-level agent editing as the final authoring model for compiler scenes. The target user flow is external coding agents such as Claude Code and Codex using Pixifact CLI tools. Pixifact does not need an integrated AI chat or model gateway for this flow.
+Pixifact uses source-level agent editing as the final authoring model for compiler scenes. The target user flow is external coding agents such as Claude Code and Codex using Pixifact CLI tools. Pixifact does not need integrated AI chat or a built-in model service for this flow.
 
 Pixifact is intentionally a focused Scene capability, not a full AI IDE or project manager. It provides inspect, edit, validate, compile, preview, and diagnose support for `.scene` source. Agent orchestration, Git branches, commits, reverts, PRs, CI, and task management belong to external tools.
 
@@ -30,7 +30,7 @@ Pixifact compiles generated TypeScript
 Editor refreshes preview
 ```
 
-This replaces `SceneCommand[]` as the primary agent-facing edit protocol for compiler scenes. `SceneCommand` may remain for legacy SceneSpec flows or internal editor implementation, but compiler scene agent workflows should not depend on it.
+This replaces `SceneCommand[]` as the agent-facing edit protocol. `SceneCommand` may remain for `SceneDocument` internals, editor undo, and legacy implementation details, but external agent workflows must not depend on it.
 
 ## Rationale
 
@@ -103,7 +103,7 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 - Do not maintain a second compiler-scene agent editing protocol based on `SceneCommand[]`.
 - Do not expose generated TypeScript as an agent-editable representation.
 - Do not let editor live tools bypass `.scene` parsing and validation.
-- Do not build this compiler-scene workflow around an integrated AI chat panel or model gateway.
+- Do not build this compiler-scene workflow around an integrated AI chat panel or built-in model service.
 - Do not build Pixifact into a Git manager, AI task orchestrator, CI runner, PR tool, or long-term project tracker.
 - Do not add backwards compatibility shims for old compiler-scene proposal formats during alpha development.
 
@@ -188,7 +188,7 @@ bun run pixifact -- scene proposal check --project-root <project-root> --scene s
 bun run pixifact -- scene proposal apply --project-root <project-root> --scene scenes/Button.scene --proposal proposal.json
 ```
 
-Legacy `commands dry-run/apply` may remain for legacy SceneSpec documents. It should not be the primary path for compiler scenes.
+Legacy `commands dry-run/apply` and live mutation commands have been removed from the external CLI surface. The supported agent-facing mutation paths are direct `.scene` source edits plus validation, or the optional `.scene proposal` check/apply flow.
 
 ## Editor Agent Panel
 
@@ -232,6 +232,6 @@ These costs are acceptable because they keep the final authoring model simple an
 
 ## Migration Notes
 
-Existing legacy agent flows based on `SceneCommand[]` should remain available for legacy SceneSpec documents until those flows are retired. Compiler XML scenes should not add new `SceneCommand` surface area unless it is purely internal.
+Existing legacy agent flows based on `SceneCommand[]` are retired from the CLI and live bridge surface. Compiler scene edits should use direct `.scene` source changes followed by `scene validate`, or the optional proposal check/apply flow when a guarded review step is needed.
 
-The live editor bridge currently rejects legacy SceneCommand editing for compiler XML scenes. That behavior matches this decision. Compiler scene edits should use direct `.scene` source changes followed by `scene validate`, or the optional proposal check/apply flow when a guarded review step is needed.
+The live editor bridge is read-only context: `live summary`, `live scene get`, and `live node inspect`. It exists to expose the current editor state and selected node, not to mutate project files.

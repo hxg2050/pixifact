@@ -12,7 +12,7 @@ import type { EditorLanguage } from './i18n';
 import { editorLanguageNames, translate, useI18n } from './i18n';
 import { ResourceExplorer } from './panels/ExplorerPanel';
 import { CompilerSceneHierarchyTree } from './panels/HierarchyPanel';
-import { AiPanel } from './panels/AiPanel';
+import { AgentPanel } from './panels/AgentPanel';
 import { InspectorPanel } from './panels/InspectorPanel';
 import { SummaryBar } from './panels/SummaryBar';
 import { ViewportPanel } from './panels/ViewportPanel';
@@ -44,7 +44,7 @@ function dockPanelTitles(language: EditorLanguage) {
         sceneTree: translate(language, 'panelScene'),
         viewport: translate(language, 'viewportLabel'),
         inspector: 'Inspector',
-        ai: translate(language, 'panelAi'),
+        agent: translate(language, 'panelAgent'),
     };
 }
 
@@ -54,14 +54,14 @@ function setDockPanelTitles(api: DockviewApi, language: EditorLanguage) {
     api.getPanel('scene')?.api.setTitle(titles.sceneTree);
     api.getPanel('viewport')?.api.setTitle(titles.viewport);
     api.getPanel('inspector')?.api.setTitle(titles.inspector);
-    api.getPanel('ai')?.api.setTitle(titles.ai);
+    api.getPanel('agent')?.api.setTitle(titles.agent);
 }
 
 function setInitialDockLayout(api: DockviewApi) {
     api.getPanel('filesystem')?.group.api.setSize({ width: 280 });
     api.getPanel('scene')?.group.api.setSize({ width: 300 });
     api.getPanel('inspector')?.group.api.setSize({ width: 360 });
-    api.getPanel('ai')?.group.api.setSize({ height: 220 });
+    api.getPanel('agent')?.group.api.setSize({ height: 220 });
 }
 
 function createDockComponents() {
@@ -80,7 +80,7 @@ function createDockComponents() {
         inspector: (_props: IDockviewPanelProps<EditorPanelParams>) => (
             <InspectorPanel />
         ),
-        ai: () => <AiPanel />,
+        agent: () => <AgentPanel />,
     };
 }
 
@@ -189,9 +189,9 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
         position: { referencePanel: viewport, direction: 'right' },
     });
     event.api.addPanel({
-        id: 'ai',
-        component: 'ai',
-        title: titles.ai,
+        id: 'agent',
+        component: 'agent',
+        title: titles.agent,
         initialHeight: 220,
         minimumHeight: 160,
         position: { referencePanel: viewport, direction: 'below' },
@@ -392,7 +392,7 @@ export function EditorApp() {
             <span data-testid="save-status">{saveStatus}</span>
             {externalSceneSyncMessage ? <span className="statusPill dirty">Sync: {externalSceneSyncMessage}</span> : null}
             <span>{t(`runState_${runStatus.state}`)}</span>
-            <span>AI Ready</span>
+            <span>Agent Bridge</span>
             <SummaryBar />
         </>
     ) : (
@@ -428,7 +428,7 @@ export function EditorApp() {
                         {hasProject ? (
                             <>
                                 <Button icon="save" onPress={() => void saveScene()}>{t('save')}</Button>
-                                <Button icon="reset" onPress={resetDocument}>{t('resetMock')}</Button>
+                                <Button icon="reset" onPress={resetDocument}>{t('resetDemo')}</Button>
                             </>
                         ) : null}
                     </div>

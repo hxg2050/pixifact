@@ -16,7 +16,7 @@ import {
 } from './agentProposalReview';
 import type { AgentProposalReviewResult } from './agentProposalReview';
 
-export function AiPanel() {
+export function AgentPanel() {
     const t = useI18n();
     const projectTree = useEditorStore((state) => state.projectTree);
     const openedScenePath = useEditorStore((state) => state.openedScenePath);
@@ -68,7 +68,7 @@ export function AiPanel() {
     }
 
     return (
-        <div className="aiSurface agentSurface">
+        <div className="agentPanelSurface agentSurface">
             <section className="agentHero">
                 <span>{t('agentPrimaryLabel')}</span>
                 <strong>{t('agentPanelTitle')}</strong>
@@ -103,7 +103,7 @@ export function AiPanel() {
             </section>
             <section className="agentPromptCard">
                 <strong>{t('agentPromptTitle')}</strong>
-                <code>{workflow.prompt}</code>
+                <code>{workflow.agentPrompt}</code>
             </section>
             <section className="agentReviewCard">
                 <div className="agentReviewHeader">

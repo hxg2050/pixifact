@@ -3,7 +3,6 @@ import type { DesignTokenSpec } from "./DesignToken";
 import type { SceneSelection } from "./SceneSelection";
 import type { LockSpec, OverrideSpec } from "./OverrideJournal";
 import type { PreferenceMemory } from "./PreferenceMemory";
-import type { ProposalHistoryEntry } from "./ProposalHistory";
 import type { ActionSpec } from "./ActionRegistry";
 import type { LogicGraphSpec } from "./LogicGraph";
 
@@ -18,7 +17,6 @@ export interface SceneProjectState {
     locks: LockSpec[];
     overrides: OverrideSpec[];
     memory: PreferenceMemory[];
-    proposalHistory: ProposalHistoryEntry[];
 }
 
 export function isSceneProjectState(value: unknown): value is SceneProjectState {

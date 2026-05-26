@@ -2,7 +2,7 @@ export interface ActionSpec {
     key: string;
     label?: string;
     description?: string;
-    source?: 'manual' | 'ai' | 'code';
+    source?: 'manual' | 'agent' | 'code';
 }
 
 export function actionExists(actions: readonly ActionSpec[] | undefined, key: string) {
@@ -29,7 +29,7 @@ export function createRuntimeActions(actions: readonly ActionSpec[] | undefined,
     return runtimeActions;
 }
 
-export function summarizeActionsForAi(actions: readonly ActionSpec[] | undefined) {
+export function summarizeActionsForAgent(actions: readonly ActionSpec[] | undefined) {
     return (actions ?? [])
         .map((action) => `- ${action.key}${action.label ? ` (${action.label})` : ''}${action.description ? `: ${action.description}` : ''}`)
         .join('\n');

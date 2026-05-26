@@ -1,15 +1,11 @@
-import { applyCommand, commandFailureDetails, createSceneTemplateCommands, dryRunProposal } from 'pixifact';
-import type { CommandResult, SceneCommand, NodeSpec, SceneSpec } from 'pixifact';
-import {
-    getSceneDocument,
-    refreshSceneDocument,
-} from '../document/sceneDocumentController';
-import { getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
+import type { NodeSpec, SceneSpec } from 'pixifact';
+import { createSceneRevision, inspectSceneTemplate } from '../../../../packages/pixifact/src/compiler/sceneProposal';
+import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
+import type { SceneTemplateNode } from '../../../../packages/pixifact/src/compiler/spec';
+import { getSceneDocument } from '../document/sceneDocumentController';
+import { compilerSceneNodeLocator, getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
-import {
-    refreshProjectFileTree,
-    saveSceneFile,
-} from '../services/projectFileTree';
+import type { CompilerSceneTemplateNode } from '../services/projectFileTree';
 import {
     pixifactAgentBridgeUrl,
     type LiveBridgeClientMessage,
@@ -21,11 +17,6 @@ interface ToolInput {
     projectRoot?: unknown;
     scenePath?: unknown;
     node?: unknown;
-    commands?: unknown;
-    kind?: unknown;
-    parent?: unknown;
-    key?: unknown;
-    label?: unknown;
 }
 
 interface ProjectFileSummary {
@@ -58,6 +49,13 @@ type DetailedNode = NodeSpec & {
     childCount: number;
 }
 
+type DetailedCompilerNode = SceneTemplateNode & {
+    locator: string;
+    depth: number;
+    parent?: string;
+    childCount: number;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -74,26 +72,6 @@ function assertString(value: unknown, name: string) {
         throw new Error(`${name} must be a non-empty string.`);
     }
     return value;
-}
-
-function assertCommands(value: unknown): SceneCommand[] {
-    if (!Array.isArray(value)) {
-        throw new Error('commands must be an array.');
-    }
-    return value as SceneCommand[];
-}
-
-function optionalString(value: unknown) {
-    return typeof value === 'string' && value.trim() !== '' ? value : undefined;
-}
-
-function templateCommands(args: ToolInput): SceneCommand[] {
-    return createSceneTemplateCommands({
-        kind: assertString(args.kind, 'kind'),
-        parent: optionalString(args.parent),
-        key: assertString(args.key, 'key'),
-        label: optionalString(args.label),
-    });
 }
 
 function getNodeLocator(node: NodeSpec) {
@@ -164,6 +142,44 @@ function summarizeScene(scene: SceneSpec) {
     };
 }
 
+function compilerNodeChildren(node: CompilerSceneTemplateNode): CompilerSceneTemplateNode[] {
+    if (node.kind === 'pixi') {
+        return node.children;
+    }
+    if (node.kind === 'sceneInstance') {
+        return Object.values(node.slots).flat();
+    }
+    return [];
+}
+
+function collectDetailedCompilerNodes(
+    nodes: CompilerSceneTemplateNode[],
+    depth = 0,
+    parentLocator = '__scene__',
+): DetailedCompilerNode[] {
+    return nodes.flatMap((node, index) => {
+        const locator = compilerSceneNodeLocator(
+            node,
+            parentLocator === '__scene__' ? String(index) : `${parentLocator}/${index}`,
+        );
+        const children = node.kind === 'pixi'
+            ? collectDetailedCompilerNodes(node.children, depth + 1, locator)
+            : node.kind === 'sceneInstance'
+                ? Object.entries(node.slots).flatMap(([slot, children]) => collectDetailedCompilerNodes(children, depth + 1, `${locator}/slot:${slot}`))
+                : [];
+        return [
+            {
+                ...structuredClone(node),
+                locator,
+                depth,
+                parent: parentLocator === '__scene__' ? undefined : parentLocator,
+                childCount: compilerNodeChildren(node).length,
+            },
+            ...children,
+        ];
+    });
+}
+
 function collectProjectFiles(node: { path: string; kind: string; children?: Array<{ path: string; kind: string; children?: unknown[] }> }): ProjectFileSummary[] {
     return [
         {
@@ -183,49 +199,6 @@ function matchesCurrentScene(args: ToolInput) {
         return false;
     }
     return assertString(args.scenePath, 'scenePath') === openedScenePath;
-}
-
-function assertLegacySceneCommandTarget() {
-    const openedScenePath = useEditorStore.getState().openedScenePath;
-    const compilerDocument = getCompilerSceneDocument();
-    if (openedScenePath && compilerDocument?.scenePath === openedScenePath) {
-        throw new Error('The currently open Scene uses Pixifact compiler XML; legacy SceneCommand live tools cannot edit it.');
-    }
-}
-
-async function saveCurrentScene() {
-    assertLegacySceneCommandTarget();
-    const store = useEditorStore.getState();
-    const projectTree = store.projectTree;
-    const openedScenePath = store.openedScenePath;
-    if (!projectTree || !openedScenePath) {
-        return false;
-    }
-    const saved = await saveSceneFile(projectTree, openedScenePath, getSceneDocument());
-    if (saved) {
-        const refreshedTree = await refreshProjectFileTree(projectTree);
-        useEditorStore.getState().refreshProject(refreshedTree, { selectPath: openedScenePath });
-        refreshSceneDocument();
-    }
-    return saved;
-}
-
-function dryRunCurrentCommands(commands: SceneCommand[]) {
-    assertLegacySceneCommandTarget();
-    const document = getSceneDocument();
-    const proposal = {
-        id: 'cli-live-dry-run',
-        prompt: 'CLI live dry run',
-        explanation: 'Commands submitted through Pixifact CLI live bridge.',
-        commands,
-        annotations: [],
-        risks: [],
-    };
-    return dryRunProposal(document.scene, proposal, {
-        locks: document.locks,
-        designTokens: document.designTokens,
-        actions: document.actions,
-    });
 }
 
 export function createLiveEditorActionHandlers() {
@@ -258,8 +231,21 @@ export function createLiveEditorActionHandlers() {
             if (!matchesCurrentScene(args)) {
                 throw new Error('The requested Scene is not the currently open Scene in the editor.');
             }
-            assertLegacySceneCommandTarget();
             const store = useEditorStore.getState();
+            const compilerDocument = getCompilerSceneDocument();
+            if (store.openedScenePath && compilerDocument?.scenePath === store.openedScenePath) {
+                const content = serializeSceneTemplate(compilerDocument.template);
+                return {
+                    connected: true,
+                    sourceType: 'compiler-scene',
+                    scenePath: store.openedScenePath,
+                    dirty: compilerDocument.dirty,
+                    revision: createSceneRevision(content),
+                    selection: compilerDocument.selection,
+                    template: compilerDocument.template,
+                    summary: inspectSceneTemplate(compilerDocument.template),
+                };
+            }
             const document = getSceneDocument();
             return {
                 connected: true,
@@ -277,181 +263,21 @@ export function createLiveEditorActionHandlers() {
             if (!matchesCurrentScene(args)) {
                 throw new Error('The requested Scene is not the currently open Scene in the editor.');
             }
-            assertLegacySceneCommandTarget();
             const nodeId = assertString(args.node, 'node');
+            const store = useEditorStore.getState();
+            const compilerDocument = getCompilerSceneDocument();
+            if (store.openedScenePath && compilerDocument?.scenePath === store.openedScenePath) {
+                const node = collectDetailedCompilerNodes(compilerDocument.template.children).find((item) => item.locator === nodeId);
+                if (!node) {
+                    throw new Error(`Node "${nodeId}" was not found.`);
+                }
+                return node;
+            }
             const node = collectDetailedNodes(getSceneDocument().scene.root).find((item) => item.locator === nodeId);
             if (!node) {
                 throw new Error(`Node "${nodeId}" was not found.`);
             }
             return node;
-        },
-
-        async 'commands.dryRun'(input: unknown) {
-            const args = assertRecord(input, 'input') as ToolInput;
-            if (!matchesCurrentScene(args)) {
-                throw new Error('The requested Scene is not the currently open Scene in the editor.');
-            }
-            const result = dryRunCurrentCommands(assertCommands(args.commands));
-            return {
-                ok: result.ok,
-                live: true,
-                error: result.error,
-                ...(!result.ok ? commandFailureDetails(result.proposal.commands, result.results, result.error) : {}),
-                diffs: result.diffs,
-                warnings: result.warnings,
-                results: result.results,
-                scene: result.scene,
-            };
-        },
-
-        async 'commands.apply'(input: unknown) {
-            const args = assertRecord(input, 'input') as ToolInput;
-            if (!matchesCurrentScene(args)) {
-                throw new Error('The requested Scene is not the currently open Scene in the editor.');
-            }
-            const commands = assertCommands(args.commands);
-            const dryRun = dryRunCurrentCommands(commands);
-            if (!dryRun.ok) {
-                return {
-                    ok: false,
-                    live: true,
-                    error: dryRun.error,
-                    ...commandFailureDetails(commands, dryRun.results, dryRun.error),
-                    diffs: dryRun.diffs,
-                    warnings: dryRun.warnings,
-                    results: dryRun.results,
-                };
-            }
-
-            const document = getSceneDocument();
-            const results: CommandResult[] = [];
-            for (const command of commands) {
-                const result = document.apply(command, 'ai');
-                results.push(result);
-                if (!result.ok) {
-                    return {
-                        ok: false,
-                        live: true,
-                        error: result.error,
-                        ...commandFailureDetails(commands, results, result.error),
-                        results,
-                    };
-                }
-            }
-            refreshSceneDocument();
-            const saved = await saveCurrentScene();
-            return {
-                ok: true,
-                live: true,
-                saved,
-                scenePath: useEditorStore.getState().openedScenePath,
-                diffs: dryRun.diffs,
-                warnings: dryRun.warnings,
-                results,
-                summary: summarizeScene(document.scene),
-            };
-        },
-
-        async 'commands.validate'(input: unknown) {
-            const args = assertRecord(input, 'input') as ToolInput;
-            if (!matchesCurrentScene(args)) {
-                throw new Error('The requested Scene is not the currently open Scene in the editor.');
-            }
-            assertLegacySceneCommandTarget();
-            const commands = assertCommands(args.commands);
-            const draft = structuredClone(getSceneDocument().scene);
-            const results: CommandResult[] = [];
-            for (const command of commands) {
-                const result = applyCommand(draft, command, {
-                    actions: getSceneDocument().actions,
-                });
-                results.push(result);
-                if (!result.ok) {
-                    return {
-                        ok: false,
-                        live: true,
-                        error: result.error,
-                        ...commandFailureDetails(commands, results, result.error),
-                        results,
-                    };
-                }
-            }
-            return {
-                ok: true,
-                live: true,
-                results,
-            };
-        },
-
-        async 'template.add.dryRun'(input: unknown) {
-            const args = assertRecord(input, 'input') as ToolInput;
-            if (!matchesCurrentScene(args)) {
-                throw new Error('The requested Scene is not the currently open Scene in the editor.');
-            }
-            const commands = templateCommands(args);
-            const result = dryRunCurrentCommands(commands);
-            return {
-                ok: result.ok,
-                live: true,
-                error: result.error,
-                ...(!result.ok ? commandFailureDetails(commands, result.results, result.error) : {}),
-                commands,
-                diffs: result.diffs,
-                warnings: result.warnings,
-                results: result.results,
-                scene: result.scene,
-            };
-        },
-
-        async 'template.add.apply'(input: unknown) {
-            const args = assertRecord(input, 'input') as ToolInput;
-            if (!matchesCurrentScene(args)) {
-                throw new Error('The requested Scene is not the currently open Scene in the editor.');
-            }
-            const commands = templateCommands(args);
-            const dryRun = dryRunCurrentCommands(commands);
-            if (!dryRun.ok) {
-                return {
-                    ok: false,
-                    live: true,
-                    error: dryRun.error,
-                    ...commandFailureDetails(commands, dryRun.results, dryRun.error),
-                    commands,
-                    diffs: dryRun.diffs,
-                    warnings: dryRun.warnings,
-                    results: dryRun.results,
-                };
-            }
-
-            const document = getSceneDocument();
-            const results: CommandResult[] = [];
-            for (const command of commands) {
-                const result = document.apply(command, 'ai');
-                results.push(result);
-                if (!result.ok) {
-                    return {
-                        ok: false,
-                        live: true,
-                        error: result.error,
-                        ...commandFailureDetails(commands, results, result.error),
-                        commands,
-                        results,
-                    };
-                }
-            }
-            refreshSceneDocument();
-            const saved = await saveCurrentScene();
-            return {
-                ok: true,
-                live: true,
-                saved,
-                scenePath: useEditorStore.getState().openedScenePath,
-                commands,
-                diffs: dryRun.diffs,
-                warnings: dryRun.warnings,
-                results,
-                summary: summarizeScene(document.scene),
-            };
         },
     };
 }

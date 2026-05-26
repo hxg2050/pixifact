@@ -9,7 +9,7 @@ export interface PreferenceMemory {
     reason?: string;
     confidence: number;
     enabled?: boolean;
-    source?: 'manual' | 'imported' | 'ai';
+    source?: 'manual' | 'imported' | 'agent';
 }
 
 export interface MemorySuggestion {
@@ -52,7 +52,7 @@ export function createMemorySuggestions(overrides: readonly OverrideSpec[]) {
         .filter((suggestion): suggestion is MemorySuggestion => !!suggestion);
 }
 
-export function summarizeMemoryForAi(memory: readonly PreferenceMemory[]) {
+export function summarizeMemoryForAgent(memory: readonly PreferenceMemory[]) {
     return memory
         .filter((item) => item.enabled !== false)
         .map((item) => `- ${item.pattern}`)

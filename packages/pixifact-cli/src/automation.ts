@@ -10,18 +10,14 @@ import {
     validateSceneContent,
 } from 'pixifact/compiler';
 import {
-    applyCommand,
-    commandFailureDetails,
     container,
-    createSceneTemplateCommands,
-    dryRunProposal,
     scene,
     SceneDocument,
     parsePixifactProjectConfig,
     pixifactProjectConfigFileName,
     summarizePixifactProjectConfig,
 } from 'pixifact';
-import type { CommandResult, SceneCommand, SceneSpec, NodeSpec } from 'pixifact';
+import type { SceneSpec, NodeSpec } from 'pixifact';
 import type { SceneProjectState } from 'pixifact';
 import type { SceneTemplate, SceneTemplateInterface } from 'pixifact/compiler';
 
@@ -41,12 +37,7 @@ interface ToolInput {
     projectRoot?: unknown;
     scenePath?: unknown;
     node?: unknown;
-    commands?: unknown;
     name?: unknown;
-    kind?: unknown;
-    parent?: unknown;
-    key?: unknown;
-    label?: unknown;
     proposal?: unknown;
 }
 
@@ -96,13 +87,6 @@ function assertString(value: unknown, name: string) {
     return value;
 }
 
-function assertCommands(value: unknown): SceneCommand[] {
-    if (!Array.isArray(value)) {
-        throw new Error('commands must be an array.');
-    }
-    return value as SceneCommand[];
-}
-
 function isInside(root: string, target: string) {
     const relative = path.relative(root, target);
     return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
@@ -131,10 +115,6 @@ function readPixifactProjectSummary(root: string) {
         return undefined;
     }
     return summarizePixifactProjectConfig(parsePixifactProjectConfig(readJsonFile(configPath)));
-}
-
-function writeJsonFile(filePath: string, value: unknown) {
-    fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
 function writeTextFile(filePath: string, value: string) {
@@ -271,21 +251,6 @@ function readCompilerSceneInterface(root: string, scenePath: string, template: S
     return extractSceneScriptInterface(readTextFile(scriptPath), scriptPath, { scene: scenePath }).interface;
 }
 
-function saveEditableScene(editable: EditableDocument, scene: SceneSpec) {
-    if (editable.isProjectFile) {
-        writeJsonFile(editable.target, {
-            ...editable.document.getState(),
-            scene,
-        });
-    } else {
-        writeJsonFile(editable.target, scene);
-    }
-}
-
-function optionalString(value: unknown) {
-    return typeof value === 'string' && value.trim() !== '' ? value : undefined;
-}
-
 function nodeLocator(node: NodeSpec) {
     return node.id ?? node.key ?? node.name ?? '';
 }
@@ -349,15 +314,6 @@ function summarizeScene(scene: SceneSpec) {
         componentCount: nodes.reduce((sum, node) => sum + node.componentCount, 0),
         root: summarizeNode(scene.root),
     };
-}
-
-function templateCommands(args: ToolInput): SceneCommand[] {
-    return createSceneTemplateCommands({
-        kind: assertString(args.kind, 'kind'),
-        parent: optionalString(args.parent),
-        key: assertString(args.key, 'key'),
-        label: optionalString(args.label),
-    });
 }
 
 function walkFiles(root: string, directory: string, depth: number, maxDepth: number, results: ProjectFileSummary[]) {
@@ -509,127 +465,6 @@ export function createPixifactAutomation() {
                 throw new Error(`Node "${nodeId}" was not found.`);
             }
             return node;
-        },
-
-        dryRunCommands(input: unknown) {
-            const args = assertRecord(input, 'input') as ToolInput;
-            const editable = loadEditableDocument(args.projectRoot, args.scenePath);
-            const proposal = {
-                id: 'cli-dry-run',
-                prompt: 'CLI dry run',
-                explanation: 'Commands submitted through Pixifact CLI.',
-                commands: assertCommands(args.commands),
-                annotations: [],
-                risks: [],
-            };
-            const result = dryRunProposal(editable.document.scene, proposal, {
-                locks: editable.document.locks,
-                designTokens: editable.document.designTokens,
-                actions: editable.document.actions,
-            });
-            return {
-                ok: result.ok,
-                error: result.error,
-                ...(!result.ok ? commandFailureDetails(proposal.commands, result.results, result.error) : {}),
-                diffs: result.diffs,
-                warnings: result.warnings,
-                results: result.results,
-                scene: result.scene,
-            };
-        },
-
-        applyCommands(input: unknown) {
-            const args = assertRecord(input, 'input') as ToolInput;
-            const editable = loadEditableDocument(args.projectRoot, args.scenePath);
-            const commands = assertCommands(args.commands);
-            const proposal = {
-                id: 'cli-apply',
-                prompt: 'CLI apply',
-                explanation: 'Commands submitted through Pixifact CLI.',
-                commands,
-                annotations: [],
-                risks: [],
-            };
-            const dryRun = dryRunProposal(editable.document.scene, proposal, {
-                locks: editable.document.locks,
-                designTokens: editable.document.designTokens,
-                actions: editable.document.actions,
-            });
-            if (!dryRun.ok) {
-                return {
-                    ok: false,
-                    error: dryRun.error,
-                    ...commandFailureDetails(commands, dryRun.results, dryRun.error),
-                    diffs: dryRun.diffs,
-                    warnings: dryRun.warnings,
-                    results: dryRun.results,
-                };
-            }
-
-            const nextScene = dryRun.scene as SceneSpec;
-            saveEditableScene(editable, nextScene);
-            return {
-                ok: true,
-                scenePath: path.relative(editable.projectRoot, editable.target),
-                diffs: dryRun.diffs,
-                warnings: dryRun.warnings,
-                results: dryRun.results,
-                summary: summarizeScene(nextScene),
-            };
-        },
-
-        validateCommands(input: unknown) {
-            const args = assertRecord(input, 'input') as ToolInput;
-            const editable = loadEditableDocument(args.projectRoot, args.scenePath);
-            const commands = assertCommands(args.commands);
-            const draft = structuredClone(editable.document.scene);
-            const results: CommandResult[] = [];
-            for (const command of commands) {
-                const result = applyCommand(draft, command, {
-                    actions: editable.document.actions,
-                });
-                results.push(result);
-                if (!result.ok) {
-                    return {
-                        ok: false,
-                        error: result.error,
-                        ...commandFailureDetails(commands, results, result.error),
-                        results,
-                    };
-                }
-            }
-            return {
-                ok: true,
-                results,
-            };
-        },
-
-        dryRunTemplateAdd(input: unknown) {
-            const args = assertRecord(input, 'input') as ToolInput;
-            const commands = templateCommands(args);
-            const result = this.dryRunCommands({
-                projectRoot: args.projectRoot,
-                scenePath: args.scenePath,
-                commands,
-            });
-            return {
-                ...result,
-                commands,
-            };
-        },
-
-        applyTemplateAdd(input: unknown) {
-            const args = assertRecord(input, 'input') as ToolInput;
-            const commands = templateCommands(args);
-            const result = this.applyCommands({
-                projectRoot: args.projectRoot,
-                scenePath: args.scenePath,
-                commands,
-            });
-            return {
-                ...result,
-                commands,
-            };
         },
     };
 }
