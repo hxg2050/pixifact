@@ -1,0 +1,10 @@
+<Scene name="MainMenu" script="src/scenes/MainMenu.ts" width="720" height="1280">
+  <Graphics id="backgroundPanel" shape="roundRect" x="58" y="270" width="604" height="620" radius="34" fill="#111827" fillAlpha="0.9" strokeColor="#38bdf8" strokeWidth="2" strokeAlpha="0.7" />
+  <Text id="eyebrowText" text="PIXIFACT SAMPLE" x="168" y="330" fontSize="22" fontWeight="700" fill="#38bdf8" />
+  <Text id="titleText" text="SPACE HUD" x="112" y="390" fontSize="72" fontWeight="700" fill="#f8fafc" />
+  <Text id="subtitleText" text="Portrait runtime demo" x="152" y="482" fontSize="28" fontWeight="700" fill="#c4b5fd" />
+  <Text id="bodyText" text="Dodge asteroids. Keep the HUD alive." x="104" y="552" fontSize="24" fontWeight="500" fill="#cbd5e1" />
+  <Graphics id="startButtonBack" shape="roundRect" x="148" y="684" width="424" height="96" radius="28" fill="#2563eb" />
+  <Text id="startLabel" text="START" x="282" y="712" fontSize="34" fontWeight="700" fill="#ffffff" />
+  <Text id="footerText" text="WASD / arrows to move" x="204" y="824" fontSize="22" fontWeight="700" fill="#94a3b8" />
+</Scene>
