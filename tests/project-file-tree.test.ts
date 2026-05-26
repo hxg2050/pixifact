@@ -53,6 +53,7 @@ import {
     sceneInterfacesForCompilerTemplate,
 } from '../apps/editor/src/services/sceneBindingIndex';
 import { isCompilerBindingSourceChange } from '../apps/editor/src/services/compilerSceneBindingSync';
+import { syncOpenedCompilerSceneFromHostChange } from '../apps/editor/src/services/compilerSceneExternalSync';
 import { addDroppedCompilerSceneInstance } from '../apps/editor/src/services/compilerSceneDrop';
 import { createSceneInstanceNode } from '../apps/editor/src/services/sceneInstance';
 import { sceneAssetName, sceneFileName, sceneRootKey } from '../apps/editor/src/services/sceneNaming';
@@ -833,6 +834,99 @@ describe('project file tree service', () => {
         expect(isCompilerBindingSourceChange({ path: 'GameProject/src/scenes/Button.ts', kind: 'script' })).toBe(true);
         expect(isCompilerBindingSourceChange({ path: 'src/logic/actions.ts', kind: 'script' })).toBe(false);
         expect(isCompilerBindingSourceChange({ path: 'assets/button.png', kind: 'asset' })).toBe(false);
+    });
+
+    it('reloads the opened compiler Scene when the host reports an external .scene edit', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file(`
+                    <Scene name="Button" script="src/scenes/Button.ts">
+                      <Text id="labelText" text="Start" />
+                    </Scene>
+                `),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.ts': emptySceneScript('Button'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        await host.writeProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene', `
+            <Scene name="Button" script="src/scenes/Button.ts">
+              <Text id="labelText" text="Continue" />
+            </Scene>
+        `);
+        const result = await syncOpenedCompilerSceneFromHostChange({
+            projectTree: tree,
+            openedScenePath: 'GameProject/scenes/Button.scene',
+            event: {
+                projectRootPath: '/tmp/GameProject',
+                path: 'GameProject/scenes/Button.scene',
+                kind: 'scene',
+            },
+        });
+
+        expect(result.status).toBe('sceneReloaded');
+        expect(getCompilerSceneDocument()?.template.children[0]).toMatchObject({
+            kind: 'pixi',
+            type: 'Text',
+            id: 'labelText',
+            props: {
+                text: 'Continue',
+            },
+        });
+        expect(getCompilerSceneDocument()?.dirty).toBe(false);
+    });
+
+    it('does not reload an externally changed compiler Scene over dirty editor changes', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file(`
+                    <Scene name="Button" script="src/scenes/Button.ts">
+                      <Text id="labelText" text="Start" />
+                    </Scene>
+                `),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.ts': emptySceneScript('Button'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+        updateCompilerSceneNode('0:labelText', { props: { text: 'Unsaved' } });
+
+        await host.writeProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene', `
+            <Scene name="Button" script="src/scenes/Button.ts">
+              <Text id="labelText" text="External" />
+            </Scene>
+        `);
+        const result = await syncOpenedCompilerSceneFromHostChange({
+            projectTree: tree,
+            openedScenePath: 'GameProject/scenes/Button.scene',
+            event: {
+                projectRootPath: '/tmp/GameProject',
+                path: 'GameProject/scenes/Button.scene',
+                kind: 'scene',
+            },
+        });
+
+        expect(result).toEqual({
+            status: 'dirtySkipped',
+            message: '当前打开的 Scene 有未保存修改，已跳过外部文件刷新。',
+        });
+        expect(getCompilerSceneDocument()?.template.children[0]).toMatchObject({
+            props: {
+                text: 'Unsaved',
+            },
+        });
+        expect(getCompilerSceneDocument()?.dirty).toBe(true);
     });
 
     it('opens and refreshes the bound compiler Scene script contract', async () => {

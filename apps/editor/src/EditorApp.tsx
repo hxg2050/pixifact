@@ -18,9 +18,7 @@ import { SummaryBar } from './panels/SummaryBar';
 import { ViewportPanel } from './panels/ViewportPanel';
 import { useCompilerSceneRevision } from './panels/common';
 import {
-    findFileByPath,
     openProjectFolder,
-    refreshCompilerSceneBindingSnapshot,
     saveCompilerSceneFile,
 } from './services/projectFileTree';
 import type { CompilerSceneTemplateNode } from './services/projectFileTree';
@@ -35,7 +33,7 @@ import type { EditorRunStatus } from './services/editorRunService';
 import { startLiveEditorAgentClient } from './agent/liveEditorClient';
 import { pixifactAgentBridgeUrl } from './agent/liveBridge';
 import { listenHostProjectFileChanged } from './services/hostBridge';
-import { isCompilerBindingSourceChange } from './services/compilerSceneBindingSync';
+import { syncOpenedCompilerSceneFromHostChange } from './services/compilerSceneExternalSync';
 import 'dockview/dist/styles/dockview.css';
 
 type EditorPanelParams = Record<string, never>;
@@ -212,7 +210,7 @@ export function EditorApp() {
     const [saveStatusKey, setSaveStatusKey] = useState<'closed' | 'treeLoaded' | 'noScene' | 'savedFile' | 'compiledFile' | 'compileFailed'>('closed');
     const [savedFileName, setSavedFileName] = useState('');
     const [saveError, setSaveError] = useState('');
-    const [bindingSyncError, setBindingSyncError] = useState('');
+    const [externalSceneSyncMessage, setExternalSceneSyncMessage] = useState('');
     const [runStatus, setRunStatus] = useState<EditorRunStatus>({
         state: 'unconfigured',
         stdout: [],
@@ -275,29 +273,15 @@ export function EditorApp() {
         void listenHostProjectFileChanged(async (event) => {
             const currentProjectTree = useEditorStore.getState().projectTree;
             const currentScenePath = useEditorStore.getState().openedScenePath;
-            if (!currentProjectTree || !currentScenePath) {
-                setBindingSyncError('');
-                return;
-            }
-            const currentRootPath = currentProjectTree.projectRootPath ?? currentProjectTree.systemPath;
-            if (event.projectRootPath !== currentRootPath || !isCompilerBindingSourceChange(event)) {
-                return;
-            }
-            const document = getCompilerSceneDocument();
-            if (!document || document.scenePath !== currentScenePath) {
-                setBindingSyncError('');
-                return;
-            }
-            const file = findFileByPath(currentProjectTree, currentScenePath);
-            if (!file || file.kind !== 'scene') {
-                setBindingSyncError('');
-                return;
-            }
             try {
-                await refreshCompilerSceneBindingSnapshot(currentProjectTree, file, document.template);
-                setBindingSyncError('');
+                const result = await syncOpenedCompilerSceneFromHostChange({
+                    projectTree: currentProjectTree,
+                    openedScenePath: currentScenePath,
+                    event,
+                });
+                setExternalSceneSyncMessage(result.status === 'dirtySkipped' ? result.message : '');
             } catch (error) {
-                setBindingSyncError(error instanceof Error ? error.message : String(error));
+                setExternalSceneSyncMessage(error instanceof Error ? error.message : String(error));
             }
         }).then((dispose) => {
             if (cancelled) {
@@ -307,7 +291,7 @@ export function EditorApp() {
             unsubscribe = dispose;
         }).catch((error) => {
             if (!cancelled) {
-                setBindingSyncError(error instanceof Error ? error.message : String(error));
+                setExternalSceneSyncMessage(error instanceof Error ? error.message : String(error));
             }
         });
 
@@ -406,7 +390,7 @@ export function EditorApp() {
             <span>{compilerSceneOpened ? `${currentSceneName}.scene` : currentSceneName}</span>
             <span className={currentSceneDirty ? 'statusPill dirty' : 'statusPill saved'}>{currentSceneDirty ? t('dirtyUnsaved') : t('saved')}</span>
             <span data-testid="save-status">{saveStatus}</span>
-            {bindingSyncError ? <span className="statusPill dirty">Binding: {bindingSyncError}</span> : null}
+            {externalSceneSyncMessage ? <span className="statusPill dirty">Sync: {externalSceneSyncMessage}</span> : null}
             <span>{t(`runState_${runStatus.state}`)}</span>
             <span>AI Ready</span>
             <SummaryBar />
