@@ -340,13 +340,20 @@ const zh = {
     agentProjectState: '项目状态',
     agentProjectOpened: '已打开项目',
     agentProjectNotOpened: '未打开项目',
+    agentProjectRoot: '项目根目录',
+    agentScenePath: '当前 Scene',
     agentSetupTitle: '连接步骤',
     agentStepStartCli: '用 CLI 读取或修改项目文件。',
     agentStepRegisterClient: '需要操作当前编辑器时使用 live CLI。',
     agentStepUseExternal: '在外部 agent 中描述需求，并要求先 dry-run 再 apply。',
+    agentStepInspectScene: '先读取当前 Scene 结构。',
+    agentStepValidateScene: '编辑 .scene 后运行验证。',
+    agentStepCompileScene: '验证后重新编译 Scene。',
+    agentStepBuildProject: '最后运行项目最小构建。',
+    agentPromptTitle: 'Agent 提示词',
     agentPromptExample: '使用 Pixifact CLI 对当前 Scene 创建一个红色开始按钮，先 dry-run。',
     agentToolsTitle: '可用命令',
-    agentToolsRule: 'CLI 命令只接受结构化 SceneCommand；不会直接写源码或绕过编辑器校验。',
+    agentToolsRule: 'Compiler Scene 的主路径是直接编辑 .scene，再通过 CLI validate / compile；不要编辑 .pixifact/generated。',
 } as const;
 
 const en: Record<keyof typeof zh, string> = {
@@ -681,13 +688,20 @@ const en: Record<keyof typeof zh, string> = {
     agentProjectState: 'Project state',
     agentProjectOpened: 'Project opened',
     agentProjectNotOpened: 'No project opened',
+    agentProjectRoot: 'Project root',
+    agentScenePath: 'Current Scene',
     agentSetupTitle: 'Connection Steps',
     agentStepStartCli: 'Use the CLI to read or modify project files.',
     agentStepRegisterClient: 'Use the live CLI when targeting the current editor.',
     agentStepUseExternal: 'Describe the request in an external agent, and ask it to dry-run before apply.',
+    agentStepInspectScene: 'Inspect the current Scene first.',
+    agentStepValidateScene: 'Validate after editing .scene.',
+    agentStepCompileScene: 'Compile scenes after validation.',
+    agentStepBuildProject: 'Run the smallest project build last.',
+    agentPromptTitle: 'Agent Prompt',
     agentPromptExample: 'Use the Pixifact CLI to create a red start button in the current Scene, dry-run first.',
     agentToolsTitle: 'Available Commands',
-    agentToolsRule: 'CLI commands accept structured SceneCommand only; they do not write source files or bypass editor validation.',
+    agentToolsRule: 'Compiler Scene uses direct .scene edits followed by CLI validate / compile; do not edit .pixifact/generated.',
 };
 
 export type I18nKey = keyof typeof zh;

@@ -1553,7 +1553,8 @@ textarea {
 
 .agentHero,
 .agentSteps,
-.agentTools {
+.agentTools,
+.agentPromptCard {
     border: 1px solid var(--line);
     border-radius: 8px;
     background: #fff;
@@ -1585,6 +1586,13 @@ textarea {
     line-height: 1.45;
 }
 
+.agentTargetGrid {
+    display: grid;
+    grid-template-columns: minmax(72px, max-content) minmax(0, 1fr);
+    gap: 6px 8px;
+    align-items: center;
+}
+
 .agentSteps li {
     display: grid;
     min-width: 0;
@@ -1592,7 +1600,8 @@ textarea {
 }
 
 .agentTools strong,
-.agentSteps strong {
+.agentSteps strong,
+.agentPromptCard strong {
     color: var(--text);
     font-size: 12px;
 }
@@ -1614,6 +1623,11 @@ textarea {
     gap: 10px;
 }
 
+.agentPromptCard {
+    display: grid;
+    gap: 8px;
+}
+
 .agentTools div {
     display: flex;
     flex-wrap: wrap;
@@ -1621,6 +1635,7 @@ textarea {
 }
 
 .agentSurface code {
+    white-space: pre-wrap;
     overflow: hidden;
     border: 1px solid #d7e0ea;
     border-radius: 6px;

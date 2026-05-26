@@ -1,8 +1,12 @@
 import { useI18n } from '../i18n';
+import { useEditorStore } from '../editorStore';
+import { createAgentCliWorkflow } from './agentWorkflow';
 
 export function AiPanel() {
     const t = useI18n();
-    const fileCommand = 'bun run pixifact -- scene get --project-root <project> --scene <scene>';
+    const projectTree = useEditorStore((state) => state.projectTree);
+    const openedScenePath = useEditorStore((state) => state.openedScenePath);
+    const workflow = createAgentCliWorkflow({ projectTree, openedScenePath });
     const liveCommand = 'bun run pixifact -- live scene get';
 
     return (
@@ -11,28 +15,49 @@ export function AiPanel() {
                 <span>{t('agentPrimaryLabel')}</span>
                 <strong>{t('agentPanelTitle')}</strong>
                 <p>{t('agentPanelIntro')}</p>
+                <div className="agentTargetGrid">
+                    <span>{t('agentProjectRoot')}</span>
+                    <code>{workflow.projectRoot}</code>
+                    <span>{t('agentScenePath')}</span>
+                    <code>{workflow.scenePath}</code>
+                </div>
             </section>
             <section className="agentSteps">
                 <strong>{t('agentSetupTitle')}</strong>
                 <ol>
                     <li>
-                        <span>{t('agentStepStartCli')}</span>
-                        <code>{fileCommand}</code>
+                        <span>{t('agentStepInspectScene')}</span>
+                        <code>{workflow.commands[0]}</code>
                     </li>
                     <li>
-                        <span>{t('agentStepRegisterClient')}</span>
-                        <code>{liveCommand}</code>
+                        <span>{t('agentStepValidateScene')}</span>
+                        <code>{workflow.commands[1]}</code>
                     </li>
                     <li>
-                        <span>{t('agentStepUseExternal')}</span>
-                        <code>{t('agentPromptExample')}</code>
+                        <span>{t('agentStepCompileScene')}</span>
+                        <code>{workflow.commands[2]}</code>
+                    </li>
+                    <li>
+                        <span>{t('agentStepBuildProject')}</span>
+                        <code>{workflow.commands[3]}</code>
                     </li>
                 </ol>
+            </section>
+            <section className="agentPromptCard">
+                <strong>{t('agentPromptTitle')}</strong>
+                <code>{workflow.prompt}</code>
             </section>
             <section className="agentTools">
                 <strong>{t('agentToolsTitle')}</strong>
                 <div>
-                    {['summary', 'scene get', 'node inspect', 'commands dry-run', 'commands apply', 'commands validate'].map((command) => (
+                    {[
+                        'scene inspect',
+                        'scene validate',
+                        'compile-scenes',
+                        'scene proposal check',
+                        'scene proposal apply',
+                        workflow.sceneReady ? liveCommand : 'live scene get',
+                    ].map((command) => (
                         <code key={command}>{command}</code>
                     ))}
                 </div>
