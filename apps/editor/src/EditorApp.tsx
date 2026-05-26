@@ -34,9 +34,11 @@ import { startLiveEditorAgentClient } from './agent/liveEditorClient';
 import { pixifactAgentBridgeUrl } from './agent/liveBridge';
 import { listenHostProjectFileChanged } from './services/hostBridge';
 import { syncOpenedCompilerSceneFromHostChange } from './services/compilerSceneExternalSync';
+import type { CompilerSceneExternalSyncResult } from './services/compilerSceneExternalSync';
 import 'dockview/dist/styles/dockview.css';
 
 type EditorPanelParams = Record<string, never>;
+type ExternalSceneSyncStatus = { message: string; tone: 'saved' | 'dirty' };
 
 function dockPanelTitles(language: EditorLanguage) {
     return {
@@ -135,6 +137,16 @@ function countCompilerSceneNodes(nodes: readonly CompilerSceneTemplateNode[]): n
     return count;
 }
 
+function externalSceneSyncStatus(result: CompilerSceneExternalSyncResult): ExternalSceneSyncStatus | undefined {
+    if (!('message' in result)) {
+        return undefined;
+    }
+    return {
+        message: result.message,
+        tone: result.status === 'sceneReloaded' ? 'saved' : 'dirty',
+    };
+}
+
 function WelcomePage({ onOpenFolder }: { onOpenFolder: () => void }) {
     const t = useI18n();
 
@@ -210,7 +222,7 @@ export function EditorApp() {
     const [saveStatusKey, setSaveStatusKey] = useState<'closed' | 'treeLoaded' | 'noScene' | 'savedFile' | 'compiledFile' | 'compileFailed'>('closed');
     const [savedFileName, setSavedFileName] = useState('');
     const [saveError, setSaveError] = useState('');
-    const [externalSceneSyncMessage, setExternalSceneSyncMessage] = useState('');
+    const [externalSceneSyncStatusState, setExternalSceneSyncStatusState] = useState<ExternalSceneSyncStatus | undefined>();
     const [runStatus, setRunStatus] = useState<EditorRunStatus>({
         state: 'unconfigured',
         stdout: [],
@@ -279,9 +291,12 @@ export function EditorApp() {
                     openedScenePath: currentScenePath,
                     event,
                 });
-                setExternalSceneSyncMessage(result.status === 'dirtySkipped' ? result.message : '');
+                setExternalSceneSyncStatusState(externalSceneSyncStatus(result));
             } catch (error) {
-                setExternalSceneSyncMessage(error instanceof Error ? error.message : String(error));
+                setExternalSceneSyncStatusState({
+                    message: error instanceof Error ? error.message : String(error),
+                    tone: 'dirty',
+                });
             }
         }).then((dispose) => {
             if (cancelled) {
@@ -291,7 +306,10 @@ export function EditorApp() {
             unsubscribe = dispose;
         }).catch((error) => {
             if (!cancelled) {
-                setExternalSceneSyncMessage(error instanceof Error ? error.message : String(error));
+                setExternalSceneSyncStatusState({
+                    message: error instanceof Error ? error.message : String(error),
+                    tone: 'dirty',
+                });
             }
         });
 
@@ -390,7 +408,9 @@ export function EditorApp() {
             <span>{compilerSceneOpened ? `${currentSceneName}.scene` : currentSceneName}</span>
             <span className={currentSceneDirty ? 'statusPill dirty' : 'statusPill saved'}>{currentSceneDirty ? t('dirtyUnsaved') : t('saved')}</span>
             <span data-testid="save-status">{saveStatus}</span>
-            {externalSceneSyncMessage ? <span className="statusPill dirty">Sync: {externalSceneSyncMessage}</span> : null}
+            {externalSceneSyncStatusState ? (
+                <span className={`statusPill ${externalSceneSyncStatusState.tone}`}>Sync: {externalSceneSyncStatusState.message}</span>
+            ) : null}
             <span>{t(`runState_${runStatus.state}`)}</span>
             <span>Agent Bridge</span>
             <SummaryBar />

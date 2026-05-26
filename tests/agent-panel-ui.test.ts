@@ -4,15 +4,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSceneRevision } from 'pixifact/compiler';
 import type { ProjectFileTreeNode } from '../apps/editor/src/services/projectFileTree';
 import { useEditorStore } from '../apps/editor/src/editorStore';
+import { EditorApp } from '../apps/editor/src/EditorApp';
 import { AgentPanel } from '../apps/editor/src/panels/AgentPanel';
 import {
     getCompilerSceneDocument,
+    loadCompilerSceneDocument,
     resetCompilerSceneDocument,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
+import { parseSceneTemplate } from '../packages/pixifact/src/compiler/templateParser';
 
 const host = vi.hoisted(() => ({
     files: new Map<string, string>(),
     writes: [] as Array<{ projectRootPath: string; filePath: string; content: string }>,
+    fileChangedHandler: undefined as ((event: { projectRootPath: string; path: string; kind: string }) => void) | undefined,
 }));
 
 function missingHostCall(name: string) {
@@ -39,6 +43,12 @@ vi.mock('../apps/editor/src/services/hostBridge', () => ({
     readHostProjectFileTree: vi.fn(async () => hostProjectTree()),
     renameHostProjectEntry: missingHostCall('renameHostProjectEntry'),
     watchHostProjectFiles: vi.fn(async () => {}),
+    listenHostProjectFileChanged: vi.fn(async (handler: (event: { projectRootPath: string; path: string; kind: string }) => void) => {
+        host.fileChangedHandler = handler;
+        return () => {
+            host.fileChangedHandler = undefined;
+        };
+    }),
     writeHostProjectFileText: vi.fn(async (projectRootPath: string, filePath: string, content: string) => {
         host.writes.push({ projectRootPath, filePath, content });
         host.files.set(filePath, content);
@@ -185,6 +195,7 @@ function resetHostFiles() {
         ['GameProject/src/scenes/Child.ts', childScriptSource()],
     ]);
     host.writes = [];
+    host.fileChangedHandler = undefined;
 }
 
 function proposalText(content: string, baseRevision = createSceneRevision(currentScene())) {
@@ -232,6 +243,25 @@ async function renderAgentPanel() {
     const root = createRoot(container);
     await act(async () => {
         root.render(createElement(AgentPanel));
+    });
+    return {
+        container,
+        async cleanup() {
+            await act(async () => {
+                root.unmount();
+            });
+            container.remove();
+        },
+    };
+}
+
+async function renderEditorApp() {
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    await act(async () => {
+        root.render(createElement(EditorApp));
+        await Promise.resolve();
     });
     return {
         container,
@@ -311,6 +341,34 @@ describe('Agent panel proposal review UI', () => {
             expect(textContent(view.container)).toContain('Scene proposal baseRevision does not match current scene revision.');
             expect(buttonByText(view.container, '应用 Proposal').disabled).toBe(true);
             expect(host.writes).toEqual([]);
+        } finally {
+            await view.cleanup();
+        }
+    });
+});
+
+describe('Editor external Scene sync UI', () => {
+    it('shows successful external compiler Scene refresh feedback in the status bar', async () => {
+        loadCompilerSceneDocument({
+            scenePath: 'GameProject/scenes/Button.scene',
+            template: parseSceneTemplate(currentScene()),
+            sceneInterfaces: {},
+        });
+        const view = await renderEditorApp();
+        try {
+            await act(async () => {
+                host.files.set('GameProject/scenes/Button.scene', updatedScene());
+                host.fileChangedHandler?.({
+                    projectRootPath: '/repo/GameProject',
+                    path: 'GameProject/scenes/Button.scene',
+                    kind: 'scene',
+                });
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+
+            expect(textContent(view.container)).toContain('Sync: 外部 Scene 修改已刷新，校验通过。');
+            expect(getCompilerSceneDocument()?.template.children[0]?.props.text).toBe('Play');
         } finally {
             await view.cleanup();
         }

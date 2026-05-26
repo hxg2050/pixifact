@@ -881,6 +881,111 @@ describe('project file tree service', () => {
         expect(getCompilerSceneDocument()?.dirty).toBe(false);
     });
 
+    it('reports validation feedback when an externally changed compiler Scene reloads', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file(`
+                    <Scene name="Button" script="src/scenes/Button.ts">
+                      <Text id="labelText" text="Start" />
+                    </Scene>
+                `),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.ts': emptySceneScript('Button'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        await host.writeProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene', `
+            <Scene name="Button" script="src/scenes/Button.ts">
+              <Text id="labelText" text="Continue" />
+            </Scene>
+        `);
+        const result = await syncOpenedCompilerSceneFromHostChange({
+            projectTree: tree,
+            openedScenePath: 'GameProject/scenes/Button.scene',
+            event: {
+                projectRootPath: '/tmp/GameProject',
+                path: 'GameProject/scenes/Button.scene',
+                kind: 'scene',
+            },
+        });
+
+        expect(result).toMatchObject({
+            status: 'sceneReloaded',
+            message: '外部 Scene 修改已刷新，校验通过。',
+            validation: {
+                ok: true,
+                scene: 'scenes/Button.scene',
+                summary: {
+                    name: 'Button',
+                    nodeCount: 1,
+                },
+            },
+        });
+    });
+
+    it('returns validation diagnostics without replacing preview when an external compiler Scene edit is invalid', async () => {
+        host.reset({
+            scenes: host.directory({
+                'Button.scene': host.file(`
+                    <Scene name="Button" script="src/scenes/Button.ts">
+                      <Text id="labelText" text="Start" />
+                    </Scene>
+                `),
+            }),
+            assets: host.directory({}),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.ts': emptySceneScript('Button'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+
+        await host.writeProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene', `
+            <Scene name="Button" script="src/scenes/Button.ts">
+              <Sprite id="missingTexture" texture="assets/missing.png" />
+            </Scene>
+        `);
+        const result = await syncOpenedCompilerSceneFromHostChange({
+            projectTree: tree,
+            openedScenePath: 'GameProject/scenes/Button.scene',
+            event: {
+                projectRootPath: '/tmp/GameProject',
+                path: 'GameProject/scenes/Button.scene',
+                kind: 'scene',
+            },
+        });
+
+        expect(result).toMatchObject({
+            status: 'validationFailed',
+            message: '外部 Scene 修改未刷新：校验失败。',
+            validation: {
+                ok: false,
+                scene: 'scenes/Button.scene',
+                diagnostics: [{
+                    path: '0:missingTexture',
+                    prop: 'texture',
+                    expected: 'existing project asset',
+                    actual: 'assets/missing.png',
+                }],
+            },
+        });
+        expect(getCompilerSceneDocument()?.template.children[0]).toMatchObject({
+            id: 'labelText',
+            props: {
+                text: 'Start',
+            },
+        });
+    });
+
     it('does not reload an externally changed compiler Scene over dirty editor changes', async () => {
         host.reset({
             scenes: host.directory({
