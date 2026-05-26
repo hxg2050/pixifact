@@ -1,4 +1,4 @@
 interface:
   display_name: "Pixifact"
-  short_description: "Build and maintain Pixifact scenes and runtime"
-  default_prompt: "Use $pixifact for Pixifact scene, runtime, CLI, or editor work."
+  short_description: "Build Pixifact game scenes with .scene files and CLI validation"
+  default_prompt: "Use $pixifact for Pixifact game project scene, UI, HUD, menu, or runtime work."
