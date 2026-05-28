@@ -175,4 +175,26 @@ describe('Editor fixed workbench UI', () => {
             await view.cleanup();
         }
     });
+
+    it('shows a plain Project Shelf without persistent file management actions', async () => {
+        const view = await renderEditorApp();
+        try {
+            const shelf = view.container.querySelector('[data-testid="project-shelf"]');
+            expect(shelf).toBeTruthy();
+            expect(shelf?.textContent).toContain('Project');
+            expect(shelf?.textContent).toContain('GameProject/scenes');
+            expect(shelf?.textContent).toContain('Button.scene');
+            expect(shelf?.textContent).toContain('Child.scene');
+            expect(shelf?.textContent).toContain('play.png');
+            expect(shelf?.querySelector('[data-testid="create-scene"]')).toBeFalsy();
+            expect(shelf?.querySelector('[data-testid="create-folder"]')).toBeFalsy();
+            expect(shelf?.querySelector('[data-testid="rename-entry"]')).toBeFalsy();
+            expect(shelf?.textContent).not.toContain('All');
+            expect(shelf?.textContent).not.toContain('Images');
+            expect(shelf?.textContent).not.toContain('Scripts');
+            expect(shelf?.textContent).not.toContain('Docs');
+        } finally {
+            await view.cleanup();
+        }
+    });
 });
