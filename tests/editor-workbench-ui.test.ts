@@ -181,6 +181,8 @@ describe('Editor fixed workbench UI', () => {
         const view = await renderEditorApp();
         try {
             const shelf = view.container.querySelector('[data-testid="project-shelf"]');
+            const sceneCards = [...view.container.querySelectorAll('.projectFileCard.scene')];
+            const childSceneCard = sceneCards.find((card) => card.textContent?.includes('Child.scene'));
             expect(shelf).toBeTruthy();
             expect(shelf?.querySelector('.projectShelfHeader')).toBeTruthy();
             expect(shelf?.querySelector('.projectShelfBody')).toBeTruthy();
@@ -193,6 +195,9 @@ describe('Editor fixed workbench UI', () => {
             expect(shelf?.textContent).toContain('Button.scene');
             expect(shelf?.textContent).toContain('Child.scene');
             expect(shelf?.textContent).toContain('play.png');
+            expect(childSceneCard?.tagName).toBe('DIV');
+            expect(childSceneCard?.getAttribute('role')).toBe('button');
+            expect(childSceneCard?.getAttribute('tabindex')).toBe('0');
             expect(shelf?.querySelector('[data-testid="create-scene"]')).toBeFalsy();
             expect(shelf?.querySelector('[data-testid="create-folder"]')).toBeFalsy();
             expect(shelf?.querySelector('[data-testid="rename-entry"]')).toBeFalsy();

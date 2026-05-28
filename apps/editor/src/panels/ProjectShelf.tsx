@@ -188,7 +188,7 @@ export function ProjectShelf() {
                 <div className="projectShelfContents" data-testid="project-shelf-contents">
                     {contentFiles.map((file) => (
                         <DragSource
-                            as="button"
+                            as="div"
                             className={[
                                 'projectFileCard',
                                 file.kind,
@@ -197,7 +197,15 @@ export function ProjectShelf() {
                             key={file.path}
                             onClick={() => setSelectedProjectFile(file.path)}
                             onDoubleClick={() => void openFile(file)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    void openFile(file);
+                                }
+                            }}
                             payload={fileDragPayload(file)}
+                            role="button"
+                            tabIndex={0}
                             title={file.path}
                         >
                             <strong>{file.name}</strong>
