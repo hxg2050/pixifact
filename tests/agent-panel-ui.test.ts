@@ -368,6 +368,8 @@ describe('Editor external Scene sync UI', () => {
             });
 
             expect(textContent(view.container)).toContain('Sync: 外部 Scene 修改已刷新，校验通过。');
+            expect(view.container.querySelector('[data-testid="workbench-status-bar"]')).toBeTruthy();
+            expect(textContent(view.container)).toContain('Sync: 外部 Scene 修改已刷新，校验通过。');
             expect(getCompilerSceneDocument()?.template.children[0]?.props.text).toBe('Play');
         } finally {
             await view.cleanup();
