@@ -6,7 +6,6 @@
       "name": "pixifact",
       "dependencies": {
         "@math.gl/core": "^4.0.1",
-        "dockview": "^6.0.1",
         "eventemitter3": "^5.0.1",
         "lucide-react": "^1.14.0",
         "react": "^19.2.5",
@@ -260,10 +259,6 @@
     "csstype": ["csstype@3.2.3", "https://registry.npmmirror.com/csstype/-/csstype-3.2.3.tgz", {}, "sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ=="],
 
     "detect-libc": ["detect-libc@2.1.2", "https://registry.npmmirror.com/detect-libc/-/detect-libc-2.1.2.tgz", {}, "sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ=="],
-
-    "dockview": ["dockview@6.0.3", "https://registry.npmmirror.com/dockview/-/dockview-6.0.3.tgz", { "dependencies": { "dockview-core": "^6.0.3" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-V7zOA/9Zwu3wyfOKOA5XCsPBg/mQxQpaRH0UdvVd1JEuNm8irYTS8eGH5kC3a79khOW1Hy7c9aziSZkGh1N/lg=="],
-
-    "dockview-core": ["dockview-core@6.0.3", "https://registry.npmmirror.com/dockview-core/-/dockview-core-6.0.3.tgz", {}, "sha512-O7EkWStQNWc5+4bd8OtWYp6w9AVpV19z9zilee3JNfsvEbLzpP2W9dT0Y914tWUdwk1Zq3klwOZsI/rFqVzsGA=="],
 
     "earcut": ["earcut@3.0.2", "https://registry.npmmirror.com/earcut/-/earcut-3.0.2.tgz", {}, "sha512-X7hshQbLyMJ/3RPhyObLARM2sNxxmRALLKx1+NVFFnQ9gKzmCrxm9+uLIAdBcvc8FNLpctqlQ2V6AE92Ol9UDQ=="],
 

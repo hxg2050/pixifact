@@ -9,7 +9,7 @@ export const editorLanguageNames: Record<EditorLanguage, string> = {
 };
 
 const zh = {
-    appTagline: 'Dockview prototype · 只保留 Scene 资源模型',
+    appTagline: '固定 Scene workbench · 只保留 Scene 资源模型',
     dirtyUnsaved: '有未保存修改',
     saved: '已保存',
     modified: '有修改',
@@ -102,9 +102,15 @@ const zh = {
     no: '否',
     explorerTitle: '资源管理器',
     project: '项目',
+    projectShelf: 'Project Shelf',
     projectNotOpened: '未打开文件夹',
     projectOpenHint: '点击顶部“打开文件夹”读取完整项目文件树。',
     projectOpenRule: '桌面版通过 Tauri host 打开本机文件夹。',
+    collapseProjectShelf: '折叠 Project Shelf',
+    search: '搜索',
+    searchProject: '搜索项目',
+    selectedItem: '选中项',
+    dragSceneToHierarchy: '拖到 Hierarchy',
     projectFilesWithCount: '项目文件 · {count} 项',
     fileOperationsLabel: '文件操作',
     refresh: '刷新',
@@ -344,7 +350,7 @@ const zh = {
 } as const;
 
 const en: Record<keyof typeof zh, string> = {
-    appTagline: 'Dockview prototype · Scene resource model only',
+    appTagline: 'Fixed Scene workbench · Scene resource model only',
     dirtyUnsaved: 'Unsaved changes',
     saved: 'Saved',
     modified: 'Modified',
@@ -437,9 +443,15 @@ const en: Record<keyof typeof zh, string> = {
     no: 'No',
     explorerTitle: 'Explorer',
     project: 'Project',
+    projectShelf: 'Project Shelf',
     projectNotOpened: 'No folder opened',
     projectOpenHint: 'Click "Open Folder" in the top bar to read the full project file tree.',
     projectOpenRule: 'The desktop app opens local folders through the Tauri host.',
+    collapseProjectShelf: 'Collapse Project Shelf',
+    search: 'Search',
+    searchProject: 'Search project',
+    selectedItem: 'Selected item',
+    dragSceneToHierarchy: 'Drag to Hierarchy',
     projectFilesWithCount: 'Project Files · {count} items',
     fileOperationsLabel: 'File operations',
     refresh: 'Refresh',

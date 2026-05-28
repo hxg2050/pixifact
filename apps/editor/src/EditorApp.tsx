@@ -1,27 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DockviewReact, themeLight } from 'dockview';
-import type { DockviewApi, DockviewReadyEvent, IDockviewPanelProps } from 'dockview';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     getCompilerSceneDocument,
-    resetCompilerSceneDocument,
 } from './document/compilerSceneDocumentController';
-import { IconButton } from './components/IconButton';
 import { Button, Select, SystemIcon } from './components/system';
 import { useEditorStore } from './editorStore';
 import type { EditorLanguage } from './i18n';
-import { editorLanguageNames, translate, useI18n } from './i18n';
-import { ResourceExplorer } from './panels/ExplorerPanel';
+import { editorLanguageNames, useI18n } from './i18n';
 import { CompilerSceneHierarchyTree } from './panels/HierarchyPanel';
-import { AgentPanel } from './panels/AgentPanel';
 import { InspectorPanel } from './panels/InspectorPanel';
-import { SummaryBar } from './panels/SummaryBar';
 import { ViewportPanel } from './panels/ViewportPanel';
 import { useCompilerSceneRevision } from './panels/common';
+import { ProjectShelf } from './panels/ProjectShelf';
 import {
     openProjectFolder,
     saveCompilerSceneFile,
 } from './services/projectFileTree';
-import type { CompilerSceneTemplateNode } from './services/projectFileTree';
 import {
     compileCompilerScenes,
     createReadyRunStatus,
@@ -36,107 +29,8 @@ import { listenHostProjectFileChanged } from './services/hostBridge';
 import { syncOpenedCompilerSceneFromHostChange } from './services/compilerSceneExternalSync';
 import type { CompilerSceneExternalSyncResult } from './services/compilerSceneExternalSync';
 import { setLastExternalSceneSync } from './services/externalSceneSyncState';
-import 'dockview/dist/styles/dockview.css';
 
-type EditorPanelParams = Record<string, never>;
 type ExternalSceneSyncStatus = { message: string; tone: 'saved' | 'dirty' };
-
-function dockPanelTitles(language: EditorLanguage) {
-    return {
-        fileSystem: translate(language, 'panelFileSystem'),
-        sceneTree: translate(language, 'panelScene'),
-        viewport: translate(language, 'viewportLabel'),
-        inspector: 'Inspector',
-        agent: translate(language, 'panelAgent'),
-    };
-}
-
-function setDockPanelTitles(api: DockviewApi, language: EditorLanguage) {
-    const titles = dockPanelTitles(language);
-    api.getPanel('filesystem')?.api.setTitle(titles.fileSystem);
-    api.getPanel('scene')?.api.setTitle(titles.sceneTree);
-    api.getPanel('viewport')?.api.setTitle(titles.viewport);
-    api.getPanel('inspector')?.api.setTitle(titles.inspector);
-    api.getPanel('agent')?.api.setTitle(titles.agent);
-}
-
-function setInitialDockLayout(api: DockviewApi) {
-    api.getPanel('filesystem')?.group.api.setSize({ width: 280 });
-    api.getPanel('scene')?.group.api.setSize({ width: 300 });
-    api.getPanel('inspector')?.group.api.setSize({ width: 360 });
-    api.getPanel('agent')?.group.api.setSize({ height: 220 });
-}
-
-function createDockComponents() {
-    return {
-        fileSystem: (_props: IDockviewPanelProps<EditorPanelParams>) => (
-            <div className="dockPanelSurface">
-                <ResourceExplorer />
-            </div>
-        ),
-        sceneTree: (_props: IDockviewPanelProps<EditorPanelParams>) => (
-            <SceneTreePanel />
-        ),
-        viewport: (_props: IDockviewPanelProps<EditorPanelParams>) => (
-            <ViewportPanel />
-        ),
-        inspector: (_props: IDockviewPanelProps<EditorPanelParams>) => (
-            <InspectorPanel />
-        ),
-        agent: () => <AgentPanel />,
-    };
-}
-
-function SceneTreePanel() {
-    useCompilerSceneRevision();
-    const t = useI18n();
-    const openedScenePath = useEditorStore((state) => state.openedScenePath);
-    const compilerDocument = getCompilerSceneDocument();
-    if (!openedScenePath || compilerDocument?.scenePath !== openedScenePath) {
-        return (
-            <div className="dockPanelSurface panelEmptyState">
-                <strong>{t('sceneEmptyTitle')}</strong>
-                <span>{t('sceneEmptyHint')}</span>
-            </div>
-        );
-    }
-    const nodeCount = countCompilerSceneNodes(compilerDocument.template.children);
-    const publicInterface = compilerDocument.descriptor?.interface ?? compilerDocument.template.interface;
-
-    return (
-        <div className="dockPanelSurface">
-            <section className="resourceMeta">
-                <span>{t('panelScene')}</span>
-                <strong>{compilerDocument.template.name}</strong>
-                <small title={openedScenePath}>{openedScenePath}</small>
-                <div className="sceneMetaGrid">
-                    <span>{t('nodeCount', { count: nodeCount })}</span>
-                    <span>{Object.keys(publicInterface.props).length} props</span>
-                    <span>{Object.keys(publicInterface.events).length} events</span>
-                    <span>{Object.keys(publicInterface.slots).length} slots</span>
-                    <span className={compilerDocument.dirty ? 'sceneState dirty' : 'sceneState saved'}>{compilerDocument.dirty ? t('dirtyUnsaved') : t('saved')}</span>
-                </div>
-            </section>
-            <CompilerSceneHierarchyTree />
-        </div>
-    );
-}
-
-function countCompilerSceneNodes(nodes: readonly CompilerSceneTemplateNode[]): number {
-    let count = 1;
-    for (const node of nodes) {
-        count += 1;
-        if (node.kind === 'pixi') {
-            count += countCompilerSceneNodes(node.children) - 1;
-        }
-        if (node.kind === 'sceneInstance') {
-            for (const children of Object.values(node.slots)) {
-                count += countCompilerSceneNodes(children) - 1;
-            }
-        }
-    }
-    return count;
-}
 
 function externalSceneSyncStatus(result: CompilerSceneExternalSyncResult): ExternalSceneSyncStatus | undefined {
     if (!('message' in result)) {
@@ -169,46 +63,32 @@ function WelcomePage({ onOpenFolder }: { onOpenFolder: () => void }) {
     );
 }
 
-function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
-    const titles = dockPanelTitles(language);
-    const fileSystem = event.api.addPanel({
-        id: 'filesystem',
-        component: 'fileSystem',
-        title: titles.fileSystem,
-        initialWidth: 280,
-        minimumWidth: 220,
-    });
-    const sceneTree = event.api.addPanel({
-        id: 'scene',
-        component: 'sceneTree',
-        title: titles.sceneTree,
-        initialWidth: 300,
-        minimumWidth: 240,
-        position: { referencePanel: fileSystem, direction: 'right' },
-    });
-    const viewport = event.api.addPanel({
-        id: 'viewport',
-        component: 'viewport',
-        title: titles.viewport,
-        minimumWidth: 420,
-        position: { referencePanel: sceneTree, direction: 'right' },
-    });
-    event.api.addPanel({
-        id: 'inspector',
-        component: 'inspector',
-        title: titles.inspector,
-        initialWidth: 360,
-        minimumWidth: 300,
-        position: { referencePanel: viewport, direction: 'right' },
-    });
-    event.api.addPanel({
-        id: 'agent',
-        component: 'agent',
-        title: titles.agent,
-        initialHeight: 220,
-        minimumHeight: 160,
-        position: { referencePanel: viewport, direction: 'below' },
-    });
+function WorkbenchMain() {
+    const t = useI18n();
+    const openedScenePath = useEditorStore((state) => state.openedScenePath);
+    const compilerDocument = getCompilerSceneDocument();
+    const isCompilerScene = openedScenePath && compilerDocument?.scenePath === openedScenePath;
+
+    return (
+        <section className="workbenchMain" data-testid="editor-workbench">
+            <section className="workbenchPane workbenchHierarchy" data-testid="workbench-hierarchy" aria-label={t('hierarchyLabel')}>
+                {isCompilerScene ? (
+                    <CompilerSceneHierarchyTree />
+                ) : (
+                    <div className="panelEmptyState">
+                        <strong>{t('sceneEmptyTitle')}</strong>
+                        <span>{t('sceneEmptyHint')}</span>
+                    </div>
+                )}
+            </section>
+            <section className="workbenchPreview" data-testid="workbench-preview" aria-label={t('viewportLabel')}>
+                <ViewportPanel />
+            </section>
+            <section className="workbenchPane workbenchInspector" data-testid="workbench-inspector" aria-label="Inspector">
+                <InspectorPanel />
+            </section>
+        </section>
+    );
 }
 
 export function EditorApp() {
@@ -219,7 +99,6 @@ export function EditorApp() {
     const setProject = useEditorStore((state) => state.setProject);
     const projectTree = useEditorStore((state) => state.projectTree);
     const openedScenePath = useEditorStore((state) => state.openedScenePath);
-    const dockApiRef = useRef<DockviewApi | undefined>(undefined);
     const [saveStatusKey, setSaveStatusKey] = useState<'closed' | 'treeLoaded' | 'noScene' | 'savedFile' | 'compiledFile' | 'compileFailed'>('closed');
     const [savedFileName, setSavedFileName] = useState('');
     const [saveError, setSaveError] = useState('');
@@ -229,7 +108,6 @@ export function EditorApp() {
         stdout: [],
         stderr: [],
     });
-    const components = useMemo(() => createDockComponents(), []);
     const hasProject = Boolean(projectTree);
     const compilerDocument = getCompilerSceneDocument();
     const compilerSceneOpened = openedScenePath && compilerDocument?.scenePath === openedScenePath;
@@ -251,12 +129,6 @@ export function EditorApp() {
                 return t('saveStatusClosed');
         }
     }, [saveStatusKey, savedFileName, saveError, t]);
-
-    useEffect(() => {
-        if (dockApiRef.current) {
-            setDockPanelTitles(dockApiRef.current, language);
-        }
-    }, [language]);
 
     useEffect(() => startLiveEditorAgentClient(), []);
 
@@ -339,9 +211,6 @@ export function EditorApp() {
         return () => window.clearInterval(interval);
     }, [runStatus]);
 
-    const resetDocument = useCallback(() => {
-        resetCompilerSceneDocument();
-    }, []);
     const openFolder = useCallback(async () => {
         const tree = await openProjectFolder();
         if (tree) {
@@ -402,28 +271,14 @@ export function EditorApp() {
         }
     }, [runStatus]);
 
-    const handleDockReady = useCallback((event: DockviewReadyEvent) => {
-        dockApiRef.current = event.api;
-        addInitialPanels(event, language);
-        window.requestAnimationFrame(() => setInitialDockLayout(event.api));
-    }, [language]);
-    const topStatus = hasProject ? (
+    const sceneTitle = hasProject ? (
         <>
             <span>{compilerSceneOpened ? `${currentSceneName}.scene` : currentSceneName}</span>
             <span className={currentSceneDirty ? 'statusPill dirty' : 'statusPill saved'}>{currentSceneDirty ? t('dirtyUnsaved') : t('saved')}</span>
-            <span data-testid="save-status">{saveStatus}</span>
-            {externalSceneSyncStatusState ? (
-                <span className={`statusPill ${externalSceneSyncStatusState.tone}`}>Sync: {externalSceneSyncStatusState.message}</span>
-            ) : null}
-            <span>{t(`runState_${runStatus.state}`)}</span>
-            <span>Agent Bridge</span>
-            <SummaryBar />
         </>
     ) : (
         <>
             <span>{t('projectNotOpened')}</span>
-            <span data-testid="save-status">{t('saveStatusClosed')}</span>
-            <span>{t('agentProjectNotOpened')}</span>
         </>
     );
 
@@ -437,23 +292,14 @@ export function EditorApp() {
                         <small>{t('appTagline')}</small>
                     </div>
                 </div>
-                <div className="statusBar">
-                    {topStatus}
+                <div className="sceneTitleBar">
+                    {sceneTitle}
                 </div>
                 <div className="topActions" aria-label={t('topActionsLabel')}>
-                    {hasProject ? (
-                        <div className="topActionGroup">
-                            <IconButton icon="undo" label={t('undo')} disabled />
-                            <IconButton icon="redo" label={t('redo')} disabled />
-                        </div>
-                    ) : null}
                     <div className="topActionGroup">
                         <Button icon="folder-open" onPress={() => void openFolder()}>{t('openFolder')}</Button>
                         {hasProject ? (
-                            <>
-                                <Button icon="save" onPress={() => void saveScene()}>{t('save')}</Button>
-                                <Button icon="reset" onPress={resetDocument}>{t('resetDemo')}</Button>
-                            </>
+                            <Button icon="save" onPress={() => void saveScene()}>{t('save')}</Button>
                         ) : null}
                     </div>
                     {hasProject ? (
@@ -488,25 +334,38 @@ export function EditorApp() {
                     </div>
                 </div>
             </header>
-            <main className={hasProject ? 'dockHost dockview-theme-light' : 'welcomeHost'}>
+            <main className={hasProject ? 'workbenchHost' : 'welcomeHost'}>
                 {hasProject ? (
-                    <DockviewReact components={components} onReady={handleDockReady} theme={themeLight} />
+                    <>
+                        <WorkbenchMain />
+                        <ProjectShelf />
+                    </>
                 ) : (
                     <WelcomePage onOpenFolder={() => void openFolder()} />
                 )}
             </main>
-            <footer className="agentStatusBar" aria-label={t('agentStatusTitle')} data-testid="agent-status-bar">
-                <div>
+            <footer className="workbenchStatusBar" aria-label={t('agentStatusTitle')} data-testid="workbench-status-bar">
+                <div className="statusBarGroup">
+                    <span>{currentSceneDirty ? t('dirtyUnsaved') : t('saved')}</span>
+                    <strong data-testid="save-status">{saveStatus}</strong>
+                    {externalSceneSyncStatusState ? (
+                        <small className={externalSceneSyncStatusState.tone}>Sync: {externalSceneSyncStatusState.message}</small>
+                    ) : (
+                        <small>{compilerSceneOpened ? `${currentSceneName}.scene` : currentSceneName}</small>
+                    )}
+                </div>
+                <div className="statusBarGroup">
                     <span>{t('runStatusTitle')}</span>
                     <strong>{t(`runState_${runStatus.state}`)}</strong>
                     <small>{runStatus.error ?? runStatus.stderr.at(-1) ?? runStatus.stdout.at(-1) ?? runStatus.command ?? t('runLogEmpty')}</small>
                 </div>
-                <div>
-                    <span>{t('agentBridge')}</span>
+                <div className="statusBarSpacer" aria-hidden="true" />
+                <div className="statusBarGroup">
+                    <span>CLI Context</span>
                     <strong>bun run pixifact -- live</strong>
                     <small>{pixifactAgentBridgeUrl}</small>
                 </div>
-                <div>
+                <div className="statusBarGroup">
                     <span>{t('agentEditorTarget')}</span>
                     <strong>{currentSceneName}</strong>
                     <small>{openedScenePath ?? t('unboundSceneFile')}</small>

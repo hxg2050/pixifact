@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ComponentSpec, SceneDocument, NodeSpec, SceneSpec } from 'pixifact';
-import { ComponentRegistry } from 'pixifact';
+import { ComponentRegistry } from '../../../../packages/pixifact/src/runtime/component/ComponentRegistry';
+import type { PropSchema } from '../../../../packages/pixifact/src/runtime/component/ComponentRegistry';
 import { pixiSceneNodeAcceptsChildren } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import { DragSource, DropZone, SystemIcon, TreeView } from '../components/system';
 import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/system';
@@ -396,7 +397,7 @@ function cloneComponentForPaste(component: ComponentSpec, idMap: ReadonlyMap<str
     const props: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(component.props ?? {})) {
-        const prop = schema?.props.find((candidate) => candidate.key === key);
+        const prop = schema?.props.find((candidate: PropSchema) => candidate.key === key);
         props[key] = prop?.type === 'componentRef' || prop?.type === 'nodeRef'
             ? mapRefValue(value, idMap)
             : structuredClone(value);
