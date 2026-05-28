@@ -393,6 +393,220 @@ textarea {
     background: #edf2f7;
 }
 
+.projectShelf {
+    display: grid;
+    min-height: 0;
+    grid-template-rows: 34px minmax(0, 1fr);
+    border-top: 1px solid var(--line-strong);
+    background: var(--panel);
+}
+
+.projectShelfHeader {
+    display: grid;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+    grid-template-columns: 220px minmax(160px, 1fr) 220px 220px;
+    border-bottom: 1px solid var(--line);
+    background: #f6f9fc;
+    padding: 0 10px;
+}
+
+.projectShelfTitle {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    gap: 6px;
+    color: #334155;
+    font-size: 12px;
+}
+
+.projectShelfTitle button {
+    width: 22px;
+    min-width: 22px;
+    height: 22px;
+    min-height: 22px;
+    border-color: transparent;
+    background: transparent;
+    padding: 0;
+}
+
+.projectShelfPath,
+.projectShelfDetailsTitle {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 760;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.projectShelfSearch {
+    display: grid;
+    min-width: 0;
+}
+
+.projectShelfSearch input {
+    width: 100%;
+    min-width: 0;
+    height: 24px;
+    padding: 0 8px;
+    font-size: 12px;
+}
+
+.projectShelfBody {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: 260px minmax(360px, 1fr) 260px;
+    overflow: hidden;
+}
+
+.projectShelfTree,
+.projectShelfContents,
+.projectShelfDetails {
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+}
+
+.projectShelfTree {
+    border-right: 1px solid var(--line);
+    background: #fbfcfe;
+    padding: 6px 4px;
+}
+
+.projectShelfTree .systemTree [role="treeitem"][data-selected] .projectFolderRow,
+.projectFolderRow.selected {
+    background: #dceafe;
+    color: #172033;
+}
+
+.projectFolderRow {
+    display: block;
+    width: 100%;
+    min-height: 24px;
+    border-color: transparent;
+    border-radius: 4px;
+    background: transparent;
+    padding: 0 8px 0 calc(24px + var(--tree-indent, 0px));
+    color: #334155;
+    font-size: 12px;
+    font-weight: 720;
+    overflow: hidden;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.projectFolderRow:hover:not(:disabled) {
+    border-color: transparent;
+    background: #edf2f7;
+}
+
+.projectShelfContents {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    padding: 8px;
+}
+
+.projectFileCard {
+    display: grid;
+    min-width: 0;
+    min-height: 54px;
+    align-content: center;
+    gap: 4px;
+    border: 1px solid #dbe3ee;
+    border-radius: 6px;
+    background: #fff;
+    padding: 8px 10px;
+    text-align: left;
+}
+
+.projectFileCard:hover:not(:disabled),
+.projectFileCard.selected {
+    border-color: #9bbcf4;
+    background: #f3f7ff;
+}
+
+.projectFileCard strong,
+.projectFileCard span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.projectFileCard strong {
+    color: #172033;
+    font-size: 12px;
+}
+
+.projectFileCard span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.projectFileCard.scene {
+    border-left: 3px solid #2563eb;
+}
+
+.projectFileCard.asset {
+    border-left: 3px solid #16a34a;
+}
+
+.projectFileCard.folder {
+    border-left: 3px solid #8b5cf6;
+}
+
+.projectFileCard.script,
+.projectFileCard.component {
+    border-left: 3px solid #f59e0b;
+}
+
+.projectShelfDetails {
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    border-left: 1px solid var(--line);
+    background: #f8fafc;
+    padding: 10px;
+}
+
+.projectShelfDetails strong,
+.projectShelfDetails span,
+.projectShelfDetails small,
+.projectShelfDetails p {
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.projectShelfDetails strong {
+    color: #172033;
+    font-size: 13px;
+}
+
+.projectShelfDetails span {
+    color: var(--blue);
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.projectShelfDetails small,
+.projectShelfDetails p {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.projectShelfAction {
+    color: var(--text);
+}
+
 .welcomeHost {
     display: grid;
     min-height: 0;

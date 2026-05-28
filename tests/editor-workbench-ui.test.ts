@@ -181,6 +181,12 @@ describe('Editor fixed workbench UI', () => {
         try {
             const shelf = view.container.querySelector('[data-testid="project-shelf"]');
             expect(shelf).toBeTruthy();
+            expect(shelf?.querySelector('.projectShelfHeader')).toBeTruthy();
+            expect(shelf?.querySelector('.projectShelfBody')).toBeTruthy();
+            expect(shelf?.querySelector('[data-testid="project-shelf-tree"]')).toBeTruthy();
+            expect(shelf?.querySelector('.systemTree')).toBeTruthy();
+            expect(shelf?.querySelector('.projectShelfContents')).toBeTruthy();
+            expect(shelf?.querySelector('.projectShelfDetails')).toBeTruthy();
             expect(shelf?.textContent).toContain('Project');
             expect(shelf?.textContent).toContain('GameProject/scenes');
             expect(shelf?.textContent).toContain('Button.scene');

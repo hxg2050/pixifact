@@ -159,30 +159,32 @@ export function ProjectShelf() {
                 <div className="projectShelfDetailsTitle">{t('selectedItem')}</div>
             </header>
             <div className="projectShelfBody">
-                <TreeView
-                    ariaLabel={t('projectFileTreeLabel')}
-                    expandedKeys={expandedFolders}
-                    items={treeItems}
-                    onExpandedChange={(keys) => setExpandedProjectFolders([...keys].map(String))}
-                    onItemAction={(file) => setSelectedProjectFile(file.path)}
-                    onSelectedKeyChange={(_, file) => setSelectedProjectFile(file.path)}
-                    selectedKeys={selectedPath ? [selectedPath] : []}
-                    renderItem={({ item: file, level }) => (
-                        <button
-                            className={[
-                                'projectFolderRow',
-                                file.kind,
-                                selectedPath === file.path ? 'selected' : '',
-                            ].filter(Boolean).join(' ')}
-                            onDoubleClick={() => void openFile(file)}
-                            style={{ '--tree-indent': `${Math.max(0, level - 1) * 14}px` } as CSSProperties}
-                            title={file.path}
-                            type="button"
-                        >
-                            {file.name}
-                        </button>
-                    )}
-                />
+                <div className="projectShelfTree" data-testid="project-shelf-tree">
+                    <TreeView
+                        ariaLabel={t('projectFileTreeLabel')}
+                        expandedKeys={expandedFolders}
+                        items={treeItems}
+                        onExpandedChange={(keys) => setExpandedProjectFolders([...keys].map(String))}
+                        onItemAction={(file) => setSelectedProjectFile(file.path)}
+                        onSelectedKeyChange={(_, file) => setSelectedProjectFile(file.path)}
+                        selectedKeys={selectedPath ? [selectedPath] : []}
+                        renderItem={({ item: file, level }) => (
+                            <button
+                                className={[
+                                    'projectFolderRow',
+                                    file.kind,
+                                    selectedPath === file.path ? 'selected' : '',
+                                ].filter(Boolean).join(' ')}
+                                onDoubleClick={() => void openFile(file)}
+                                style={{ '--tree-indent': `${Math.max(0, level - 1) * 14}px` } as CSSProperties}
+                                title={file.path}
+                                type="button"
+                            >
+                                {file.name}
+                            </button>
+                        )}
+                    />
+                </div>
                 <div className="projectShelfContents" data-testid="project-shelf-contents">
                     {contentFiles.map((file) => (
                         <DragSource
