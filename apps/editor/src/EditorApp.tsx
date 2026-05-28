@@ -368,18 +368,28 @@ export function EditorApp() {
                     <WelcomePage onOpenFolder={() => void openFolder()} />
                 )}
             </main>
-            <footer className="agentStatusBar" aria-label={t('agentStatusTitle')} data-testid="agent-status-bar">
-                <div>
+            <footer className="workbenchStatusBar" aria-label={t('agentStatusTitle')} data-testid="workbench-status-bar">
+                <div className="statusBarGroup">
+                    <span>{currentSceneDirty ? t('dirtyUnsaved') : t('saved')}</span>
+                    <strong data-testid="save-status">{saveStatus}</strong>
+                    {externalSceneSyncStatusState ? (
+                        <small className={externalSceneSyncStatusState.tone}>Sync: {externalSceneSyncStatusState.message}</small>
+                    ) : (
+                        <small>{compilerSceneOpened ? `${currentSceneName}.scene` : currentSceneName}</small>
+                    )}
+                </div>
+                <div className="statusBarGroup">
                     <span>{t('runStatusTitle')}</span>
                     <strong>{t(`runState_${runStatus.state}`)}</strong>
                     <small>{runStatus.error ?? runStatus.stderr.at(-1) ?? runStatus.stdout.at(-1) ?? runStatus.command ?? t('runLogEmpty')}</small>
                 </div>
-                <div>
-                    <span>{t('agentBridge')}</span>
+                <div className="statusBarSpacer" aria-hidden="true" />
+                <div className="statusBarGroup">
+                    <span>CLI Context</span>
                     <strong>bun run pixifact -- live</strong>
                     <small>{pixifactAgentBridgeUrl}</small>
                 </div>
-                <div>
+                <div className="statusBarGroup">
                     <span>{t('agentEditorTarget')}</span>
                     <strong>{currentSceneName}</strong>
                     <small>{openedScenePath ?? t('unboundSceneFile')}</small>

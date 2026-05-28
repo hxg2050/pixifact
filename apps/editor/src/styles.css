@@ -509,18 +509,18 @@ textarea {
     cursor: grabbing;
 }
 
-.agentStatusBar {
+.workbenchStatusBar {
     display: grid;
     min-width: 0;
     align-items: center;
     gap: 8px;
-    grid-template-columns: 1.1fr 1.1fr 0.9fr;
+    grid-template-columns: minmax(240px, 1.1fr) minmax(220px, 0.9fr) minmax(12px, 1fr) minmax(260px, 1.1fr) minmax(220px, 0.9fr);
     border-top: 1px solid var(--line-strong);
     background: #f8fafc;
     padding: 4px 10px;
 }
 
-.agentStatusBar > div {
+.statusBarGroup {
     display: grid;
     min-width: 0;
     align-items: center;
@@ -528,29 +528,41 @@ textarea {
     grid-template-columns: auto minmax(80px, auto) minmax(0, 1fr);
 }
 
-.agentStatusBar span {
+.statusBarSpacer {
+    min-width: 0;
+}
+
+.workbenchStatusBar span {
     color: var(--muted);
     font-size: 11px;
     font-weight: 760;
     white-space: nowrap;
 }
 
-.agentStatusBar strong,
-.agentStatusBar small {
+.workbenchStatusBar strong,
+.workbenchStatusBar small {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.agentStatusBar strong {
+.workbenchStatusBar strong {
     color: var(--text);
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 11px;
 }
 
-.agentStatusBar small {
+.workbenchStatusBar small {
     color: var(--muted);
     font-size: 11px;
+}
+
+.workbenchStatusBar small.saved {
+    color: var(--success);
+}
+
+.workbenchStatusBar small.dirty {
+    color: var(--warning);
 }
 
 .dockPanelSurface,
