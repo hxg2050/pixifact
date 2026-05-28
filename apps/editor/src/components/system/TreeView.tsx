@@ -1,4 +1,4 @@
-import type { KeyboardEvent, ReactNode } from 'react';
+import type { CSSProperties, KeyboardEvent, ReactNode } from 'react';
 import {
     Button as AriaButton,
     Tree,
@@ -67,6 +67,12 @@ function firstIterableKey(keys: Iterable<TreeViewKey> | undefined): TreeViewKey 
     return key;
 }
 
+function treeIndentStyle(level: number): CSSProperties {
+    return {
+        '--tree-indent': `${Math.max(0, level - 1) * 14}px`,
+    } as CSSProperties;
+}
+
 function renderTreeItem<T>({
     node,
     onItemAction,
@@ -85,24 +91,27 @@ function renderTreeItem<T>({
             textValue={node.textValue}
         >
             <TreeItemContent>
-                {({ hasChildItems, isExpanded, level }) => (
-                    <>
-                        {hasChildItems ? (
-                            <AriaButton className={isExpanded ? 'treeChevron treeChevron--expanded' : 'treeChevron'} slot="chevron">
-                                <span aria-hidden="true">›</span>
-                            </AriaButton>
-                        ) : (
-                            <span className="treeChevron treeChevron--empty" aria-hidden="true" />
-                        )}
-                        {renderItem({
-                            hasChildItems,
-                            isExpanded,
-                            item: node.item,
-                            level,
-                            node,
-                        })}
-                    </>
-                )}
+                {({ hasChildItems, isExpanded, level }) => {
+                    const indentStyle = treeIndentStyle(level);
+                    return (
+                        <>
+                            {hasChildItems ? (
+                                <AriaButton className={isExpanded ? 'treeChevron treeChevron--expanded' : 'treeChevron'} slot="chevron" style={indentStyle}>
+                                    <span aria-hidden="true">›</span>
+                                </AriaButton>
+                            ) : (
+                                <span className="treeChevron treeChevron--empty" aria-hidden="true" style={indentStyle} />
+                            )}
+                            {renderItem({
+                                hasChildItems,
+                                isExpanded,
+                                item: node.item,
+                                level,
+                                node,
+                            })}
+                        </>
+                    );
+                }}
             </TreeItemContent>
             {node.children?.map((child) => renderTreeItem({
                 node: child,
