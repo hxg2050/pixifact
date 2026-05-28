@@ -158,8 +158,8 @@ afterEach(() => {
     document.body.innerHTML = '';
 });
 
-describe('Editor fixed workbench UI', () => {
-    it('renders the fixed Scene workbench instead of Dockview panels', async () => {
+describe('Editor workbench UI', () => {
+    it('renders the Dockview Scene workbench with Project Shelf as a dock panel', async () => {
         const view = await renderEditorApp();
         try {
             expect(view.container.querySelector('[data-testid="editor-workbench"]')).toBeTruthy();
@@ -167,8 +167,8 @@ describe('Editor fixed workbench UI', () => {
             expect(view.container.querySelector('[data-testid="workbench-preview"]')).toBeTruthy();
             expect(view.container.querySelector('[data-testid="workbench-inspector"]')).toBeTruthy();
             expect(view.container.querySelector('[data-testid="project-shelf"]')).toBeTruthy();
-            expect(view.container.querySelector('.dockHost')).toBeFalsy();
-            expect(view.container.querySelector('.dv-dockview')).toBeFalsy();
+            expect(view.container.querySelector('.dockHost')).toBeTruthy();
+            expect(view.container.querySelector('.dv-dockview')).toBeTruthy();
             expect(textContent(view.container)).not.toContain('Dockview');
             expect(textContent(view.container)).toContain('Button.scene');
             expect(textContent(view.container)).toContain('Project');

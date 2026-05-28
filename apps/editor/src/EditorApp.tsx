@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DockviewReact, themeLight } from 'dockview';
+import type { DockviewApi, DockviewReadyEvent, IDockviewPanelProps } from 'dockview';
 import {
     getCompilerSceneDocument,
 } from './document/compilerSceneDocumentController';
 import { Button, Select, SystemIcon } from './components/system';
 import { useEditorStore } from './editorStore';
 import type { EditorLanguage } from './i18n';
-import { editorLanguageNames, useI18n } from './i18n';
+import { editorLanguageNames, translate, useI18n } from './i18n';
 import { CompilerSceneHierarchyTree } from './panels/HierarchyPanel';
 import { InspectorPanel } from './panels/InspectorPanel';
 import { ViewportPanel } from './panels/ViewportPanel';
@@ -29,8 +31,33 @@ import { listenHostProjectFileChanged } from './services/hostBridge';
 import { syncOpenedCompilerSceneFromHostChange } from './services/compilerSceneExternalSync';
 import type { CompilerSceneExternalSyncResult } from './services/compilerSceneExternalSync';
 import { setLastExternalSceneSync } from './services/externalSceneSyncState';
+import 'dockview/dist/styles/dockview.css';
 
+type EditorDockPanelParams = Record<string, never>;
 type ExternalSceneSyncStatus = { message: string; tone: 'saved' | 'dirty' };
+
+function dockPanelTitles(language: EditorLanguage) {
+    return {
+        hierarchy: translate(language, 'hierarchyLabel'),
+        preview: translate(language, 'viewportLabel'),
+        inspector: 'Inspector',
+        project: translate(language, 'project'),
+    };
+}
+
+function setDockPanelTitles(api: DockviewApi, language: EditorLanguage) {
+    const titles = dockPanelTitles(language);
+    api.getPanel('hierarchy')?.api.setTitle(titles.hierarchy);
+    api.getPanel('preview')?.api.setTitle(titles.preview);
+    api.getPanel('inspector')?.api.setTitle(titles.inspector);
+    api.getPanel('project')?.api.setTitle(titles.project);
+}
+
+function setInitialDockLayout(api: DockviewApi) {
+    api.getPanel('hierarchy')?.group.api.setSize({ width: 300 });
+    api.getPanel('inspector')?.group.api.setSize({ width: 340 });
+    api.getPanel('project')?.group.api.setSize({ height: 220 });
+}
 
 function externalSceneSyncStatus(result: CompilerSceneExternalSyncResult): ExternalSceneSyncStatus | undefined {
     if (!('message' in result)) {
@@ -63,32 +90,89 @@ function WelcomePage({ onOpenFolder }: { onOpenFolder: () => void }) {
     );
 }
 
-function WorkbenchMain() {
+function HierarchyDockPanel(_props: IDockviewPanelProps<EditorDockPanelParams>) {
     const t = useI18n();
     const openedScenePath = useEditorStore((state) => state.openedScenePath);
     const compilerDocument = getCompilerSceneDocument();
     const isCompilerScene = openedScenePath && compilerDocument?.scenePath === openedScenePath;
 
     return (
-        <section className="workbenchMain" data-testid="editor-workbench">
-            <section className="workbenchPane workbenchHierarchy" data-testid="workbench-hierarchy" aria-label={t('hierarchyLabel')}>
-                {isCompilerScene ? (
-                    <CompilerSceneHierarchyTree />
-                ) : (
-                    <div className="panelEmptyState">
-                        <strong>{t('sceneEmptyTitle')}</strong>
-                        <span>{t('sceneEmptyHint')}</span>
-                    </div>
-                )}
-            </section>
-            <section className="workbenchPreview" data-testid="workbench-preview" aria-label={t('viewportLabel')}>
-                <ViewportPanel />
-            </section>
-            <section className="workbenchPane workbenchInspector" data-testid="workbench-inspector" aria-label="Inspector">
-                <InspectorPanel />
-            </section>
+        <section className="workbenchPane workbenchHierarchy" data-testid="workbench-hierarchy" aria-label={t('hierarchyLabel')}>
+            {isCompilerScene ? (
+                <CompilerSceneHierarchyTree />
+            ) : (
+                <div className="panelEmptyState">
+                    <strong>{t('sceneEmptyTitle')}</strong>
+                    <span>{t('sceneEmptyHint')}</span>
+                </div>
+            )}
         </section>
     );
+}
+
+function PreviewDockPanel(_props: IDockviewPanelProps<EditorDockPanelParams>) {
+    const t = useI18n();
+
+    return (
+        <section className="workbenchPreview" data-testid="workbench-preview" aria-label={t('viewportLabel')}>
+            <ViewportPanel />
+        </section>
+    );
+}
+
+function InspectorDockPanel(_props: IDockviewPanelProps<EditorDockPanelParams>) {
+    return (
+        <section className="workbenchPane workbenchInspector" data-testid="workbench-inspector" aria-label="Inspector">
+            <InspectorPanel />
+        </section>
+    );
+}
+
+function ProjectDockPanel(_props: IDockviewPanelProps<EditorDockPanelParams>) {
+    return <ProjectShelf />;
+}
+
+function createDockComponents() {
+    return {
+        hierarchy: HierarchyDockPanel,
+        preview: PreviewDockPanel,
+        inspector: InspectorDockPanel,
+        project: ProjectDockPanel,
+    };
+}
+
+function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
+    const titles = dockPanelTitles(language);
+    const hierarchy = event.api.addPanel({
+        id: 'hierarchy',
+        component: 'hierarchy',
+        title: titles.hierarchy,
+        initialWidth: 300,
+        minimumWidth: 240,
+    });
+    const preview = event.api.addPanel({
+        id: 'preview',
+        component: 'preview',
+        title: titles.preview,
+        minimumWidth: 420,
+        position: { referencePanel: hierarchy, direction: 'right' },
+    });
+    event.api.addPanel({
+        id: 'inspector',
+        component: 'inspector',
+        title: titles.inspector,
+        initialWidth: 340,
+        minimumWidth: 280,
+        position: { referencePanel: preview, direction: 'right' },
+    });
+    event.api.addPanel({
+        id: 'project',
+        component: 'project',
+        title: titles.project,
+        initialHeight: 220,
+        minimumHeight: 150,
+        position: { referencePanel: preview, direction: 'below' },
+    });
 }
 
 export function EditorApp() {
@@ -108,6 +192,8 @@ export function EditorApp() {
         stdout: [],
         stderr: [],
     });
+    const dockviewApiRef = useRef<DockviewApi | undefined>(undefined);
+    const dockComponents = useMemo(() => createDockComponents(), []);
     const hasProject = Boolean(projectTree);
     const compilerDocument = getCompilerSceneDocument();
     const compilerSceneOpened = openedScenePath && compilerDocument?.scenePath === openedScenePath;
@@ -210,6 +296,18 @@ export function EditorApp() {
         }, 1200);
         return () => window.clearInterval(interval);
     }, [runStatus]);
+
+    useEffect(() => {
+        if (dockviewApiRef.current) {
+            setDockPanelTitles(dockviewApiRef.current, language);
+        }
+    }, [language]);
+
+    const handleDockReady = useCallback((event: DockviewReadyEvent) => {
+        dockviewApiRef.current = event.api;
+        addInitialPanels(event, language);
+        window.requestAnimationFrame(() => setInitialDockLayout(event.api));
+    }, [language]);
 
     const openFolder = useCallback(async () => {
         const tree = await openProjectFolder();
@@ -334,12 +432,14 @@ export function EditorApp() {
                     </div>
                 </div>
             </header>
-            <main className={hasProject ? 'workbenchHost' : 'welcomeHost'}>
+            <main className={hasProject ? 'dockHost' : 'welcomeHost'} data-testid={hasProject ? 'editor-workbench' : undefined}>
                 {hasProject ? (
-                    <>
-                        <WorkbenchMain />
-                        <ProjectShelf />
-                    </>
+                    <DockviewReact
+                        components={dockComponents}
+                        getTabContextMenuItems={() => []}
+                        onReady={handleDockReady}
+                        theme={themeLight}
+                    />
                 ) : (
                     <WelcomePage onOpenFolder={() => void openFolder()} />
                 )}
