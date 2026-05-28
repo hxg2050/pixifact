@@ -839,6 +839,7 @@ textarea {
 
 .systemTree [role="treeitem"] {
     outline: none;
+    position: relative;
 }
 
 .systemTree [role="treeitem"][data-focus-visible] .fileRow,
