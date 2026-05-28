@@ -587,7 +587,7 @@ function EditableFieldRow({
                 onSelectionChange={(nextValue) => onCommit(parseTextValue(nextValue))}
                 options={[
                     { label: t('unset'), value: '' },
-                    ...field.schema.options.map((option) => ({
+                    ...field.schema.options.map((option: string | number) => ({
                         label: String(option),
                         value: String(option),
                     })),
