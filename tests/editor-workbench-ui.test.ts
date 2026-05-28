@@ -177,7 +177,7 @@ describe('Editor workbench UI', () => {
         }
     });
 
-    it('shows a plain Project Shelf without persistent file management actions', async () => {
+    it('shows a plain Project Shelf with folders on the left and current folder files on the right', async () => {
         const view = await renderEditorApp();
         try {
             const shelf = view.container.querySelector('[data-testid="project-shelf"]');
@@ -185,6 +185,9 @@ describe('Editor workbench UI', () => {
             const childSceneCard = sceneCards.find((card) => card.textContent?.includes('Child.scene'));
             const projectTree = shelf?.querySelector('[data-testid="project-shelf-tree"]');
             const nestedFolderRow = projectTree?.querySelector('[title="GameProject/scenes"]');
+            const sceneFileTreeRow = projectTree?.querySelector('[title="GameProject/scenes/Button.scene"]');
+            const assetFileTreeRow = projectTree?.querySelector('[title="GameProject/assets/play.png"]');
+            const projectContents = shelf?.querySelector('[data-testid="project-shelf-contents"]');
             const nestedFolderGridRow = nestedFolderRow?.closest('[role="row"]') as HTMLElement | null;
             const nestedFolderChevron = nestedFolderGridRow?.querySelector('.treeChevron') as HTMLElement | null;
             expect(shelf).toBeTruthy();
@@ -196,9 +199,13 @@ describe('Editor workbench UI', () => {
             expect(shelf?.querySelector('.projectShelfDetails')).toBeTruthy();
             expect(shelf?.textContent).toContain('Project');
             expect(shelf?.textContent).toContain('GameProject/scenes');
-            expect(shelf?.textContent).toContain('Button.scene');
-            expect(shelf?.textContent).toContain('Child.scene');
-            expect(shelf?.textContent).toContain('play.png');
+            expect(projectTree?.textContent).not.toContain('Button.scene');
+            expect(projectTree?.textContent).not.toContain('play.png');
+            expect(sceneFileTreeRow).toBeFalsy();
+            expect(assetFileTreeRow).toBeFalsy();
+            expect(projectContents?.textContent).toContain('Button.scene');
+            expect(projectContents?.textContent).toContain('Child.scene');
+            expect(projectContents?.textContent).not.toContain('play.png');
             expect(childSceneCard?.tagName).toBe('DIV');
             expect(childSceneCard?.getAttribute('role')).toBe('button');
             expect(childSceneCard?.getAttribute('tabindex')).toBe('0');

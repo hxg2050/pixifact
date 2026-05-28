@@ -21,13 +21,15 @@ import {
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import { useCompilerSceneRevision } from './common';
 
-function fileTreeItem(file: ProjectFileTreeNode): TreeViewItem<ProjectFileTreeNode> {
+function folderTreeItem(folder: ProjectFileTreeNode): TreeViewItem<ProjectFileTreeNode> {
     return {
-        children: file.kind === 'folder' ? file.children?.map(fileTreeItem) : undefined,
-        className: file.kind,
-        id: file.path,
-        item: file,
-        textValue: file.name,
+        children: folder.children
+            ?.filter((file) => file.kind === 'folder')
+            .map(folderTreeItem),
+        className: folder.kind,
+        id: folder.path,
+        item: folder,
+        textValue: folder.name,
     };
 }
 
@@ -45,13 +47,6 @@ function fileDragPayload(file: ProjectFileTreeNode) {
     return undefined;
 }
 
-function flattenFiles(node: ProjectFileTreeNode): ProjectFileTreeNode[] {
-    return [
-        node,
-        ...(node.children ?? []).flatMap(flattenFiles),
-    ];
-}
-
 function parentPath(path: string) {
     return path.split('/').slice(0, -1).join('/');
 }
@@ -62,6 +57,15 @@ function currentFolder(projectTree: ProjectFileTreeNode, selectedPath?: string) 
         return selected;
     }
     return selected ? findFileByPath(projectTree, parentPath(selected.path)) ?? projectTree : projectTree;
+}
+
+function currentFolderFiles(folder: ProjectFileTreeNode, search: string) {
+    const query = search.trim().toLowerCase();
+    const files = folder.children?.filter((file) => file.kind !== 'folder') ?? [];
+    if (!query) {
+        return files;
+    }
+    return files.filter((file) => file.name.toLowerCase().includes(query));
 }
 
 async function loadSceneFile(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode, t: ReturnType<typeof useI18n>) {
@@ -88,20 +92,15 @@ export function ProjectShelf() {
     const [actionText, setActionText] = useState('');
 
     const expandedFolders = useMemo(() => new Set(expandedProjectFolders), [expandedProjectFolders]);
-    const treeItems = useMemo(() => projectTree ? [fileTreeItem(projectTree)] : [], [projectTree]);
+    const treeItems = useMemo(() => projectTree ? [folderTreeItem(projectTree)] : [], [projectTree]);
     const selectedFile = projectTree && selectedPath ? findFileByPath(projectTree, selectedPath) : projectTree;
     const folder = projectTree ? currentFolder(projectTree, selectedPath) : undefined;
     const contentFiles = useMemo(() => {
-        if (!projectTree) {
+        if (!folder) {
             return [];
         }
-        const query = search.trim().toLowerCase();
-        if (query) {
-            return flattenFiles(projectTree)
-                .filter((file) => file !== projectTree && file.name.toLowerCase().includes(query));
-        }
-        return flattenFiles(projectTree).filter((file) => file !== projectTree);
-    }, [projectTree, search]);
+        return currentFolderFiles(folder, search);
+    }, [folder, search]);
 
     if (!projectTree) {
         return null;
@@ -167,7 +166,7 @@ export function ProjectShelf() {
                         onExpandedChange={(keys) => setExpandedProjectFolders([...keys].map(String))}
                         onItemAction={(file) => setSelectedProjectFile(file.path)}
                         onSelectedKeyChange={(_, file) => setSelectedProjectFile(file.path)}
-                        selectedKeys={selectedPath ? [selectedPath] : []}
+                        selectedKeys={folder ? [folder.path] : []}
                         renderItem={({ item: file, level }) => (
                             <button
                                 className={[
