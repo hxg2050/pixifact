@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     getCompilerSceneDocument,
-    resetCompilerSceneDocument,
 } from './document/compilerSceneDocumentController';
-import { IconButton } from './components/IconButton';
 import { Button, Select, SystemIcon } from './components/system';
 import { useEditorStore } from './editorStore';
 import type { EditorLanguage } from './i18n';
 import { editorLanguageNames, useI18n } from './i18n';
 import { CompilerSceneHierarchyTree } from './panels/HierarchyPanel';
 import { InspectorPanel } from './panels/InspectorPanel';
-import { SummaryBar } from './panels/SummaryBar';
 import { ViewportPanel } from './panels/ViewportPanel';
 import { useCompilerSceneRevision } from './panels/common';
 import { ProjectShelf } from './panels/ProjectShelf';
@@ -214,9 +211,6 @@ export function EditorApp() {
         return () => window.clearInterval(interval);
     }, [runStatus]);
 
-    const resetDocument = useCallback(() => {
-        resetCompilerSceneDocument();
-    }, []);
     const openFolder = useCallback(async () => {
         const tree = await openProjectFolder();
         if (tree) {
@@ -277,23 +271,14 @@ export function EditorApp() {
         }
     }, [runStatus]);
 
-    const topStatus = hasProject ? (
+    const sceneTitle = hasProject ? (
         <>
             <span>{compilerSceneOpened ? `${currentSceneName}.scene` : currentSceneName}</span>
             <span className={currentSceneDirty ? 'statusPill dirty' : 'statusPill saved'}>{currentSceneDirty ? t('dirtyUnsaved') : t('saved')}</span>
-            <span data-testid="save-status">{saveStatus}</span>
-            {externalSceneSyncStatusState ? (
-                <span className={`statusPill ${externalSceneSyncStatusState.tone}`}>Sync: {externalSceneSyncStatusState.message}</span>
-            ) : null}
-            <span>{t(`runState_${runStatus.state}`)}</span>
-            <span>Agent Bridge</span>
-            <SummaryBar />
         </>
     ) : (
         <>
             <span>{t('projectNotOpened')}</span>
-            <span data-testid="save-status">{t('saveStatusClosed')}</span>
-            <span>{t('agentProjectNotOpened')}</span>
         </>
     );
 
@@ -307,23 +292,14 @@ export function EditorApp() {
                         <small>{t('appTagline')}</small>
                     </div>
                 </div>
-                <div className="statusBar">
-                    {topStatus}
+                <div className="sceneTitleBar">
+                    {sceneTitle}
                 </div>
                 <div className="topActions" aria-label={t('topActionsLabel')}>
-                    {hasProject ? (
-                        <div className="topActionGroup">
-                            <IconButton icon="undo" label={t('undo')} disabled />
-                            <IconButton icon="redo" label={t('redo')} disabled />
-                        </div>
-                    ) : null}
                     <div className="topActionGroup">
                         <Button icon="folder-open" onPress={() => void openFolder()}>{t('openFolder')}</Button>
                         {hasProject ? (
-                            <>
-                                <Button icon="save" onPress={() => void saveScene()}>{t('save')}</Button>
-                                <Button icon="reset" onPress={resetDocument}>{t('resetDemo')}</Button>
-                            </>
+                            <Button icon="save" onPress={() => void saveScene()}>{t('save')}</Button>
                         ) : null}
                     </div>
                     {hasProject ? (

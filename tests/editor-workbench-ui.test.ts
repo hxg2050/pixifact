@@ -197,4 +197,22 @@ describe('Editor fixed workbench UI', () => {
             await view.cleanup();
         }
     });
+
+    it('keeps the top bar focused on the active Scene and core project actions', async () => {
+        const view = await renderEditorApp();
+        try {
+            const topbar = view.container.querySelector('.topbar');
+            expect(topbar).toBeTruthy();
+            expect(topbar?.textContent).toContain('Pixifact Editor');
+            expect(topbar?.textContent).toContain('Button.scene');
+            expect(topbar?.textContent).toContain('保存');
+            expect(topbar?.textContent).not.toContain('Agent Bridge');
+            expect(topbar?.textContent).not.toContain('Sync:');
+            expect(topbar?.textContent).not.toContain('重置示例');
+            expect(topbar?.querySelector('[aria-label="撤销"]')).toBeFalsy();
+            expect(topbar?.querySelector('[aria-label="重做"]')).toBeFalsy();
+        } finally {
+            await view.cleanup();
+        }
+    });
 });

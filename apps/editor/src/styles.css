@@ -157,7 +157,7 @@ textarea {
     white-space: nowrap;
 }
 
-.statusBar,
+.sceneTitleBar,
 .summaryBar {
     display: flex;
     min-width: 0;
@@ -165,7 +165,7 @@ textarea {
     gap: 6px;
 }
 
-.statusBar {
+.sceneTitleBar {
     justify-content: center;
     overflow: hidden;
 }
@@ -174,7 +174,7 @@ textarea {
     padding-left: 2px;
 }
 
-.statusBar span,
+.sceneTitleBar span,
 .summaryBar span {
     display: inline-flex;
     min-height: 24px;
@@ -189,7 +189,7 @@ textarea {
     white-space: nowrap;
 }
 
-.statusBar > span:first-child {
+.sceneTitleBar > span:first-child {
     max-width: 168px;
     overflow: hidden;
     color: var(--text);
