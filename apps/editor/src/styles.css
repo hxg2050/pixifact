@@ -359,6 +359,40 @@ textarea {
     padding: 4px;
 }
 
+.workbenchHost {
+    display: grid;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr) 184px;
+    overflow: hidden;
+}
+
+.workbenchMain {
+    display: grid;
+    min-height: 0;
+    grid-template-columns: 300px minmax(420px, 1fr) 340px;
+    overflow: hidden;
+}
+
+.workbenchPane,
+.workbenchPreview {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--panel);
+}
+
+.workbenchHierarchy {
+    border-right: 1px solid var(--line-strong);
+}
+
+.workbenchInspector {
+    border-left: 1px solid var(--line-strong);
+}
+
+.workbenchPreview {
+    background: #edf2f7;
+}
+
 .welcomeHost {
     display: grid;
     min-height: 0;

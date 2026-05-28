@@ -100,8 +100,8 @@ export function ProjectShelf() {
             return flattenFiles(projectTree)
                 .filter((file) => file !== projectTree && file.name.toLowerCase().includes(query));
         }
-        return folder?.children ?? projectTree.children ?? [];
-    }, [folder, projectTree, search]);
+        return flattenFiles(projectTree).filter((file) => file !== projectTree);
+    }, [projectTree, search]);
 
     if (!projectTree) {
         return null;
