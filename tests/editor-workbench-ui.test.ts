@@ -169,6 +169,7 @@ describe('Editor fixed workbench UI', () => {
             expect(view.container.querySelector('[data-testid="project-shelf"]')).toBeTruthy();
             expect(view.container.querySelector('.dockHost')).toBeFalsy();
             expect(view.container.querySelector('.dv-dockview')).toBeFalsy();
+            expect(textContent(view.container)).not.toContain('Dockview');
             expect(textContent(view.container)).toContain('Button.scene');
             expect(textContent(view.container)).toContain('Project');
         } finally {

@@ -9,7 +9,7 @@ export const editorLanguageNames: Record<EditorLanguage, string> = {
 };
 
 const zh = {
-    appTagline: 'Dockview prototype · 只保留 Scene 资源模型',
+    appTagline: '固定 Scene workbench · 只保留 Scene 资源模型',
     dirtyUnsaved: '有未保存修改',
     saved: '已保存',
     modified: '有修改',
@@ -350,7 +350,7 @@ const zh = {
 } as const;
 
 const en: Record<keyof typeof zh, string> = {
-    appTagline: 'Dockview prototype · Scene resource model only',
+    appTagline: 'Fixed Scene workbench · Scene resource model only',
     dirtyUnsaved: 'Unsaved changes',
     saved: 'Saved',
     modified: 'Modified',

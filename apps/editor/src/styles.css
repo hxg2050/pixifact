@@ -354,11 +354,6 @@ textarea {
     color: #1d4ed8;
 }
 
-.dockHost {
-    min-height: 0;
-    padding: 4px;
-}
-
 .workbenchHost {
     display: grid;
     min-height: 0;
@@ -687,40 +682,6 @@ textarea {
 .welcomeCard .systemButton {
     min-height: 34px;
     padding: 0 14px;
-}
-
-.dockview-theme-light {
-    --dv-tabs-and-actions-container-height: 34px;
-    --dv-tabs-and-actions-container-font-size: 12px;
-    --dv-tab-font-size: 12px;
-    --dv-activegroup-visiblepanel-tab-background-color: #ffffff;
-    --dv-activegroup-hiddenpanel-tab-background-color: #eaf0f7;
-    --dv-activegroup-visiblepanel-tab-color: #172033;
-    --dv-activegroup-hiddenpanel-tab-color: #667487;
-    --dv-tabs-and-actions-container-background-color: #edf3f9;
-    --dv-group-view-background-color: #fbfcfe;
-    --dv-separator-border: #aeb9c8;
-    border: 1px solid #b9c4d2;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.dockview-theme-light .dv-tabs-container {
-    padding-left: 2px;
-}
-
-.dockview-theme-light .dv-default-tab {
-    border-radius: 6px 6px 0 0;
-}
-
-.dockview-theme-light .dv-tab,
-.dockview-theme-light .dv-void-container.dv-draggable {
-    cursor: grab;
-}
-
-.dockview-theme-light .dv-tab.dv-tab--dragging,
-.dockview-theme-light .dv-tab.dv-tab-dragging {
-    cursor: grabbing;
 }
 
 .workbenchStatusBar {
