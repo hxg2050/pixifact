@@ -88,19 +88,19 @@ function renderTreeItem<T>({
             id={node.id}
             key={node.id}
             onAction={() => onItemAction?.(node.item, node)}
+            style={({ level }) => treeIndentStyle(level)}
             textValue={node.textValue}
         >
             <TreeItemContent>
                 {({ hasChildItems, isExpanded, level }) => {
-                    const indentStyle = treeIndentStyle(level);
                     return (
                         <>
                             {hasChildItems ? (
-                                <AriaButton className={isExpanded ? 'treeChevron treeChevron--expanded' : 'treeChevron'} slot="chevron" style={indentStyle}>
+                                <AriaButton className={isExpanded ? 'treeChevron treeChevron--expanded' : 'treeChevron'} slot="chevron">
                                     <span aria-hidden="true">›</span>
                                 </AriaButton>
                             ) : (
-                                <span className="treeChevron treeChevron--empty" aria-hidden="true" style={indentStyle} />
+                                <span className="treeChevron treeChevron--empty" aria-hidden="true" />
                             )}
                             {renderItem({
                                 hasChildItems,

@@ -185,7 +185,8 @@ describe('Editor fixed workbench UI', () => {
             const childSceneCard = sceneCards.find((card) => card.textContent?.includes('Child.scene'));
             const projectTree = shelf?.querySelector('[data-testid="project-shelf-tree"]');
             const nestedFolderRow = projectTree?.querySelector('[title="GameProject/scenes"]');
-            const nestedFolderChevron = nestedFolderRow?.parentElement?.querySelector('.treeChevron') as HTMLElement | null;
+            const nestedFolderGridRow = nestedFolderRow?.closest('[role="row"]') as HTMLElement | null;
+            const nestedFolderChevron = nestedFolderGridRow?.querySelector('.treeChevron') as HTMLElement | null;
             expect(shelf).toBeTruthy();
             expect(shelf?.querySelector('.projectShelfHeader')).toBeTruthy();
             expect(shelf?.querySelector('.projectShelfBody')).toBeTruthy();
@@ -201,7 +202,9 @@ describe('Editor fixed workbench UI', () => {
             expect(childSceneCard?.tagName).toBe('DIV');
             expect(childSceneCard?.getAttribute('role')).toBe('button');
             expect(childSceneCard?.getAttribute('tabindex')).toBe('0');
-            expect(nestedFolderChevron?.style.getPropertyValue('--tree-indent')).toBe('14px');
+            expect(nestedFolderGridRow?.style.getPropertyValue('--tree-indent')).toBe('14px');
+            expect(nestedFolderGridRow?.getAttribute('role')).toBe('row');
+            expect(nestedFolderChevron).toBeTruthy();
             expect(shelf?.querySelector('[data-testid="create-scene"]')).toBeFalsy();
             expect(shelf?.querySelector('[data-testid="create-folder"]')).toBeFalsy();
             expect(shelf?.querySelector('[data-testid="rename-entry"]')).toBeFalsy();
