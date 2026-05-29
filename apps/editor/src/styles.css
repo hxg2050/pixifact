@@ -400,6 +400,56 @@ textarea {
     cursor: grabbing;
 }
 
+.dockview-theme-light .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash.dv-enabled {
+    cursor: ew-resize;
+}
+
+.dockview-theme-light .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash.dv-maximum {
+    cursor: w-resize;
+}
+
+.dockview-theme-light .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash.dv-minimum {
+    cursor: e-resize;
+}
+
+.dockview-theme-light .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash.dv-enabled {
+    cursor: ns-resize;
+}
+
+.dockview-theme-light .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash.dv-maximum {
+    cursor: n-resize;
+}
+
+.dockview-theme-light .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash.dv-minimum {
+    cursor: s-resize;
+}
+
+.dockview-theme-light .dv-resize-container .dv-resize-handle-top,
+.dockview-theme-light .dv-resize-container .dv-resize-handle-bottom {
+    cursor: ns-resize;
+}
+
+.dockview-theme-light .dv-resize-container .dv-resize-handle-left,
+.dockview-theme-light .dv-resize-container .dv-resize-handle-right {
+    cursor: ew-resize;
+}
+
+.dockview-theme-light .dv-resize-container .dv-resize-handle-topleft {
+    cursor: nw-resize;
+}
+
+.dockview-theme-light .dv-resize-container .dv-resize-handle-topright {
+    cursor: ne-resize;
+}
+
+.dockview-theme-light .dv-resize-container .dv-resize-handle-bottomleft {
+    cursor: sw-resize;
+}
+
+.dockview-theme-light .dv-resize-container .dv-resize-handle-bottomright {
+    cursor: se-resize;
+}
+
 .workbenchPane,
 .workbenchPreview {
     width: 100%;

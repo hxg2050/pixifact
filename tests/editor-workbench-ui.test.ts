@@ -1,4 +1,5 @@
 import { act, createElement } from 'react';
+import { readFileSync } from 'fs';
 import { createRoot } from 'react-dom/client';
 import type { DockviewApi } from 'dockview';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -267,5 +268,15 @@ describe('Editor workbench UI', () => {
         } finally {
             await view.cleanup();
         }
+    });
+
+    it('keeps Dockview resize edges using resize cursors', () => {
+        const styles = readFileSync('apps/editor/src/styles.css', 'utf8');
+        expect(styles).toContain('.dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash.dv-enabled');
+        expect(styles).toContain('cursor: ew-resize');
+        expect(styles).toContain('.dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash.dv-enabled');
+        expect(styles).toContain('cursor: ns-resize');
+        expect(styles).toContain('.dv-resize-container .dv-resize-handle-bottomright');
+        expect(styles).toContain('cursor: se-resize');
     });
 });
