@@ -1,7 +1,7 @@
 import { act, createElement } from 'react';
 import { readFileSync } from 'fs';
 import { createRoot } from 'react-dom/client';
-import type { DockviewApi } from 'dockview';
+import type { DockviewApi } from 'dockview-react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectFileTreeNode } from '../apps/editor/src/services/projectFileTree';
 import { useEditorStore } from '../apps/editor/src/editorStore';

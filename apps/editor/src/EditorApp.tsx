@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DockviewReact, themeLight } from 'dockview';
-import type { DockviewApi, DockviewReadyEvent, IDockviewPanelProps } from 'dockview';
+import { DockviewReact, themeLight } from 'dockview-react';
+import type { DockviewApi, DockviewReadyEvent, IDockviewPanelProps } from 'dockview-react';
 import {
     getCompilerSceneDocument,
 } from './document/compilerSceneDocumentController';

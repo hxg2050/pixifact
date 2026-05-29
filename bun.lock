@@ -7,6 +7,7 @@
       "dependencies": {
         "@math.gl/core": "^4.0.1",
         "dockview": "^6.0.1",
+        "dockview-react": "6.6.1",
         "eventemitter3": "^5.0.1",
         "lucide-react": "^1.14.0",
         "react": "^19.2.5",
@@ -264,6 +265,8 @@
     "dockview": ["dockview@6.6.1", "https://registry.npmmirror.com/dockview/-/dockview-6.6.1.tgz", { "dependencies": { "dockview-core": "^6.6.1" }, "peerDependencies": { "react": "^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0" } }, "sha512-vBnxWVk0f665z1Zyx598l/BMUjHD3SK5V4XorxpYGjaSREM8lLc8O6ylgKTtw+ZnCOMYOhcwov9x0ubfFazvMw=="],
 
     "dockview-core": ["dockview-core@6.6.1", "https://registry.npmmirror.com/dockview-core/-/dockview-core-6.6.1.tgz", {}, "sha512-WuNoO2wl3rGI8MaTuvmfgViek4WafHLD9Kf//Hw69g8TgAHSpAWr6RW15kU6U9vwtQxIi/YBxQNcIA5RzQ46Fw=="],
+
+    "dockview-react": ["dockview-react@6.6.1", "https://registry.npmmirror.com/dockview-react/-/dockview-react-6.6.1.tgz", { "dependencies": { "dockview": "^6.6.1" } }, "sha512-zF/CQzAxjA2mlSTnDt2rbBe49uG33mvg1DPitNCPrIhhDulyiiBG1A1pRyjVx4MJbVh1xx5gAYbNRwu+mCR7CQ=="],
 
     "earcut": ["earcut@3.0.2", "https://registry.npmmirror.com/earcut/-/earcut-3.0.2.tgz", {}, "sha512-X7hshQbLyMJ/3RPhyObLARM2sNxxmRALLKx1+NVFFnQ9gKzmCrxm9+uLIAdBcvc8FNLpctqlQ2V6AE92Ol9UDQ=="],
 
