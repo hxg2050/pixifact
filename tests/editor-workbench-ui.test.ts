@@ -1,5 +1,6 @@
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
+import type { DockviewApi } from 'dockview';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectFileTreeNode } from '../apps/editor/src/services/projectFileTree';
 import { useEditorStore } from '../apps/editor/src/editorStore';
@@ -120,12 +121,12 @@ function setEditorProject() {
     });
 }
 
-async function renderEditorApp() {
+async function renderEditorApp(options?: { onDockviewReady?: (api: DockviewApi) => void }) {
     const container = document.createElement('div');
     document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
-        root.render(createElement(EditorApp));
+        root.render(createElement(EditorApp, options));
         await Promise.resolve();
     });
     return {
@@ -141,6 +142,14 @@ async function renderEditorApp() {
 
 function textContent(container: HTMLElement) {
     return container.textContent ?? '';
+}
+
+function panelIdFromGroup(group: unknown) {
+    if (!group || typeof group !== 'object' || !('views' in group)) {
+        return undefined;
+    }
+    const views = (group as { views?: unknown }).views;
+    return Array.isArray(views) && typeof views[0] === 'string' ? views[0] : undefined;
 }
 
 beforeEach(() => {
@@ -160,7 +169,10 @@ afterEach(() => {
 
 describe('Editor workbench UI', () => {
     it('renders the Dockview Scene workbench with Project Shelf as a dock panel', async () => {
-        const view = await renderEditorApp();
+        let dockviewApi: DockviewApi | undefined;
+        const view = await renderEditorApp({ onDockviewReady: (api) => {
+            dockviewApi = api;
+        } });
         try {
             expect(view.container.querySelector('[data-testid="editor-workbench"]')).toBeTruthy();
             expect(view.container.querySelector('[data-testid="workbench-hierarchy"]')).toBeTruthy();
@@ -172,6 +184,21 @@ describe('Editor workbench UI', () => {
             expect(textContent(view.container)).not.toContain('Dockview');
             expect(textContent(view.container)).toContain('Button.scene');
             expect(textContent(view.container)).toContain('Project');
+            const root = dockviewApi?.toJSON().grid.root;
+            const rootData = root?.type === 'branch' && Array.isArray(root.data) ? root.data : [];
+            const workspaceRoot = rootData[0];
+            const inspector = rootData[1];
+            const workspaceData = workspaceRoot?.type === 'branch' && Array.isArray(workspaceRoot.data) ? workspaceRoot.data : [];
+            const upperWorkspace = workspaceData[0];
+            const project = workspaceData[1];
+            const upperWorkspaceData = upperWorkspace?.type === 'branch' && Array.isArray(upperWorkspace.data) ? upperWorkspace.data : [];
+            expect(dockviewApi).toBeTruthy();
+            expect(dockviewApi?.toJSON().grid.orientation).toBe('HORIZONTAL');
+            expect(rootData).toHaveLength(2);
+            expect(workspaceData).toHaveLength(2);
+            expect(upperWorkspaceData.map((node) => panelIdFromGroup(node.data))).toEqual(['hierarchy', 'preview']);
+            expect(panelIdFromGroup(project?.data)).toBe('project');
+            expect(panelIdFromGroup(inspector?.data)).toBe('inspector');
         } finally {
             await view.cleanup();
         }

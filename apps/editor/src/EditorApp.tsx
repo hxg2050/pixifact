@@ -55,7 +55,7 @@ function setDockPanelTitles(api: DockviewApi, language: EditorLanguage) {
 
 function setInitialDockLayout(api: DockviewApi) {
     api.getPanel('hierarchy')?.group.api.setSize({ width: 300 });
-    api.getPanel('inspector')?.group.api.setSize({ width: 340 });
+    api.getPanel('inspector')?.group.api.setSize({ width: 420 });
     api.getPanel('project')?.group.api.setSize({ height: 220 });
 }
 
@@ -143,7 +143,7 @@ function createDockComponents() {
 
 function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
     const titles = dockPanelTitles(language);
-    const hierarchy = event.api.addPanel({
+    event.api.addPanel({
         id: 'hierarchy',
         component: 'hierarchy',
         title: titles.hierarchy,
@@ -155,15 +155,7 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
         component: 'preview',
         title: titles.preview,
         minimumWidth: 420,
-        position: { referencePanel: hierarchy, direction: 'right' },
-    });
-    event.api.addPanel({
-        id: 'inspector',
-        component: 'inspector',
-        title: titles.inspector,
-        initialWidth: 340,
-        minimumWidth: 280,
-        position: { referencePanel: preview, direction: 'right' },
+        position: { direction: 'right' },
     });
     event.api.addPanel({
         id: 'project',
@@ -171,11 +163,19 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
         title: titles.project,
         initialHeight: 220,
         minimumHeight: 150,
-        position: { referencePanel: preview, direction: 'below' },
+        position: { direction: 'below' },
+    });
+    event.api.addPanel({
+        id: 'inspector',
+        component: 'inspector',
+        title: titles.inspector,
+        initialWidth: 420,
+        minimumWidth: 300,
+        position: { direction: 'right' },
     });
 }
 
-export function EditorApp() {
+export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: DockviewApi) => void } = {}) {
     useCompilerSceneRevision();
     const t = useI18n();
     const language = useEditorStore((state) => state.language);
@@ -305,9 +305,10 @@ export function EditorApp() {
 
     const handleDockReady = useCallback((event: DockviewReadyEvent) => {
         dockviewApiRef.current = event.api;
+        onDockviewReady?.(event.api);
         addInitialPanels(event, language);
         window.requestAnimationFrame(() => setInitialDockLayout(event.api));
-    }, [language]);
+    }, [language, onDockviewReady]);
 
     const openFolder = useCallback(async () => {
         const tree = await openProjectFolder();
