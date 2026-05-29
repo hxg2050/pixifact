@@ -51,6 +51,9 @@ vi.mock('../apps/editor/src/services/hostBridge', () => ({
     writeHostProjectFileText: vi.fn(async () => {}),
 }));
 
+const originalHTMLElementClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+const originalHTMLElementClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
+
 function projectTree(): ProjectFileTreeNode {
     return {
         id: 'GameProject',
@@ -153,7 +156,23 @@ function panelIdFromGroup(group: unknown) {
     return Array.isArray(views) && typeof views[0] === 'string' ? views[0] : undefined;
 }
 
+function dockviewSashes(container: HTMLElement) {
+    return [...container.getElementsByClassName('dv-sash')] as HTMLElement[];
+}
+
 beforeEach(() => {
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+        configurable: true,
+        get() {
+            return 1400;
+        },
+    });
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+        configurable: true,
+        get() {
+            return 800;
+        },
+    });
     localStorage.clear();
     host.files = new Map([
         ['GameProject/scenes/Button.scene', currentScene()],
@@ -164,6 +183,16 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+    if (originalHTMLElementClientWidth) {
+        Object.defineProperty(HTMLElement.prototype, 'clientWidth', originalHTMLElementClientWidth);
+    } else {
+        Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
+    }
+    if (originalHTMLElementClientHeight) {
+        Object.defineProperty(HTMLElement.prototype, 'clientHeight', originalHTMLElementClientHeight);
+    } else {
+        Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight');
+    }
     resetCompilerSceneDocument();
     document.body.innerHTML = '';
 });
@@ -270,13 +299,30 @@ describe('Editor workbench UI', () => {
         }
     });
 
-    it('keeps Dockview resize edges using resize cursors', () => {
+    it('keeps Dockview resize edges active in the default workbench layout', async () => {
+        let dockviewApi: DockviewApi | undefined;
+        const view = await renderEditorApp({ onDockviewReady: (api) => {
+            dockviewApi = api;
+        } });
+        try {
+            dockviewApi?.layout(1400, 800);
+            const sashes = dockviewSashes(view.container);
+            expect(sashes).toHaveLength(3);
+            expect(sashes.every((sash) => sash.classList.contains('dv-enabled'))).toBe(true);
+            expect(sashes.some((sash) => sash.classList.contains('dv-disabled'))).toBe(false);
+        } finally {
+            await view.cleanup();
+        }
+    });
+
+    it('keeps local Dockview CSS scoped to theme and sash hit area only', () => {
         const styles = readFileSync('apps/editor/src/styles.css', 'utf8');
-        expect(styles).toContain('.dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash.dv-enabled');
-        expect(styles).toContain('cursor: ew-resize');
-        expect(styles).toContain('.dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash.dv-enabled');
-        expect(styles).toContain('cursor: ns-resize');
-        expect(styles).toContain('.dv-resize-container .dv-resize-handle-bottomright');
-        expect(styles).toContain('cursor: se-resize');
+        expect(styles).toContain('--dv-active-sash-color');
+        expect(styles).toContain('.dv-sash:not(.dv-disabled)::before');
+        expect(styles).toContain('cursor: inherit');
+        expect(styles).not.toContain('.dv-sash.dv-enabled');
+        expect(styles).not.toContain('.dv-resize-container');
+        expect(styles).not.toContain('cursor: ew-resize');
+        expect(styles).not.toContain('cursor: ns-resize');
     });
 });

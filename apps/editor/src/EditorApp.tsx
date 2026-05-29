@@ -31,7 +31,6 @@ import { listenHostProjectFileChanged } from './services/hostBridge';
 import { syncOpenedCompilerSceneFromHostChange } from './services/compilerSceneExternalSync';
 import type { CompilerSceneExternalSyncResult } from './services/compilerSceneExternalSync';
 import { setLastExternalSceneSync } from './services/externalSceneSyncState';
-import 'dockview/dist/styles/dockview.css';
 
 type EditorDockPanelParams = Record<string, never>;
 type ExternalSceneSyncStatus = { message: string; tone: 'saved' | 'dirty' };
