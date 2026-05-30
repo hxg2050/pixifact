@@ -904,6 +904,39 @@ describe('Pixifact CLI', () => {
         });
     });
 
+    it('rejects paired script without @scene during compiler scene validation', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
+            'import { Container } from "pixi.js";',
+            '',
+            'export class Button extends Container {}',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'src/scenes/Button.scene',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/Button.scene',
+            error: 'Scene validation failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: 'script',
+                expected: 'paired script with one @scene class',
+                actual: 'No @scene decorator found.',
+                hint: 'Add a @scene() class to the paired TypeScript file and keep its class name aligned with the .scene basename.',
+            }],
+        });
+    });
+
     it('validates compiler scene when unrelated malformed scene exists', async () => {
         const projectRoot = createCompilerSceneProject();
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Other.scene'), [

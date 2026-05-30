@@ -327,7 +327,14 @@ function readCompilerScenePairContract(
         };
     }
 
-    const descriptor = extractSceneScriptInterface(readTextFile(absoluteScriptPath), absoluteScriptPath, { scene: scenePath });
+    let descriptor: ReturnType<typeof extractSceneScriptInterface>;
+    try {
+        descriptor = extractSceneScriptInterface(readTextFile(absoluteScriptPath), absoluteScriptPath, { scene: scenePath });
+    } catch (error) {
+        return {
+            diagnostics: [compilerSceneScriptContractDiagnostic(error)],
+        };
+    }
     if (descriptor.className !== template.name) {
         return {
             diagnostics: [compilerSceneClassDiagnostic(template.name, descriptor.className)],
@@ -367,6 +374,16 @@ function compilerSceneClassDiagnostic(actual: string, expectedClass: string): Sc
         expected: `@scene class name "${expectedClass}"`,
         actual,
         hint: 'Rename the <Scene name> to match the bound @scene class, or update the class name in the bound script.',
+    };
+}
+
+function compilerSceneScriptContractDiagnostic(error: unknown): SceneProposalDiagnostic {
+    return {
+        path: '__scene__',
+        prop: 'script',
+        expected: 'paired script with one @scene class',
+        actual: error instanceof Error ? error.message : String(error),
+        hint: 'Add a @scene() class to the paired TypeScript file and keep its class name aligned with the .scene basename.',
     };
 }
 
