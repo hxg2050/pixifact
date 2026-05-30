@@ -9,10 +9,14 @@ import {
     connectSceneEvent,
     compileSceneTemplateToTs,
     createSceneRevision,
+    generatedSceneModulePath,
     mount,
+    normalizeSceneAssetId,
     parseSceneTemplate,
+    pairedSceneScriptPath,
     part,
     prop,
+    resolveSceneReference,
     serializeSceneTemplate,
     inspectSceneTemplate,
     createEvent,
@@ -21,6 +25,8 @@ import {
     registerSceneClass,
     registerSlot,
     scene,
+    sceneClassAlias,
+    sceneLocalName,
     slot,
 } from 'pixifact/compiler';
 import { compileScenes, pixifactScenesPlugin } from 'pixifact/compiler-node';
@@ -36,6 +42,21 @@ describe('Pixifact scene compiler spike', () => {
 
         expect(first).toBe(second);
         expect(first).toMatch(/^scene:\d+:[a-f0-9]{8}$/);
+    });
+
+    it('normalizes compiler Scene asset paths and paired script paths', () => {
+        expect(normalizeSceneAssetId('src\\ui\\Button.scene')).toBe('src/ui/Button.scene');
+        expect(pairedSceneScriptPath('src/ui/Button.scene')).toBe('src/ui/Button.ts');
+        expect(sceneLocalName('src/features/shop/Button.scene')).toBe('Button');
+        expect(generatedSceneModulePath('src/features/shop/Button.scene')).toBe('src/features/shop/Button.scene.generated.ts');
+        expect(sceneClassAlias('src/features/shop/Button.scene')).toBe('SceneClass_src_features_shop_Button');
+    });
+
+    it('resolves relative and project-relative Scene references from a containing scene', () => {
+        expect(resolveSceneReference('src/menu/MainMenu.scene', './Button.scene')).toBe('src/menu/Button.scene');
+        expect(resolveSceneReference('src/menu/MainMenu.scene', '../ui/Button.scene')).toBe('src/ui/Button.scene');
+        expect(resolveSceneReference('src/menu/MainMenu.scene', 'src/shared/Panel.scene')).toBe('src/shared/Panel.scene');
+        expect(() => resolveSceneReference('src/menu/MainMenu.scene', 'Button')).toThrow('Scene references must use .scene paths.');
     });
 
     it('inspects compiler scene templates for external agents', () => {
