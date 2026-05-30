@@ -114,6 +114,23 @@ function compileScenesFailure(error: unknown): CliJsonResult {
             };
         }
     }
+    const missingPair = message.match(/^Scene "([^"]+)" requires paired script "([^"]+)"\.$/);
+    if (missingPair) {
+        const [, scene, scriptPath] = missingPair;
+        return {
+            ok: false,
+            scene,
+            error: 'Scene compile failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: 'script',
+                expected: `paired script "${scriptPath}"`,
+                actual: 'missing script',
+                hint: 'Create a colocated TypeScript file with the same basename as the .scene file.',
+            } satisfies SceneProposalDiagnostic],
+            hint: 'Fix the listed diagnostics, then run compile-scenes again.',
+        };
+    }
     const classMismatch = message.match(/^Scene "([^"]+)" name "([^"]+)" must match @scene class "([^"]+)"\.$/);
     if (classMismatch) {
         const [, scene, actual, expectedClass] = classMismatch;

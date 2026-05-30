@@ -135,6 +135,7 @@ export interface CheckSceneProposalOptions {
     proposal: SceneProposalEnvelope;
     existingAssets?: ReadonlySet<string>;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
+    normalizeSceneReference?: (scene: string) => string;
 }
 
 export interface ValidateSceneContentOptions {
@@ -142,11 +143,13 @@ export interface ValidateSceneContentOptions {
     content: string;
     existingAssets?: ReadonlySet<string>;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
+    normalizeSceneReference?: (scene: string) => string;
 }
 
 interface SceneValidationContext {
     existingAssets?: ReadonlySet<string>;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
+    normalizeSceneReference?: (scene: string) => string;
 }
 
 export function checkSceneProposal(options: CheckSceneProposalOptions): SceneProposalCheckResult {
@@ -406,7 +409,20 @@ function validateSceneInstanceNodeProposal(
     path: string,
     context: SceneValidationContext,
 ): SceneProposalDiagnostic[] {
-    const sceneInterface = context.sceneInterfaces?.[node.scene];
+    let scene = node.scene;
+    try {
+        scene = context.normalizeSceneReference ? context.normalizeSceneReference(node.scene) : node.scene;
+    } catch (error) {
+        return [{
+            path,
+            prop: 'scene',
+            expected: 'project-relative or relative .scene path',
+            actual: node.scene,
+            hint: error instanceof Error ? error.message : 'Use a .scene path.',
+        }];
+    }
+
+    const sceneInterface = context.sceneInterfaces?.[scene];
     if (!sceneInterface) {
         if (context.sceneInterfaces) {
             return [{
@@ -431,7 +447,7 @@ function validateSceneInstanceNodeProposal(
             diagnostics.push({
                 path,
                 prop,
-                expected: `public prop declared by ${node.scene}`,
+                expected: `public prop declared by ${scene}`,
                 actual: 'unknown prop',
                 hint: 'Expose the property with @prop on the child Scene script before setting it from a parent Scene.',
             });
@@ -457,7 +473,7 @@ function validateSceneInstanceNodeProposal(
             diagnostics.push({
                 path,
                 prop: `@${eventName}`,
-                expected: `public event declared by ${node.scene}`,
+                expected: `public event declared by ${scene}`,
                 actual: 'unknown event',
                 hint: 'Expose the event with @event on the child Scene script before binding it from a parent Scene.',
             });
@@ -469,7 +485,7 @@ function validateSceneInstanceNodeProposal(
             diagnostics.push({
                 path: `${path}/slot:${slot}`,
                 prop: 'slot',
-                expected: `public slot declared by ${node.scene}`,
+                expected: `public slot declared by ${scene}`,
                 actual: 'unknown slot',
                 hint: 'Expose the slot with @slot on the child Scene script before placing children into it.',
             });

@@ -4,9 +4,14 @@ import {
     applySceneProposal,
     checkSceneProposal,
     createSceneRevision,
+    defaultSceneSourceRoots,
     extractSceneScriptInterface,
     inspectSceneTemplate,
+    isIgnoredSceneSourceDirectory,
+    normalizeSceneAssetId,
+    pairedSceneScriptPath,
     parseSceneTemplate,
+    resolveSceneReference,
     validateSceneContent,
 } from 'pixifact/compiler';
 import {
@@ -19,7 +24,7 @@ import {
 } from 'pixifact';
 import type { SceneSpec, NodeSpec } from 'pixifact';
 import type { SceneProjectState } from 'pixifact';
-import type { SceneTemplate, SceneTemplateInterface } from 'pixifact/compiler';
+import type { SceneTemplateInterface } from 'pixifact/compiler';
 
 interface ProjectFileSummary {
     path: string;
@@ -194,7 +199,7 @@ function loadCompilerScene(projectRoot: unknown, scenePath: unknown) {
     return {
         root,
         target,
-        scenePath: path.relative(root, target),
+        scenePath: normalizeSceneAssetId(path.relative(root, target)),
         content,
     };
 }
@@ -223,35 +228,79 @@ function collectAssetFiles(root: string, directory: string, assets: Set<string>)
 }
 
 function collectCompilerSceneInterfaces(root: string, skippedScene?: string) {
-    const scenesRoot = path.join(root, 'scenes');
     const interfaces: Record<string, SceneTemplateInterface> = {};
-    if (!fs.existsSync(scenesRoot)) {
-        return interfaces;
-    }
 
-    for (const file of fs.readdirSync(scenesRoot).filter((item) => item.endsWith('.scene')).sort()) {
-        const scenePath = `scenes/${file}`;
+    for (const scenePath of collectCompilerScenePaths(root)) {
         if (scenePath === skippedScene) {
             continue;
         }
-        const template = parseSceneTemplate(readTextFile(path.join(scenesRoot, file)));
-        const sceneInterface = readCompilerSceneInterface(root, scenePath, template);
-        if (sceneInterface) {
-            interfaces[scenePath] = sceneInterface;
+        parseSceneTemplate(readTextFile(path.join(root, scenePath)));
+        const scriptPath = pairedSceneScriptPath(scenePath);
+        const absoluteScriptPath = path.join(root, scriptPath);
+        if (!fs.existsSync(absoluteScriptPath)) {
+            continue;
         }
+        interfaces[scenePath] = extractSceneScriptInterface(readTextFile(absoluteScriptPath), absoluteScriptPath, { scene: scenePath }).interface;
     }
     return interfaces;
 }
 
-function readCompilerSceneInterface(root: string, scenePath: string, template: SceneTemplate) {
-    if (!template.script) {
+function collectCompilerScenePaths(root: string) {
+    const results: string[] = [];
+    for (const sourceRoot of defaultSceneSourceRoots) {
+        const absoluteSourceRoot = path.join(root, sourceRoot);
+        if (fs.existsSync(absoluteSourceRoot)) {
+            collectCompilerScenePathsIn(root, absoluteSourceRoot, results);
+        }
+    }
+    return results.sort();
+}
+
+function collectCompilerScenePathsIn(root: string, directory: string, results: string[]) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+            if (!isIgnoredSceneSourceDirectory(entry.name)) {
+                collectCompilerScenePathsIn(root, path.join(directory, entry.name), results);
+            }
+            continue;
+        }
+        if (entry.isFile() && entry.name.endsWith('.scene')) {
+            results.push(normalizeSceneAssetId(path.relative(root, path.join(directory, entry.name))));
+        }
+    }
+}
+
+function compilerSceneSourceRootDiagnostic(scenePath: string) {
+    const normalized = normalizeSceneAssetId(scenePath);
+    const insideRoot = defaultSceneSourceRoots.some((sourceRoot) => normalized.startsWith(`${sourceRoot}/`));
+    if (insideRoot) {
         return undefined;
     }
-    const scriptPath = path.resolve(root, template.script.path);
-    if (!isInside(root, scriptPath) || !fs.existsSync(scriptPath)) {
+    return {
+        path: '__scene__',
+        prop: 'path',
+        expected: 'Scene under source root "src/"',
+        actual: normalized,
+        hint: 'Move the .scene/.ts pair under src/ or configure an explicit Scene source root.',
+    };
+}
+
+function normalizeCompilerSceneReference(scenePath: string) {
+    return (scene: string) => resolveSceneReference(scenePath, scene);
+}
+
+function compilerSceneSourceRootFailure(scenePath: string) {
+    const diagnostic = compilerSceneSourceRootDiagnostic(scenePath);
+    if (!diagnostic) {
         return undefined;
     }
-    return extractSceneScriptInterface(readTextFile(scriptPath), scriptPath, { scene: scenePath }).interface;
+    return {
+        ok: false as const,
+        scene: scenePath,
+        error: 'Scene validation failed.',
+        diagnostics: [diagnostic],
+        hint: 'Fix the listed diagnostics, then run scene validate again.',
+    };
 }
 
 function nodeLocator(node: NodeSpec) {
@@ -412,11 +461,16 @@ export function createPixifactAutomation() {
         validateCompilerScene(input: unknown) {
             const args = assertRecord(input, 'input') as ToolInput;
             const loaded = loadCompilerScene(args.projectRoot, args.scenePath);
+            const sourceRootFailure = compilerSceneSourceRootFailure(loaded.scenePath);
+            if (sourceRootFailure) {
+                return sourceRootFailure;
+            }
             const result = validateSceneContent({
                 scene: loaded.scenePath,
                 content: loaded.content,
                 existingAssets: collectProjectAssets(loaded.root),
                 sceneInterfaces: collectCompilerSceneInterfaces(loaded.root, loaded.scenePath),
+                normalizeSceneReference: normalizeCompilerSceneReference(loaded.scenePath),
             });
             if (!result.ok) {
                 return result;
@@ -435,6 +489,7 @@ export function createPixifactAutomation() {
                 currentContent: loaded.content,
                 existingAssets: collectProjectAssets(loaded.root),
                 sceneInterfaces: collectCompilerSceneInterfaces(loaded.root),
+                normalizeSceneReference: normalizeCompilerSceneReference(loaded.scenePath),
                 proposal,
             });
         },
@@ -447,6 +502,7 @@ export function createPixifactAutomation() {
                 currentContent: loaded.content,
                 existingAssets: collectProjectAssets(loaded.root),
                 sceneInterfaces: collectCompilerSceneInterfaces(loaded.root),
+                normalizeSceneReference: normalizeCompilerSceneReference(loaded.scenePath),
                 proposal,
             });
             if (!result.ok) {
