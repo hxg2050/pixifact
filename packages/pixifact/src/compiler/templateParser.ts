@@ -43,11 +43,9 @@ export function parseSceneTemplate(source: string): SceneTemplate {
         throw new Error('Scene class is derived from the bound script; remove the class attribute.');
     }
 
-    const script = root.attributes.script
-        ? {
-            path: root.attributes.script,
-        }
-        : undefined;
+    if (root.attributes.script !== undefined) {
+        throw new Error('Scene script binding is inferred from the colocated TypeScript file.');
+    }
 
     const children = root.children.map(parseTemplateNode);
     assertUniqueIds(name, children);
@@ -55,8 +53,7 @@ export function parseSceneTemplate(source: string): SceneTemplate {
     return {
         version: 2,
         name,
-        script,
-        props: parseProps(root, ['name', 'script']),
+        props: parseProps(root, ['name']),
         interface: emptyInterface(),
         children,
     };

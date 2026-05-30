@@ -23,7 +23,6 @@ type TemplateAttribute = readonly [string, SceneTemplateValue];
 export function serializeSceneTemplate(template: SceneTemplate) {
     const rootAttributes: TemplateAttribute[] = [
         ['name', template.name],
-        ...(template.script ? [['script', template.script.path] as const] : []),
         ...Object.entries(template.props),
     ];
     const lines = [`<Scene${serializeAttributes(rootAttributes)}>`];

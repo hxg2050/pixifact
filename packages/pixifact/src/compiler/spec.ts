@@ -12,10 +12,6 @@ export type SceneTemplatePrimitiveType =
 
 export type SceneTemplateValue = string | number | boolean;
 
-export interface SceneTemplateScript {
-    path: string;
-}
-
 export interface SceneTemplatePropContract {
     type: string;
     default?: SceneTemplateValue;
@@ -37,7 +33,6 @@ export interface SceneTemplateInterface {
 export interface SceneTemplate {
     version: 2;
     name: string;
-    script?: SceneTemplateScript;
     props: Record<string, SceneTemplateValue>;
     interface: SceneTemplateInterface;
     children: SceneTemplateNode[];
@@ -71,15 +66,19 @@ export interface SlotOutletTemplateNode {
     name: string;
 }
 
+export interface SceneTemplateScriptImport {
+    exportName: string;
+    localName: string;
+    source: string;
+}
+
 export interface CompileSceneTemplateOptions {
     functionName?: string;
     actionsParameter?: string;
     registrationPath?: string;
-    scriptImport?: {
-        className: string;
-        source: string;
-    };
-    sceneImports?: Record<string, string>;
+    scriptImport?: SceneTemplateScriptImport;
+    sceneImports?: SceneTemplateScriptImport[];
+    sceneClassAliases?: Record<string, string>;
     textureImports?: Record<string, string>;
 }
 

@@ -80,7 +80,7 @@ describe('Pixifact scene compiler spike', () => {
 
     it('inspects compiler scene templates for external agents', () => {
         const summary = inspectSceneTemplate(parseSceneTemplate(`
-            <Scene name="Button" script="src/scenes/Button.ts" width="180">
+            <Scene name="Button" width="180">
               <Container id="root" x="10">
                 <Text id="label" text="Play" />
               </Container>
@@ -89,7 +89,6 @@ describe('Pixifact scene compiler spike', () => {
 
         expect(summary).toEqual({
             name: 'Button',
-            script: 'src/scenes/Button.ts',
             props: { width: 180 },
             nodeCount: 2,
             nodes: [
@@ -115,12 +114,12 @@ describe('Pixifact scene compiler spike', () => {
 
     it('checks compiler scene proposals without applying them', () => {
         const current = serializeSceneTemplate(parseSceneTemplate(`
-            <Scene name="Button" script="src/scenes/Button.ts" width="180">
+            <Scene name="Button" width="180">
               <Text id="label" text="Start" x="10" />
             </Scene>
         `));
         const proposed = `
-            <Scene name="Button" script="src/scenes/Button.ts" width="180">
+            <Scene name="Button" width="180">
               <Text id="label" text="Play" x="10" />
               <Sprite id="icon" texture="assets/play.png" />
             </Scene>
@@ -423,7 +422,7 @@ describe('Pixifact scene compiler spike', () => {
 
     it('parses a restricted XML scene template with scene props and slot outlet', () => {
         const template = parseSceneTemplate(`
-            <Scene name="Button" script="src/scenes/Button.ts" width="180" height="52">
+            <Scene name="Button" width="180" height="52">
               <Graphics id="background" shape="roundRect" width="180" height="52" radius="8" fill="#4169e1" />
               <Text id="label" text="Button" x="72" y="16" fontSize="16" fill="#ffffff" />
               <Container id="iconHost" x="20" y="14">
@@ -433,9 +432,7 @@ describe('Pixifact scene compiler spike', () => {
         `);
 
         expect(template.name).toBe('Button');
-        expect(template.script).toEqual({
-            path: 'src/scenes/Button.ts',
-        });
+        expect('script' in template).toBe(false);
         expect(template.interface).toEqual({
             props: {},
             events: {},
@@ -454,6 +451,11 @@ describe('Pixifact scene compiler spike', () => {
                 height: 52,
             },
         });
+    });
+
+    it('rejects root script attributes because Scene scripts are paired by file path', () => {
+        expect(() => parseSceneTemplate('<Scene name="Button" script="src/scenes/Button.ts" />'))
+            .toThrow('Scene script binding is inferred from the colocated TypeScript file.');
     });
 
     it('compiles a source scene into a typed PixiJS mount function', () => {
@@ -702,7 +704,7 @@ describe('Pixifact scene compiler spike', () => {
 
     it('serializes a compiler scene template back to restricted XML', () => {
         const template = parseSceneTemplate(`
-            <Scene name="MainMenu" script="src/scenes/MainMenu.ts" width="960" height="540">
+            <Scene name="MainMenu" width="960" height="540">
               <Button id="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">
                 <Text slot="footer" id="hintText" text="Press Enter" fill="#ffffff" />
               </Button>
@@ -712,7 +714,8 @@ describe('Pixifact scene compiler spike', () => {
         const source = serializeSceneTemplate(template);
         const next = parseSceneTemplate(source);
 
-        expect(source).toContain('<Scene name="MainMenu" script="src/scenes/MainMenu.ts" width="960" height="540">');
+        expect(source).toContain('<Scene name="MainMenu" width="960" height="540">');
+        expect(source).not.toContain('script=');
         expect(source).not.toContain('<Interface>');
         expect(source).toContain('<Button id="startButton" scene="scenes/Button.scene" x="390" y="300" label="Start" @click="startGame">');
         expect(source).toContain('<Text id="hintText" slot="footer" text="Press Enter" fill="#ffffff" />');

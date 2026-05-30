@@ -27,7 +27,6 @@ export interface SceneProposalNodeSummary {
 
 export interface SceneTemplateInspection {
     name: string;
-    script?: string;
     props: Record<string, SceneTemplateValue>;
     nodeCount: number;
     nodes: SceneProposalNodeSummary[];
@@ -125,7 +124,6 @@ export function inspectSceneTemplate(template: SceneTemplate): SceneTemplateInsp
     template.children.forEach((child, index) => visit(child, nodePathSegment(index, child)));
     return {
         name: template.name,
-        ...(template.script ? { script: template.script.path } : {}),
         props: template.props,
         nodeCount: nodes.length,
         nodes,
