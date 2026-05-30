@@ -808,6 +808,217 @@ describe('Pixifact CLI', () => {
         });
     });
 
+    it('rejects missing target paired script during compiler scene validation', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.rmSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'));
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'src/scenes/Button.scene',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/Button.scene',
+            error: 'Scene validation failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: 'script',
+                expected: 'paired script "src/scenes/Button.ts"',
+                actual: 'missing script',
+                hint: 'Create a colocated TypeScript file with the same basename as the .scene file.',
+            }],
+        });
+    });
+
+    it('rejects compiler scene basename mismatch during validation', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.scene'), [
+            '<Scene name="PrimaryButton">',
+            '  <Text id="label" text="Start" />',
+            '</Scene>',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'src/scenes/Button.scene',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/Button.scene',
+            error: 'Scene validation failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: 'name',
+                expected: 'file basename "Button"',
+                actual: 'PrimaryButton',
+                hint: 'Rename the <Scene name> to match the .scene file basename, or rename the .scene/.ts pair.',
+            }],
+        });
+    });
+
+    it('rejects compiler scene class mismatch during validation', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
+            'import { Container } from "pixi.js";',
+            'import { scene } from "pixifact/compiler";',
+            '',
+            '@scene()',
+            'export class PrimaryButton extends Container {}',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'src/scenes/Button.scene',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/Button.scene',
+            error: 'Scene validation failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: 'name',
+                expected: '@scene class name "PrimaryButton"',
+                actual: 'Button',
+                hint: 'Rename the <Scene name> to match the bound @scene class, or update the class name in the bound script.',
+            }],
+        });
+    });
+
+    it('validates compiler scene when unrelated malformed scene exists', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Other.scene'), [
+            '<Scene name="Other">',
+            '  <Text id="label" text="Broken" ',
+            '</Scene>',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'src/scenes/Button.scene',
+        ]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json).toMatchObject({
+            ok: true,
+            scenePath: 'src/scenes/Button.scene',
+        });
+    });
+
+    it('rejects parent validation when child paired script contract is invalid', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.scene'), [
+            '<Scene name="Button" />',
+            '',
+        ].join('\n'), 'utf8');
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
+            'import { Container } from "pixi.js";',
+            'import { prop, scene } from "pixifact/compiler";',
+            '',
+            '@scene()',
+            'export class PrimaryButton extends Container {',
+            '  @prop({ type: "string", default: "Button" })',
+            '  accessor label = "Button";',
+            '}',
+            '',
+        ].join('\n'), 'utf8');
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'MainMenu.scene'), [
+            '<Scene name="MainMenu">',
+            '  <Button id="start" scene="src/scenes/Button.scene" label="Start" />',
+            '</Scene>',
+            '',
+        ].join('\n'), 'utf8');
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'MainMenu.ts'), [
+            'import { Container } from "pixi.js";',
+            'import { scene } from "pixifact/compiler";',
+            '',
+            '@scene()',
+            'export class MainMenu extends Container {}',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'src/scenes/MainMenu.scene',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/MainMenu.scene',
+            error: 'Scene validation failed.',
+            diagnostics: [{
+                path: '0:start',
+                prop: 'scene',
+                expected: 'known compiler Scene contract',
+                actual: 'src/scenes/Button.scene',
+            }],
+        });
+    });
+
+    it('maps compile-scenes basename mismatch to repairable diagnostics', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.scene'), [
+            '<Scene name="PrimaryButton">',
+            '  <Text id="label" text="Start" />',
+            '</Scene>',
+            '',
+        ].join('\n'), 'utf8');
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
+            'import { Container } from "pixi.js";',
+            'import { scene } from "pixifact/compiler";',
+            '',
+            '@scene()',
+            'export class PrimaryButton extends Container {}',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli(['compile-scenes', '--project-root', projectRoot]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/Button.scene',
+            error: 'Scene compile failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: 'name',
+                expected: 'file basename "Button"',
+                actual: 'PrimaryButton',
+                hint: 'Rename the <Scene name> to match the .scene file basename, or rename the .scene/.ts pair.',
+            }],
+            hint: 'Fix the listed diagnostics, then run compile-scenes again.',
+        });
+    });
+
     it('does not overwrite an existing Scene file', async () => {
         const projectRoot = createTempProject();
 

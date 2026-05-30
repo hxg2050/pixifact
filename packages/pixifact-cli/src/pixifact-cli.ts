@@ -114,6 +114,23 @@ function compileScenesFailure(error: unknown): CliJsonResult {
             };
         }
     }
+    const basenameMismatch = message.match(/^Scene "([^"]+)" name "([^"]+)" must match file basename "([^"]+)"\.$/);
+    if (basenameMismatch) {
+        const [, scene, actual, expectedName] = basenameMismatch;
+        return {
+            ok: false,
+            scene,
+            error: 'Scene compile failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: 'name',
+                expected: `file basename "${expectedName}"`,
+                actual,
+                hint: 'Rename the <Scene name> to match the .scene file basename, or rename the .scene/.ts pair.',
+            } satisfies SceneProposalDiagnostic],
+            hint: 'Fix the listed diagnostics, then run compile-scenes again.',
+        };
+    }
     const missingPair = message.match(/^Scene "([^"]+)" requires paired script "([^"]+)"\.$/);
     if (missingPair) {
         const [, scene, scriptPath] = missingPair;

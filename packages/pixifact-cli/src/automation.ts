@@ -12,6 +12,7 @@ import {
     pairedSceneScriptPath,
     parseSceneTemplate,
     resolveSceneReference,
+    sceneLocalName,
     validateSceneContent,
 } from 'pixifact/compiler';
 import {
@@ -24,7 +25,7 @@ import {
 } from 'pixifact';
 import type { SceneSpec, NodeSpec } from 'pixifact';
 import type { SceneProjectState } from 'pixifact';
-import type { SceneTemplateInterface } from 'pixifact/compiler';
+import type { SceneProposalDiagnostic, SceneTemplate, SceneTemplateInterface } from 'pixifact/compiler';
 
 interface ProjectFileSummary {
     path: string;
@@ -234,13 +235,16 @@ function collectCompilerSceneInterfaces(root: string, skippedScene?: string) {
         if (scenePath === skippedScene) {
             continue;
         }
-        parseSceneTemplate(readTextFile(path.join(root, scenePath)));
-        const scriptPath = pairedSceneScriptPath(scenePath);
-        const absoluteScriptPath = path.join(root, scriptPath);
-        if (!fs.existsSync(absoluteScriptPath)) {
+        try {
+            const template = parseSceneTemplate(readTextFile(path.join(root, scenePath)));
+            const pair = readCompilerScenePairContract(root, scenePath, template);
+            if (pair.diagnostics.length > 0 || !pair.sceneInterface) {
+                continue;
+            }
+            interfaces[scenePath] = pair.sceneInterface;
+        } catch {
             continue;
         }
-        interfaces[scenePath] = extractSceneScriptInterface(readTextFile(absoluteScriptPath), absoluteScriptPath, { scene: scenePath }).interface;
     }
     return interfaces;
 }
@@ -299,6 +303,80 @@ function compilerSceneSourceRootFailure(scenePath: string) {
         scene: scenePath,
         error: 'Scene validation failed.',
         diagnostics: [diagnostic],
+        hint: 'Fix the listed diagnostics, then run scene validate again.',
+    };
+}
+
+function readCompilerScenePairContract(
+    root: string,
+    scenePath: string,
+    template: SceneTemplate,
+): { diagnostics: SceneProposalDiagnostic[]; sceneInterface?: SceneTemplateInterface } {
+    const expectedName = sceneLocalName(scenePath);
+    if (template.name !== expectedName) {
+        return {
+            diagnostics: [compilerSceneBasenameDiagnostic(template.name, expectedName)],
+        };
+    }
+
+    const scriptPath = pairedSceneScriptPath(scenePath);
+    const absoluteScriptPath = path.join(root, scriptPath);
+    if (!fs.existsSync(absoluteScriptPath)) {
+        return {
+            diagnostics: [missingCompilerSceneScriptDiagnostic(scriptPath)],
+        };
+    }
+
+    const descriptor = extractSceneScriptInterface(readTextFile(absoluteScriptPath), absoluteScriptPath, { scene: scenePath });
+    if (descriptor.className !== template.name) {
+        return {
+            diagnostics: [compilerSceneClassDiagnostic(template.name, descriptor.className)],
+        };
+    }
+
+    return {
+        diagnostics: [],
+        sceneInterface: descriptor.interface,
+    };
+}
+
+function compilerSceneBasenameDiagnostic(actual: string, expectedName: string): SceneProposalDiagnostic {
+    return {
+        path: '__scene__',
+        prop: 'name',
+        expected: `file basename "${expectedName}"`,
+        actual,
+        hint: 'Rename the <Scene name> to match the .scene file basename, or rename the .scene/.ts pair.',
+    };
+}
+
+function missingCompilerSceneScriptDiagnostic(scriptPath: string): SceneProposalDiagnostic {
+    return {
+        path: '__scene__',
+        prop: 'script',
+        expected: `paired script "${scriptPath}"`,
+        actual: 'missing script',
+        hint: 'Create a colocated TypeScript file with the same basename as the .scene file.',
+    };
+}
+
+function compilerSceneClassDiagnostic(actual: string, expectedClass: string): SceneProposalDiagnostic {
+    return {
+        path: '__scene__',
+        prop: 'name',
+        expected: `@scene class name "${expectedClass}"`,
+        actual,
+        hint: 'Rename the <Scene name> to match the bound @scene class, or update the class name in the bound script.',
+    };
+}
+
+function compilerSceneValidationFailure(scenePath: string, content: string, diagnostics: SceneProposalDiagnostic[]) {
+    return {
+        ok: false as const,
+        scene: scenePath,
+        revision: createSceneRevision(content),
+        error: 'Scene validation failed.',
+        diagnostics,
         hint: 'Fix the listed diagnostics, then run scene validate again.',
     };
 }
@@ -474,6 +552,10 @@ export function createPixifactAutomation() {
             });
             if (!result.ok) {
                 return result;
+            }
+            const pair = readCompilerScenePairContract(loaded.root, loaded.scenePath, parseSceneTemplate(loaded.content));
+            if (pair.diagnostics.length > 0) {
+                return compilerSceneValidationFailure(loaded.scenePath, loaded.content, pair.diagnostics);
             }
             return {
                 ...result,
