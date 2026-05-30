@@ -315,14 +315,14 @@ describe('Editor workbench UI', () => {
         }
     });
 
-    it('keeps local Dockview CSS scoped to theme and sash hit area only', () => {
+    it('gives Dockview sash pseudo hit areas explicit resize cursors', () => {
         const styles = readFileSync('apps/editor/src/styles.css', 'utf8');
         expect(styles).toContain('--dv-active-sash-color');
         expect(styles).toContain('.dv-sash:not(.dv-disabled)::before');
-        expect(styles).toContain('cursor: inherit');
+        expect(styles).toContain('cursor: ew-resize');
+        expect(styles).toContain('cursor: ns-resize');
+        expect(styles).not.toContain('cursor: inherit');
         expect(styles).not.toContain('.dv-sash.dv-enabled');
         expect(styles).not.toContain('.dv-resize-container');
-        expect(styles).not.toContain('cursor: ew-resize');
-        expect(styles).not.toContain('cursor: ns-resize');
     });
 });

@@ -390,15 +390,16 @@ textarea {
     position: absolute;
     background: transparent;
     content: "";
-    cursor: inherit;
 }
 
 .dockview-theme-light .dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash:not(.dv-disabled)::before {
     inset: 0 -4px;
+    cursor: ew-resize;
 }
 
 .dockview-theme-light .dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash:not(.dv-disabled)::before {
     inset: -4px 0;
+    cursor: ns-resize;
 }
 
 .workbenchPane,
