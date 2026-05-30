@@ -727,7 +727,10 @@ describe('Pixifact scene compiler spike', () => {
         try {
             await mkdir(join(root, 'src', 'ui'), { recursive: true });
             await mkdir(join(root, 'src', 'menu'), { recursive: true });
+            await mkdir(join(root, 'src', 'screens'), { recursive: true });
             await mkdir(join(root, 'src', 'assets'), { recursive: true });
+            await mkdir(join(root, 'src', 'build'), { recursive: true });
+            await mkdir(join(root, 'src', 'generated'), { recursive: true });
             await writeFile(join(root, 'src', 'assets', 'btn.png'), 'fake-png');
             await writeFile(join(root, 'src', 'ui', 'Button.scene'), `
                 <Scene name="Button" width="120" height="40">
@@ -762,11 +765,27 @@ describe('Pixifact scene compiler spike', () => {
                 @scene()
                 export class Button extends Container {}
             `);
+            await writeFile(join(root, 'src', 'screens', 'Main.scene'), `
+                <Scene name="Main">
+                  <Button id="uiButton" scene="../ui/Button.scene" label="Primary" />
+                  <Button id="menuButton" scene="../menu/Button.scene" />
+                </Scene>
+            `);
+            await writeFile(join(root, 'src', 'screens', 'Main.ts'), `
+                import { Container } from 'pixi.js';
+                import { scene } from 'pixifact/compiler';
+
+                @scene()
+                export class Main extends Container {}
+            `);
+            await writeFile(join(root, 'src', 'build', 'BuildOnly.scene'), '<Scene name="BuildOnly" />');
+            await writeFile(join(root, 'src', 'generated', 'GeneratedOnly.scene'), '<Scene name="GeneratedOnly" />');
 
             await compileScenes({ projectRoot: root });
 
             const uiGenerated = await readFile(join(root, '.pixifact', 'generated', 'src', 'ui', 'Button.scene.generated.ts'), 'utf8');
             const menuGenerated = await readFile(join(root, '.pixifact', 'generated', 'src', 'menu', 'Button.scene.generated.ts'), 'utf8');
+            const mainGenerated = await readFile(join(root, '.pixifact', 'generated', 'src', 'screens', 'Main.scene.generated.ts'), 'utf8');
             const registry = await readFile(join(root, '.pixifact', 'generated', 'scenes.generated.ts'), 'utf8');
 
             expect(uiGenerated).toContain('registerScene("src/ui/Button.scene"');
@@ -778,8 +797,15 @@ describe('Pixifact scene compiler spike', () => {
             expect(menuGenerated).toContain('registerScene("src/menu/Button.scene"');
             expect(menuGenerated).toContain('import { Button as SceneClass_src_menu_Button } from "../../../../src/menu/Button";');
             expect(menuGenerated).not.toContain('from "../../../src/menu/Button";');
-            expect(registry).toContain("import './src/ui/Button.scene.generated';");
-            expect(registry).toContain("import './src/menu/Button.scene.generated';");
+            expect(mainGenerated).toContain('import { Button as SceneClass_src_menu_Button } from "../../../../src/menu/Button";');
+            expect(mainGenerated).toContain('import { Button as SceneClass_src_ui_Button } from "../../../../src/ui/Button";');
+            expect(mainGenerated).toContain('const uiButton = new SceneClass_src_ui_Button();');
+            expect(mainGenerated).toContain('const menuButton = new SceneClass_src_menu_Button();');
+            expect(registry).toContain('import "./src/ui/Button.scene.generated";');
+            expect(registry).toContain('import "./src/menu/Button.scene.generated";');
+            expect(registry).toContain('import "./src/screens/Main.scene.generated";');
+            expect(registry).not.toContain('BuildOnly');
+            expect(registry).not.toContain('GeneratedOnly');
         } finally {
             await rm(root, { recursive: true, force: true });
         }

@@ -3,7 +3,9 @@ import path from 'node:path';
 export const defaultSceneSourceRoots = ['src'] as const;
 export const ignoredSceneSourceDirectories = new Set([
     'node_modules',
+    'build',
     'dist',
+    'generated',
     '.pixifact',
     'coverage',
     'test-results',

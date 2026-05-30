@@ -82,7 +82,7 @@ export async function compileScenes(options: CompileScenesOptions) {
 
         await mkdir(path.dirname(generatedFile), { recursive: true });
         await writeFile(generatedFile, code);
-        registryImports.push(`import '${generatedSceneModuleImport(scenePath)}';`);
+        registryImports.push(`import ${JSON.stringify(generatedSceneModuleImport(scenePath))};`);
     }
 
     await writeFile(path.join(generatedDir, 'scenes.generated.ts'), `${registryImports.join('\n')}\n`);
