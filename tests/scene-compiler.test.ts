@@ -722,20 +722,20 @@ describe('Pixifact scene compiler spike', () => {
         expect(next).toEqual(template);
     });
 
-    it('generates scene registry files from a project scenes directory', async () => {
+    it('generates scene registry files from colocated Scene asset pairs', async () => {
         const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
         try {
-            await mkdir(join(root, 'scenes'));
-            await mkdir(join(root, 'src', 'scenes'), { recursive: true });
-            await writeFile(join(root, 'scenes', 'Button.scene'), `
-                <Scene name="Button" script="src/scenes/Button.ts" width="120" height="40">
+            await mkdir(join(root, 'src', 'ui'), { recursive: true });
+            await mkdir(join(root, 'src', 'menu'), { recursive: true });
+            await mkdir(join(root, 'src', 'assets'), { recursive: true });
+            await writeFile(join(root, 'src', 'assets', 'btn.png'), 'fake-png');
+            await writeFile(join(root, 'src', 'ui', 'Button.scene'), `
+                <Scene name="Button" width="120" height="40">
                   <Text id="labelText" text="Button" />
-                  <Sprite id="icon" texture="assets/btn.png" />
+                  <Sprite id="icon" texture="src/assets/btn.png" />
                 </Scene>
             `);
-            await mkdir(join(root, 'assets'), { recursive: true });
-            await writeFile(join(root, 'assets', 'btn.png'), 'fake-png');
-            await writeFile(join(root, 'src', 'scenes', 'Button.ts'), `
+            await writeFile(join(root, 'src', 'ui', 'Button.ts'), `
                 import { Container, Text } from 'pixi.js';
                 import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
@@ -754,21 +754,46 @@ describe('Pixifact scene compiler spike', () => {
                     icon!: Container;
                 }
             `);
+            await writeFile(join(root, 'src', 'menu', 'Button.scene'), '<Scene name="Button" />');
+            await writeFile(join(root, 'src', 'menu', 'Button.ts'), `
+                import { Container } from 'pixi.js';
+                import { scene } from 'pixifact/compiler';
+
+                @scene()
+                export class Button extends Container {}
+            `);
 
             await compileScenes({ projectRoot: root });
 
-            const generated = await readFile(join(root, '.pixifact', 'generated', 'Button.scene.generated.ts'), 'utf8');
+            const uiGenerated = await readFile(join(root, '.pixifact', 'generated', 'src', 'ui', 'Button.scene.generated.ts'), 'utf8');
+            const menuGenerated = await readFile(join(root, '.pixifact', 'generated', 'src', 'menu', 'Button.scene.generated.ts'), 'utf8');
             const registry = await readFile(join(root, '.pixifact', 'generated', 'scenes.generated.ts'), 'utf8');
-            const source = await readFile(join(root, 'scenes', 'Button.scene'), 'utf8');
 
-            expect(generated).toContain('registerScene("scenes/Button.scene"');
-            expect(generated).toContain('registerSceneClass(Button, "scenes/Button.scene");');
-            expect(generated).toContain('import { Button } from "../../src/scenes/Button";');
-            expect(generated).toContain('import __pixifactTextureUrl1 from "../../assets/btn.png?url";');
-            expect(generated).toContain('const __pixifactTexture1 = await Assets.load(__pixifactTextureUrl1);');
-            expect(generated).toContain('export function mountButtonScene(root: Container)');
-            expect(source).not.toContain('<Interface>');
-            expect(registry).toBe("import './Button.scene.generated';\n");
+            expect(uiGenerated).toContain('registerScene("src/ui/Button.scene"');
+            expect(uiGenerated).toContain('registerSceneClass(SceneClass_src_ui_Button, "src/ui/Button.scene");');
+            expect(uiGenerated).toContain('import { Button as SceneClass_src_ui_Button } from "../../../src/ui/Button";');
+            expect(uiGenerated).toContain('import __pixifactTextureUrl1 from "../../../src/assets/btn.png?url";');
+            expect(menuGenerated).toContain('registerScene("src/menu/Button.scene"');
+            expect(menuGenerated).toContain('import { Button as SceneClass_src_menu_Button } from "../../../src/menu/Button";');
+            expect(registry).toContain("import './src/ui/Button.scene.generated';");
+            expect(registry).toContain("import './src/menu/Button.scene.generated';");
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
+    });
+
+    it('rejects missing paired scripts and mismatched local names', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
+        try {
+            await mkdir(join(root, 'src', 'ui'), { recursive: true });
+            await writeFile(join(root, 'src', 'ui', 'Button.scene'), '<Scene name="PrimaryButton" />');
+
+            await expect(compileScenes({ projectRoot: root }))
+                .rejects.toThrow('Scene "src/ui/Button.scene" name "PrimaryButton" must match file basename "Button".');
+
+            await writeFile(join(root, 'src', 'ui', 'Button.scene'), '<Scene name="Button" />');
+            await expect(compileScenes({ projectRoot: root }))
+                .rejects.toThrow('Scene "src/ui/Button.scene" requires paired script "src/ui/Button.ts".');
         } finally {
             await rm(root, { recursive: true, force: true });
         }
@@ -786,9 +811,8 @@ describe('Pixifact scene compiler spike', () => {
     it('rejects scene files whose name does not match the bound @scene class', async () => {
         const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
         try {
-            await mkdir(join(root, 'scenes'));
             await mkdir(join(root, 'src', 'scenes'), { recursive: true });
-            await writeFile(join(root, 'scenes', 'Button.scene'), '<Scene name="Button" script="src/scenes/Button.ts" />');
+            await writeFile(join(root, 'src', 'scenes', 'Button.scene'), '<Scene name="Button" />');
             await writeFile(join(root, 'src', 'scenes', 'Button.ts'), `
                 import { Container } from 'pixi.js';
                 import { scene } from 'pixifact/compiler';
@@ -797,7 +821,7 @@ describe('Pixifact scene compiler spike', () => {
                 export class PrimaryButton extends Container {}
             `);
 
-            await expect(compileScenes({ projectRoot: root })).rejects.toThrow('Scene "scenes/Button.scene" name "Button" must match @scene class "PrimaryButton".');
+            await expect(compileScenes({ projectRoot: root })).rejects.toThrow('Scene "src/scenes/Button.scene" name "Button" must match @scene class "PrimaryButton".');
         } finally {
             await rm(root, { recursive: true, force: true });
         }

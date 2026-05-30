@@ -1,14 +1,26 @@
-import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { SceneTemplate, SceneTemplateNode } from './spec';
+import {
+    defaultSceneSourceRoots,
+    generatedSceneModuleImport,
+    generatedSceneModulePath,
+    isIgnoredSceneSourceDirectory,
+    normalizeSceneAssetId,
+    pairedSceneScriptPath,
+    resolveSceneReference,
+    sceneClassAlias,
+    sceneLocalName,
+    toPosixPath,
+} from './sceneAssetPair';
 import { extractSceneScriptInterface } from './scriptInterfaceExtractor';
 import { parseSceneTemplate } from './templateParser';
 import { compileSceneTemplateToTs } from './typescriptCompiler';
 
 export interface CompileScenesOptions {
     projectRoot: string | URL;
-    scenesDir?: string;
+    sourceRoots?: string[];
     generatedDir?: string;
 }
 
@@ -27,54 +39,163 @@ export async function compileScenes(options: CompileScenesOptions) {
     const projectRoot = typeof options.projectRoot === 'string'
         ? options.projectRoot
         : fileURLToPath(options.projectRoot);
-    const scenesDir = path.resolve(projectRoot, options.scenesDir ?? 'scenes');
     const generatedDir = path.resolve(projectRoot, options.generatedDir ?? '.pixifact/generated');
-    const sceneFiles = (await readdir(scenesDir))
-        .filter((file) => file.endsWith('.scene'))
-        .sort();
+    const scenePaths = await collectSceneAssetIds(projectRoot, options.sourceRoots);
 
     await mkdir(generatedDir, { recursive: true });
 
     const templates = new Map<string, SceneTemplate>();
-    for (const file of sceneFiles) {
-        const source = await readFile(path.join(scenesDir, file), 'utf8');
-        const scenePath = `scenes/${file}`;
+    for (const scenePath of scenePaths) {
+        const source = await readFile(path.resolve(projectRoot, scenePath), 'utf8');
         try {
             const template = parseSceneTemplate(source);
-            const descriptor = await readBoundSceneScript(projectRoot, scenePath, template);
-            if (!template.script) {
-                throw new Error(`Scene "${scenePath}" must declare script.`);
-            }
+            assertSceneLocalName(scenePath, template);
+            const descriptor = await readPairedSceneScript(projectRoot, scenePath, template);
             template.interface = descriptor.interface;
-            templates.set(file, template);
+            templates.set(scenePath, normalizeSceneReferences(scenePath, template));
         } catch (error) {
             throw new CompileSceneError(error instanceof Error ? error.message : String(error), scenePath, source);
         }
     }
 
     const registryImports: string[] = [];
-    for (const file of sceneFiles) {
-        const template = templates.get(file);
+    for (const scenePath of scenePaths) {
+        const template = templates.get(scenePath);
         if (!template) {
-            throw new Error(`Missing parsed template for ${file}.`);
+            throw new Error(`Missing parsed template for ${scenePath}.`);
         }
-        const outputFile = `${path.basename(file, '.scene')}.scene.generated.ts`;
-        const registrationPath = `scenes/${file}`;
+
+        const outputFile = generatedSceneModulePath(scenePath);
+        const generatedFile = path.join(generatedDir, outputFile);
+        const generatedFileDir = path.dirname(generatedFile);
+        const importBaseDir = path.dirname(generatedFileDir);
         const code = compileSceneTemplateToTs(template, {
-            registrationPath,
-            scriptImport: scriptImportFor(template, projectRoot, generatedDir),
-            sceneImports: sceneImportsFor(file, sceneFiles, templates, projectRoot, generatedDir),
-            textureImports: textureImportsFor(template, projectRoot, generatedDir),
+            registrationPath: scenePath,
+            scriptImport: {
+                exportName: template.name,
+                localName: sceneClassAlias(scenePath),
+                source: importSourceFor(path.resolve(projectRoot, pairedSceneScriptPath(scenePath)), importBaseDir),
+            },
+            sceneImports: sceneImportsFor(template, templates, projectRoot, importBaseDir),
+            sceneClassAliases: sceneClassAliasesFor(template),
+            textureImports: textureImportsFor(template, projectRoot, importBaseDir),
         });
 
-        await writeFile(path.join(generatedDir, outputFile), code);
-        registryImports.push(`import './${outputFile.replace(/\.ts$/, '')}';`);
+        await mkdir(path.dirname(generatedFile), { recursive: true });
+        await writeFile(generatedFile, code);
+        registryImports.push(`import '${generatedSceneModuleImport(scenePath)}';`);
     }
 
     await writeFile(path.join(generatedDir, 'scenes.generated.ts'), `${registryImports.join('\n')}\n`);
 }
 
-function textureImportsFor(template: SceneTemplate, projectRoot: string, generatedDir: string) {
+async function collectSceneAssetIds(projectRoot: string, sourceRoots: readonly string[] = defaultSceneSourceRoots) {
+    const scenes: string[] = [];
+    for (const sourceRoot of sourceRoots) {
+        const absoluteRoot = path.resolve(projectRoot, sourceRoot);
+        if (!await exists(absoluteRoot)) {
+            continue;
+        }
+        await collectScenesInDirectory(projectRoot, absoluteRoot, scenes);
+    }
+    return scenes.sort();
+}
+
+async function collectScenesInDirectory(projectRoot: string, directory: string, scenes: string[]) {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+            if (!isIgnoredSceneSourceDirectory(entry.name)) {
+                await collectScenesInDirectory(projectRoot, path.join(directory, entry.name), scenes);
+            }
+            continue;
+        }
+        if (entry.isFile() && entry.name.endsWith('.scene')) {
+            scenes.push(normalizeSceneAssetId(toPosixPath(path.relative(projectRoot, path.join(directory, entry.name)))));
+        }
+    }
+}
+
+async function exists(filePath: string) {
+    try {
+        await access(filePath);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function assertSceneLocalName(scenePath: string, template: SceneTemplate) {
+    const expected = sceneLocalName(scenePath);
+    if (template.name !== expected) {
+        throw new Error(`Scene "${scenePath}" name "${template.name}" must match file basename "${expected}".`);
+    }
+}
+
+async function readPairedSceneScript(projectRoot: string, scenePath: string, template: SceneTemplate) {
+    const scriptPath = pairedSceneScriptPath(scenePath);
+    const absoluteScriptPath = path.resolve(projectRoot, scriptPath);
+    if (!await exists(absoluteScriptPath)) {
+        throw new Error(`Scene "${scenePath}" requires paired script "${scriptPath}".`);
+    }
+    const descriptor = extractSceneScriptInterface(await readFile(absoluteScriptPath, 'utf8'), absoluteScriptPath, { scene: scenePath });
+    if (descriptor.className !== template.name) {
+        throw new Error(`Scene "${scenePath}" name "${template.name}" must match @scene class "${descriptor.className}".`);
+    }
+    return descriptor;
+}
+
+function normalizeSceneReferences(scenePath: string, template: SceneTemplate): SceneTemplate {
+    const next = structuredClone(template);
+    function visit(node: SceneTemplateNode) {
+        if (node.kind === 'slotOutlet') {
+            return;
+        }
+        if (node.kind === 'pixi') {
+            node.children.forEach(visit);
+            return;
+        }
+        node.scene = resolveSceneReference(scenePath, node.scene);
+        for (const children of Object.values(node.slots)) {
+            children.forEach(visit);
+        }
+    }
+    next.children.forEach(visit);
+    return next;
+}
+
+function sceneImportsFor(
+    template: SceneTemplate,
+    templates: Map<string, SceneTemplate>,
+    projectRoot: string,
+    generatedFileDir: string,
+) {
+    return [...collectSceneInstancePaths(template.children)]
+        .sort()
+        .map((scenePath) => {
+            const sceneTemplate = templates.get(scenePath);
+            if (!sceneTemplate) {
+                throw new Error(`Scene "${template.name}" references unknown Scene "${scenePath}".`);
+            }
+            return {
+                exportName: sceneTemplate.name,
+                localName: sceneClassAlias(scenePath),
+                source: importSourceFor(path.resolve(projectRoot, pairedSceneScriptPath(scenePath)), generatedFileDir),
+            };
+        });
+}
+
+function sceneClassAliasesFor(template: SceneTemplate) {
+    return Object.fromEntries(
+        [...collectSceneInstancePaths(template.children)].map((scenePath) => [scenePath, sceneClassAlias(scenePath)]),
+    );
+}
+
+function importSourceFor(sourcePath: string, generatedFileDir: string) {
+    const source = path.relative(generatedFileDir, sourcePath).replaceAll(path.sep, '/').replace(/\.ts$/, '');
+    return source.startsWith('.') ? source : `./${source}`;
+}
+
+function textureImportsFor(template: SceneTemplate, projectRoot: string, generatedFileDir: string) {
     const textures = new Set<string>();
     for (const child of template.children) {
         collectTextureReferences(child, textures);
@@ -82,83 +203,26 @@ function textureImportsFor(template: SceneTemplate, projectRoot: string, generat
     return Object.fromEntries([...textures].map((texture) => {
         const normalized = texture.replace(/^\.\/+/, '').replace(/^\/+/, '');
         const assetPath = path.resolve(projectRoot, normalized);
-        const source = path.relative(generatedDir, assetPath).replaceAll(path.sep, '/');
+        const source = path.relative(generatedFileDir, assetPath).replaceAll(path.sep, '/');
         return [texture, `${source.startsWith('.') ? source : `./${source}`}?url`];
     }));
 }
 
-function scriptImportFor(template: SceneTemplate, projectRoot: string, generatedDir: string) {
-    if (!template.script) {
-        throw new Error(`Scene "${template.name}" must declare script.`);
-    }
-    const scriptPath = path.resolve(projectRoot, template.script.path);
-    const source = path.relative(generatedDir, scriptPath).replaceAll(path.sep, '/').replace(/\.ts$/, '');
-    return {
-        className: template.name,
-        source: source.startsWith('.') ? source : `./${source}`,
-    };
-}
-
-function sceneImportsFor(
-    file: string,
-    sceneFiles: string[],
-    templates: Map<string, SceneTemplate>,
-    projectRoot: string,
-    generatedDir: string,
-) {
-    const imports: Record<string, string> = {};
-    const template = templates.get(file);
-    if (!template) {
-        throw new Error(`Missing parsed template for ${file}.`);
-    }
-    const sceneInstanceTypes = new Set<string>();
-
-    for (const child of template.children) {
-        collectSceneInstanceTypes(child, sceneInstanceTypes);
-    }
-
-    for (const sceneFile of sceneFiles) {
-        const sceneTemplate = templates.get(sceneFile);
-        if (!sceneTemplate?.script || !sceneInstanceTypes.has(sceneTemplate.name)) {
+function collectSceneInstancePaths(nodes: readonly SceneTemplateNode[], scenePaths = new Set<string>()) {
+    for (const node of nodes) {
+        if (node.kind === 'slotOutlet') {
             continue;
         }
-        const scriptPath = path.resolve(projectRoot, sceneTemplate.script.path);
-        const source = path.relative(generatedDir, scriptPath).replaceAll(path.sep, '/').replace(/\.ts$/, '');
-        imports[sceneTemplate.name] = source.startsWith('.') ? source : `./${source}`;
-    }
-
-    return imports;
-}
-
-async function readBoundSceneScript(projectRoot: string, scenePath: string, template: SceneTemplate) {
-    if (!template.script) {
-        throw new Error(`Scene "${scenePath}" must declare script.`);
-    }
-    const scriptPath = path.resolve(projectRoot, template.script.path);
-    const scriptSource = await readFile(scriptPath, 'utf8');
-    const descriptor = extractSceneScriptInterface(scriptSource, scriptPath, { scene: scenePath });
-    if (descriptor.className !== template.name) {
-        throw new Error(`Scene "${scenePath}" name "${template.name}" must match @scene class "${descriptor.className}".`);
-    }
-    return descriptor;
-}
-
-function collectSceneInstanceTypes(node: SceneTemplateNode, types: Set<string>) {
-    if (node.kind === 'slotOutlet') {
-        return;
-    }
-    if (node.kind === 'sceneInstance') {
-        types.add(node.type);
-        for (const children of Object.values(node.slots)) {
-            for (const child of children) {
-                collectSceneInstanceTypes(child, types);
-            }
+        if (node.kind === 'pixi') {
+            collectSceneInstancePaths(node.children, scenePaths);
+            continue;
         }
-        return;
+        scenePaths.add(node.scene);
+        for (const children of Object.values(node.slots)) {
+            collectSceneInstancePaths(children, scenePaths);
+        }
     }
-    for (const child of node.children) {
-        collectSceneInstanceTypes(child, types);
-    }
+    return scenePaths;
 }
 
 function collectTextureReferences(node: SceneTemplateNode, textures: Set<string>) {

@@ -75,7 +75,7 @@ class CompileContext {
             this.#lines.push(`  mount: ${functionName},`);
             this.#lines.push('});');
             if (this.options.scriptImport) {
-                this.#lines.push(`registerSceneClass(${this.options.scriptImport.className}, ${JSON.stringify(this.options.registrationPath)});`);
+                this.#lines.push(`registerSceneClass(${this.options.scriptImport.localName}, ${JSON.stringify(this.options.registrationPath)});`);
             }
         }
 
@@ -98,11 +98,11 @@ class CompileContext {
         for (const [texture, variable] of this.#textureImportEntries()) {
             lines.push(`import ${variable} from ${JSON.stringify(this.options.textureImports?.[texture])};`);
         }
-        for (const [name, source] of Object.entries(this.options.sceneImports ?? {}).sort(([a], [b]) => a.localeCompare(b))) {
-            lines.push(`import { ${name} } from ${JSON.stringify(source)};`);
+        for (const sceneImport of this.options.sceneImports ?? []) {
+            lines.push(`import { ${sceneImport.exportName} as ${sceneImport.localName} } from ${JSON.stringify(sceneImport.source)};`);
         }
         if (this.options.scriptImport) {
-            lines.push(`import { ${this.options.scriptImport.className} } from ${JSON.stringify(this.options.scriptImport.source)};`);
+            lines.push(`import { ${this.options.scriptImport.exportName} as ${this.options.scriptImport.localName} } from ${JSON.stringify(this.options.scriptImport.source)};`);
         }
         if (this.#runtimeImports.size > 0) {
             lines.push(`import { ${[...this.#runtimeImports].sort().join(', ')} } from 'pixifact/compiler';`);
@@ -151,7 +151,7 @@ class CompileContext {
         }
         if (node.kind === 'sceneInstance') {
             if (node.id) {
-                this.#parts.push({ id: node.id, type: node.type });
+                this.#parts.push({ id: node.id, type: this.#sceneConstructorName(node) });
             }
             for (const children of Object.values(node.slots)) {
                 for (const child of children) {
@@ -219,7 +219,8 @@ class CompileContext {
 
     #compileSceneInstance(node: SceneInstanceTemplateNode, parent: string, actionsParameter: string) {
         const variable = node.id || this.#anonymousName(node.type);
-        this.#lines.push(`  const ${variable} = new ${node.type}();`);
+        const constructorName = this.#sceneConstructorName(node);
+        this.#lines.push(`  const ${variable} = new ${constructorName}();`);
         this.#applyPixiProps(variable, node.props, true);
         for (const [name, action] of Object.entries(node.events)) {
             this.#runtimeImports.add('connectSceneEvent');
@@ -242,7 +243,8 @@ class CompileContext {
         }
         if (node.kind === 'sceneInstance') {
             const variable = node.id || this.#anonymousName(node.type);
-            this.#lines.push(`  const ${variable} = new ${node.type}();`);
+            const constructorName = this.#sceneConstructorName(node);
+            this.#lines.push(`  const ${variable} = new ${constructorName}();`);
             this.#applyPixiProps(variable, node.props, true);
             for (const [name, action] of Object.entries(node.events)) {
                 this.#runtimeImports.add('connectSceneEvent');
@@ -289,6 +291,10 @@ class CompileContext {
             return 'new Graphics()';
         }
         return `new ${node.type}()`;
+    }
+
+    #sceneConstructorName(node: SceneInstanceTemplateNode) {
+        return this.options.sceneClassAliases?.[node.scene] ?? node.type;
     }
 
     #applyPixiProps(variable: string, props: Record<string, SceneTemplateValue>, instance = false) {
