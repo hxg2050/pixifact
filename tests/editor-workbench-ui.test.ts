@@ -315,14 +315,21 @@ describe('Editor workbench UI', () => {
         }
     });
 
-    it('gives Dockview sash pseudo hit areas explicit resize cursors', () => {
+    it('uses real Dockview sash boxes for resize cursor hit areas', () => {
         const styles = readFileSync('apps/editor/src/styles.css', 'utf8');
         expect(styles).toContain('--dv-active-sash-color');
-        expect(styles).toContain('.dv-sash:not(.dv-disabled)::before');
-        expect(styles).toContain('cursor: ew-resize');
-        expect(styles).toContain('cursor: ns-resize');
+        expect(styles).toContain('.dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash:not(.dv-disabled)');
+        expect(styles).toContain('.dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash:not(.dv-disabled)');
+        expect(styles).toContain('width: 8px');
+        expect(styles).toContain('height: 8px');
+        expect(styles).toContain('margin-left: -2px');
+        expect(styles).toContain('margin-top: -2px');
+        expect(styles).toContain('cursor: col-resize');
+        expect(styles).toContain('cursor: row-resize');
+        expect(styles).not.toContain('cursor: ew-resize');
+        expect(styles).not.toContain('cursor: ns-resize');
         expect(styles).not.toContain('cursor: inherit');
-        expect(styles).not.toContain('.dv-sash.dv-enabled');
+        expect(styles).not.toContain('.dv-sash:not(.dv-disabled)::before');
         expect(styles).not.toContain('.dv-resize-container');
     });
 });
