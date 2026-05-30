@@ -68,17 +68,16 @@ export async function compileScenes(options: CompileScenesOptions) {
         const outputFile = generatedSceneModulePath(scenePath);
         const generatedFile = path.join(generatedDir, outputFile);
         const generatedFileDir = path.dirname(generatedFile);
-        const importBaseDir = path.dirname(generatedFileDir);
         const code = compileSceneTemplateToTs(template, {
             registrationPath: scenePath,
             scriptImport: {
                 exportName: template.name,
                 localName: sceneClassAlias(scenePath),
-                source: importSourceFor(path.resolve(projectRoot, pairedSceneScriptPath(scenePath)), importBaseDir),
+                source: importSourceFor(path.resolve(projectRoot, pairedSceneScriptPath(scenePath)), generatedFileDir),
             },
-            sceneImports: sceneImportsFor(template, templates, projectRoot, importBaseDir),
+            sceneImports: sceneImportsFor(template, templates, projectRoot, generatedFileDir),
             sceneClassAliases: sceneClassAliasesFor(template),
-            textureImports: textureImportsFor(template, projectRoot, importBaseDir),
+            textureImports: textureImportsFor(template, projectRoot, generatedFileDir),
         });
 
         await mkdir(path.dirname(generatedFile), { recursive: true });

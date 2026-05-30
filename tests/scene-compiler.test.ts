@@ -771,10 +771,13 @@ describe('Pixifact scene compiler spike', () => {
 
             expect(uiGenerated).toContain('registerScene("src/ui/Button.scene"');
             expect(uiGenerated).toContain('registerSceneClass(SceneClass_src_ui_Button, "src/ui/Button.scene");');
-            expect(uiGenerated).toContain('import { Button as SceneClass_src_ui_Button } from "../../../src/ui/Button";');
-            expect(uiGenerated).toContain('import __pixifactTextureUrl1 from "../../../src/assets/btn.png?url";');
+            expect(uiGenerated).toContain('import { Button as SceneClass_src_ui_Button } from "../../../../src/ui/Button";');
+            expect(uiGenerated).toContain('import __pixifactTextureUrl1 from "../../../../src/assets/btn.png?url";');
+            expect(uiGenerated).not.toContain('from "../../../src/ui/Button";');
+            expect(uiGenerated).not.toContain('from "../../../src/assets/btn.png?url";');
             expect(menuGenerated).toContain('registerScene("src/menu/Button.scene"');
-            expect(menuGenerated).toContain('import { Button as SceneClass_src_menu_Button } from "../../../src/menu/Button";');
+            expect(menuGenerated).toContain('import { Button as SceneClass_src_menu_Button } from "../../../../src/menu/Button";');
+            expect(menuGenerated).not.toContain('from "../../../src/menu/Button";');
             expect(registry).toContain("import './src/ui/Button.scene.generated';");
             expect(registry).toContain("import './src/menu/Button.scene.generated';");
         } finally {
