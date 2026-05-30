@@ -49,13 +49,14 @@ export function generatedSceneModuleImport(scenePath: string) {
 export function sceneClassAlias(scenePath: string) {
     const base = normalizeSceneAssetId(scenePath)
         .slice(0, -'.scene'.length)
-        .replace(/[^A-Za-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '');
+        .split('/')
+        .map((segment) => segment.replace(/[^A-Za-z0-9]/g, (character) => `_x${character.charCodeAt(0).toString(16)}_`))
+        .join('_');
     return `SceneClass_${base}`;
 }
 
 export function resolveSceneReference(fromScenePath: string, reference: string) {
-    const value = reference.trim();
+    const value = toPosixPath(reference.trim());
     if (!value.endsWith('.scene')) {
         throw new Error('Scene references must use .scene paths.');
     }

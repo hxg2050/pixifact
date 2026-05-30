@@ -9,6 +9,7 @@ import {
     connectSceneEvent,
     compileSceneTemplateToTs,
     createSceneRevision,
+    generatedSceneModuleImport,
     generatedSceneModulePath,
     mount,
     normalizeSceneAssetId,
@@ -49,14 +50,32 @@ describe('Pixifact scene compiler spike', () => {
         expect(pairedSceneScriptPath('src/ui/Button.scene')).toBe('src/ui/Button.ts');
         expect(sceneLocalName('src/features/shop/Button.scene')).toBe('Button');
         expect(generatedSceneModulePath('src/features/shop/Button.scene')).toBe('src/features/shop/Button.scene.generated.ts');
+        expect(generatedSceneModuleImport('src/features/shop/Button.scene')).toBe('./src/features/shop/Button.scene.generated');
         expect(sceneClassAlias('src/features/shop/Button.scene')).toBe('SceneClass_src_features_shop_Button');
     });
 
     it('resolves relative and project-relative Scene references from a containing scene', () => {
         expect(resolveSceneReference('src/menu/MainMenu.scene', './Button.scene')).toBe('src/menu/Button.scene');
         expect(resolveSceneReference('src/menu/MainMenu.scene', '../ui/Button.scene')).toBe('src/ui/Button.scene');
+        expect(resolveSceneReference('src/menu/MainMenu.scene', '..\\ui\\Button.scene')).toBe('src/ui/Button.scene');
         expect(resolveSceneReference('src/menu/MainMenu.scene', 'src/shared/Panel.scene')).toBe('src/shared/Panel.scene');
         expect(() => resolveSceneReference('src/menu/MainMenu.scene', 'Button')).toThrow('Scene references must use .scene paths.');
+    });
+
+    it('creates stable non-colliding Scene class aliases', () => {
+        expect(sceneClassAlias('src/features/shop/Button.scene')).toBe('SceneClass_src_features_shop_Button');
+
+        const aliases = [
+            sceneClassAlias('src/foo_bar/Button.scene'),
+            sceneClassAlias('src/foo-bar/Button.scene'),
+            sceneClassAlias('src/foo/bar/Button.scene'),
+        ];
+        expect(new Set(aliases).size).toBe(3);
+        expect(aliases).toEqual([
+            'SceneClass_src_foo_x5f_bar_Button',
+            'SceneClass_src_foo_x2d_bar_Button',
+            'SceneClass_src_foo_bar_Button',
+        ]);
     });
 
     it('inspects compiler scene templates for external agents', () => {
