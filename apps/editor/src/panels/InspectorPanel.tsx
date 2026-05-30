@@ -21,6 +21,7 @@ import {
     type PixiScenePropGroup,
     pixiSceneTransformProps,
 } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
+import { pairedSceneScriptPath, resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import type {
     SceneCommand,
     SceneDocument,
@@ -52,6 +53,7 @@ import {
     findFileByPath,
     openCompilerSceneScriptFile,
     assetDragDataType,
+    projectFileRelativePath,
     resolveProjectAssetReference,
 } from '../services/projectFileTree';
 import { readCompilerSceneBinding } from '../services/sceneBindingIndex';
@@ -284,22 +286,13 @@ async function readCompilerSceneBindingStatus(
     compilerDocument: NonNullable<ReturnType<typeof getCompilerSceneDocument>>,
     t: Translate,
 ): Promise<CompilerSceneBindingStatus> {
-    const template = compilerDocument.template;
     if (!projectTree) {
         return {
             ok: false,
             message: t('compilerProjectNotOpened'),
             scenePath,
-            scriptPath: template.script?.path,
             className: compilerDocument.descriptor?.className,
             contractScene: compilerDocument.descriptor?.scene,
-        };
-    }
-    if (!template.script) {
-        return {
-            ok: false,
-            message: 'Scene 未绑定脚本。',
-            scenePath,
         };
     }
     const sceneFile = findFileByPath(projectTree, scenePath);
@@ -308,18 +301,18 @@ async function readCompilerSceneBindingStatus(
             ok: false,
             message: `找不到 Scene 文件 ${scenePath}。`,
             scenePath,
-            scriptPath: template.script.path,
             className: compilerDocument.descriptor?.className,
             contractScene: compilerDocument.descriptor?.scene,
         };
     }
+    const scriptPath = pairedSceneScriptPath(projectFileRelativePath(projectTree, sceneFile));
     try {
         const binding = await readCompilerSceneBinding(projectTree, sceneFile);
         return {
             ok: true,
             message: t('compilerBindingOk'),
             scenePath,
-            scriptPath: binding.template.script?.path,
+            scriptPath,
             className: binding.className,
             contractScene: binding.scenePath,
         };
@@ -328,7 +321,7 @@ async function readCompilerSceneBindingStatus(
             ok: false,
             message: hostErrorMessage(error),
             scenePath,
-            scriptPath: template.script.path,
+            scriptPath,
             className: compilerDocument.descriptor?.className,
             contractScene: compilerDocument.descriptor?.scene,
         };
@@ -461,6 +454,19 @@ function compilerEventFields(node: SelectedCompilerItem, sceneInterface?: Compil
         type: 'string',
         value: node.events[key],
     }));
+}
+
+function compilerSceneInterfaceForInstance(
+    compilerDocument: NonNullable<ReturnType<typeof getCompilerSceneDocument>>,
+    node: SelectedCompilerItem,
+) {
+    if (!node || node.kind !== 'sceneInstance') {
+        return undefined;
+    }
+    return compilerDocument.sceneInterfaces[node.scene]
+        ?? (compilerDocument.descriptor?.scene
+            ? compilerDocument.sceneInterfaces[resolveSceneReference(compilerDocument.descriptor.scene, node.scene)]
+            : undefined);
 }
 
 function nodePropLabel(key: 'id' | 'key' | 'role' | 'name', t: Translate) {
@@ -743,7 +749,6 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
         projectTree,
         t,
         compilerDocument?.scenePath,
-        compilerDocument?.template.script?.path,
         compilerDocument?.descriptor?.scene,
         compilerDocument?.descriptor?.className,
     ]);
@@ -753,9 +758,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
         const selectedCompiler = compilerDocument.selection.type === 'node'
             ? selectedCompilerSlot(compilerDocument.template.children, compilerDocument.selection.node) ?? selectedCompilerNode(compilerDocument.template.children, compilerDocument.selection.node)
             : undefined;
-        const selectedSceneInterface = selectedCompiler?.kind === 'sceneInstance'
-            ? compilerDocument.sceneInterfaces[selectedCompiler.scene]
-            : undefined;
+        const selectedSceneInterface = compilerSceneInterfaceForInstance(compilerDocument, selectedCompiler);
         const selectedSlotRows = compilerSceneInstanceSlotRows(selectedCompiler, selectedSceneInterface);
         const compilerTransformEditorFields = compilerTransformFields(selectedCompiler);
         const compilerDisplayEditorFields = compilerDisplayFields(selectedCompiler);
@@ -777,16 +780,6 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                 props: {
                     [key]: value as string | number | boolean | undefined,
                 },
-            });
-        };
-        const commitCompilerSceneScriptPath = (value: unknown) => {
-            const path = typeof value === 'string' ? value : '';
-            updateCompilerSceneTemplate({
-                script: path
-                    ? {
-                        path,
-                    }
-                    : undefined,
             });
         };
         const commitCompilerId = (value: unknown) => {
@@ -842,7 +835,8 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                 return;
             }
             try {
-                await openCompilerSceneScriptFile(projectTree, compilerDocument.template);
+                const sceneFile = findFileByPath(projectTree, compilerDocument.scenePath);
+                await openCompilerSceneScriptFile(projectTree, compilerDocument.template, sceneFile);
                 setError(undefined);
             } catch (openError) {
                 setError(hostErrorMessage(openError));
@@ -875,11 +869,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                             label="height"
                             onCommit={(value) => commitCompilerSceneProp('height', value)}
                         />
-                        <EditableFieldRow
-                            field={compilerField('script', compilerDocument.template.script?.path)}
-                            label="script"
-                            onCommit={commitCompilerSceneScriptPath}
-                        />
+                        <FieldRow label="script" value={compilerBindingStatus?.scriptPath} />
                         <FieldRow label={t('compilerClass')} value={compilerDocument.descriptor?.className} />
                         <FieldRow label={t('compilerPath')} value={compilerDocument.scenePath} />
                     </div>
@@ -894,7 +884,7 @@ export function InspectorPanel({ document }: { document?: SceneDocument }) {
                     <div className="fieldStack">
                         <FieldRow label="scene" value={compilerBindingStatus?.scenePath ?? compilerDocument.scenePath} />
                         <FieldRow label={t('compilerContract')} value={compilerBindingStatus?.contractScene ?? compilerDocument.descriptor?.scene} />
-                        <FieldRow label="script" value={compilerBindingStatus?.scriptPath ?? compilerDocument.template.script?.path} />
+                        <FieldRow label="script" value={compilerBindingStatus?.scriptPath} />
                         <FieldRow label={t('compilerClass')} value={compilerBindingStatus?.className ?? compilerDocument.descriptor?.className} />
                         <div className="inspectorActionRow">
                             <button onClick={openCompilerScript} type="button">{t('compilerOpenScript')}</button>

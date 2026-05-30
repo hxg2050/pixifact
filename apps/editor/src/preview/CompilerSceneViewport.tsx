@@ -13,6 +13,7 @@ import {
     TilingSprite,
 } from 'pixi.js';
 import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
+import { normalizeSceneAssetId, resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import {
     pixiSceneDisplayProps,
     pixiSceneGraphicsProps,
@@ -51,7 +52,7 @@ interface RenderedCompilerScene {
 
 interface RenderContext {
     projectTree: ProjectFileTreeNode;
-    sceneRootPath: string;
+    currentScenePath: string;
     locatorPath: string;
     templates: Map<string, SceneTemplate>;
     objectUrls: string[];
@@ -81,34 +82,35 @@ function sceneSize(template: SceneTemplate) {
     };
 }
 
-function sceneProjectRootPath(projectTree: ProjectFileTreeNode, scenePath: string) {
-    const marker = '/scenes/';
-    const index = scenePath.lastIndexOf(marker);
-    return index >= 0 ? scenePath.slice(0, index) : projectTree.path;
+function projectAbsoluteScenePath(projectTree: ProjectFileTreeNode, scenePath: string) {
+    return `${projectTree.path}/${scenePath}`;
 }
 
 function normalizedSceneReference(context: RenderContext, scene: string) {
-    const normalized = scene.replace(/^\.\/+/, '').replace(/^\/+/, '');
-    return normalized.startsWith(`${context.projectTree.path}/`)
-        ? normalized
-        : `${context.sceneRootPath}/${normalized}`;
+    return resolveSceneReference(context.currentScenePath, scene);
 }
 
 async function loadSceneTemplate(context: RenderContext, scene: string) {
-    const path = normalizedSceneReference(context, scene);
-    const cached = context.templates.get(path);
+    const normalizedPath = normalizedSceneReference(context, scene);
+    const cached = context.templates.get(normalizedPath);
     if (cached) {
-        return cached;
+        return {
+            path: normalizedPath,
+            template: cached,
+        };
     }
 
-    const file = findFileByPath(context.projectTree, path);
+    const file = findFileByPath(context.projectTree, projectAbsoluteScenePath(context.projectTree, normalizedPath));
     if (!file) {
         throw new Error(`找不到 Scene：${scene}`);
     }
 
     const template = parseSceneTemplate(await readProjectFileText(context.projectTree, file));
-    context.templates.set(path, template);
-    return template;
+    context.templates.set(normalizedPath, template);
+    return {
+        path: normalizedPath,
+        template,
+    };
 }
 
 async function loadProjectTexture(context: RenderContext, texture: string) {
@@ -351,8 +353,11 @@ async function renderChildren(
 }
 
 async function renderSceneInstance(node: SceneInstanceTemplateNode, context: RenderContext, nodes: Map<string, Container>) {
-    const template = await loadSceneTemplate(context, node.scene);
-    const rendered = await renderScene(template, context);
+    const loaded = await loadSceneTemplate(context, node.scene);
+    const rendered = await renderScene(loaded.template, {
+        ...context,
+        currentScenePath: loaded.path,
+    });
 
     rendered.root.label = node.id ?? node.type;
     applyNodeProps(rendered.root, node.props, true);
@@ -481,9 +486,9 @@ export function CompilerSceneViewport({ document, projectTree }: CompilerSceneVi
 
                 const context: RenderContext = {
                     projectTree,
-                    sceneRootPath: sceneProjectRootPath(projectTree, document.scenePath),
+                    currentScenePath: normalizeSceneAssetId(document.scenePath.slice(projectTree.path.length + 1)),
                     locatorPath: '',
-                    templates: new Map([[document.scenePath, document.template]]),
+                    templates: new Map([[normalizeSceneAssetId(document.scenePath.slice(projectTree.path.length + 1)), document.template]]),
                     objectUrls,
                     textures: new Map(),
                 };

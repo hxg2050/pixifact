@@ -36,25 +36,6 @@ function projectTree(): ProjectFileTreeNode {
         systemPath: '/repo/GameProject',
         projectRootPath: '/repo/GameProject',
         children: [{
-            id: 'GameProject/scenes',
-            name: 'scenes',
-            path: 'GameProject/scenes',
-            kind: 'folder',
-            depth: 1,
-            children: [{
-                id: 'GameProject/scenes/Button.scene',
-                name: 'Button.scene',
-                path: 'GameProject/scenes/Button.scene',
-                kind: 'scene',
-                depth: 2,
-            }, {
-                id: 'GameProject/scenes/Child.scene',
-                name: 'Child.scene',
-                path: 'GameProject/scenes/Child.scene',
-                kind: 'scene',
-                depth: 2,
-            }],
-        }, {
             id: 'GameProject/assets',
             name: 'assets',
             path: 'GameProject/assets',
@@ -80,10 +61,22 @@ function projectTree(): ProjectFileTreeNode {
                 kind: 'folder',
                 depth: 2,
                 children: [{
+                    id: 'GameProject/src/scenes/Button.scene',
+                    name: 'Button.scene',
+                    path: 'GameProject/src/scenes/Button.scene',
+                    kind: 'scene',
+                    depth: 3,
+                }, {
                     id: 'GameProject/src/scenes/Button.ts',
                     name: 'Button.ts',
                     path: 'GameProject/src/scenes/Button.ts',
                     kind: 'script',
+                    depth: 3,
+                }, {
+                    id: 'GameProject/src/scenes/Child.scene',
+                    name: 'Child.scene',
+                    path: 'GameProject/src/scenes/Child.scene',
+                    kind: 'scene',
                     depth: 3,
                 }, {
                     id: 'GameProject/src/scenes/Child.ts',
@@ -99,7 +92,7 @@ function projectTree(): ProjectFileTreeNode {
 
 function currentScene() {
     return [
-        '<Scene name="Button" script="src/scenes/Button.ts">',
+        '<Scene name="Button">',
         '  <Text id="label" text="Start" />',
         '</Scene>',
         '',
@@ -117,7 +110,7 @@ function scriptSource() {
 
 function childScene() {
     return [
-        '<Scene name="Child" script="src/scenes/Child.ts" />',
+        '<Scene name="Child" />',
         '',
     ].join('\n');
 }
@@ -136,8 +129,8 @@ function childScriptSource() {
 
 function resetHostFiles(files: [string, string][] = []) {
     host.files = new Map([
-        ['GameProject/scenes/Button.scene', currentScene()],
-        ['GameProject/scenes/Child.scene', childScene()],
+        ['GameProject/src/scenes/Button.scene', currentScene()],
+        ['GameProject/src/scenes/Child.scene', childScene()],
         ['GameProject/src/scenes/Button.ts', scriptSource()],
         ['GameProject/src/scenes/Child.ts', childScriptSource()],
         ...files,
@@ -148,7 +141,7 @@ function resetHostFiles(files: [string, string][] = []) {
 function proposalText(content: string, baseRevision = createSceneRevision(currentScene())) {
     return JSON.stringify({
         kind: 'pixifact.sceneProposal.v1',
-        scene: 'scenes/Button.scene',
+        scene: 'src/scenes/Button.scene',
         baseRevision,
         content,
     });
@@ -160,12 +153,12 @@ describe('Agent proposal review service', () => {
 
         const result = await checkCurrentSceneProposal({
             projectTree: projectTree(),
-            openedScenePath: 'GameProject/scenes/Button.scene',
-            proposalText: proposalText('<Scene name="Button" script="src/scenes/Button.ts"><Text id="label" text="Play" /></Scene>'),
+            openedScenePath: 'GameProject/src/scenes/Button.scene',
+            proposalText: proposalText('<Scene name="Button"><Text id="label" text="Play" /></Scene>'),
         });
 
         expect(result.ok).toBe(true);
-        expect(result.scenePath).toBe('scenes/Button.scene');
+        expect(result.scenePath).toBe('src/scenes/Button.scene');
         expect(result.diffs).toEqual([{
             kind: 'nodePropChanged',
             path: '0:label',
@@ -182,17 +175,17 @@ describe('Agent proposal review service', () => {
 
         const result = await applyCurrentSceneProposal({
             projectTree: projectTree(),
-            openedScenePath: 'GameProject/scenes/Button.scene',
-            proposalText: proposalText('<Scene name="Button" script="src/scenes/Button.ts"><Text id="label" text="Play" /></Scene>'),
+            openedScenePath: 'GameProject/src/scenes/Button.scene',
+            proposalText: proposalText('<Scene name="Button"><Text id="label" text="Play" /></Scene>'),
         });
 
         expect(result.ok).toBe(true);
-        expect(result.scenePath).toBe('scenes/Button.scene');
+        expect(result.scenePath).toBe('src/scenes/Button.scene');
         expect(host.writes).toEqual([{
             projectRootPath: '/repo/GameProject',
-            filePath: 'GameProject/scenes/Button.scene',
+            filePath: 'GameProject/src/scenes/Button.scene',
             content: [
-                '<Scene name="Button" script="src/scenes/Button.ts">',
+                '<Scene name="Button">',
                 '  <Text id="label" text="Play" />',
                 '</Scene>',
                 '',
@@ -205,7 +198,7 @@ describe('Agent proposal review service', () => {
 
         const result = await applyCurrentSceneProposal({
             projectTree: projectTree(),
-            openedScenePath: 'GameProject/scenes/Button.scene',
+            openedScenePath: 'GameProject/src/scenes/Button.scene',
             proposalText: proposalText('<Scene name="Button"><Text id="label" text="Play" /></Scene>', 'scene:stale'),
         });
 
@@ -219,7 +212,7 @@ describe('Agent proposal review service', () => {
 
         const result = await checkCurrentSceneProposal({
             projectTree: projectTree(),
-            openedScenePath: 'GameProject/scenes/Button.scene',
+            openedScenePath: 'GameProject/src/scenes/Button.scene',
             proposalText: proposalText('<Scene name="Button"', 'scene:stale'),
         });
 
@@ -229,12 +222,12 @@ describe('Agent proposal review service', () => {
 
     it('rejects proposals targeting a different scene without writing files', async () => {
         resetHostFiles();
-        const proposal = JSON.parse(proposalText('<Scene name="Button" script="src/scenes/Button.ts"><Text id="label" text="Play" /></Scene>'));
-        proposal.scene = 'scenes/Other.scene';
+        const proposal = JSON.parse(proposalText('<Scene name="Button"><Text id="label" text="Play" /></Scene>'));
+        proposal.scene = 'src/scenes/Other.scene';
 
         const result = await applyCurrentSceneProposal({
             projectTree: projectTree(),
-            openedScenePath: 'GameProject/scenes/Button.scene',
+            openedScenePath: 'GameProject/src/scenes/Button.scene',
             proposalText: JSON.stringify(proposal),
         });
 
@@ -248,8 +241,8 @@ describe('Agent proposal review service', () => {
 
         const result = await checkCurrentSceneProposal({
             projectTree: projectTree(),
-            openedScenePath: 'GameProject/scenes/Button.scene',
-            proposalText: proposalText('<Scene name="Button" script="src/scenes/Button.ts"><Sprite id="icon" texture="assets/missing.png" /></Scene>'),
+            openedScenePath: 'GameProject/src/scenes/Button.scene',
+            proposalText: proposalText('<Scene name="Button"><Sprite id="icon" texture="assets/missing.png" /></Scene>'),
         });
 
         expect(result.ok).toBe(false);
@@ -268,10 +261,10 @@ describe('Agent proposal review service', () => {
 
         const result = await checkCurrentSceneProposal({
             projectTree: projectTree(),
-            openedScenePath: 'GameProject/scenes/Button.scene',
+            openedScenePath: 'GameProject/src/scenes/Button.scene',
             proposalText: proposalText([
-                '<Scene name="Button" script="src/scenes/Button.ts">',
-                '  <Child id="child" scene="scenes/Child.scene" secret="x" />',
+                '<Scene name="Button">',
+                '  <Child id="child" scene="./Child.scene" secret="x" />',
                 '</Scene>',
             ].join('\n')),
         });
@@ -281,7 +274,7 @@ describe('Agent proposal review service', () => {
         expect(result.diagnostics).toEqual([{
             path: '0:child',
             prop: 'secret',
-            expected: 'public prop declared by scenes/Child.scene',
+            expected: 'public prop declared by src/scenes/Child.scene',
             actual: 'unknown prop',
             hint: 'Expose the property with @prop on the child Scene script before setting it from a parent Scene.',
         }]);

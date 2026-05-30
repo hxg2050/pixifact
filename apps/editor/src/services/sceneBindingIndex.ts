@@ -1,4 +1,5 @@
 import { extractSceneScriptInterface } from '../../../../packages/pixifact/src/compiler/scriptInterfaceExtractor';
+import { pairedSceneScriptPath, resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import type { SceneScriptInterface, SceneTemplate, SceneTemplateInterface, SceneTemplateNode } from '../../../../packages/pixifact/src/compiler/spec';
 import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
 import { readHostProjectFileText } from './hostBridge';
@@ -39,13 +40,10 @@ export async function readCompilerSceneTemplateBinding(
     template: SceneTemplate,
 ): Promise<CompilerSceneBinding> {
     const scenePath = projectFileRelativePath(projectTree, file);
-    if (!template.script) {
-        throw new Error(`Scene ${file.name} 必须绑定脚本。`);
-    }
-
-    const scriptFile = findFileByPath(projectTree, `${projectTree.path}/${template.script.path}`);
+    const scriptPath = pairedSceneScriptPath(scenePath);
+    const scriptFile = findFileByPath(projectTree, `${projectTree.path}/${scriptPath}`);
     if (!scriptFile) {
-        throw new Error(`找不到 Scene 脚本 ${template.script.path}。`);
+        throw new Error(`找不到 Scene 脚本 ${scriptPath}。`);
     }
 
     const descriptor = extractSceneScriptInterface(
@@ -76,9 +74,10 @@ export async function readCompilerSceneTemplateBinding(
 export function sceneInterfacesForCompilerTemplate(
     index: CompilerSceneBindingIndex,
     nodes: readonly SceneTemplateNode[],
+    ownerScenePath?: string,
 ) {
     return Object.fromEntries(
-        [...collectSceneInstancePaths(nodes)]
+        [...collectSceneInstancePaths(nodes, new Set(), ownerScenePath)]
             .filter((scenePath) => index[scenePath])
             .map((scenePath) => [scenePath, index[scenePath].interface]),
     );
@@ -95,16 +94,20 @@ function collectCompilerSceneFiles(node: ProjectFileTreeNode, files: ProjectFile
     return files;
 }
 
-function collectSceneInstancePaths(nodes: readonly SceneTemplateNode[], paths = new Set<string>()) {
+function collectSceneInstancePaths(
+    nodes: readonly SceneTemplateNode[],
+    paths = new Set<string>(),
+    ownerScenePath?: string,
+) {
     for (const node of nodes) {
         if (node.kind === 'pixi') {
-            collectSceneInstancePaths(node.children, paths);
+            collectSceneInstancePaths(node.children, paths, ownerScenePath);
             continue;
         }
         if (node.kind === 'sceneInstance') {
-            paths.add(node.scene);
+            paths.add(ownerScenePath ? resolveSceneReference(ownerScenePath, node.scene) : node.scene);
             for (const children of Object.values(node.slots)) {
-                collectSceneInstancePaths(children, paths);
+                collectSceneInstancePaths(children, paths, ownerScenePath);
             }
         }
     }

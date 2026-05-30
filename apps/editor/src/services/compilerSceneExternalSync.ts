@@ -1,6 +1,7 @@
 import { getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { validateSceneContent } from '../../../../packages/pixifact/src/compiler/sceneProposal';
 import type { SceneContentValidationResult } from '../../../../packages/pixifact/src/compiler/sceneProposal';
+import { resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import type { HostProjectFileChangedEvent } from './hostBridge';
 import {
     findFileByPath,
@@ -63,7 +64,8 @@ async function validateChangedScene(projectTree: ProjectFileTreeNode, file: Proj
         scene: scenePath,
         content,
         existingAssets: collectProjectAssets(projectTree),
-        sceneInterfaces: sceneInterfacesForCompilerTemplate(bindingIndex, bindingIndex[scenePath]?.template.children ?? []),
+        sceneInterfaces: sceneInterfacesForCompilerTemplate(bindingIndex, bindingIndex[scenePath]?.template.children ?? [], scenePath),
+        normalizeSceneReference: (scene) => resolveSceneReference(scenePath, scene),
     });
 }
 

@@ -1,4 +1,5 @@
-import type { SceneTemplate, SceneTemplateInterface, SceneTemplateScript, SceneTemplateValue } from '../../../../packages/pixifact/src/compiler/spec';
+import type { SceneTemplate, SceneTemplateInterface, SceneTemplateValue } from '../../../../packages/pixifact/src/compiler/spec';
+import { resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import { pixiSceneNodeAcceptsChildren, pixiSceneNodeDefaults } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import type { PixiSceneNodeType } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import type {
@@ -83,7 +84,6 @@ export function selectCompilerSceneNode(node: string) {
 export function updateCompilerSceneTemplate(updates: {
     name?: string;
     props?: Record<string, SceneTemplateValue | undefined>;
-    script?: SceneTemplateScript | undefined;
 }) {
     if (!document) {
         return;
@@ -91,9 +91,6 @@ export function updateCompilerSceneTemplate(updates: {
     const template = structuredClone(document.template);
     if (updates.name !== undefined) {
         template.name = updates.name;
-    }
-    if ('script' in updates) {
-        template.script = updates.script;
     }
     for (const [key, value] of Object.entries(updates.props ?? {})) {
         if (value === undefined) {
@@ -503,8 +500,21 @@ function compilerSlotName(ownerLocator: string, locator: string) {
 }
 
 function sceneInstanceHasSlot(node: Extract<CompilerSceneTemplateNode, { kind: 'sceneInstance' }>, slot: string) {
-    return document?.sceneInterfaces[node.scene]?.slots[slot] !== undefined
+    return sceneInterfaceForInstance(node)?.slots[slot] !== undefined
         || node.slots[slot] !== undefined;
+}
+
+function sceneInterfaceForInstance(node: Extract<CompilerSceneTemplateNode, { kind: 'sceneInstance' }>) {
+    if (!document) {
+        return undefined;
+    }
+    if (document.sceneInterfaces[node.scene]) {
+        return document.sceneInterfaces[node.scene];
+    }
+    if (!document.descriptor?.scene) {
+        return undefined;
+    }
+    return document.sceneInterfaces[resolveSceneReference(document.descriptor.scene, node.scene)];
 }
 
 function canInsertCompilerSceneNodeIntoParent(parentLocator: string, node: CompilerSceneTemplateNode) {

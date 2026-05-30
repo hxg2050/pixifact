@@ -17,6 +17,7 @@ import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import { readCompilerSceneBindingIndex, sceneInterfacesForCompilerTemplate } from '../services/sceneBindingIndex';
 import { writeHostProjectFileText } from '../services/hostBridge';
 import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
+import { resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 
 export type AgentProposalReviewResult = SceneProposalCheckResult & {
     scenePath?: string;
@@ -89,12 +90,13 @@ function collectProjectAssets(node: ProjectFileTreeNode, projectTree: ProjectFil
     return assets;
 }
 
-async function proposalContext(projectTree: ProjectFileTreeNode, proposalContent: string) {
+async function proposalContext(projectTree: ProjectFileTreeNode, proposalContent: string, ownerScenePath: string) {
     const template = parseSceneTemplate(proposalContent);
     const bindingIndex = await readCompilerSceneBindingIndex(projectTree);
     return {
         existingAssets: collectProjectAssets(projectTree, projectTree),
-        sceneInterfaces: sceneInterfacesForCompilerTemplate(bindingIndex, template.children),
+        sceneInterfaces: sceneInterfacesForCompilerTemplate(bindingIndex, template.children, ownerScenePath),
+        normalizeSceneReference: (scene: string) => resolveSceneReference(ownerScenePath, scene),
     };
 }
 
@@ -162,7 +164,7 @@ export async function checkCurrentSceneProposal(input: AgentProposalReviewInput)
     if (stale) {
         return stale;
     }
-    const context = await proposalContext(target.projectTree, proposal.content);
+    const context = await proposalContext(target.projectTree, proposal.content, target.scenePath);
     return {
         ...checkSceneProposal({
             currentContent,
@@ -185,7 +187,7 @@ export async function applyCurrentSceneProposal(input: AgentProposalReviewInput)
     if (stale) {
         return stale;
     }
-    const context = await proposalContext(target.projectTree, proposal.content);
+    const context = await proposalContext(target.projectTree, proposal.content, target.scenePath);
     const result = applySceneProposal({
         currentContent,
         ...context,

@@ -1,4 +1,5 @@
 import type { SceneDocument } from 'pixifact';
+import { pairedSceneScriptPath } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
 import type {
     SceneScriptInterface,
@@ -245,9 +246,6 @@ export function createBlankCompilerScene(name: string): SceneTemplate {
     return {
         version: 2,
         name: assetName,
-        script: {
-            path: `src/scenes/${assetName}.ts`,
-        },
         props: {
             width: 960,
             height: 540,
@@ -279,7 +277,7 @@ export async function createSceneFile(projectTree: ProjectFileTreeNode, director
     const fileName = sceneFileName(name);
     const assetName = sceneAssetName(name);
     const scriptFileName = `${assetName}.ts`;
-    const scriptPath = `${projectTree.path}/src/scenes/${scriptFileName}`;
+    const scriptPath = `${directory.path}/${scriptFileName}`;
     if (!fileName || fileName === '.scene') {
         throw new ProjectFileOperationError('Scene 名称不能为空。');
     }
@@ -292,9 +290,8 @@ export async function createSceneFile(projectTree: ProjectFileTreeNode, director
 
     const projectRootPath = ensureProjectRootPath(projectTree);
     const content = serializeSceneTemplate(createBlankCompilerScene(name));
-    await ensureProjectDirectoryPath(projectTree, ['src', 'scenes']);
     await createHostProjectFile(projectRootPath, directory.path, fileName, content);
-    await createHostProjectFile(projectRootPath, `${projectTree.path}/src/scenes`, scriptFileName, createBlankCompilerSceneScript(name));
+    await createHostProjectFile(projectRootPath, directory.path, scriptFileName, createBlankCompilerSceneScript(name));
 
     return {
         fileName,
@@ -303,29 +300,6 @@ export async function createSceneFile(projectTree: ProjectFileTreeNode, director
         scriptFileName,
         scriptPath,
     };
-}
-
-async function ensureProjectDirectoryPath(projectTree: ProjectFileTreeNode, parts: string[]) {
-    let current = projectTree;
-    let currentPath = projectTree.path;
-    for (const part of parts) {
-        const existing = current?.children?.find((child) => child.name === part);
-        if (existing) {
-            current = existing;
-            currentPath = existing.path;
-            continue;
-        }
-        await createHostProjectDirectory(ensureProjectRootPath(projectTree), currentPath, part);
-        currentPath = `${currentPath}/${part}`;
-        current = {
-            id: currentPath,
-            name: part,
-            path: currentPath,
-            kind: 'folder',
-            depth: current.depth + 1,
-            children: [],
-        };
-    }
 }
 
 export async function createFolder(directory: ProjectFileTreeNode, name: string) {
@@ -464,7 +438,8 @@ export async function openCompilerSceneFile(
     }
     const template = binding.template;
     const descriptor = binding.descriptor;
-    const sceneInterfaces = sceneInterfacesForCompilerTemplate(bindingIndex, template.children);
+    const scenePath = projectFileRelativePath(projectTree, file);
+    const sceneInterfaces = sceneInterfacesForCompilerTemplate(bindingIndex, template.children, scenePath);
     loadCompilerSceneDocument({
         scenePath: file.path,
         template,
@@ -525,11 +500,9 @@ export async function refreshCompilerSceneBindingSnapshot(
 ) {
     const binding = await readCompilerSceneTemplateBinding(projectTree, file, template);
     const descriptor = binding.descriptor;
-    if (!template.script) {
-        throw new ProjectFileOperationError(`Scene ${file.name} 必须绑定脚本。`);
-    }
     const bindingIndex = await readCompilerSceneBindingIndex(projectTree);
-    const sceneInterfaces = sceneInterfacesForCompilerTemplate(bindingIndex, template.children);
+    const scenePath = projectFileRelativePath(projectTree, file);
+    const sceneInterfaces = sceneInterfacesForCompilerTemplate(bindingIndex, template.children, scenePath);
     refreshCompilerSceneDocumentBindingSnapshot({ descriptor, sceneInterfaces });
     return { descriptor, sceneInterfaces };
 }
@@ -537,13 +510,15 @@ export async function refreshCompilerSceneBindingSnapshot(
 export async function openCompilerSceneScriptFile(
     projectTree: ProjectFileTreeNode,
     template: SceneTemplate,
+    sceneFile?: ProjectFileTreeNode,
 ) {
-    if (!template.script) {
-        throw new ProjectFileOperationError(`Scene ${template.name} 必须绑定脚本。`);
+    if (!sceneFile) {
+        throw new ProjectFileOperationError(`Scene ${template.name} 缺少打开的 .scene 文件，无法定位脚本。`);
     }
-    const scriptFile = findFileByPath(projectTree, `${projectTree.path}/${template.script.path}`);
+    const scriptPath = pairedSceneScriptPath(projectFileRelativePath(projectTree, sceneFile));
+    const scriptFile = findFileByPath(projectTree, `${projectTree.path}/${scriptPath}`);
     if (!scriptFile) {
-        throw new ProjectFileOperationError(`找不到 Scene 脚本 ${template.script.path}。`);
+        throw new ProjectFileOperationError(`找不到 Scene 脚本 ${scriptPath}。`);
     }
     await openProjectCodeFile(projectTree, scriptFile);
 }
