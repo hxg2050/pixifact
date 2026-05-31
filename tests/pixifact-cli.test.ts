@@ -499,9 +499,9 @@ describe('Pixifact CLI', () => {
             diagnostics: [{
                 path: '__scene__',
                 prop: 'name',
-                expected: '@scene class name "PrimaryButton"',
+                expected: 'paired @scene class name "PrimaryButton"',
                 actual: 'Button',
-                hint: 'Rename the <Scene name> to match the bound @scene class, or update the class name in the bound script.',
+                hint: 'Rename the <Scene name> to match the paired @scene class, or update the class name in the paired script.',
             }],
             hint: 'Fix the listed diagnostics, then run compile-scenes again.',
         });
@@ -897,9 +897,9 @@ describe('Pixifact CLI', () => {
             diagnostics: [{
                 path: '__scene__',
                 prop: 'name',
-                expected: '@scene class name "PrimaryButton"',
+                expected: 'paired @scene class name "PrimaryButton"',
                 actual: 'Button',
-                hint: 'Rename the <Scene name> to match the bound @scene class, or update the class name in the bound script.',
+                hint: 'Rename the <Scene name> to match the paired @scene class, or update the class name in the paired script.',
             }],
         });
     });

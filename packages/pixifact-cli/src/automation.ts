@@ -371,9 +371,9 @@ function compilerSceneClassDiagnostic(actual: string, expectedClass: string): Sc
     return {
         path: '__scene__',
         prop: 'name',
-        expected: `@scene class name "${expectedClass}"`,
+        expected: `paired @scene class name "${expectedClass}"`,
         actual,
-        hint: 'Rename the <Scene name> to match the bound @scene class, or update the class name in the bound script.',
+        hint: 'Rename the <Scene name> to match the paired @scene class, or update the class name in the paired script.',
     };
 }
 

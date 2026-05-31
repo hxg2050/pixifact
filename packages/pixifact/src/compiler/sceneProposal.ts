@@ -430,7 +430,7 @@ function validateSceneInstanceNodeProposal(
                 prop: 'scene',
                 expected: 'known compiler Scene contract',
                 actual: node.scene,
-                hint: 'Ensure the referenced .scene file exists and has a readable bound script.',
+                hint: 'Ensure the referenced .scene file exists and has a readable paired script.',
             }];
         }
         return [];

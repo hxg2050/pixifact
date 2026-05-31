@@ -398,7 +398,7 @@ describe('Pixifact scene compiler spike', () => {
                 prop: 'scene',
                 expected: 'known compiler Scene contract',
                 actual: 'scenes/Button.scene',
-                hint: 'Ensure the referenced .scene file exists and has a readable bound script.',
+                hint: 'Ensure the referenced .scene file exists and has a readable paired script.',
             }],
         });
     });
@@ -845,7 +845,7 @@ describe('Pixifact scene compiler spike', () => {
         expect(plugin.resolveId('pixifact:other')).toBeUndefined();
     });
 
-    it('rejects scene files whose name does not match the bound @scene class', async () => {
+    it('rejects scene files whose name does not match the paired @scene class', async () => {
         const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
         try {
             await mkdir(join(root, 'src', 'scenes'), { recursive: true });
