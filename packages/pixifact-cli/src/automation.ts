@@ -6,6 +6,7 @@ import {
     createSceneRevision,
     defaultSceneSourceRoots,
     extractSceneScriptInterface,
+    findMissingScenePartReferences,
     inspectSceneTemplate,
     isIgnoredSceneSourceDirectory,
     normalizeSceneAssetId,
@@ -340,6 +341,12 @@ function readCompilerScenePairContract(
             diagnostics: [compilerSceneClassDiagnostic(template.name, descriptor.className)],
         };
     }
+    const missingParts = findMissingScenePartReferences(template, descriptor.parts);
+    if (missingParts.length > 0) {
+        return {
+            diagnostics: missingParts.map((part) => compilerScenePartDiagnostic(part.property, part.id)),
+        };
+    }
 
     return {
         diagnostics: [],
@@ -384,6 +391,16 @@ function compilerSceneScriptContractDiagnostic(error: unknown): SceneProposalDia
         expected: 'paired script with one @scene class',
         actual: error instanceof Error ? error.message : String(error),
         hint: 'Add a @scene() class to the paired TypeScript file and keep its class name aligned with the .scene basename.',
+    };
+}
+
+function compilerScenePartDiagnostic(property: string, id: string): SceneProposalDiagnostic {
+    return {
+        path: '__scene__',
+        prop: `@part ${property}`,
+        expected: `node id "${id}"`,
+        actual: 'missing node',
+        hint: 'Add a node with this id to the .scene file or update @part({ id }).',
     };
 }
 

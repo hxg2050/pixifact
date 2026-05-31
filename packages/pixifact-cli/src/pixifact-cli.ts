@@ -165,6 +165,23 @@ function compileScenesFailure(error: unknown): CliJsonResult {
             hint: 'Fix the listed diagnostics, then run compile-scenes again.',
         };
     }
+    const missingPart = message.match(/^Scene "([^"]+)" @part "([^"]+)" references missing node id "([^"]+)"\.$/);
+    if (missingPart) {
+        const [, scene, property, id] = missingPart;
+        return {
+            ok: false,
+            scene,
+            error: 'Scene compile failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: `@part ${property}`,
+                expected: `node id "${id}"`,
+                actual: 'missing node',
+                hint: 'Add a node with this id to the .scene file or update @part({ id }).',
+            } satisfies SceneProposalDiagnostic],
+            hint: 'Fix the listed diagnostics, then run compile-scenes again.',
+        };
+    }
     return {
         ok: false,
         error: message,

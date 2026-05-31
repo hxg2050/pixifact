@@ -868,4 +868,32 @@ describe('Pixifact scene compiler spike', () => {
             await rm(root, { recursive: true, force: true });
         }
     });
+
+    it('rejects paired script parts that do not exist in the scene template', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
+        try {
+            await mkdir(join(root, 'src', 'scenes'), { recursive: true });
+            await writeFile(join(root, 'src', 'scenes', 'Button.scene'), [
+                '<Scene name="Button">',
+                '  <Text id="label" text="Start" />',
+                '</Scene>',
+                '',
+            ].join('\n'));
+            await writeFile(join(root, 'src', 'scenes', 'Button.ts'), `
+                import { Container, Text } from 'pixi.js';
+                import { part, scene } from 'pixifact/compiler';
+
+                @scene()
+                export class Button extends Container {
+                    @part({ id: 'missingLabel' })
+                    protected declare label: Text;
+                }
+            `);
+
+            await expect(compileScenes({ projectRoot: root }))
+                .rejects.toThrow('Scene "src/scenes/Button.scene" @part "label" references missing node id "missingLabel".');
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
+    });
 });

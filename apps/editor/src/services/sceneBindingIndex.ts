@@ -1,5 +1,12 @@
 import { extractSceneScriptInterface } from '../../../../packages/pixifact/src/compiler/scriptInterfaceExtractor';
-import { pairedSceneScriptPath, resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
+import {
+    defaultSceneSourceRoots,
+    isIgnoredSceneSourceDirectory,
+    normalizeSceneAssetId,
+    pairedSceneScriptPath,
+    resolveSceneReference,
+    toPosixPath,
+} from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import type { SceneScriptInterface, SceneTemplate, SceneTemplateInterface, SceneTemplateNode } from '../../../../packages/pixifact/src/compiler/spec';
 import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
 import { readHostProjectFileText } from './hostBridge';
@@ -19,7 +26,7 @@ export type CompilerSceneBindingIndex = Record<string, CompilerSceneBinding>;
 
 export async function readCompilerSceneBindingIndex(projectTree: ProjectFileTreeNode): Promise<CompilerSceneBindingIndex> {
     const entries: [string, CompilerSceneBinding][] = [];
-    for (const file of collectCompilerSceneFiles(projectTree)) {
+    for (const file of collectCompilerSceneFiles(projectTree, projectTree)) {
         const binding = await readCompilerSceneBinding(projectTree, file);
         entries.push([binding.scenePath, binding]);
     }
@@ -83,15 +90,37 @@ export function sceneInterfacesForCompilerTemplate(
     );
 }
 
-function collectCompilerSceneFiles(node: ProjectFileTreeNode, files: ProjectFileTreeNode[] = []) {
+function collectCompilerSceneFiles(
+    projectTree: ProjectFileTreeNode,
+    node: ProjectFileTreeNode,
+    files: ProjectFileTreeNode[] = [],
+) {
     if (node.kind === 'scene') {
-        files.push(node);
+        if (isCompilerSceneSourcePath(projectFileRelativePath(projectTree, node))) {
+            files.push(node);
+        }
+        return files;
+    }
+    if (node.kind === 'folder' && isIgnoredSceneSourceDirectory(node.name)) {
         return files;
     }
     for (const child of node.children ?? []) {
-        collectCompilerSceneFiles(child, files);
+        collectCompilerSceneFiles(projectTree, child, files);
     }
     return files;
+}
+
+function isCompilerSceneSourcePath(scenePath: string) {
+    let normalized: string;
+    try {
+        normalized = normalizeSceneAssetId(scenePath);
+    } catch {
+        return false;
+    }
+    if (toPosixPath(normalized).split('/').some(isIgnoredSceneSourceDirectory)) {
+        return false;
+    }
+    return defaultSceneSourceRoots.some((sourceRoot) => normalized.startsWith(`${sourceRoot}/`));
 }
 
 function collectSceneInstancePaths(

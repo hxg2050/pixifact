@@ -937,6 +937,44 @@ describe('Pixifact CLI', () => {
         });
     });
 
+    it('rejects missing @part node ids during compiler scene validation', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
+            'import { Container, Text } from "pixi.js";',
+            'import { part, scene } from "pixifact/compiler";',
+            '',
+            '@scene()',
+            'export class Button extends Container {',
+            '  @part({ id: "missingLabel" })',
+            '  protected declare label: Text;',
+            '}',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'src/scenes/Button.scene',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/Button.scene',
+            error: 'Scene validation failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: '@part label',
+                expected: 'node id "missingLabel"',
+                actual: 'missing node',
+                hint: 'Add a node with this id to the .scene file or update @part({ id }).',
+            }],
+        });
+    });
+
     it('validates compiler scene when unrelated malformed scene exists', async () => {
         const projectRoot = createCompilerSceneProject();
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Other.scene'), [
@@ -1014,6 +1052,38 @@ describe('Pixifact CLI', () => {
                 expected: 'known compiler Scene contract',
                 actual: 'src/scenes/Button.scene',
             }],
+        });
+    });
+
+    it('maps compile-scenes missing @part node ids to repairable diagnostics', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
+            'import { Container, Text } from "pixi.js";',
+            'import { part, scene } from "pixifact/compiler";',
+            '',
+            '@scene()',
+            'export class Button extends Container {',
+            '  @part({ id: "missingLabel" })',
+            '  protected declare label: Text;',
+            '}',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli(['compile-scenes', '--project-root', projectRoot]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/Button.scene',
+            error: 'Scene compile failed.',
+            diagnostics: [{
+                path: '__scene__',
+                prop: '@part label',
+                expected: 'node id "missingLabel"',
+                actual: 'missing node',
+                hint: 'Add a node with this id to the .scene file or update @part({ id }).',
+            }],
+            hint: 'Fix the listed diagnostics, then run compile-scenes again.',
         });
     });
 

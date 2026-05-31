@@ -812,7 +812,16 @@ describe('project file tree service', () => {
 
     it('indexes compiler Scene script bindings as derived contracts', async () => {
         host.reset({
+            scenes: host.directory({
+                'Legacy.scene': host.file('<Scene name="Legacy" />'),
+            }),
             src: host.directory({
+                build: host.directory({
+                    'BuildOnly.scene': host.file('<Scene name="BuildOnly" />'),
+                }),
+                generated: host.directory({
+                    'GeneratedOnly.scene': host.file('<Scene name="GeneratedOnly" />'),
+                }),
                 scenes: host.directory({
                     'Button.scene': host.file('<Scene name="Button" />'),
                     'MainMenu.scene': host.file(`
@@ -1150,6 +1159,7 @@ describe('project file tree service', () => {
             selection: { type: 'scene' },
             dirty: false,
         };
+        compilerDocument.template.children[0].scene = './Panel.scene';
 
         const [sceneItem] = buildCompilerHierarchyTreeItems(compilerDocument);
         const [panelItem] = sceneItem.children ?? [];

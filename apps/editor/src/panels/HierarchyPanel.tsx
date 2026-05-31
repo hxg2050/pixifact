@@ -3,6 +3,7 @@ import type { ComponentSpec, SceneDocument, NodeSpec, SceneSpec } from 'pixifact
 import { ComponentRegistry } from '../../../../packages/pixifact/src/runtime/component/ComponentRegistry';
 import type { PropSchema } from '../../../../packages/pixifact/src/runtime/component/ComponentRegistry';
 import { pixiSceneNodeAcceptsChildren } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
+import { defaultSceneSourceRoots, resolveSceneReference, toPosixPath } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import { DragSource, DropZone, SystemIcon, TreeView } from '../components/system';
 import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/system';
 import { refreshSceneDocument } from '../document/sceneDocumentController';
@@ -199,7 +200,7 @@ function compilerNodeTreeItems(document: NonNullable<ReturnType<typeof getCompil
     }
     const slots = [
         ...new Set([
-            ...Object.keys(document.sceneInterfaces[node.scene]?.slots ?? {}),
+            ...Object.keys(compilerSceneInterfaceForNode(document, node)?.slots ?? {}),
             ...Object.keys(node.slots),
         ]),
     ];
@@ -222,6 +223,28 @@ function compilerNodeTreeItems(document: NonNullable<ReturnType<typeof getCompil
             textValue: `slot: ${slot}`,
         };
     });
+}
+
+function compilerSceneInterfaceForNode(
+    document: NonNullable<ReturnType<typeof getCompilerSceneDocument>>,
+    node: Extract<CompilerSceneTemplateNode, { kind: 'sceneInstance' }>,
+) {
+    try {
+        return document.sceneInterfaces[resolveSceneReference(compilerDocumentAssetPath(document.scenePath), node.scene)];
+    } catch {
+        return undefined;
+    }
+}
+
+function compilerDocumentAssetPath(scenePath: string) {
+    const parts = toPosixPath(scenePath).split('/').filter(Boolean);
+    for (const sourceRoot of defaultSceneSourceRoots) {
+        const index = parts.indexOf(sourceRoot);
+        if (index >= 0) {
+            return parts.slice(index).join('/');
+        }
+    }
+    return parts.join('/');
 }
 
 function collectCompilerLocators(items: TreeViewItem<CompilerHierarchyTreeNode>[]): string[] {

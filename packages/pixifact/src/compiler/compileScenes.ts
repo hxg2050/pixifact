@@ -15,6 +15,7 @@ import {
     toPosixPath,
 } from './sceneAssetPair';
 import { extractSceneScriptInterface } from './scriptInterfaceExtractor';
+import { findMissingScenePartReferences } from './scenePartValidation';
 import { parseSceneTemplate } from './templateParser';
 import { compileSceneTemplateToTs } from './typescriptCompiler';
 
@@ -140,7 +141,15 @@ async function readPairedSceneScript(projectRoot: string, scenePath: string, tem
     if (descriptor.className !== template.name) {
         throw new Error(`Scene "${scenePath}" name "${template.name}" must match @scene class "${descriptor.className}".`);
     }
+    const missingPart = findMissingScenePartReferences(template, descriptor.parts)[0];
+    if (missingPart) {
+        throw new Error(scenePartReferenceError(scenePath, missingPart.property, missingPart.id));
+    }
     return descriptor;
+}
+
+function scenePartReferenceError(scenePath: string, property: string, id: string) {
+    return `Scene "${scenePath}" @part "${property}" references missing node id "${id}".`;
 }
 
 function normalizeSceneReferences(scenePath: string, template: SceneTemplate): SceneTemplate {
