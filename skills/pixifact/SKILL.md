@@ -1,6 +1,6 @@
 ---
 name: pixifact
-description: Use when working in a Pixifact game project: editing scenes/*.scene, using pixifact.project.json, running pixifact scene inspect/validate/compile-scenes, importing generated scenes, or adding Pixifact runtime, UI, HUD, menu, or lightweight game code.
+description: Use when working in a Pixifact game project: editing project-relative .scene files such as src/scenes/Hud.scene, using pixifact.project.json, running pixifact scene inspect/validate/compile-scenes, importing generated scenes, or adding Pixifact runtime, UI, HUD, menu, or lightweight game code.
 ---
 
 # Pixifact
@@ -9,21 +9,21 @@ description: Use when working in a Pixifact game project: editing scenes/*.scene
 
 Use this skill for Pixifact user projects. Pixifact is the authoring layer for 2D game UI, HUDs, menus, lightweight scenes, and project scene assets on top of PixiJS v8.
 
-Assume a Pixifact game project when the workspace contains `pixifact.project.json`, `scenes/*.scene`, generated Pixifact scene output, or `package.json` dependencies on `pixifact` / `pixifact-cli`.
+Assume a Pixifact game project when the workspace contains `pixifact.project.json`, project-relative `.scene` assets such as `src/scenes/Hud.scene`, generated Pixifact scene output, or `package.json` dependencies on `pixifact` / `pixifact-cli`.
 
 ## Scene Workflow
 
 For scene, UI, HUD, menu, layout, or visual asset tasks, edit `.scene` source first.
 
-1. Read `package.json`, `pixifact.project.json`, and the target `scenes/*.scene` file.
+1. Read `package.json`, `pixifact.project.json`, and the target project-relative `.scene` file.
 2. Inspect the scene when structure matters:
    ```bash
-   bunx --no-install pixifact scene inspect --project-root . --scene scenes/MainMenu.scene
+   bunx --no-install pixifact scene inspect --project-root . --scene src/scenes/MainMenu.scene
    ```
-3. Edit `scenes/*.scene` directly.
+3. Edit the `.scene` directly.
 4. Validate every edited scene:
    ```bash
-   bunx --no-install pixifact scene validate --project-root . --scene scenes/MainMenu.scene
+   bunx --no-install pixifact scene validate --project-root . --scene src/scenes/MainMenu.scene
    ```
 5. Compile after validation passes:
    ```bash
@@ -38,7 +38,12 @@ Prefer project scripts such as `bun run compile:scenes`, `bun run build`, and `b
 
 ## Hard Rules
 
-- `scenes/*.scene` is the source of truth for authored scenes.
+- A Scene asset is a same-directory, same-basename pair such as `src/scenes/Hud.scene` and `src/scenes/Hud.ts`.
+- The `.scene` file is the source of truth for authored visual structure, hierarchy, layout, text, images, child Scene instances, slots, and event wiring.
+- The paired `.ts` file owns behavior, runtime state updates, public props/events/slots, and `@part` access.
+- Do not add `script="..."` to `.scene` files.
+- Do not add template paths to `@scene()`.
+- Reference other Scenes with `.scene` paths, never bare names.
 - Do not edit generated scene files such as `.pixifact/generated/**`, `src/generated/**`, `*.scene.generated.ts`, or `scenes.generated.ts`.
 - If validation reports diagnostics, fix the `.scene` source and validate again.
 - Public authored node kinds are `container`, `image`, `text`, `input`, and `shape`.

@@ -25,8 +25,8 @@ Codex / Claude Code 修改游戏代码和 Pixifact Scene
 目标用户路径：
 
 1. 用户用 Pixifact Editor 打开一个游戏项目。
-2. 文件树展示 `src/`、`assets/`、`scenes/` 和 `pixifact.project.json`。
-3. 用户双击 `scenes/Hud.scene`，Editor 预览 HUD。
+2. 文件树展示 `src/`、`assets/` 和 `pixifact.project.json`。
+3. 用户双击 `src/scenes/Hud.scene`，Editor 预览 HUD。
 4. Codex / Claude Code 通过 Pixifact CLI 修改 HUD 或游戏代码。
 5. 用户在 Editor 保存 Scene。
 6. 用户点击 `运行`。
@@ -45,9 +45,9 @@ MVP 使用项目根目录的 `pixifact.project.json` 描述运行入口。
   "version": 1,
   "name": "Space HUD Game",
   "scenes": {
-    "mainMenu": "scenes/MainMenu.scene",
-    "hud": "scenes/Hud.scene",
-    "gameOver": "scenes/GameOver.scene"
+    "mainMenu": "src/scenes/MainMenu.scene",
+    "hud": "src/scenes/Hud.scene",
+    "gameOver": "src/scenes/GameOver.scene"
   },
   "run": {
     "command": "bun",
@@ -117,14 +117,14 @@ sample-projects/space-hud-game/
   tsconfig.json
   vite.config.ts
   index.html
-  scenes/
-    MainMenu.scene
-    Hud.scene
-    GameOver.scene
   assets/
     images/
     audio/
   src/
+    scenes/
+      MainMenu.scene
+      Hud.scene
+      GameOver.scene
     main.ts
     game/
       state.ts
@@ -159,8 +159,8 @@ sample-projects/space-hud-game/
 MVP 成功标准：
 
 1. 打开 `sample-projects/space-hud-game`。
-2. Editor 文件树显示 `src`、`assets`、`scenes` 和 `pixifact.project.json`。
-3. 双击 `scenes/Hud.scene` 后，Editor 预览 HUD。
+2. Editor 文件树显示 `src`、`assets` 和 `pixifact.project.json`。
+3. 双击 `src/scenes/Hud.scene` 后，Editor 预览 HUD。
 4. 点击 `运行` 后，Editor 启动示例项目 run command。
 5. 系统默认浏览器打开配置的 URL。
 6. 游戏能操作玩家飞船。

@@ -43,16 +43,18 @@ bun run desktop:build
 
 ```bash
 bun run pixifact -- summary --project-root /path/to/project
-bun run pixifact -- scene inspect --project-root /path/to/project --scene scenes/main.scene
-bun run pixifact -- scene validate --project-root /path/to/project --scene scenes/main.scene
+bun run pixifact -- scene inspect --project-root /path/to/project --scene src/scenes/Main.scene
+bun run pixifact -- scene validate --project-root /path/to/project --scene src/scenes/Main.scene
 bun run pixifact -- compile-scenes --project-root /path/to/project
 ```
+
+Scene 脚本按同目录同 basename 自动配对，例如 `src/scenes/Main.scene` 与 `src/scenes/Main.ts`。不要在 `.scene` 中写 `script="..."`，不要编辑 `.pixifact/generated`。
 
 需要明确审查或防止覆盖时使用 proposal：
 
 ```bash
-bun run pixifact -- scene proposal check --project-root /path/to/project --scene scenes/main.scene --proposal proposal.json
-bun run pixifact -- scene proposal apply --project-root /path/to/project --scene scenes/main.scene --proposal proposal.json
+bun run pixifact -- scene proposal check --project-root /path/to/project --scene src/scenes/Main.scene --proposal proposal.json
+bun run pixifact -- scene proposal apply --project-root /path/to/project --scene src/scenes/Main.scene --proposal proposal.json
 ```
 
 需要读取当前 editor 上下文时使用 live CLI。live CLI 是只读上下文能力，不负责修改项目：
@@ -92,11 +94,11 @@ Editor 可以浏览项目文件、轻量预览资源、管理 Scene 引用和展
 建议按以下流程验证 CLI-first 核心闭环：
 
 1. 打开 editor。
-2. 打开目标 `scenes/*.scene`。
+2. 打开目标项目相对 `.scene`，例如 `src/scenes/Main.scene`。
 3. 在 Codex / Claude Code 中提出任务，例如：
 
    ```txt
-   修改当前 Pixifact .scene，创建一个适配竖屏的 HUD。编辑 scenes/Main.scene 后运行 scene validate 和 compile-scenes。
+   修改当前 Pixifact .scene，创建一个适配竖屏的 HUD。编辑 src/scenes/Main.scene 后运行 scene validate 和 compile-scenes。
    ```
 
 4. Agent 读取 `.scene`，必要时运行 `live scene get` 获取当前选择。

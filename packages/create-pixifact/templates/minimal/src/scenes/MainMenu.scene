@@ -1,8 +1,8 @@
-<Scene name="MainMenu" script="src/scenes/MainMenu.ts" width="960" height="540">
+<Scene name="MainMenu" width="960" height="540">
   <Graphics id="background" shape="rect" width="960" height="540" fill="#10131d" />
   <Graphics id="panel" shape="roundRect" x="260" y="148" width="440" height="244" radius="24" fill="#182033" strokeColor="#38bdf8" strokeWidth="2" strokeAlpha="0.72" />
   <Text id="titleText" text="Pixifact Game" x="314" y="202" fontSize="44" fontWeight="700" fill="#f8fafc" />
-  <Text id="hintText" text="Edit scenes/MainMenu.scene, then run pixifact validate and compile." x="300" y="278" fontSize="18" fill="#cbd5e1" />
+  <Text id="hintText" text="Edit src/scenes/MainMenu.scene, then run pixifact validate and compile." x="300" y="278" fontSize="18" fill="#cbd5e1" />
   <Graphics id="startButtonBack" shape="roundRect" x="378" y="326" width="204" height="50" radius="14" fill="#2563eb" />
   <Text id="startLabel" text="START" x="435" y="340" fontSize="20" fontWeight="700" fill="#ffffff" />
 </Scene>

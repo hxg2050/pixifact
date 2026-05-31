@@ -1,4 +1,4 @@
-<Scene name="GameOver" script="src/scenes/GameOver.ts" width="720" height="1280">
+<Scene name="GameOver" width="720" height="1280">
   <Graphics id="scrim" shape="rect" x="0" y="0" width="720" height="1280" fill="#020617" fillAlpha="0.72" />
   <Graphics id="panel" shape="roundRect" x="68" y="330" width="584" height="518" radius="32" fill="#111827" strokeColor="#f97316" strokeWidth="2" strokeAlpha="0.8" />
   <Text id="titleText" text="MISSION LOST" x="126" y="394" fontSize="54" fontWeight="700" fill="#fed7aa" />

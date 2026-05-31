@@ -31,9 +31,9 @@ describe('space HUD game sample project', () => {
         expect(config).toMatchObject({
             name: 'Space HUD Game',
             scenes: {
-                mainMenu: 'scenes/MainMenu.scene',
-                hud: 'scenes/Hud.scene',
-                gameOver: 'scenes/GameOver.scene',
+                mainMenu: 'src/scenes/MainMenu.scene',
+                hud: 'src/scenes/Hud.scene',
+                gameOver: 'src/scenes/GameOver.scene',
             },
             run: {
                 command: 'bun',
@@ -49,7 +49,7 @@ describe('space HUD game sample project', () => {
                 width: DESIGN_WIDTH,
                 height: DESIGN_HEIGHT,
             });
-            expect(template.script?.path).toBe(`src/scenes/${path.basename(scenePath, '.scene')}.ts`);
+            expect('script' in template).toBe(false);
         }
     });
 

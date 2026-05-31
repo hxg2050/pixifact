@@ -55,12 +55,12 @@ describe('create-pixifact scaffold', () => {
         });
         expect(await readProjectFile(projectRoot, 'vite.config.ts')).toContain("from 'pixifact/compiler-node'");
         expect(await readProjectFile(projectRoot, 'vite.config.ts')).not.toContain('packages/pixifact/src');
-        expect(await readProjectFile(projectRoot, 'scenes/MainMenu.scene')).toContain('script="src/scenes/MainMenu.ts"');
+        expect(await readProjectFile(projectRoot, 'src/scenes/MainMenu.scene')).not.toContain('script=');
         expect(await readProjectFile(projectRoot, 'src/scenes/MainMenu.ts')).toContain('export class MainMenu');
         expect(JSON.parse(await readProjectFile(projectRoot, 'pixifact.project.json'))).toMatchObject({
             name: 'My Game',
             scenes: {
-                mainMenu: 'scenes/MainMenu.scene',
+                mainMenu: 'src/scenes/MainMenu.scene',
             },
             run: {
                 command: 'bun',

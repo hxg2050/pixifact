@@ -23,10 +23,12 @@ ws://127.0.0.1:8791/pixifact-agent
 
 ```bash
 bun run pixifact -- summary --project-root /path/to/project
-bun run pixifact -- scene inspect --project-root /path/to/project --scene scenes/main.scene
-bun run pixifact -- scene validate --project-root /path/to/project --scene scenes/main.scene
+bun run pixifact -- scene inspect --project-root /path/to/project --scene src/scenes/Main.scene
+bun run pixifact -- scene validate --project-root /path/to/project --scene src/scenes/Main.scene
 bun run pixifact -- compile-scenes --project-root /path/to/project
 ```
+
+Scene 脚本由同目录同名 `.ts` 自动配对，例如 `src/scenes/Main.scene` 和 `src/scenes/Main.ts`。不要在 `.scene` 中写 `script="..."`，也不要编辑 `.pixifact/generated`。
 
 Live mode：
 

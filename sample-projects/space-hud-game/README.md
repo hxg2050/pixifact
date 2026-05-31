@@ -16,11 +16,13 @@ The default Agent workflow is direct `.scene` editing followed by Pixifact valid
 
 ```bash
 cd ../..
-bun run pixifact -- scene inspect --project-root sample-projects/space-hud-game --scene scenes/Hud.scene
-bun run pixifact -- scene validate --project-root sample-projects/space-hud-game --scene scenes/Hud.scene
+bun run pixifact -- scene inspect --project-root sample-projects/space-hud-game --scene src/scenes/Hud.scene
+bun run pixifact -- scene validate --project-root sample-projects/space-hud-game --scene src/scenes/Hud.scene
 bun run pixifact -- compile-scenes --project-root sample-projects/space-hud-game
 cd sample-projects/space-hud-game && bun run build
 ```
+
+Scene scripts are paired by same directory and same basename, for example `src/scenes/Hud.scene` and `src/scenes/Hud.ts`. Do not add `script="..."` to `.scene` files, and do not edit `.pixifact/generated`.
 
 ## Optional Proposal Review
 
@@ -28,13 +30,13 @@ cd sample-projects/space-hud-game && bun run build
 
 ```bash
 cd ../..
-bun run pixifact -- scene proposal check --project-root sample-projects/space-hud-game --scene scenes/Hud.scene --proposal sample-projects/space-hud-game/proposals/hud-hint-mobile.proposal.json
+bun run pixifact -- scene proposal check --project-root sample-projects/space-hud-game --scene src/scenes/Hud.scene --proposal sample-projects/space-hud-game/proposals/hud-hint-mobile.proposal.json
 ```
 
 In the Editor:
 
 1. Open `sample-projects/space-hud-game`.
-2. Open `scenes/Hud.scene`.
+2. Open `src/scenes/Hud.scene`.
 3. Paste the proposal JSON into the Agent panel Proposal Review box.
 4. Click `检查 Proposal`, review the diff, then click `应用 Proposal`.
 5. Run the game to see the updated HUD hint.

@@ -2,7 +2,7 @@
   "version": 1,
   "name": "Pixifact Game",
   "scenes": {
-    "mainMenu": "scenes/MainMenu.scene"
+    "mainMenu": "src/scenes/MainMenu.scene"
   },
   "run": {
     "command": "bun",

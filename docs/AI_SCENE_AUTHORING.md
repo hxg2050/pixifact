@@ -45,7 +45,9 @@ generated.ts = compiled output
 Pixifact = validation and apply boundary
 ```
 
-Agents should not edit `generated.ts`, because generated code contains renderer details, resource loading details, temporary variables, and compiler structure that are not the user's intent.
+A compiler Scene asset is a pair of colocated files with the same basename. For example, `src/scenes/Hud.scene` owns visual structure, hierarchy, layout, text, images, child Scene instances, slots, and event wiring; `src/scenes/Hud.ts` owns behavior, runtime state updates, public props/events/slots, and `@part` access. Do not add `script="..."` to `.scene` files, and do not add template paths to `@scene()`.
+
+Agents should not edit `.pixifact/generated` or generated TypeScript, because generated code contains renderer details, resource loading details, temporary variables, and compiler structure that are not the user's intent.
 
 ## Default Direct Editing
 
@@ -54,7 +56,7 @@ Direct source editing is the default because Codex and Claude Code already know 
 Agents should follow this loop:
 
 1. Inspect the current scene.
-2. Edit only `scenes/*.scene` and related source assets/scripts requested by the user.
+2. Edit project-relative `.scene` paths such as `src/scenes/Hud.scene` and related source assets/scripts requested by the user.
 3. Run `scene validate` on every edited compiler scene.
 4. Run `compile-scenes`.
 5. If validation or compilation reports diagnostics, repair the `.scene` source and rerun the failing command.
@@ -64,8 +66,8 @@ Agents should follow this loop:
 Example:
 
 ```bash
-bun run pixifact -- scene inspect --project-root sample-projects/scene-compiler-demo --scene scenes/Button.scene
-bun run pixifact -- scene validate --project-root sample-projects/scene-compiler-demo --scene scenes/Button.scene
+bun run pixifact -- scene inspect --project-root sample-projects/scene-compiler-demo --scene src/scenes/Button.scene
+bun run pixifact -- scene validate --project-root sample-projects/scene-compiler-demo --scene src/scenes/Button.scene
 bun run pixifact -- compile-scenes --project-root sample-projects/scene-compiler-demo
 cd sample-projects/scene-compiler-demo && bun run build
 ```
@@ -94,7 +96,11 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 ## Hard Rules
 
 - `.scene` files are the only agent-editable source for compiler scenes.
-- `.pixifact/generated/*.scene.generated.ts` is never an agent editing target.
+- `.scene` paths are project-relative, such as `src/scenes/Hud.scene`.
+- Scene scripts are paired by same directory and same basename.
+- Do not add `script="..."` to `.scene` files.
+- Reference other Scenes with `.scene` paths, never bare names.
+- `.pixifact/generated` is never an agent editing target.
 - Every editable node must have a stable ID.
 - Direct edits must be followed by `scene validate`.
 - Proposal apply must check the base scene revision.
@@ -132,20 +138,25 @@ Large scenes should support scoped context. For example, an agent task may inclu
 Use this prompt when asking Codex or Claude Code to edit a compiler scene:
 
 ```txt
-You are editing a Pixifact compiler scene.
+You are editing a Pixifact project.
 
-Rules:
-- Edit scenes/*.scene as the source of truth.
-- Do not edit .pixifact/generated/*.scene.generated.ts or .pixifact/generated/scenes.generated.ts.
-- Use Pixifact CLI to inspect and validate scenes.
-- After editing any .scene file, run:
+Pixifact Scene asset rules:
+- A Scene asset is a pair of colocated files with the same basename.
+- The .scene file owns visual structure, hierarchy, layout, text, images, child Scene instances, slots, and event wiring.
+- The .ts file owns behavior, runtime state updates, public props/events/slots, and @part access.
+- Do not add script="..." to .scene files.
+- Do not add template paths to @scene().
+- Pairing is by same directory + same basename.
+- The unique Scene id is the project-relative .scene path.
+- Scene names and class names are local, not globally unique.
+- Reference other Scenes with .scene paths, never bare names.
+- Do not edit .pixifact/generated.
+- Current Scene: <scene-path>
+- After editing, run:
   bun run pixifact -- scene validate --project-root <project-root> --scene <scene-path>
 - Then run:
   bun run pixifact -- compile-scenes --project-root <project-root>
 - Finally run the smallest relevant build or test.
-- If scene validate reports diagnostics, fix the .scene source and run validation again.
-- If Editor is available, use `bun run pixifact -- live scene get` as read-only context for the selected node and latest external refresh result.
-- Do not treat Git commit or PR creation as part of Pixifact's required workflow.
 ```
 
 ## Proposal Shape
@@ -157,7 +168,7 @@ Recommended envelope:
 ```json
 {
   "kind": "pixifact.sceneProposal.v1",
-  "scene": "scenes/Button.scene",
+  "scene": "src/scenes/Button.scene",
   "baseRevision": "revision-id",
   "content": "<scene source>"
 }
@@ -183,16 +194,16 @@ Text diff can still be available as a secondary view, but approval should be bas
 Compiler scene agent workflows should move toward these commands:
 
 ```bash
-bun run pixifact -- scene inspect --project-root <project-root> --scene scenes/Button.scene
-bun run pixifact -- scene validate --project-root <project-root> --scene scenes/Button.scene
+bun run pixifact -- scene inspect --project-root <project-root> --scene src/scenes/Button.scene
+bun run pixifact -- scene validate --project-root <project-root> --scene src/scenes/Button.scene
 bun run pixifact -- compile-scenes --project-root <project-root>
 ```
 
 Optional guarded proposal flow:
 
 ```bash
-bun run pixifact -- scene proposal check --project-root <project-root> --scene scenes/Button.scene --proposal proposal.json
-bun run pixifact -- scene proposal apply --project-root <project-root> --scene scenes/Button.scene --proposal proposal.json
+bun run pixifact -- scene proposal check --project-root <project-root> --scene src/scenes/Button.scene --proposal proposal.json
+bun run pixifact -- scene proposal apply --project-root <project-root> --scene src/scenes/Button.scene --proposal proposal.json
 ```
 
 Legacy `commands dry-run/apply` and live mutation commands have been removed from the external CLI surface. The supported agent-facing mutation paths are direct `.scene` source edits plus validation, or the optional `.scene proposal` check/apply flow.
@@ -206,7 +217,7 @@ The live editor bridge is an optional context source. `live scene get` should he
 The panel also exposes the guarded proposal flow for the currently opened compiler scene when explicit review is useful:
 
 1. Open the project folder in Pixifact Editor.
-2. Open the target `scenes/*.scene` file.
+2. Open the target project-relative `.scene` file, such as `src/scenes/Hud.scene`.
 3. Paste a `pixifact.sceneProposal.v1` JSON envelope into `Proposal 审查`.
 4. Click `检查 Proposal` to run the same base revision, parser, asset, scene contract, and semantic diff checks as the CLI proposal check path.
 5. Review the diff shown in the panel.
@@ -216,7 +227,7 @@ The panel also exposes the guarded proposal flow for the currently opened compil
 The Space HUD sample includes a copyable proposal:
 
 ```bash
-bun run pixifact -- scene proposal check --project-root sample-projects/space-hud-game --scene scenes/Hud.scene --proposal sample-projects/space-hud-game/proposals/hud-hint-mobile.proposal.json
+bun run pixifact -- scene proposal check --project-root sample-projects/space-hud-game --scene src/scenes/Hud.scene --proposal sample-projects/space-hud-game/proposals/hud-hint-mobile.proposal.json
 ```
 
 ## Editor Direction

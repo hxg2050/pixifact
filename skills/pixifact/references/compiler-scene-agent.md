@@ -7,8 +7,8 @@ Use this reference when editing `.scene` files in a Pixifact game project.
 The `.scene` file is the authored source. Generated TypeScript is build output.
 
 ```bash
-bunx --no-install pixifact scene inspect --project-root . --scene scenes/MainMenu.scene
-bunx --no-install pixifact scene validate --project-root . --scene scenes/MainMenu.scene
+bunx --no-install pixifact scene inspect --project-root . --scene src/scenes/MainMenu.scene
+bunx --no-install pixifact scene validate --project-root . --scene src/scenes/MainMenu.scene
 bun run compile:scenes
 ```
 
@@ -28,7 +28,11 @@ bun run dev
 
 ## Hard Rules
 
-- Edit `scenes/*.scene` as source of truth.
+- Edit project-relative `.scene` paths such as `src/scenes/Hud.scene` as source of truth.
+- A Scene asset is paired by same directory and same basename, for example `src/scenes/Hud.scene` and `src/scenes/Hud.ts`.
+- Do not add `script="..."` to `.scene` files.
+- Do not add template paths to `@scene()`.
+- Reference other Scenes with `.scene` paths, never bare names.
 - Do not edit `.pixifact/generated/*.scene.generated.ts` or `.pixifact/generated/scenes.generated.ts`.
 - Do not edit `src/generated/*.scene.generated.ts` or `src/generated/scenes.generated.ts`.
 - Run `scene validate` after every edited compiler scene.
@@ -41,8 +45,8 @@ bun run dev
 Use proposal check/apply only when the user wants base revision protection, explicit review, or stale-write protection.
 
 ```bash
-bunx --no-install pixifact scene proposal check --project-root . --scene scenes/MainMenu.scene --proposal proposal.json
-bunx --no-install pixifact scene proposal apply --project-root . --scene scenes/MainMenu.scene --proposal proposal.json
+bunx --no-install pixifact scene proposal check --project-root . --scene src/scenes/MainMenu.scene --proposal proposal.json
+bunx --no-install pixifact scene proposal apply --project-root . --scene src/scenes/MainMenu.scene --proposal proposal.json
 ```
 
 The proposal content should be full proposed `.scene` source, not generated TypeScript changes.

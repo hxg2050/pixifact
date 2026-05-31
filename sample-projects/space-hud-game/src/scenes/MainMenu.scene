@@ -1,4 +1,4 @@
-<Scene name="MainMenu" script="src/scenes/MainMenu.ts" width="720" height="1280">
+<Scene name="MainMenu" width="720" height="1280">
   <Graphics id="backgroundPanel" shape="roundRect" x="58" y="270" width="604" height="620" radius="34" fill="#111827" fillAlpha="0.9" strokeColor="#38bdf8" strokeWidth="2" strokeAlpha="0.7" />
   <Text id="eyebrowText" text="PIXIFACT SAMPLE" x="168" y="330" fontSize="22" fontWeight="700" fill="#38bdf8" />
   <Text id="titleText" text="SPACE HUD" x="112" y="390" fontSize="72" fontWeight="700" fill="#f8fafc" />

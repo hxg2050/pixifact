@@ -10,7 +10,7 @@ Feature: External agent edits compiler scene source
 
 ```gherkin
 Scenario: Agent edits a compiler scene without Editor
-  Given a Pixifact project contains "scenes/Button.scene"
+  Given a Pixifact project contains "src/scenes/Button.scene"
   When the agent edits the .scene source file
   And runs "pixifact scene validate"
   And runs "pixifact compile-scenes"
@@ -105,7 +105,7 @@ Feature: CLI scene inspection and validation
 
 ```gherkin
 Scenario: Agent inspects and validates a scene
-  Given a project contains "scenes/Button.scene"
+  Given a project contains "src/scenes/Button.scene"
   When the agent runs "pixifact scene inspect"
   Then Pixifact returns a revision and normalized scene summary
   When the agent runs "pixifact scene validate"

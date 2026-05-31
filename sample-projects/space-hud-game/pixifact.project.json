@@ -2,9 +2,9 @@
   "version": 1,
   "name": "Space HUD Game",
   "scenes": {
-    "mainMenu": "scenes/MainMenu.scene",
-    "hud": "scenes/Hud.scene",
-    "gameOver": "scenes/GameOver.scene"
+    "mainMenu": "src/scenes/MainMenu.scene",
+    "hud": "src/scenes/Hud.scene",
+    "gameOver": "src/scenes/GameOver.scene"
   },
   "run": {
     "command": "bun",
