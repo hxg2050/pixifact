@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 export const defaultSceneSourceRoots = ['src'] as const;
 export const ignoredSceneSourceDirectories = new Set([
     'node_modules',
@@ -12,7 +10,43 @@ export const ignoredSceneSourceDirectories = new Set([
 ]);
 
 export function toPosixPath(value: string) {
-    return value.replaceAll(path.sep, '/').replaceAll('\\', '/');
+    return value.replaceAll('\\', '/');
+}
+
+function posixBasename(value: string, suffix = '') {
+    const basename = value.split('/').filter(Boolean).at(-1) ?? '';
+    return suffix && basename.endsWith(suffix)
+        ? basename.slice(0, -suffix.length)
+        : basename;
+}
+
+function posixDirname(value: string) {
+    const normalized = toPosixPath(value).replace(/\/+$/, '');
+    const index = normalized.lastIndexOf('/');
+    return index >= 0 ? normalized.slice(0, index) : '';
+}
+
+function normalizePosixPath(value: string) {
+    const segments: string[] = [];
+    for (const segment of toPosixPath(value).split('/')) {
+        if (!segment || segment === '.') {
+            continue;
+        }
+        if (segment === '..') {
+            if (segments.length && segments[segments.length - 1] !== '..') {
+                segments.pop();
+            } else {
+                segments.push(segment);
+            }
+            continue;
+        }
+        segments.push(segment);
+    }
+    return segments.join('/');
+}
+
+function posixJoin(...parts: string[]) {
+    return normalizePosixPath(parts.filter(Boolean).join('/'));
 }
 
 export function normalizeSceneAssetId(value: string) {
@@ -32,7 +66,7 @@ export function isIgnoredSceneSourceDirectory(name: string) {
 }
 
 export function sceneLocalName(scenePath: string) {
-    return path.posix.basename(normalizeSceneAssetId(scenePath), '.scene');
+    return posixBasename(normalizeSceneAssetId(scenePath), '.scene');
 }
 
 export function pairedSceneScriptPath(scenePath: string) {
@@ -63,8 +97,8 @@ export function resolveSceneReference(fromScenePath: string, reference: string) 
         throw new Error('Scene references must use .scene paths.');
     }
     if (value.startsWith('./') || value.startsWith('../')) {
-        const baseDir = path.posix.dirname(normalizeSceneAssetId(fromScenePath));
-        return normalizeSceneAssetId(path.posix.normalize(path.posix.join(baseDir, value)));
+        const baseDir = posixDirname(normalizeSceneAssetId(fromScenePath));
+        return normalizeSceneAssetId(posixJoin(baseDir, value));
     }
     return normalizeSceneAssetId(value);
 }

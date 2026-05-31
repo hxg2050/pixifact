@@ -54,12 +54,20 @@ describe('Pixifact scene compiler spike', () => {
         expect(sceneClassAlias('src/features/shop/Button.scene')).toBe('SceneClass_src_features_shop_Button');
     });
 
+    it('keeps Scene asset paths browser-safe', async () => {
+        const source = await readFile('packages/pixifact/src/compiler/sceneAssetPair.ts', 'utf8');
+
+        expect(source).not.toContain('node:path');
+        expect(source).not.toMatch(/\bpath\./);
+    });
+
     it('resolves relative and project-relative Scene references from a containing scene', () => {
         expect(resolveSceneReference('src/menu/MainMenu.scene', './Button.scene')).toBe('src/menu/Button.scene');
         expect(resolveSceneReference('src/menu/MainMenu.scene', '../ui/Button.scene')).toBe('src/ui/Button.scene');
         expect(resolveSceneReference('src/menu/MainMenu.scene', '..\\ui\\Button.scene')).toBe('src/ui/Button.scene');
         expect(resolveSceneReference('src/menu/MainMenu.scene', 'src/shared/Panel.scene')).toBe('src/shared/Panel.scene');
         expect(() => resolveSceneReference('src/menu/MainMenu.scene', 'Button')).toThrow('Scene references must use .scene paths.');
+        expect(() => resolveSceneReference('src/menu/MainMenu.scene', '../../../Button.scene')).toThrow('must stay inside projectRoot');
     });
 
     it('creates stable non-colliding Scene class aliases', () => {

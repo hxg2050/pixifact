@@ -1,5 +1,5 @@
 import type { SceneDocument } from 'pixifact';
-import { pairedSceneScriptPath } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
+import { defaultSceneSourceRoots, pairedSceneScriptPath } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
 import type {
     SceneScriptInterface,
@@ -278,8 +278,13 @@ export async function createSceneFile(projectTree: ProjectFileTreeNode, director
     const assetName = sceneAssetName(name);
     const scriptFileName = `${assetName}.ts`;
     const scriptPath = `${directory.path}/${scriptFileName}`;
+    const sourceRoot = defaultSceneSourceRoots[0];
+    const directoryPath = projectFileRelativePath(projectTree, directory);
     if (!fileName || fileName === '.scene') {
         throw new ProjectFileOperationError('Scene 名称不能为空。');
+    }
+    if (directoryPath !== sourceRoot && !directoryPath.startsWith(`${sourceRoot}/`)) {
+        throw new ProjectFileOperationError('Compiler Scene 必须创建在 src 目录下。');
     }
     if (directory.children?.some((child) => child.name === fileName)) {
         throw new ProjectFileOperationError(`已存在 ${fileName}。`);

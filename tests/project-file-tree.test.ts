@@ -37,6 +37,7 @@ import {
     openSceneFile,
     openProjectCodeFile,
     openProjectDefaultFile,
+    ProjectFileOperationError,
     projectFileKind,
     projectFileRelativePath,
     renameProjectEntry,
@@ -439,17 +440,19 @@ describe('project file tree service', () => {
 
     it('creates a blank scene file in the selected directory', async () => {
         host.reset({
-            scenes: host.directory(),
+            src: host.directory({
+                scenes: host.directory(),
+            }),
         });
         const tree = await readHostTree();
-        const scenes = tree.children?.[0];
+        const scenes = findFileByPath(tree, 'GameProject/src/scenes');
 
         const created = await createSceneFile(tree, scenes!, 'menu panel');
         const refreshed = await readHostTree();
-        const script = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/MenuPanel.ts');
+        const script = await host.readProjectFileText('/tmp/GameProject', 'GameProject/src/scenes/MenuPanel.ts');
 
-        expect(created.path).toBe('GameProject/scenes/MenuPanel.scene');
-        expect(created.scriptPath).toBe('GameProject/scenes/MenuPanel.ts');
+        expect(created.path).toBe('GameProject/src/scenes/MenuPanel.scene');
+        expect(created.scriptPath).toBe('GameProject/src/scenes/MenuPanel.ts');
         expect(parseSceneTemplate(created.content)).toMatchObject({
             version: 2,
             name: 'MenuPanel',
@@ -475,18 +478,31 @@ describe('project file tree service', () => {
             '}',
             '',
         ].join('\n'));
-        expect(refreshed.children?.[0].children?.[0].name).toBe('MenuPanel.scene');
-        expect(findFileByPath(refreshed, 'GameProject/scenes/MenuPanel.ts')).toBeDefined();
+        expect(findFileByPath(refreshed, 'GameProject/src/scenes/MenuPanel.scene')).toBeDefined();
+        expect(findFileByPath(refreshed, 'GameProject/src/scenes/MenuPanel.ts')).toBeDefined();
+    });
+
+    it('rejects compiler Scene creation outside the source root', async () => {
+        host.reset({
+            scenes: host.directory(),
+        });
+        const tree = await readHostTree();
+        const scenes = findFileByPath(tree, 'GameProject/scenes');
+
+        await expect(createSceneFile(tree, scenes!, 'menu panel')).rejects.toThrow(ProjectFileOperationError);
+        await expect(createSceneFile(tree, scenes!, 'menu panel')).rejects.toThrow('Compiler Scene 必须创建在 src 目录下。');
     });
 
     it('rejects duplicate scene file names', async () => {
         host.reset({
-            scenes: host.directory({
-                'MenuPanel.scene': host.file('{}'),
+            src: host.directory({
+                scenes: host.directory({
+                    'MenuPanel.scene': host.file('{}'),
+                }),
             }),
         });
         const tree = await readHostTree();
-        const scenes = tree.children?.[0];
+        const scenes = findFileByPath(tree, 'GameProject/src/scenes');
 
         await expect(createSceneFile(tree, scenes!, 'menu panel')).rejects.toThrow('已存在 MenuPanel.scene');
     });
@@ -2122,20 +2138,22 @@ describe('project file tree service', () => {
 
     it('creates and opens a compiler Scene and saves it as XML', async () => {
         host.reset({
-            scenes: host.directory(),
+            src: host.directory({
+                scenes: host.directory(),
+            }),
         });
         const tree = await readHostTree();
-        const scenes = findFileByPath(tree, 'GameProject/scenes');
+        const scenes = findFileByPath(tree, 'GameProject/src/scenes');
 
         const opened = await createAndOpenSceneFile(tree, scenes!, 'status panel');
         const compilerDocument = getCompilerSceneDocument();
 
-        expect(opened.created.path).toBe('GameProject/scenes/StatusPanel.scene');
-        expect(opened.created.scriptPath).toBe('GameProject/scenes/StatusPanel.ts');
-        expect(opened.openedScenePath).toBe('GameProject/scenes/StatusPanel.scene');
+        expect(opened.created.path).toBe('GameProject/src/scenes/StatusPanel.scene');
+        expect(opened.created.scriptPath).toBe('GameProject/src/scenes/StatusPanel.ts');
+        expect(opened.openedScenePath).toBe('GameProject/src/scenes/StatusPanel.scene');
         expect(opened.descriptor.className).toBe('StatusPanel');
         expect(opened.template).toEqual(compilerDocument?.template);
-        expect(compilerDocument?.scenePath).toBe('GameProject/scenes/StatusPanel.scene');
+        expect(compilerDocument?.scenePath).toBe('GameProject/src/scenes/StatusPanel.scene');
         expect(compilerDocument?.template).toMatchObject({
             version: 2,
             name: 'StatusPanel',
@@ -2149,10 +2167,10 @@ describe('project file tree service', () => {
 
         expect(await saveCompilerSceneFile(opened.refreshedTree, opened.openedScenePath, compilerDocument!)).toBe(true);
 
-        const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/StatusPanel.scene');
+        const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/src/scenes/StatusPanel.scene');
         expect(host.writeProjectFileText).toHaveBeenCalledWith(
             '/tmp/GameProject',
-            'GameProject/scenes/StatusPanel.scene',
+            'GameProject/src/scenes/StatusPanel.scene',
             '<Scene name="StatusPanel" width="960" height="540">\n</Scene>\n',
         );
         expect(parseSceneTemplate(saved).name).toBe('StatusPanel');
