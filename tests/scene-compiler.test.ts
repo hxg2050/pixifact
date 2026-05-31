@@ -466,6 +466,11 @@ describe('Pixifact scene compiler spike', () => {
             .toThrow('Scene script binding is inferred from the colocated TypeScript file.');
     });
 
+    it('rejects root class attributes because Scene classes are paired by script', () => {
+        expect(() => parseSceneTemplate('<Scene name="Button" class="Button" />'))
+            .toThrow('Scene class is inferred from the paired script @scene class; remove the class attribute.');
+    });
+
     it('compiles a source scene into a typed PixiJS mount function', () => {
         const template = parseSceneTemplate(`
             <Scene name="Button" width="180" height="52">

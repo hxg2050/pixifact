@@ -40,7 +40,7 @@ export function parseSceneTemplate(source: string): SceneTemplate {
     }
 
     if (root.attributes.class !== undefined) {
-        throw new Error('Scene class is derived from the bound script; remove the class attribute.');
+        throw new Error('Scene class is inferred from the paired script @scene class; remove the class attribute.');
     }
 
     if (root.attributes.script !== undefined) {
