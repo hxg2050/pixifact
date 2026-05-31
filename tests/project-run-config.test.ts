@@ -122,9 +122,9 @@ describe('Pixifact project run config', () => {
         expect(config).toMatchObject({
             name: 'Scene Compiler Demo',
             scenes: {
-                mainMenu: 'scenes/MainMenu.scene',
-                button: 'scenes/Button.scene',
-                panel: 'scenes/Panel.scene',
+                mainMenu: 'src/scenes/MainMenu.scene',
+                button: 'src/scenes/Button.scene',
+                panel: 'src/scenes/Panel.scene',
             },
             run: {
                 command: 'bun',

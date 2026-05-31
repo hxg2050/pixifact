@@ -64,23 +64,42 @@ function projectTree(): ProjectFileTreeNode {
         systemPath: '/repo/GameProject',
         projectRootPath: '/repo/GameProject',
         children: [{
-            id: 'GameProject/scenes',
-            name: 'scenes',
-            path: 'GameProject/scenes',
+            id: 'GameProject/src',
+            name: 'src',
+            path: 'GameProject/src',
             kind: 'folder',
             depth: 1,
             children: [{
-                id: 'GameProject/scenes/Button.scene',
-                name: 'Button.scene',
-                path: 'GameProject/scenes/Button.scene',
-                kind: 'scene',
+                id: 'GameProject/src/scenes',
+                name: 'scenes',
+                path: 'GameProject/src/scenes',
+                kind: 'folder',
                 depth: 2,
-            }, {
-                id: 'GameProject/scenes/Child.scene',
-                name: 'Child.scene',
-                path: 'GameProject/scenes/Child.scene',
-                kind: 'scene',
-                depth: 2,
+                children: [{
+                    id: 'GameProject/src/scenes/Button.scene',
+                    name: 'Button.scene',
+                    path: 'GameProject/src/scenes/Button.scene',
+                    kind: 'scene',
+                    depth: 3,
+                }, {
+                    id: 'GameProject/src/scenes/Child.scene',
+                    name: 'Child.scene',
+                    path: 'GameProject/src/scenes/Child.scene',
+                    kind: 'scene',
+                    depth: 3,
+                }, {
+                    id: 'GameProject/src/scenes/Button.ts',
+                    name: 'Button.ts',
+                    path: 'GameProject/src/scenes/Button.ts',
+                    kind: 'script',
+                    depth: 3,
+                }, {
+                    id: 'GameProject/src/scenes/Child.ts',
+                    name: 'Child.ts',
+                    path: 'GameProject/src/scenes/Child.ts',
+                    kind: 'script',
+                    depth: 3,
+                }],
             }],
         }, {
             id: 'GameProject/assets',
@@ -101,7 +120,7 @@ function projectTree(): ProjectFileTreeNode {
 
 function currentScene() {
     return [
-        '<Scene name="Button" script="src/scenes/Button.ts">',
+        '<Scene name="Button">',
         '  <Text id="label" text="Start" />',
         '</Scene>',
         '',
@@ -113,13 +132,13 @@ function setEditorProject() {
         language: 'zh-CN',
         projectName: 'GameProject',
         projectTree: projectTree(),
-        selectedProjectFilePath: 'GameProject/scenes/Button.scene',
-        openedScenePath: 'GameProject/scenes/Button.scene',
-        expandedProjectFolders: ['GameProject', 'GameProject/scenes'],
+        selectedProjectFilePath: 'GameProject/src/scenes/Button.scene',
+        openedScenePath: 'GameProject/src/scenes/Button.scene',
+        expandedProjectFolders: ['GameProject', 'GameProject/src', 'GameProject/src/scenes'],
         expandedHierarchyNodesByScene: {},
     });
     loadCompilerSceneDocument({
-        scenePath: 'GameProject/scenes/Button.scene',
+        scenePath: 'GameProject/src/scenes/Button.scene',
         template: parseSceneTemplate(currentScene()),
         sceneInterfaces: {},
     });
@@ -175,8 +194,10 @@ beforeEach(() => {
     });
     localStorage.clear();
     host.files = new Map([
-        ['GameProject/scenes/Button.scene', currentScene()],
-        ['GameProject/scenes/Child.scene', '<Scene name="Child" />\n'],
+        ['GameProject/src/scenes/Button.scene', currentScene()],
+        ['GameProject/src/scenes/Child.scene', '<Scene name="Child" />\n'],
+        ['GameProject/src/scenes/Button.ts', '@scene()\nexport class Button {}\n'],
+        ['GameProject/src/scenes/Child.ts', '@scene()\nexport class Child {}\n'],
     ]);
     resetCompilerSceneDocument();
     setEditorProject();
@@ -241,8 +262,8 @@ describe('Editor workbench UI', () => {
             const sceneCards = [...view.container.querySelectorAll('.projectFileCard.scene')];
             const childSceneCard = sceneCards.find((card) => card.textContent?.includes('Child.scene'));
             const projectTree = shelf?.querySelector('[data-testid="project-shelf-tree"]');
-            const nestedFolderRow = projectTree?.querySelector('[title="GameProject/scenes"]');
-            const sceneFileTreeRow = projectTree?.querySelector('[title="GameProject/scenes/Button.scene"]');
+            const nestedFolderRow = projectTree?.querySelector('[title="GameProject/src/scenes"]');
+            const sceneFileTreeRow = projectTree?.querySelector('[title="GameProject/src/scenes/Button.scene"]');
             const assetFileTreeRow = projectTree?.querySelector('[title="GameProject/assets/play.png"]');
             const projectContents = shelf?.querySelector('[data-testid="project-shelf-contents"]');
             const nestedFolderGridRow = nestedFolderRow?.closest('[role="row"]') as HTMLElement | null;
@@ -255,7 +276,7 @@ describe('Editor workbench UI', () => {
             expect(shelf?.querySelector('.projectShelfContents')).toBeTruthy();
             expect(shelf?.querySelector('.projectShelfDetails')).toBeTruthy();
             expect(shelf?.textContent).toContain('Project');
-            expect(shelf?.textContent).toContain('GameProject/scenes');
+            expect(shelf?.textContent).toContain('GameProject/src/scenes');
             expect(projectTree?.textContent).not.toContain('Button.scene');
             expect(projectTree?.textContent).not.toContain('play.png');
             expect(sceneFileTreeRow).toBeFalsy();
@@ -266,7 +287,7 @@ describe('Editor workbench UI', () => {
             expect(childSceneCard?.tagName).toBe('DIV');
             expect(childSceneCard?.getAttribute('role')).toBe('button');
             expect(childSceneCard?.getAttribute('tabindex')).toBe('0');
-            expect(nestedFolderGridRow?.style.getPropertyValue('--tree-indent')).toBe('14px');
+            expect(nestedFolderGridRow?.style.getPropertyValue('--tree-indent')).toBe('28px');
             expect(nestedFolderGridRow?.getAttribute('role')).toBe('row');
             expect(nestedFolderChevron).toBeTruthy();
             expect(shelf?.querySelector('[data-testid="create-scene"]')).toBeFalsy();

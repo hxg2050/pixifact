@@ -65,25 +65,6 @@ function projectTree(): ProjectFileTreeNode {
         systemPath: '/repo/GameProject',
         projectRootPath: '/repo/GameProject',
         children: [{
-            id: 'GameProject/scenes',
-            name: 'scenes',
-            path: 'GameProject/scenes',
-            kind: 'folder',
-            depth: 1,
-            children: [{
-                id: 'GameProject/scenes/Button.scene',
-                name: 'Button.scene',
-                path: 'GameProject/scenes/Button.scene',
-                kind: 'scene',
-                depth: 2,
-            }, {
-                id: 'GameProject/scenes/Child.scene',
-                name: 'Child.scene',
-                path: 'GameProject/scenes/Child.scene',
-                kind: 'scene',
-                depth: 2,
-            }],
-        }, {
             id: 'GameProject/assets',
             name: 'assets',
             path: 'GameProject/assets',
@@ -109,6 +90,18 @@ function projectTree(): ProjectFileTreeNode {
                 kind: 'folder',
                 depth: 2,
                 children: [{
+                    id: 'GameProject/src/scenes/Button.scene',
+                    name: 'Button.scene',
+                    path: 'GameProject/src/scenes/Button.scene',
+                    kind: 'scene',
+                    depth: 3,
+                }, {
+                    id: 'GameProject/src/scenes/Child.scene',
+                    name: 'Child.scene',
+                    path: 'GameProject/src/scenes/Child.scene',
+                    kind: 'scene',
+                    depth: 3,
+                }, {
                     id: 'GameProject/src/scenes/Button.ts',
                     name: 'Button.ts',
                     path: 'GameProject/src/scenes/Button.ts',
@@ -143,7 +136,7 @@ function hostProjectTree() {
 
 function currentScene() {
     return [
-        '<Scene name="Button" script="src/scenes/Button.ts">',
+        '<Scene name="Button">',
         '  <Text id="label" text="Start" />',
         '</Scene>',
         '',
@@ -152,7 +145,7 @@ function currentScene() {
 
 function updatedScene() {
     return [
-        '<Scene name="Button" script="src/scenes/Button.ts">',
+        '<Scene name="Button">',
         '  <Text id="label" text="Play" />',
         '</Scene>',
         '',
@@ -170,7 +163,7 @@ function scriptSource() {
 
 function childScene() {
     return [
-        '<Scene name="Child" script="src/scenes/Child.ts" />',
+        '<Scene name="Child" />',
         '',
     ].join('\n');
 }
@@ -189,8 +182,8 @@ function childScriptSource() {
 
 function resetHostFiles() {
     host.files = new Map([
-        ['GameProject/scenes/Button.scene', currentScene()],
-        ['GameProject/scenes/Child.scene', childScene()],
+        ['GameProject/src/scenes/Button.scene', currentScene()],
+        ['GameProject/src/scenes/Child.scene', childScene()],
         ['GameProject/src/scenes/Button.ts', scriptSource()],
         ['GameProject/src/scenes/Child.ts', childScriptSource()],
     ]);
@@ -201,7 +194,7 @@ function resetHostFiles() {
 function proposalText(content: string, baseRevision = createSceneRevision(currentScene())) {
     return JSON.stringify({
         kind: 'pixifact.sceneProposal.v1',
-        scene: 'scenes/Button.scene',
+        scene: 'src/scenes/Button.scene',
         baseRevision,
         content,
     });
@@ -212,9 +205,9 @@ function setEditorProject() {
         language: 'zh-CN',
         projectName: 'GameProject',
         projectTree: projectTree(),
-        selectedProjectFilePath: 'GameProject/scenes/Button.scene',
-        openedScenePath: 'GameProject/scenes/Button.scene',
-        expandedProjectFolders: ['GameProject', 'GameProject/scenes'],
+        selectedProjectFilePath: 'GameProject/src/scenes/Button.scene',
+        openedScenePath: 'GameProject/src/scenes/Button.scene',
+        expandedProjectFolders: ['GameProject', 'GameProject/src', 'GameProject/src/scenes'],
         expandedHierarchyNodesByScene: {},
     });
 }
@@ -320,12 +313,12 @@ describe('Agent panel proposal review UI', () => {
 
             expect(host.writes).toEqual([{
                 projectRootPath: '/repo/GameProject',
-                filePath: 'GameProject/scenes/Button.scene',
+                filePath: 'GameProject/src/scenes/Button.scene',
                 content: updatedScene(),
             }]);
-            expect(getCompilerSceneDocument()?.scenePath).toBe('GameProject/scenes/Button.scene');
+            expect(getCompilerSceneDocument()?.scenePath).toBe('GameProject/src/scenes/Button.scene');
             expect(getCompilerSceneDocument()?.template.children[0]?.props.text).toBe('Play');
-            expect(useEditorStore.getState().openedScenePath).toBe('GameProject/scenes/Button.scene');
+            expect(useEditorStore.getState().openedScenePath).toBe('GameProject/src/scenes/Button.scene');
         } finally {
             await view.cleanup();
         }
@@ -350,17 +343,17 @@ describe('Agent panel proposal review UI', () => {
 describe('Editor external Scene sync UI', () => {
     it('shows successful external compiler Scene refresh feedback in the status bar', async () => {
         loadCompilerSceneDocument({
-            scenePath: 'GameProject/scenes/Button.scene',
+            scenePath: 'GameProject/src/scenes/Button.scene',
             template: parseSceneTemplate(currentScene()),
             sceneInterfaces: {},
         });
         const view = await renderEditorApp();
         try {
             await act(async () => {
-                host.files.set('GameProject/scenes/Button.scene', updatedScene());
+                host.files.set('GameProject/src/scenes/Button.scene', updatedScene());
                 host.fileChangedHandler?.({
                     projectRootPath: '/repo/GameProject',
-                    path: 'GameProject/scenes/Button.scene',
+                    path: 'GameProject/src/scenes/Button.scene',
                     kind: 'scene',
                 });
                 await Promise.resolve();

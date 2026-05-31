@@ -95,7 +95,7 @@ function hasSceneDecorator(node: ts.ClassDeclaration) {
     }
     const args = decoratorArguments(decorator);
     if (args.length !== 0) {
-        throw new Error('@scene does not accept arguments. Bind scripts with <Scene script="...">.');
+        throw new Error('@scene does not accept arguments. Pair scripts by colocating a same-basename .ts file next to the .scene file.');
     }
     return true;
 }

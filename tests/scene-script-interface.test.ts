@@ -35,10 +35,10 @@ describe('scene script interface extractor', () => {
                 @slot()
                 icon!: Container;
             }
-        `, 'Button.ts', { scene: 'scenes/Button.scene' });
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' });
 
         expect(contract).toEqual({
-            scene: 'scenes/Button.scene',
+            scene: 'src/scenes/Button.scene',
             className: 'Button',
             interface: {
                 props: {
@@ -77,7 +77,7 @@ describe('scene script interface extractor', () => {
                 @slot({ name: 'footer' })
                 footerSlot!: unknown;
             }
-        `, 'Panel.ts', { scene: 'scenes/Panel.scene' });
+        `, 'Panel.ts', { scene: 'src/scenes/Panel.scene' });
 
         expect(contract.interface.events).toEqual({
             close: {
@@ -102,10 +102,10 @@ describe('scene script interface extractor', () => {
                 @slot()
                 icon!: unknown;
             }
-        `, 'Button.ts', { scene: 'scenes/Button.scene' });
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' });
 
         expect(JSON.parse(descriptor)).toEqual({
-            scene: 'scenes/Button.scene',
+            scene: 'src/scenes/Button.scene',
             className: 'Button',
             interface: {
                 props: {
@@ -146,13 +146,15 @@ describe('scene script interface extractor', () => {
                 @prop(defaults)
                 accessor label = 'Button';
             }
-        `, 'Button.ts', { scene: 'scenes/Button.scene' })).toThrow('@prop argument must be an object literal.');
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('@prop argument must be an object literal.');
     });
 
-    it('rejects @scene arguments because the .scene file owns script binding', () => {
+    it('rejects @scene arguments because scripts are paired with colocated .scene files', () => {
         expect(() => extractSceneScriptInterface(`
-            @scene('scenes/Button.scene')
+            @scene('src/scenes/Button.scene')
             export class Button {}
-        `, 'Button.ts', { scene: 'scenes/Button.scene' })).toThrow('@scene does not accept arguments.');
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow(
+            '@scene does not accept arguments. Pair scripts by colocating a same-basename .ts file next to the .scene file.',
+        );
     });
 });
