@@ -424,8 +424,38 @@ textarea {
     display: grid;
     height: 100%;
     min-height: 0;
-    grid-template-rows: 34px minmax(0, 1fr);
+    grid-template-rows: 34px auto minmax(0, 1fr);
     background: var(--panel);
+}
+
+.projectShelfToolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--line);
+    background: #f6f9fc;
+    padding: 6px 10px;
+}
+
+.createSceneRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.createSceneRow input {
+    width: 140px;
+    height: 26px;
+    padding: 0 8px;
+    font-size: 12px;
+}
+
+.createSceneRow .systemButton {
+    height: 26px;
+    min-height: 26px;
+    padding: 0 10px;
+    font-size: 12px;
+    white-space: nowrap;
 }
 
 .projectShelfHeader {

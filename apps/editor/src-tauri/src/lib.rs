@@ -228,7 +228,7 @@ fn open_code_file(project_root_path: String, file_path: String) -> Result<(), St
     let project_uri = format!("--folder-uri={}", path_to_file_uri(&root));
     let file_uri = format!("--file-uri={}", path_to_file_uri(&file));
     Command::new("code")
-        .arg("--reuse-window")
+        .arg("--new-window")
         .arg(project_uri)
         .arg(file_uri)
         .spawn()

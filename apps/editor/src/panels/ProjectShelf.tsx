@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { DragSource, TextField, TreeView } from '../components/system';
+import { Button, DragSource, TextField, TreeView } from '../components/system';
 import type { TreeViewItem } from '../components/system';
 import { getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
@@ -13,10 +13,14 @@ import { hostErrorMessage } from '../services/hostBridge';
 import {
     assetDragPayload,
     componentTypeFromPath,
+    containingDirectory,
+    createAndOpenSceneFile,
+    createFolder,
     findFileByPath,
     openCompilerSceneFile,
     openProjectCodeFile,
     openProjectDefaultFile,
+    refreshProjectFileTree,
 } from '../services/projectFileTree';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import { useCompilerSceneRevision } from './common';
@@ -90,6 +94,13 @@ export function ProjectShelf() {
     const setExpandedProjectFolders = useEditorStore((state) => state.setExpandedProjectFolders);
     const [search, setSearch] = useState('');
     const [actionText, setActionText] = useState('');
+    const [newSceneName, setNewSceneName] = useState('');
+    const [newFolderName, setNewFolderName] = useState('');
+    const openedScenePath = useEditorStore((state) => state.openedScenePath);
+    const setOpenedScene = useEditorStore((state) => state.setOpenedScene);
+    const refreshProject = useEditorStore((state) => state.refreshProject);
+    const compilerDocument = getCompilerSceneDocument();
+    const currentSceneDirty = compilerDocument && compilerDocument.scenePath === openedScenePath ? compilerDocument.dirty : false;
 
     const expandedFolders = useMemo(() => new Set(expandedProjectFolders), [expandedProjectFolders]);
     const treeItems = useMemo(() => projectTree ? [folderTreeItem(projectTree)] : [], [projectTree]);
@@ -141,6 +152,47 @@ export function ProjectShelf() {
         }
     };
 
+    const createScene = async () => {
+        const name = newSceneName.trim();
+        if (!name || !projectTree) {
+            return;
+        }
+        const directory = containingDirectory(projectTree, selectedFile);
+        if (!directory) {
+            return;
+        }
+        if (currentSceneDirty && !window.confirm(t('discardDirtySceneConfirm'))) {
+            return;
+        }
+
+        const session = await createAndOpenSceneFile(projectTree, directory, name);
+        refreshProject(session.refreshedTree, {
+            selectPath: session.created.path,
+            expandPaths: [directory.path],
+        });
+        setOpenedScene(session.openedScenePath);
+        setNewSceneName('');
+        setActionText(t('sceneCreatedAndOpened', { file: session.created.fileName }));
+    };
+
+    const createFolderInSelected = async () => {
+        const name = newFolderName.trim();
+        if (!name || !projectTree) {
+            return;
+        }
+        const directory = containingDirectory(projectTree, selectedFile);
+        if (!directory) {
+            return;
+        }
+        const created = await createFolder(directory, name);
+        setNewFolderName('');
+        const refreshedTree = await refreshProjectFileTree(projectTree);
+        refreshProject(refreshedTree, {
+            expandPaths: [directory.path, created.path],
+        });
+        setActionText(t('folderCreated', { name: created.name }));
+    };
+
     return (
         <section className="projectShelf" data-testid="project-shelf" aria-label={t('projectShelf')}>
             <header className="projectShelfHeader">
@@ -157,6 +209,28 @@ export function ProjectShelf() {
                 />
                 <div className="projectShelfDetailsTitle">{t('selectedItem')}</div>
             </header>
+            <div className="projectShelfToolbar">
+                <div className="createSceneRow">
+                    <TextField
+                        inputProps={{ 'aria-label': t('sceneName'), placeholder: t('sceneName') }}
+                        onChange={setNewSceneName}
+                        value={newSceneName}
+                    />
+                    <Button disabled={newSceneName.trim() === ''} icon="plus" onPress={() => void createScene()}>
+                        {t('createScene')}
+                    </Button>
+                </div>
+                <div className="createSceneRow">
+                    <TextField
+                        inputProps={{ 'aria-label': t('folderName'), placeholder: t('folderName') }}
+                        onChange={setNewFolderName}
+                        value={newFolderName}
+                    />
+                    <Button disabled={newFolderName.trim() === ''} icon="folder-plus" onPress={() => void createFolderInSelected()}>
+                        {t('createFolder')}
+                    </Button>
+                </div>
+            </div>
             <div className="projectShelfBody">
                 <div className="projectShelfTree" data-testid="project-shelf-tree">
                     <TreeView
