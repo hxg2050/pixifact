@@ -400,6 +400,53 @@ export function addCompilerSceneNode(parentLocator: string, node: CompilerSceneT
     };
 }
 
+export function addCompilerSceneNodeAtTarget(targetLocator: string, node: CompilerSceneTemplateNode) {
+    if (!document) {
+        return {
+            ok: false as const,
+            error: '未打开 Compiler Scene。',
+        };
+    }
+
+    const template = structuredClone(document.template);
+    const target = findCompilerSceneChildList(template.children, targetLocator)
+        ? { parent: targetLocator }
+        : findCompilerSceneNodeLocation(template.children, targetLocator);
+    const command = target && 'parent' in target
+        ? {
+            op: 'insertNode',
+            parent: target.parent,
+            node,
+        } satisfies CompilerSceneCommand
+        : target
+            ? {
+                op: 'insertNode',
+                parent: target.parentLocator,
+                index: target.index + 1,
+                node,
+            } satisfies CompilerSceneCommand
+            : undefined;
+    if (!command) {
+        return {
+            ok: false as const,
+            error: '当前选择不能包含子节点。',
+        };
+    }
+
+    const result = executeCompilerSceneDocumentCommand(command);
+    if (!result.ok) {
+        return {
+            ok: false as const,
+            error: '当前选择不能包含子节点。',
+        };
+    }
+
+    return {
+        ok: true as const,
+        locator: result.selection?.type === 'node' ? result.selection.node : targetLocator,
+    };
+}
+
 export function deleteCompilerSceneNode(locator: string) {
     if (!document) {
         return {

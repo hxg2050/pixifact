@@ -9,6 +9,7 @@ import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/sy
 import { refreshSceneDocument } from '../document/sceneDocumentController';
 import {
     addCompilerSceneNode,
+    addCompilerSceneNodeAtTarget,
     compilerPixiTypeFromNodeTemplate,
     createCompilerPixiTemplateNode,
     createCompilerSceneToolTemplateNode,
@@ -25,6 +26,7 @@ import {
     createNodeTemplateNode,
     isLegacyNodeTemplateKind,
     isNodeTemplateKind,
+    pixiNodeTemplateLibrary,
 } from '../services/nodeTemplateLibrary';
 import {
     isSceneToolKind,
@@ -64,6 +66,12 @@ interface LocatedNode {
 }
 
 interface NodeContextMenuState {
+    locator: string;
+    x: number;
+    y: number;
+}
+
+interface CompilerNodeContextMenuState {
     locator: string;
     x: number;
     y: number;
@@ -965,6 +973,7 @@ export function CompilerSceneHierarchyTree() {
     const [dropTarget, setDropTarget] = useState<string>();
     const [nodeDropTarget, setNodeDropTarget] = useState<NodeDropTargetState>();
     const [draggedNodeLocator, setDraggedNodeLocator] = useState<string>();
+    const [contextMenu, setContextMenu] = useState<CompilerNodeContextMenuState>();
     const nodeRowRefs = useRef(new Map<string, HTMLDivElement>());
 
     if (!compilerDocument) {
@@ -978,6 +987,20 @@ export function CompilerSceneHierarchyTree() {
         ? treeItems[0]?.item
         : findCompilerHierarchyItem(treeItems, selected);
     const canDeleteNode = canDeleteCompilerSceneNode(selectedItem);
+
+    useEffect(() => {
+        if (!contextMenu) {
+            return;
+        }
+
+        const close = () => setContextMenu(undefined);
+        window.addEventListener('click', close);
+        window.addEventListener('keydown', close);
+        return () => {
+            window.removeEventListener('click', close);
+            window.removeEventListener('keydown', close);
+        };
+    }, [contextMenu]);
 
     const addCompilerNodeTemplateUnderNode = (kind: string, parent: string) => {
         if (!isNodeTemplateKind(kind)) {
@@ -998,6 +1021,29 @@ export function CompilerSceneHierarchyTree() {
             setError(result.error);
             return;
         }
+        setDropTarget(undefined);
+        setError(undefined);
+    };
+    const addCompilerNodeTemplateAtTarget = (kind: string, target: string) => {
+        if (!isNodeTemplateKind(kind)) {
+            setError(t('nodeTemplateMissing'));
+            return;
+        }
+        const type = compilerPixiTypeFromNodeTemplate(kind);
+        if (!type) {
+            setError('Compiler Scene 暂不支持该节点模板。');
+            return;
+        }
+        const document = getCompilerSceneDocument();
+        if (!document) {
+            return;
+        }
+        const result = addCompilerSceneNodeAtTarget(target, createCompilerPixiTemplateNode(document.template, type));
+        if (!result.ok) {
+            setError(result.error);
+            return;
+        }
+        setContextMenu(undefined);
         setDropTarget(undefined);
         setError(undefined);
     };
@@ -1141,6 +1187,15 @@ export function CompilerSceneHierarchyTree() {
                             }
                         }}
                         style={{ '--tree-indent': `${item.depth * 14}px` } as React.CSSProperties}
+                        onContextMenu={(event) => {
+                            event.preventDefault();
+                            selectCompilerSceneNode(item.locator);
+                            setContextMenu({
+                                locator: item.locator,
+                                x: event.clientX,
+                                y: event.clientY,
+                            });
+                        }}
                     >
                         <DragSource
                             as="div"
@@ -1162,6 +1217,27 @@ export function CompilerSceneHierarchyTree() {
                     </DropZone>
                 )}
             />
+            {contextMenu ? (
+                <div
+                    className="nodeContextMenu compilerNodeContextMenu"
+                    data-testid="compiler-node-context-menu"
+                    onClick={(event) => event.stopPropagation()}
+                    onContextMenu={(event) => event.preventDefault()}
+                    style={{ left: contextMenu.x, top: contextMenu.y }}
+                >
+                    <div className="nodeContextMenuTitle">{t('addNode')}</div>
+                    {pixiNodeTemplateLibrary.map((item) => (
+                        <button
+                            data-node-template={item.kind}
+                            key={item.kind}
+                            onClick={() => addCompilerNodeTemplateAtTarget(item.kind, contextMenu.locator)}
+                            type="button"
+                        >
+                            {t(item.nameKey)}
+                        </button>
+                    ))}
+                </div>
+            ) : null}
             <DropZone
                 acceptedTypes={[sceneDragDataType, nodeTemplateDragDataType, editorDragDataTypes.hierarchyNode]}
                 aria-label={t('dropToSceneRoot')}

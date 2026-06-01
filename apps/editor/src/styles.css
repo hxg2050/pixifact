@@ -1048,6 +1048,12 @@ textarea {
     text-align: left;
 }
 
+.nodeContextMenuTitle {
+    padding: 6px 8px 4px;
+    color: var(--soft);
+    font-size: 11px;
+}
+
 .nodeContextMenu button:hover:not(:disabled) {
     background: #edf2f7;
 }

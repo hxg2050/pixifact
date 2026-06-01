@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { SceneTemplate, SceneTemplateNode } from '../packages/pixifact/src/compiler/spec';
 import {
     addCompilerSceneNode,
+    addCompilerSceneNodeAtTarget,
     canRedoCompilerSceneCommand,
     canUndoCompilerSceneCommand,
     createCompilerPixiTemplateNode,
@@ -184,6 +185,33 @@ describe('compiler scene document controller undo redo', () => {
 
         expect(undoCompilerSceneCommand()?.ok).toBe(true);
         expect(getCompilerSceneDocument()?.template.children.map((node) => node.kind !== 'slotOutlet' ? node.id : node.name)).toEqual(['content', 'footer']);
+    });
+
+    it('adds compiler nodes using the hierarchy context target rules', () => {
+        loadTemplate();
+        const document = getCompilerSceneDocument();
+        expect(document).toBeTruthy();
+
+        const containerResult = addCompilerSceneNodeAtTarget(
+            '0:content',
+            createCompilerPixiTemplateNode(document!.template, 'Graphics'),
+        );
+        expect(containerResult).toEqual({
+            ok: true,
+            locator: '0:content/1:graphics1',
+        });
+        expect(contentChildren().map((node) => node.kind !== 'slotOutlet' ? node.id : node.name)).toEqual(['title', 'graphics1']);
+
+        const leafResult = addCompilerSceneNodeAtTarget(
+            '0:content/0:title',
+            createCompilerPixiTemplateNode(getCompilerSceneDocument()!.template, 'Sprite'),
+        );
+        expect(leafResult).toEqual({
+            ok: true,
+            locator: '0:content/1:sprite1',
+        });
+        expect(contentChildren().map((node) => node.kind !== 'slotOutlet' ? node.id : node.name)).toEqual(['title', 'sprite1', 'graphics1']);
+        expect(getCompilerSceneDocument()?.selection).toEqual({ type: 'node', node: '0:content/1:sprite1' });
     });
 
     it('clears command history when a compiler scene is loaded or closed', () => {
