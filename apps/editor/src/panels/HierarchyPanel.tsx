@@ -1108,7 +1108,6 @@ export function CompilerSceneHierarchyTree() {
             <div className="sectionHeader hierarchyHeader">
                 <div>
                     <div className="sectionTitle">{t('hierarchyTreeTitle')}</div>
-                    <small>Compiler Scene</small>
                 </div>
             </div>
             {error ? <div className="errorBox">{error}</div> : null}
