@@ -1,6 +1,6 @@
 # Compiler Scene Undo / Redo TDD
 
-本文档定义 compiler `.scene` 撤销 / 重做能力的测试驱动实施计划。
+本文档定义 compiler `.scene` 撤销 / 重做能力的测试驱动实施计划。需求说明见 [COMPILER_SCENE_UNDO_REDO_REQUIREMENTS.md](./COMPILER_SCENE_UNDO_REDO_REQUIREMENTS.md)。
 
 行为规格见 [COMPILER_SCENE_UNDO_REDO_BDD.md](./COMPILER_SCENE_UNDO_REDO_BDD.md)。全局 TDD 规范见 [TDD.md](./TDD.md)。
 
