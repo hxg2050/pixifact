@@ -450,6 +450,152 @@ describe('Pixifact scene compiler spike', () => {
         expect(code).not.toContain('hitArea');
     });
 
+    it('parses, serializes, validates, and compiles structured Scene instance props', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="MainMenu">
+              <Button id="startButton" scene="scenes/Button.scene" text="Restart" rectTransform.x="150" rectTransform.y="692" rectTransform.width="420" rectTransform.height="92" />
+            </Scene>
+        `);
+
+        expect(template.children[0]).toMatchObject({
+            kind: 'sceneInstance',
+            props: {
+                text: 'Restart',
+                rectTransform: {
+                    x: 150,
+                    y: 692,
+                    width: 420,
+                    height: 92,
+                },
+            },
+        });
+
+        const source = serializeSceneTemplate(template);
+        expect(source).toContain('rectTransform.x="150"');
+        expect(source).toContain('rectTransform.y="692"');
+        expect(source).toContain('rectTransform.width="420"');
+        expect(source).toContain('rectTransform.height="92"');
+        expect(source).not.toContain('rectTransform="[object Object]"');
+        expect(parseSceneTemplate(source)).toEqual(template);
+
+        const sceneInterfaces = {
+            'scenes/Button.scene': {
+                props: {
+                    text: { type: 'string' },
+                    rectTransform: {
+                        type: 'struct',
+                        struct: 'RectTransform',
+                        fields: {
+                            x: { type: 'number', default: 0 },
+                            y: { type: 'number', default: 0 },
+                            width: { type: 'number', default: 188 },
+                            height: { type: 'number', default: 48 },
+                        },
+                    },
+                },
+                events: {},
+                slots: {},
+            },
+        } satisfies Record<string, import('../packages/pixifact/src/compiler/spec').SceneTemplateInterface>;
+
+        expect(validateSceneContent({
+            scene: 'scenes/MainMenu.scene',
+            content: source,
+            sceneInterfaces,
+        })).toMatchObject({
+            ok: true,
+        });
+
+        const code = compileSceneTemplateToTs(template, {
+            sceneImports: [{
+                exportName: 'Button',
+                localName: 'Button',
+                source: '../src/scenes/Button',
+            }],
+            sceneClassAliases: {
+                'scenes/Button.scene': 'Button',
+            },
+            sceneInterfaces,
+        });
+
+        expect(code).toContain('import { Button, RectTransform } from "../src/scenes/Button";');
+        expect(code).toContain('const startButton = new Button();');
+        expect(code).toContain('startButton.text = "Restart";');
+        expect(code).toContain('const startButtonRectTransform = new RectTransform();');
+        expect(code).toContain('startButtonRectTransform.x = 150;');
+        expect(code).toContain('startButtonRectTransform.y = 692;');
+        expect(code).toContain('startButtonRectTransform.width = 420;');
+        expect(code).toContain('startButtonRectTransform.height = 92;');
+        expect(code).toContain('startButton.rectTransform = startButtonRectTransform;');
+        expect(code).not.toContain('startButton.rectTransform = {');
+
+        const anonymousCode = compileSceneTemplateToTs(parseSceneTemplate(`
+            <Scene name="MainMenu">
+              <Button scene="scenes/Button.scene" rectTransform.width="420" />
+            </Scene>
+        `), {
+            sceneImports: [{
+                exportName: 'Button',
+                localName: 'Button',
+                source: '../src/scenes/Button',
+            }],
+            sceneClassAliases: {
+                'scenes/Button.scene': 'Button',
+            },
+            sceneInterfaces,
+        });
+
+        expect(anonymousCode).toContain('const button1RectTransform = new RectTransform();');
+        expect(anonymousCode).toContain('button1RectTransform.width = 420;');
+        expect(anonymousCode).toContain('button1.rectTransform = button1RectTransform;');
+        expect(anonymousCode).not.toContain('button1.rectTransform = {');
+    });
+
+    it('rejects structured Scene instance props with unknown fields or invalid field values', () => {
+        const sceneInterfaces = {
+            'scenes/Button.scene': {
+                props: {
+                    rectTransform: {
+                        type: 'struct',
+                        struct: 'RectTransform',
+                        fields: {
+                            x: { type: 'number', default: 0 },
+                            y: { type: 'number', default: 0 },
+                            width: { type: 'number', default: 188 },
+                            height: { type: 'number', default: 48 },
+                        },
+                    },
+                },
+                events: {},
+                slots: {},
+            },
+        } satisfies Record<string, import('../packages/pixifact/src/compiler/spec').SceneTemplateInterface>;
+
+        const result = validateSceneContent({
+            scene: 'scenes/MainMenu.scene',
+            content: '<Scene name="MainMenu"><Button id="start" scene="scenes/Button.scene" rectTransform.foo="1" rectTransform.width="wide" /></Scene>',
+            sceneInterfaces,
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            diagnostics: [
+                {
+                    path: '0:start',
+                    prop: 'rectTransform.foo',
+                    expected: 'field declared by RectTransform',
+                    actual: 'unknown field',
+                },
+                {
+                    path: '0:start',
+                    prop: 'rectTransform.width',
+                    expected: 'number',
+                    actual: 'string',
+                },
+            ],
+        });
+    });
+
     it('compiles PixiJS sprite and text variants', () => {
         const template = parseSceneTemplate(`
             <Scene name="PixiVariants">
@@ -494,7 +640,7 @@ describe('Pixifact scene compiler spike', () => {
 
             readyText = '';
 
-            @prop({ type: 'string', default: 'Play' })
+            @prop({ type: String, default: 'Play' })
             set labelTextValue(value: string) {
                 this.labelText.text = value;
             }
@@ -628,7 +774,7 @@ describe('Pixifact scene compiler spike', () => {
                     @part()
                     protected declare labelText: Text;
 
-                    @prop({ type: 'string', default: 'Button' })
+                    @prop({ type: String, default: 'Button' })
                     accessor label = 'Button';
 
                     @event()

@@ -345,6 +345,15 @@ function compilerField(key: string, value: unknown, type?: string): InspectorFie
     };
 }
 
+function compilerPropValue(node: Exclude<SelectedCompilerItem, SelectedCompilerSlot | undefined>, key: string) {
+    const [root, field, ...rest] = key.split('.');
+    if (!field || rest.length > 0) {
+        return node.props[key];
+    }
+    const value = node.props[root];
+    return value && typeof value === 'object' ? (value as Record<string, unknown>)[field] : undefined;
+}
+
 function compilerTransformFieldValue(node: Exclude<SelectedCompilerItem, SelectedCompilerSlot | undefined>, key: string) {
     const value = node.props[key];
     if (value !== undefined) {
@@ -425,10 +434,26 @@ function compilerPropSections(node: SelectedCompilerItem, sceneInterface?: Compi
         return [];
     }
     if (node.kind === 'sceneInstance' && sceneInterface) {
-        return [{
-            title: 'Props',
-            fields: Object.entries(sceneInterface.props).map(([key, contract]) => compilerField(key, node.props[key] ?? contract.default, contract.type)),
-        }];
+        const propFields: InspectorFieldModel[] = [];
+        const structSections: CompilerFieldSection[] = [];
+        for (const [key, contract] of Object.entries(sceneInterface.props)) {
+            if (contract.type === 'struct') {
+                structSections.push({
+                    title: contract.struct,
+                    fields: Object.entries(contract.fields).map(([fieldKey, fieldContract]) => compilerField(
+                        `${key}.${fieldKey}`,
+                        compilerPropValue(node, `${key}.${fieldKey}`) ?? fieldContract.default,
+                        fieldContract.type,
+                    )),
+                });
+                continue;
+            }
+            propFields.push(compilerField(key, node.props[key] ?? contract.default, contract.type));
+        }
+        return [
+            ...structSections,
+            ...(propFields.length ? [{ title: 'Props', fields: propFields }] : []),
+        ];
     }
     const typeKeys = node.kind === 'pixi' && isPixiSceneNodeType(node.type)
         ? pixiSceneNodePropKeys(node.type)

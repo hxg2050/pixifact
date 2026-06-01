@@ -340,7 +340,7 @@ describe('Pixifact CLI', () => {
                 @part()
                 protected declare labelText: Text;
 
-                @prop({ type: 'string', default: 'Button' })
+                @prop({ type: String, default: 'Button' })
                 accessor label = 'Button';
             }
         `);
@@ -627,7 +627,7 @@ describe('Pixifact CLI', () => {
             '',
             '@scene()',
             'export class Button extends Container {',
-            '  @prop({ type: "string", default: "Button" })',
+            '  @prop({ type: String, default: "Button" })',
             '  accessor label = "Button";',
             '}',
             '',
@@ -946,7 +946,7 @@ describe('Pixifact CLI', () => {
             '',
             '@scene()',
             'export class PrimaryButton extends Container {',
-            '  @prop({ type: "string", default: "Button" })',
+            '  @prop({ type: String, default: "Button" })',
             '  accessor label = "Button";',
             '}',
             '',

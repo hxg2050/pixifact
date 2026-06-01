@@ -18,22 +18,22 @@ export class Hud extends Container {
     @part()
     protected declare timeText: Text;
 
-    @prop({ type: 'number', default: 100 })
+    @prop({ type: Number, default: 100 })
     set hp(value: number) {
         this.hpFill.width = 548 * Math.max(0, Math.min(1, value / 100));
     }
 
-    @prop({ type: 'number', default: 0 })
+    @prop({ type: Number, default: 0 })
     set score(value: number) {
         this.scoreText.text = Math.floor(value).toString().padStart(6, '0');
     }
 
-    @prop({ type: 'number', default: 1 })
+    @prop({ type: Number, default: 1 })
     set wave(value: number) {
         this.waveText.text = Math.max(1, Math.floor(value)).toString().padStart(2, '0');
     }
 
-    @prop({ type: 'number', default: 0 })
+    @prop({ type: Number, default: 0 })
     set time(value: number) {
         const total = Math.max(0, Math.floor(value));
         const minutes = Math.floor(total / 60).toString().padStart(2, '0');
@@ -41,7 +41,7 @@ export class Hud extends Container {
         this.timeText.text = `${minutes}:${seconds}`;
     }
 
-    @prop({ type: 'number', default: 100 })
+    @prop({ type: Number, default: 100 })
     set energy(value: number) {
         this.energyFill.width = 500 * Math.max(0, Math.min(1, value / 100));
     }

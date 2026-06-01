@@ -6,7 +6,7 @@ export class Panel extends Container {
     @part()
     protected declare titleText: Text;
 
-    @prop({ type: 'string', default: 'Panel' })
+    @prop({ type: String, default: 'Panel' })
     set title(value: string) {
         this.titleText.text = value;
     }

@@ -5,7 +5,6 @@ import type {
     SceneTemplateInterface,
     SceneTemplateNode,
     SceneTemplateValue,
-    SlotOutletTemplateNode,
 } from '../spec';
 
 export type CompilerSceneSelection =
@@ -269,12 +268,8 @@ function setSceneName(template: SceneTemplate, command: Extract<CompilerSceneCom
 }
 
 function setSceneProp(template: SceneTemplate, command: Extract<CompilerSceneCommand, { op: 'setSceneProp' }>): CompilerSceneCommandResult {
-    const previous = template.props[command.prop];
-    if (command.value === undefined) {
-        delete template.props[command.prop];
-    } else {
-        template.props[command.prop] = command.value;
-    }
+    const previous = getPropPathValue(template.props, command.prop);
+    setPropPathValue(template.props, command.prop, command.value);
     return {
         ok: true,
         command,
@@ -320,12 +315,8 @@ function setNodeProp(
     if (!located || located.node.kind === 'slotOutlet') {
         return { ok: false, command, error: 'Node was not found.' };
     }
-    const previous = located.node.props[command.prop];
-    if (command.value === undefined) {
-        delete located.node.props[command.prop];
-    } else {
-        located.node.props[command.prop] = command.value;
-    }
+    const previous = getPropPathValue(located.node.props, command.prop);
+    setPropPathValue(located.node.props, command.prop, command.value);
     return {
         ok: true,
         command,
@@ -337,6 +328,41 @@ function setNodeProp(
         },
         selection: { type: 'node', node: command.node },
     };
+}
+
+function getPropPathValue(props: Record<string, SceneTemplateValue>, prop: string): SceneTemplateValue | undefined {
+    const [root, field, ...rest] = prop.split('.');
+    if (!field || rest.length > 0) {
+        return props[prop];
+    }
+    const value = props[root];
+    return value && typeof value === 'object' ? value[field] : undefined;
+}
+
+function setPropPathValue(props: Record<string, SceneTemplateValue>, prop: string, value: SceneTemplateValue | undefined) {
+    const [root, field, ...rest] = prop.split('.');
+    if (!field || rest.length > 0) {
+        if (value === undefined) {
+            delete props[prop];
+        } else {
+            props[prop] = value;
+        }
+        return;
+    }
+    const current = props[root];
+    const objectValue = current && typeof current === 'object'
+        ? { ...current }
+        : {};
+    if (value === undefined) {
+        delete objectValue[field];
+    } else if (typeof value !== 'object') {
+        objectValue[field] = value;
+    }
+    if (Object.keys(objectValue).length === 0) {
+        delete props[root];
+    } else {
+        props[root] = objectValue;
+    }
 }
 
 function setNodeEvent(

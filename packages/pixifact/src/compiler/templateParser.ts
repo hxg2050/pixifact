@@ -120,7 +120,28 @@ function parseProps(
         if (omitted.includes(name) || shouldOmit(name)) {
             continue;
         }
-        props[name] = parseAttributeValue(name, value);
+        const parsed = parseAttributeValue(name, value);
+        const path = name.split('.');
+        if (path.length === 1) {
+            if (props[name] && typeof props[name] === 'object') {
+                throw new Error(`Prop "${name}" cannot be both scalar and structured.`);
+            }
+            props[name] = parsed;
+            continue;
+        }
+        const [root, field, ...rest] = path;
+        if (!root || !field || rest.length > 0) {
+            throw new Error(`Unsupported structured prop path "${name}".`);
+        }
+        if (props[root] !== undefined && typeof props[root] !== 'object') {
+            throw new Error(`Prop "${root}" cannot be both scalar and structured.`);
+        }
+        if (typeof parsed === 'object') {
+            throw new Error(`Structured prop field "${name}" cannot contain an object value.`);
+        }
+        const objectValue = (props[root] ?? {}) as Record<string, string | number | boolean>;
+        objectValue[field] = parsed;
+        props[root] = objectValue;
     }
     return props;
 }

@@ -78,6 +78,7 @@ export async function compileScenes(options: CompileScenesOptions) {
             },
             sceneImports: sceneImportsFor(template, templates, projectRoot, generatedFileDir),
             sceneClassAliases: sceneClassAliasesFor(template),
+            sceneInterfaces: sceneInterfacesFor(template, templates),
             textureImports: textureImportsFor(template, projectRoot, generatedFileDir),
         });
 
@@ -195,6 +196,18 @@ function sceneImportsFor(
 function sceneClassAliasesFor(template: SceneTemplate) {
     return Object.fromEntries(
         [...collectSceneInstancePaths(template.children)].map((scenePath) => [scenePath, sceneClassAlias(scenePath)]),
+    );
+}
+
+function sceneInterfacesFor(template: SceneTemplate, templates: Map<string, SceneTemplate>) {
+    return Object.fromEntries(
+        [...collectSceneInstancePaths(template.children)].map((scenePath) => {
+            const sceneTemplate = templates.get(scenePath);
+            if (!sceneTemplate) {
+                throw new Error(`Scene "${template.name}" references unknown Scene "${scenePath}".`);
+            }
+            return [scenePath, sceneTemplate.interface];
+        }),
     );
 }
 

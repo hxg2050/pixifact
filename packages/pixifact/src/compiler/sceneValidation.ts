@@ -1,4 +1,4 @@
-import type { SceneInstanceTemplateNode, SceneTemplate, SceneTemplateInterface, SceneTemplateNode, SceneTemplateValue } from './spec';
+import type { SceneInstanceTemplateNode, SceneTemplate, SceneTemplateInterface, SceneTemplateNode, SceneTemplatePropContract, SceneTemplateValue } from './spec';
 import {
     isPixiSceneNodeType,
     pixiSceneFieldSchema,
@@ -335,6 +335,10 @@ function validateSceneInstanceNode(
 
         const schema = pixiSceneFieldSchema(prop);
         const contract = sceneInterface.props[prop];
+        if (contract?.type === 'struct') {
+            diagnostics.push(...validateSceneInstanceStructProp(node, path, prop, value, contract));
+            continue;
+        }
         const expectedType = contract?.type ?? schema?.type;
         if (expectedType && !sceneValueMatchesContractType(value, expectedType, schema?.options)) {
             diagnostics.push({
@@ -371,6 +375,48 @@ function validateSceneInstanceNode(
         }
     }
 
+    return diagnostics;
+}
+
+function validateSceneInstanceStructProp(
+    node: SceneInstanceTemplateNode,
+    path: string,
+    prop: string,
+    value: SceneTemplateValue,
+    contract: Extract<SceneTemplatePropContract, { type: 'struct' }>,
+): SceneValidationDiagnostic[] {
+    if (!value || typeof value !== 'object') {
+        return [{
+            path,
+            prop,
+            expected: contract.struct,
+            actual: sceneValueType(value),
+            hint: `Set ${node.type}.${prop} fields using dot-path attributes such as ${prop}.x="0".`,
+        }];
+    }
+    const diagnostics: SceneValidationDiagnostic[] = [];
+    for (const [field, fieldValue] of Object.entries(value)) {
+        const fieldContract = contract.fields[field];
+        if (!fieldContract) {
+            diagnostics.push({
+                path,
+                prop: `${prop}.${field}`,
+                expected: `field declared by ${contract.struct}`,
+                actual: 'unknown field',
+                hint: `Use one of ${Object.keys(contract.fields).map((name) => JSON.stringify(name)).join(', ')}.`,
+            });
+            continue;
+        }
+        if (!sceneValueMatchesContractType(fieldValue, fieldContract.type)) {
+            diagnostics.push({
+                path,
+                prop: `${prop}.${field}`,
+                expected: fieldContract.type,
+                actual: sceneValueType(fieldValue),
+                hint: `Set ${node.type}.${prop}.${field} to ${fieldTypeDescription(fieldContract.type)}.`,
+            });
+        }
+    }
     return diagnostics;
 }
 
@@ -442,6 +488,9 @@ function sceneValueMatchesContractType(value: SceneTemplateValue, type: string, 
 }
 
 function sceneValueType(value: SceneTemplateValue) {
+    if (value && typeof value === 'object') {
+        return 'object';
+    }
     return typeof value;
 }
 

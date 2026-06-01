@@ -10,12 +10,31 @@ export type SceneTemplatePrimitiveType =
     | 'TilingSprite'
     | 'DOMContainer';
 
-export type SceneTemplateValue = string | number | boolean;
+export type SceneTemplateScalarValue = string | number | boolean;
+export type SceneTemplateStructValue = Record<string, SceneTemplateScalarValue>;
+export type SceneTemplateValue = SceneTemplateScalarValue | SceneTemplateStructValue;
 
-export interface SceneTemplatePropContract {
-    type: string;
-    default?: SceneTemplateValue;
+export type SceneTemplatePrimitivePropType = 'string' | 'number' | 'boolean';
+
+export interface SceneTemplatePrimitivePropContract {
+    type: SceneTemplatePrimitivePropType;
+    default?: SceneTemplateScalarValue;
 }
+
+export interface SceneTemplateStructFieldContract {
+    type: SceneTemplatePrimitivePropType;
+    default: SceneTemplateScalarValue;
+}
+
+export interface SceneTemplateStructPropContract {
+    type: 'struct';
+    struct: string;
+    fields: Record<string, SceneTemplateStructFieldContract>;
+}
+
+export type SceneTemplatePropContract =
+    | SceneTemplatePrimitivePropContract
+    | SceneTemplateStructPropContract;
 
 export interface SceneTemplateEventContract {
     type: 'action';
@@ -79,6 +98,7 @@ export interface CompileSceneTemplateOptions {
     scriptImport?: SceneTemplateScriptImport;
     sceneImports?: SceneTemplateScriptImport[];
     sceneClassAliases?: Record<string, string>;
+    sceneInterfaces?: Record<string, SceneTemplateInterface>;
     textureImports?: Record<string, string>;
 }
 
@@ -91,9 +111,11 @@ export interface SceneScriptInterface {
 
 export type SceneClassDecorator = ClassDecorator;
 export type SceneMemberDecorator = PropertyDecorator & MethodDecorator;
+export type SceneStructConstructor = new () => object;
+export type ScenePropType = StringConstructor | NumberConstructor | BooleanConstructor | SceneStructConstructor;
 
 export interface ScenePropDecoratorOptions {
-    type: string;
+    type: ScenePropType;
     default?: SceneTemplateValue;
 }
 

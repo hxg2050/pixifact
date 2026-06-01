@@ -99,6 +99,32 @@ describe('compiler scene commands', () => {
         });
     });
 
+    it('applies nested node property commands with inverse commands', () => {
+        const document = template();
+
+        const result = applyCompilerSceneCommand(document, {
+            op: 'setNodeProp',
+            node: '0:panel',
+            prop: 'rectTransform.width',
+            value: 420,
+        });
+
+        expect(result.ok).toBe(true);
+        expect(document.children[0]).toMatchObject({
+            props: {
+                rectTransform: {
+                    width: 420,
+                },
+            },
+        });
+
+        const undo = result.ok ? applyCompilerSceneCommand(document, result.inverse) : undefined;
+        expect(undo?.ok).toBe(true);
+        expect(document.children[0]).toMatchObject({
+            props: {},
+        });
+    });
+
     it('retargets inverse commands when id or slot locators change', () => {
         const document = template();
 

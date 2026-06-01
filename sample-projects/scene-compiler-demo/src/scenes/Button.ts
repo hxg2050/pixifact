@@ -26,12 +26,12 @@ export class Button extends Container {
         });
     }
 
-    @prop({ type: 'string', default: 'Button' })
+    @prop({ type: String, default: 'Button' })
     set label(value: string) {
         this.labelText.text = value;
     }
 
-    @prop({ type: 'boolean', default: false })
+    @prop({ type: Boolean, default: false })
     set disabled(value: boolean) {
         this.alpha = value ? 0.48 : 1;
         this.eventMode = value ? 'none' : 'static';

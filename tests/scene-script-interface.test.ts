@@ -17,10 +17,10 @@ describe('scene script interface extractor', () => {
 
             @scene()
             export class Button extends Container {
-                @prop({ type: 'string', default: 'Button' })
+                @prop({ type: String, default: 'Button' })
                 accessor label = 'Button';
 
-                @prop({ type: 'boolean', default: false })
+                @prop({ type: Boolean, default: false })
                 accessor disabled = false;
 
                 @event()
@@ -93,7 +93,7 @@ describe('scene script interface extractor', () => {
         const descriptor = emitSceneScriptInterfaceDescriptor(`
             @scene()
             export class Button {
-                @prop({ type: 'string', default: 'Button' })
+                @prop({ type: String, default: 'Button' })
                 accessor label = 'Button';
 
                 @event()
@@ -132,14 +132,14 @@ describe('scene script interface extractor', () => {
         expect(typeof scene()).toBe('function');
         expect(typeof part()).toBe('function');
         expect(typeof part({ id: 'labelText' })).toBe('function');
-        expect(typeof prop({ type: 'string', default: 'Button' })).toBe('function');
+        expect(typeof prop({ type: String, default: 'Button' })).toBe('function');
         expect(typeof event()).toBe('function');
         expect(typeof slot()).toBe('function');
     });
 
     it('rejects non-literal decorator options', () => {
         expect(() => extractSceneScriptInterface(`
-            const defaults = { type: 'string' };
+            const defaults = { type: String };
 
             @scene()
             export class Button {
@@ -147,6 +147,93 @@ describe('scene script interface extractor', () => {
                 accessor label = 'Button';
             }
         `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('@prop argument must be an object literal.');
+    });
+
+    it('rejects legacy string prop type declarations', () => {
+        expect(() => extractSceneScriptInterface(`
+            @scene()
+            export class Button {
+                @prop({ type: 'string', default: 'Button' })
+                accessor label = 'Button';
+            }
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('@prop type must be String, Number, Boolean, or a struct class.');
+    });
+
+    it('extracts RectTransform struct props from constructor type declarations', () => {
+        const contract = extractSceneScriptInterface(`
+            export class RectTransform {
+                x = 0;
+                y = 0;
+                width = 188;
+                height = 48;
+
+                reset() {
+                    this.x = 0;
+                }
+            }
+
+            @scene()
+            export class Button {
+                @prop({ type: RectTransform })
+                set rectTransform(value: RectTransform) {}
+            }
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' });
+
+        expect(contract.interface.props.rectTransform).toEqual({
+            type: 'struct',
+            struct: 'RectTransform',
+            fields: {
+                x: { type: 'number', default: 0 },
+                y: { type: 'number', default: 0 },
+                width: { type: 'number', default: 188 },
+                height: { type: 'number', default: 48 },
+            },
+        });
+    });
+
+    it('rejects struct props with required constructor parameters', () => {
+        expect(() => extractSceneScriptInterface(`
+            export class RectTransform {
+                x = 0;
+                constructor(x: number) {
+                    this.x = x;
+                }
+            }
+
+            @scene()
+            export class Button {
+                @prop({ type: RectTransform })
+                set rectTransform(value: RectTransform) {}
+            }
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('Struct prop type RectTransform must be constructable with no required parameters.');
+    });
+
+    it('rejects struct props that are not exported', () => {
+        expect(() => extractSceneScriptInterface(`
+            class RectTransform {
+                x = 0;
+            }
+
+            @scene()
+            export class Button {
+                @prop({ type: RectTransform })
+                set rectTransform(value: RectTransform) {}
+            }
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('Struct prop type RectTransform must be exported.');
+    });
+
+    it('rejects struct prop defaults', () => {
+        expect(() => extractSceneScriptInterface(`
+            export class RectTransform {
+                x = 0;
+            }
+
+            @scene()
+            export class Button {
+                @prop({ type: RectTransform, default: 0 })
+                set rectTransform(value: RectTransform) {}
+            }
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('@prop default is only supported for primitive props.');
     });
 
     it('rejects @scene arguments because scripts are paired with colocated .scene files', () => {

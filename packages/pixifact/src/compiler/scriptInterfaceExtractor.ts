@@ -2,7 +2,9 @@ import ts from 'typescript';
 import type {
     SceneScriptInterface,
     SceneTemplateEventContract,
+    SceneTemplatePrimitivePropType,
     SceneTemplatePropContract,
+    SceneTemplateScalarValue,
     SceneTemplateSlotContract,
     SceneTemplateValue,
 } from './spec';
@@ -17,6 +19,7 @@ export function extractSceneScriptInterface(
     options: ExtractSceneScriptInterfaceOptions,
 ): SceneScriptInterface {
     const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const structClasses = collectStructClasses(sourceFile);
 
     for (const statement of sourceFile.statements) {
         if (!ts.isClassDeclaration(statement)) {
@@ -43,10 +46,7 @@ export function extractSceneScriptInterface(
 
             const prop = memberDecoratorOptions(member, 'prop');
             if (prop) {
-                props[name] = {
-                    type: requiredString(prop, 'type', 'prop'),
-                    ...(prop.default !== undefined ? { default: prop.default } : {}),
-                };
+                props[name] = propContract(prop, structClasses);
             }
 
             const event = memberDecoratorOptions(member, 'event');
@@ -145,11 +145,148 @@ function memberName(name: ts.PropertyName | undefined) {
     return undefined;
 }
 
-function objectLiteralValue(expression: ts.Expression, label: string) {
+interface DecoratorObjectValue {
+    [key: string]: DecoratorValue;
+}
+
+type DecoratorValue = SceneTemplateValue | ts.Identifier;
+
+interface StructClassInfo {
+    exported: boolean;
+    node: ts.ClassDeclaration;
+}
+
+interface StructContractInfo {
+    fields: Record<string, {
+        type: SceneTemplatePrimitivePropType;
+        default: SceneTemplateScalarValue;
+    }>;
+    hasRequiredConstructorParameters: boolean;
+}
+
+function collectStructClasses(sourceFile: ts.SourceFile) {
+    const classes = new Map<string, StructClassInfo>();
+    for (const statement of sourceFile.statements) {
+        if (!ts.isClassDeclaration(statement) || !statement.name) {
+            continue;
+        }
+        classes.set(statement.name.text, {
+            exported: statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false,
+            node: statement,
+        });
+    }
+    return classes;
+}
+
+function structFields(node: ts.ClassDeclaration) {
+    const fields: StructContractInfo['fields'] = {};
+    for (const member of node.members) {
+        if (!ts.isPropertyDeclaration(member)) {
+            continue;
+        }
+        const name = memberName(member.name);
+        if (!name) {
+            throw new Error(`Struct prop type ${node.name?.text ?? 'anonymous'} only supports literal field names.`);
+        }
+        if (!member.initializer) {
+            throw new Error(`Struct prop type ${node.name?.text ?? 'anonymous'} field ${name} requires a primitive initializer.`);
+        }
+        const value = literalValue(member.initializer, `struct ${node.name?.text ?? 'anonymous'}.${name}`);
+        if (!isSceneTemplateScalarValue(value)) {
+            throw new Error(`Struct prop type ${node.name?.text ?? 'anonymous'} field ${name} requires a primitive initializer.`);
+        }
+        fields[name] = {
+            type: sceneTemplateScalarType(value),
+            default: value,
+        };
+    }
+    return fields;
+}
+
+function propContract(prop: DecoratorObjectValue, structClasses: ReadonlyMap<string, StructClassInfo>): SceneTemplatePropContract {
+    const type = prop.type;
+    const defaultValue = prop.default;
+    if (type === 'string' || type === 'number' || type === 'boolean') {
+        throw new Error('@prop type must be String, Number, Boolean, or a struct class.');
+    }
+    if (!isIdentifierValue(type)) {
+        throw new Error('@prop type must be String, Number, Boolean, or a struct class.');
+    }
+    const primitiveType = primitiveConstructorType(type.text);
+    if (primitiveType) {
+        if (defaultValue !== undefined && (!isSceneTemplateScalarValue(defaultValue) || sceneTemplateScalarType(defaultValue) !== primitiveType)) {
+            throw new Error(`@prop default for ${type.text} must be a ${primitiveType} literal.`);
+        }
+        return {
+            type: primitiveType,
+            ...(defaultValue !== undefined ? { default: defaultValue } : {}),
+        };
+    }
+
+    const structClass = structClasses.get(type.text);
+    if (!structClass) {
+        throw new Error(`Struct prop type ${type.text} was not found.`);
+    }
+    if (!structClass.exported) {
+        throw new Error(`Struct prop type ${type.text} must be exported.`);
+    }
+    if (defaultValue !== undefined) {
+        throw new Error('@prop default is only supported for primitive props.');
+    }
+    const struct = structContractInfo(structClass.node);
+    if (struct.hasRequiredConstructorParameters) {
+        throw new Error(`Struct prop type ${type.text} must be constructable with no required parameters.`);
+    }
+    return {
+        type: 'struct',
+        struct: type.text,
+        fields: struct.fields,
+    };
+}
+
+function structContractInfo(node: ts.ClassDeclaration): StructContractInfo {
+    return {
+        fields: structFields(node),
+        hasRequiredConstructorParameters: node.members.some((member) => ts.isConstructorDeclaration(member) && member.parameters.some((parameter) => !parameter.questionToken && !parameter.initializer)),
+    };
+}
+
+function primitiveConstructorType(name: string): SceneTemplatePrimitivePropType | undefined {
+    if (name === 'String') {
+        return 'string';
+    }
+    if (name === 'Number') {
+        return 'number';
+    }
+    if (name === 'Boolean') {
+        return 'boolean';
+    }
+    return undefined;
+}
+
+function isIdentifierValue(value: DecoratorValue): value is ts.Identifier {
+    return ts.isIdentifier(value as ts.Node);
+}
+
+function isSceneTemplateScalarValue(value: DecoratorValue): value is SceneTemplateScalarValue {
+    return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+}
+
+function sceneTemplateScalarType(value: SceneTemplateScalarValue): SceneTemplatePrimitivePropType {
+    if (typeof value === 'string') {
+        return 'string';
+    }
+    if (typeof value === 'number') {
+        return 'number';
+    }
+    return 'boolean';
+}
+
+function objectLiteralValue(expression: ts.Expression, label: string): DecoratorObjectValue {
     if (!ts.isObjectLiteralExpression(expression)) {
         throw new Error(`${label} must be an object literal.`);
     }
-    const result: Record<string, SceneTemplateValue> = {};
+    const result: DecoratorObjectValue = {};
     for (const property of expression.properties) {
         if (!ts.isPropertyAssignment(property)) {
             throw new Error(`${label} only supports property assignments.`);
@@ -158,9 +295,16 @@ function objectLiteralValue(expression: ts.Expression, label: string) {
         if (!name) {
             throw new Error(`${label} only supports literal property names.`);
         }
-        result[name] = literalValue(property.initializer, `${label}.${name}`);
+        result[name] = decoratorValue(property.initializer, `${label}.${name}`);
     }
     return result;
+}
+
+function decoratorValue(expression: ts.Expression, label: string): DecoratorValue {
+    if (ts.isIdentifier(expression)) {
+        return expression;
+    }
+    return literalValue(expression, label);
 }
 
 function literalValue(expression: ts.Expression, label: string): SceneTemplateValue {
@@ -180,12 +324,4 @@ function literalValue(expression: ts.Expression, label: string): SceneTemplateVa
         return -Number(expression.operand.text);
     }
     throw new Error(`${label} must be a string, number, or boolean literal.`);
-}
-
-function requiredString(options: Record<string, SceneTemplateValue>, key: string, label: string) {
-    const value = options[key];
-    if (typeof value !== 'string') {
-        throw new Error(`@${label} requires string ${key}.`);
-    }
-    return value;
 }

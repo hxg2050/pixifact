@@ -26,7 +26,7 @@ export class GameOver extends Container {
         });
     }
 
-    @prop({ type: 'number', default: 0 })
+    @prop({ type: Number, default: 0 })
     set finalScore(value: number) {
         this.scoreText.text = Math.floor(value).toString().padStart(6, '0');
     }

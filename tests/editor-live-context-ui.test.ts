@@ -172,7 +172,7 @@ function childScriptSource() {
         'import { prop, scene } from "pixifact/compiler";',
         '@scene()',
         'export class Child extends Container {',
-        '  @prop({ type: "string", default: "Child" })',
+        '  @prop({ type: String, default: "Child" })',
         '  accessor label = "Child";',
         '}',
     ].join('\n');

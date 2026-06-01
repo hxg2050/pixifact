@@ -337,11 +337,11 @@ function buttonSceneScript(options: { disabled?: boolean } = {}) {
         @part()
         protected declare labelText: Text;
 
-        @prop({ type: 'string', default: 'Button' })
+        @prop({ type: String, default: 'Button' })
         accessor label = 'Button';
 
         ${options.disabled ? `
-        @prop({ type: 'boolean', default: false })
+        @prop({ type: Boolean, default: false })
         accessor disabled = false;
         ` : ''}
 
@@ -1074,7 +1074,7 @@ describe('project file tree service', () => {
         const opened = await openCompilerSceneFile(tree, sceneFile!);
         await openCompilerSceneScriptFile(tree, opened.template, sceneFile);
         await host.writeProjectFileText('/tmp/GameProject', 'GameProject/src/scenes/Button.ts', sceneScriptSource('Button', `
-            @prop({ type: 'boolean', default: false })
+            @prop({ type: Boolean, default: false })
             accessor disabled = false;
         `));
         const { descriptor } = await refreshCompilerSceneBindingSnapshot(tree, sceneFile!, opened.template);

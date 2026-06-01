@@ -98,9 +98,18 @@ function serializeElement(
 }
 
 function serializeAttributes(attributes: TemplateAttribute[]) {
-    return attributes
+    return flattenAttributes(attributes)
         .map(([name, value]) => ` ${name}="${escapeAttribute(formatAttributeValue(name, value))}"`)
         .join('');
+}
+
+function flattenAttributes(attributes: TemplateAttribute[]) {
+    return attributes.flatMap(([name, value]) => {
+        if (!value || typeof value !== 'object') {
+            return [[name, value] as const];
+        }
+        return Object.entries(value).map(([field, fieldValue]) => [`${name}.${field}`, fieldValue] as const);
+    });
 }
 
 function formatAttributeValue(name: string, value: SceneTemplateValue) {
