@@ -169,7 +169,7 @@ export function selectCompilerSceneNode(node: string) {
 export function updateCompilerSceneTemplate(updates: {
     name?: string;
     props?: Record<string, SceneTemplateValue | undefined>;
-}) {
+}, options: CompilerSceneCommandStackOptions = {}) {
     const commands: CompilerSceneCommand[] = [];
     if (updates.name !== undefined) {
         commands.push({
@@ -188,7 +188,7 @@ export function updateCompilerSceneTemplate(updates: {
     if (!command) {
         return;
     }
-    executeCompilerSceneDocumentCommand(command);
+    executeCompilerSceneDocumentCommand(command, options);
 }
 
 export function refreshCompilerSceneDescriptor(descriptor: CompilerSceneScriptInterface) {
@@ -240,6 +240,7 @@ export function updateCompilerSceneNode(
         events?: Record<string, string | undefined>;
         props?: Record<string, SceneTemplateValue | undefined>;
     },
+    options: CompilerSceneCommandStackOptions = {},
 ) {
     const commands: CompilerSceneCommand[] = [];
     for (const [key, value] of Object.entries(updates.props ?? {})) {
@@ -276,7 +277,7 @@ export function updateCompilerSceneNode(
     if (!command) {
         return;
     }
-    executeCompilerSceneDocumentCommand(command);
+    executeCompilerSceneDocumentCommand(command, options);
 }
 
 export function createCompilerPixiTemplateNode(template: SceneTemplate, type: CompilerSceneAddablePixiType): CompilerSceneTemplateNode {

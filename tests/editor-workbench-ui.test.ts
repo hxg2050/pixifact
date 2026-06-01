@@ -403,6 +403,32 @@ describe('Editor workbench UI', () => {
         }
     });
 
+    it('auto commits Inspector text edits without pressing Enter', async () => {
+        selectCompilerSceneNode('0:label');
+        const view = await renderEditorApp();
+        vi.useFakeTimers();
+        try {
+            const textInput = view.container.querySelector('input[aria-label="text"]') as HTMLInputElement | null;
+            expect(textInput).toBeTruthy();
+
+            await act(async () => {
+                textInput!.focus();
+                fillInput(textInput!, 'Continue');
+                await Promise.resolve();
+            });
+            expect(getCompilerSceneDocument()?.template.children[0].props.text).toBe('Start');
+
+            await act(async () => {
+                vi.advanceTimersByTime(300);
+                await Promise.resolve();
+            });
+            expect(getCompilerSceneDocument()?.template.children[0].props.text).toBe('Continue');
+        } finally {
+            vi.useRealTimers();
+            await view.cleanup();
+        }
+    });
+
     it('creates a Scene from Project Shelf without opening it', async () => {
         const confirm = vi.fn(() => true);
         vi.stubGlobal('confirm', confirm);

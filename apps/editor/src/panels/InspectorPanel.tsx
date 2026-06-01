@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     compilerSceneNodeLocator,
     getCompilerSceneDocument,
@@ -479,10 +479,22 @@ function parseFieldValue(type: string, value: string) {
     }
 }
 
+function editableFieldDraftValue(field: InspectorFieldModel) {
+    return field.type === 'color' ? colorToInput(field.value) : field.value === undefined ? '' : String(field.value);
+}
+
+function editableFieldCommitKey(field: InspectorFieldModel) {
+    return `${field.key}:${field.type}`;
+}
+
 function fieldRowClassName(field: InspectorFieldModel) {
     return field.key === 'text' || field.key === 'src' || field.key === 'texture'
         ? 'editableFieldRow editableFieldRow--wide'
         : 'editableFieldRow';
+}
+
+interface InspectorFieldCommitOptions {
+    mergeKey?: string;
 }
 
 interface EditableFieldRowProps {
@@ -490,7 +502,7 @@ interface EditableFieldRowProps {
     field: InspectorFieldModel;
     warning?: string;
     locked?: boolean;
-    onCommit(value: unknown): void;
+    onCommit(value: unknown, options?: InspectorFieldCommitOptions): void;
     onAssetDrop?(path: string): void;
 }
 
@@ -504,20 +516,56 @@ function EditableFieldRow({
 }: EditableFieldRowProps) {
     const t = useI18n();
     const value = field.value;
-    const [draft, setDraft] = useState(() => field.type === 'color' ? colorToInput(value) : value === undefined ? '' : String(value));
+    const [draft, setDraft] = useState(() => editableFieldDraftValue(field));
+    const autoCommitTimer = useRef<number | undefined>(undefined);
+    const committedValue = useRef(value);
+    const editSession = useRef(0);
 
     useEffect(() => {
-        setDraft(field.type === 'color' ? colorToInput(field.value) : field.value === undefined ? '' : String(field.value));
+        committedValue.current = field.value;
+        setDraft(editableFieldDraftValue(field));
     }, [field.key, field.type, field.value]);
 
-    const commitDraft = () => {
-        const nextValue = parseFieldValue(field.type, draft);
+    useEffect(() => () => {
+        if (autoCommitTimer.current !== undefined) {
+            window.clearTimeout(autoCommitTimer.current);
+        }
+    }, []);
+
+    const commitDraft = (nextDraft = draft) => {
+        const nextValue = parseFieldValue(field.type, nextDraft);
         if (field.type === 'number' && typeof nextValue === 'number' && Number.isNaN(nextValue)) {
             return;
         }
-        if (nextValue !== value) {
-            onCommit(nextValue);
+        if (nextValue !== committedValue.current) {
+            committedValue.current = nextValue;
+            onCommit(nextValue, { mergeKey: `${editableFieldCommitKey(field)}:${editSession.current}` });
         }
+    };
+
+    const startEditSession = () => {
+        editSession.current += 1;
+    };
+
+    const commitDraftImmediately = () => {
+        if (autoCommitTimer.current !== undefined) {
+            window.clearTimeout(autoCommitTimer.current);
+            autoCommitTimer.current = undefined;
+        }
+        commitDraft();
+    };
+
+    const scheduleAutoCommit = (nextDraft: string) => {
+        if (field.type === 'color') {
+            return;
+        }
+        if (autoCommitTimer.current !== undefined) {
+            window.clearTimeout(autoCommitTimer.current);
+        }
+        autoCommitTimer.current = window.setTimeout(() => {
+            autoCommitTimer.current = undefined;
+            commitDraft(nextDraft);
+        }, 300);
     };
 
     let control;
@@ -552,14 +600,19 @@ function EditableFieldRow({
                 aria-label={label}
                 disabled={locked}
                 inputProps={{
-                    onBlur: commitDraft,
+                    onFocus: startEditSession,
+                    onBlur: commitDraftImmediately,
                     onKeyDown: (event) => {
                         if (event.key === 'Enter') {
                             event.currentTarget.blur();
                         }
                     },
                 }}
-                onChange={(nextValue) => setDraft(Number.isNaN(nextValue) ? '' : String(nextValue))}
+                onChange={(nextValue) => {
+                    const nextDraft = Number.isNaN(nextValue) ? '' : String(nextValue);
+                    setDraft(nextDraft);
+                    scheduleAutoCommit(nextDraft);
+                }}
                 value={draft.trim() === '' ? NaN : Number(draft)}
             />
         );
@@ -570,17 +623,20 @@ function EditableFieldRow({
                 disabled={locked}
                 inputProps={{
                     type: field.type === 'color' ? 'color' : 'text',
+                    onFocus: startEditSession,
                     onKeyDown: (event) => {
                         if (event.key === 'Enter') {
                             event.currentTarget.blur();
                         }
                     },
                 }}
-                onBlur={commitDraft}
+                onBlur={commitDraftImmediately}
                 onChange={(nextValue) => {
                     setDraft(nextValue);
                     if (field.type === 'color') {
-                        onCommit(parseFieldValue(field.type, nextValue));
+                        onCommit(parseFieldValue(field.type, nextValue), { mergeKey: `${editableFieldCommitKey(field)}:${editSession.current}` });
+                    } else {
+                        scheduleAutoCommit(nextValue);
                     }
                 }}
                 value={draft}
@@ -664,10 +720,19 @@ export function InspectorPanel() {
         const sceneSelected = !selectedCompiler;
         const canEditCompilerNode = compilerSelection && selectedCompiler && selectedCompiler.kind !== 'slot' && selectedCompiler.kind !== 'slotOutlet';
         const canEditCompilerSlotOutlet = compilerSelection && selectedCompiler?.kind === 'slotOutlet';
-        const commitCompilerSceneName = (value: unknown) => {
-            updateCompilerSceneTemplate({ name: typeof value === 'string' ? value : '' });
+        const mergeCompilerSceneField = (key: string, options?: InspectorFieldCommitOptions) => options?.mergeKey
+            ? { mergeKey: `inspector:scene:${key}:${options.mergeKey}` }
+            : undefined;
+        const mergeCompilerNodeField = (key: string, options?: InspectorFieldCommitOptions) => options?.mergeKey
+            ? { mergeKey: `inspector:node:${compilerSelection}:${key}:${options.mergeKey}` }
+            : undefined;
+        const mergeCompilerEventField = (key: string, options?: InspectorFieldCommitOptions) => options?.mergeKey
+            ? { mergeKey: `inspector:event:${compilerSelection}:${key}:${options.mergeKey}` }
+            : undefined;
+        const commitCompilerSceneName = (value: unknown, options?: InspectorFieldCommitOptions) => {
+            updateCompilerSceneTemplate({ name: typeof value === 'string' ? value : '' }, mergeCompilerSceneField('name', options));
         };
-        const commitCompilerSceneProp = (key: string, value: unknown) => {
+        const commitCompilerSceneProp = (key: string, value: unknown, options?: InspectorFieldCommitOptions) => {
             if (typeof value === 'object') {
                 return;
             }
@@ -675,15 +740,15 @@ export function InspectorPanel() {
                 props: {
                     [key]: value as string | number | boolean | undefined,
                 },
-            });
+            }, mergeCompilerSceneField(key, options));
         };
-        const commitCompilerId = (value: unknown) => {
+        const commitCompilerId = (value: unknown, options?: InspectorFieldCommitOptions) => {
             if (!canEditCompilerNode) {
                 return;
             }
-            updateCompilerSceneNode(compilerSelection, { id: typeof value === 'string' ? value : '' });
+            updateCompilerSceneNode(compilerSelection, { id: typeof value === 'string' ? value : '' }, mergeCompilerNodeField('id', options));
         };
-        const commitCompilerProp = (key: string, value: unknown) => {
+        const commitCompilerProp = (key: string, value: unknown, options?: InspectorFieldCommitOptions) => {
             if (!canEditCompilerNode || typeof value === 'object') {
                 return;
             }
@@ -691,7 +756,7 @@ export function InspectorPanel() {
                 props: {
                     [key]: value as string | number | boolean | undefined,
                 },
-            });
+            }, mergeCompilerNodeField(key, options));
         };
         const commitCompilerTextureAsset = (key: string, path: string) => {
             if (!projectTree) {
@@ -706,7 +771,7 @@ export function InspectorPanel() {
             commitCompilerProp(key, resolved.value);
             setError(undefined);
         };
-        const commitCompilerEvent = (key: string, value: unknown) => {
+        const commitCompilerEvent = (key: string, value: unknown, options?: InspectorFieldCommitOptions) => {
             if (!canEditCompilerNode || selectedCompiler?.kind !== 'sceneInstance') {
                 return;
             }
@@ -714,15 +779,15 @@ export function InspectorPanel() {
                 events: {
                     [key]: typeof value === 'string' ? value : undefined,
                 },
-            });
+            }, mergeCompilerEventField(key, options));
         };
-        const commitCompilerSlotName = (value: unknown) => {
+        const commitCompilerSlotName = (value: unknown, options?: InspectorFieldCommitOptions) => {
             if (!canEditCompilerSlotOutlet) {
                 return;
             }
             updateCompilerSceneNode(compilerSelection, {
                 slotName: typeof value === 'string' ? value : '',
-            });
+            }, mergeCompilerNodeField('slotName', options));
         };
         const openCompilerScript = async () => {
             if (!projectTree) {
@@ -758,12 +823,12 @@ export function InspectorPanel() {
                             <EditableFieldRow
                                 field={compilerField('width', compilerDocument.template.props.width)}
                                 label="width"
-                                onCommit={(value) => commitCompilerSceneProp('width', value)}
+                                onCommit={(value, options) => commitCompilerSceneProp('width', value, options)}
                             />
                             <EditableFieldRow
                                 field={compilerField('height', compilerDocument.template.props.height)}
                                 label="height"
-                                onCommit={(value) => commitCompilerSceneProp('height', value)}
+                                onCommit={(value, options) => commitCompilerSceneProp('height', value, options)}
                             />
                         </div>
                     </section>
@@ -808,7 +873,7 @@ export function InspectorPanel() {
                                             field={field}
                                             key={field.key}
                                             label={field.label}
-                                            onCommit={(value) => commitCompilerProp(field.key, value)}
+                                            onCommit={(value, options) => commitCompilerProp(field.key, value, options)}
                                         />
                                     ))}
                                 </div>
@@ -823,7 +888,7 @@ export function InspectorPanel() {
                                             field={field}
                                             key={field.key}
                                             label={field.label}
-                                            onCommit={(value) => commitCompilerProp(field.key, value)}
+                                            onCommit={(value, options) => commitCompilerProp(field.key, value, options)}
                                         />
                                     ))}
                                 </div>
@@ -842,7 +907,7 @@ export function InspectorPanel() {
                                                 onAssetDrop={field.key === 'texture'
                                                     ? (path) => commitCompilerTextureAsset(field.key, path)
                                                     : undefined}
-                                                onCommit={(value) => commitCompilerProp(field.key, value)}
+                                                onCommit={(value, options) => commitCompilerProp(field.key, value, options)}
                                             />
                                         ))}
                                     </div>
@@ -858,7 +923,7 @@ export function InspectorPanel() {
                                             field={field}
                                             key={`event:${field.key}`}
                                             label={field.label}
-                                            onCommit={(value) => commitCompilerEvent(field.key, value)}
+                                            onCommit={(value, options) => commitCompilerEvent(field.key, value, options)}
                                         />
                                     ))}
                                 </div>
