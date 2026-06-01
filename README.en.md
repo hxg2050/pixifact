@@ -151,11 +151,7 @@ Install from the source checkout:
 bun run skills:install
 ```
 
-Install from the published package:
-
-```bash
-bunx --package pixifact pixifact-skills --replace
-```
+Installing from npm will be provided later by a separate `pixifact-skills` package. The first npm release only includes the runtime package, CLI, and project scaffold.
 
 ## License
 

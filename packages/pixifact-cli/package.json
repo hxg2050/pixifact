@@ -2,6 +2,7 @@
   "name": "pixifact-cli",
   "version": "0.1.3",
   "description": "CLI for Pixifact Scene automation.",
+  "packageManager": "bun@1.3.13",
   "type": "module",
   "bin": {
     "pixifact": "./src/pixifact-cli.ts"
@@ -9,6 +10,23 @@
   "files": [
     "src/"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hxg2050/pixifact.git",
+    "directory": "packages/pixifact-cli"
+  },
+  "keywords": [
+    "pixifact",
+    "scene",
+    "cli",
+    "pixijs",
+    "game-editor"
+  ],
+  "author": "youxia <243802688@qq.com>",
+  "license": "MIT",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "start": "bun src/pixifact-cli.ts"
   },
