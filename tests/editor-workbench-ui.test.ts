@@ -7,6 +7,7 @@ import type { ProjectFileTreeNode } from '../apps/editor/src/services/projectFil
 import { useEditorStore } from '../apps/editor/src/editorStore';
 import { EditorApp } from '../apps/editor/src/EditorApp';
 import {
+    getCompilerSceneDocument,
     loadCompilerSceneDocument,
     resetCompilerSceneDocument,
     updateCompilerSceneTemplate,
@@ -234,8 +235,12 @@ function fillInput(input: HTMLInputElement, value: string) {
     input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-function keyDown(element: Element, key: string) {
-    element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key }));
+function keyDown(target: EventTarget, key: string, options: KeyboardEventInit = {}) {
+    target.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key, ...options }));
+}
+
+function buttonDisabled(button: Element | null | undefined) {
+    return button?.hasAttribute('disabled') || button?.getAttribute('aria-disabled') === 'true';
 }
 
 beforeEach(() => {
@@ -538,8 +543,42 @@ describe('Editor workbench UI', () => {
             expect(topbar?.textContent).not.toContain('Agent Bridge');
             expect(topbar?.textContent).not.toContain('Sync:');
             expect(topbar?.textContent).not.toContain('重置示例');
-            expect(topbar?.querySelector('[aria-label="撤销"]')).toBeFalsy();
-            expect(topbar?.querySelector('[aria-label="重做"]')).toBeFalsy();
+            expect(topbar?.querySelector('[aria-label="撤销"]')).toBeTruthy();
+            expect(topbar?.querySelector('[aria-label="重做"]')).toBeTruthy();
+            expect(buttonDisabled(topbar?.querySelector('[aria-label="撤销"]'))).toBe(true);
+            expect(buttonDisabled(topbar?.querySelector('[aria-label="重做"]'))).toBe(true);
+
+            await act(async () => {
+                updateCompilerSceneTemplate({ props: { width: 961 } });
+                await Promise.resolve();
+            });
+            expect(getCompilerSceneDocument()?.template.props.width).toBe(961);
+            expect(buttonDisabled(topbar?.querySelector('[aria-label="撤销"]'))).toBe(false);
+            expect(buttonDisabled(topbar?.querySelector('[aria-label="重做"]'))).toBe(true);
+
+            await act(async () => {
+                click(topbar!.querySelector('[aria-label="撤销"]')!);
+                await Promise.resolve();
+            });
+            expect(getCompilerSceneDocument()?.template.props.width).toBeUndefined();
+            expect(buttonDisabled(topbar?.querySelector('[aria-label="撤销"]'))).toBe(true);
+            expect(buttonDisabled(topbar?.querySelector('[aria-label="重做"]'))).toBe(false);
+
+            await act(async () => {
+                keyDown(window, 'z', { metaKey: true, shiftKey: true });
+                await Promise.resolve();
+            });
+            expect(getCompilerSceneDocument()?.template.props.width).toBe(961);
+
+            const input = document.createElement('input');
+            document.body.append(input);
+            input.focus();
+            await act(async () => {
+                keyDown(input, 'z', { metaKey: true });
+                await Promise.resolve();
+            });
+            expect(getCompilerSceneDocument()?.template.props.width).toBe(961);
+            input.remove();
         } finally {
             await view.cleanup();
         }

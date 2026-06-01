@@ -2,7 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DockviewReact, themeLight } from 'dockview-react';
 import type { DockviewApi, DockviewReadyEvent, IDockviewPanelProps } from 'dockview-react';
 import {
+    canRedoCompilerSceneCommand,
+    canUndoCompilerSceneCommand,
     getCompilerSceneDocument,
+    redoCompilerSceneCommand,
+    undoCompilerSceneCommand,
 } from './document/compilerSceneDocumentController';
 import { Button, Select, SystemIcon } from './components/system';
 import { useEditorStore } from './editorStore';
@@ -70,6 +74,13 @@ function externalSceneSyncStatus(result: CompilerSceneExternalSyncResult): Exter
         message: result.message,
         tone: result.status === 'sceneReloaded' ? 'saved' : 'dirty',
     };
+}
+
+function isEditableKeyboardTarget(target: EventTarget | null) {
+    return target instanceof HTMLInputElement
+        || target instanceof HTMLTextAreaElement
+        || target instanceof HTMLSelectElement
+        || (target instanceof HTMLElement && target.isContentEditable);
 }
 
 function WelcomePage({ onOpenFolder }: { onOpenFolder: () => void }) {
@@ -224,6 +235,8 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
     const compilerSceneOpened = openedScenePath && compilerDocument?.scenePath === openedScenePath;
     const currentSceneDirty = compilerSceneOpened ? compilerDocument.dirty : false;
     const currentSceneName = compilerSceneOpened ? compilerDocument.template.name : t('sceneEmptyTitle');
+    const canUndoCompilerScene = Boolean(compilerSceneOpened) && canUndoCompilerSceneCommand();
+    const canRedoCompilerScene = Boolean(compilerSceneOpened) && canRedoCompilerSceneCommand();
     const saveStatus = useMemo(() => {
         switch (saveStatusKey) {
             case 'treeLoaded':
@@ -328,6 +341,29 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
         }
     }, [language]);
 
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (isEditableKeyboardTarget(event.target)) {
+                return;
+            }
+            const key = event.key.toLowerCase();
+            const usesModifier = event.metaKey || event.ctrlKey;
+            const wantsUndo = usesModifier && key === 'z' && !event.shiftKey;
+            const wantsRedo = usesModifier && ((key === 'z' && event.shiftKey) || key === 'y');
+            if (wantsUndo && canUndoCompilerSceneCommand()) {
+                event.preventDefault();
+                undoCompilerSceneCommand();
+                return;
+            }
+            if (wantsRedo && canRedoCompilerSceneCommand()) {
+                event.preventDefault();
+                redoCompilerSceneCommand();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     const handleDockReady = useCallback((event: DockviewReadyEvent) => {
         dockviewApiRef.current = event.api;
         onDockviewReady?.(event.api);
@@ -364,6 +400,12 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
             }
         }
     }, [openedScenePath, projectTree]);
+    const undoScene = useCallback(() => {
+        undoCompilerSceneCommand();
+    }, []);
+    const redoScene = useCallback(() => {
+        redoCompilerSceneCommand();
+    }, []);
     const runProject = useCallback(async () => {
         if (!projectTree) {
             return;
@@ -423,7 +465,23 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
                     <div className="topActionGroup">
                         <Button icon="folder-open" onPress={() => void openFolder()}>{t('openFolder')}</Button>
                         {hasProject ? (
-                            <Button icon="save" onPress={() => void saveScene()}>{t('save')}</Button>
+                            <>
+                                <Button icon="save" onPress={() => void saveScene()}>{t('save')}</Button>
+                                <Button
+                                    aria-label="撤销"
+                                    disabled={!canUndoCompilerScene}
+                                    icon="undo"
+                                    onPress={undoScene}
+                                    title="撤销"
+                                />
+                                <Button
+                                    aria-label="重做"
+                                    disabled={!canRedoCompilerScene}
+                                    icon="redo"
+                                    onPress={redoScene}
+                                    title="重做"
+                                />
+                            </>
                         ) : null}
                     </div>
                     {hasProject ? (

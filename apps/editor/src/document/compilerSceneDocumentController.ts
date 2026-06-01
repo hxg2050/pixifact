@@ -2,6 +2,12 @@ import type { SceneTemplate, SceneTemplateInterface, SceneTemplateValue } from '
 import { resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import { pixiSceneNodeAcceptsChildren, pixiSceneNodeDefaults } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import type { PixiSceneNodeType } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
+import { CompilerSceneCommandStack } from '../../../../packages/pixifact/src/compiler/commands';
+import type {
+    CompilerSceneCommand,
+    CompilerSceneCommandStackOptions,
+    CompilerSceneCommandContext,
+} from '../../../../packages/pixifact/src/compiler/commands';
 import type {
     CompilerSceneScriptInterface,
     CompilerSceneTemplateNode,
@@ -27,6 +33,7 @@ export interface CompilerSceneDocument {
 }
 
 const listeners = new Set<() => void>();
+const commandStack = new CompilerSceneCommandStack();
 let revision = 0;
 let document: CompilerSceneDocument | undefined;
 
@@ -52,7 +59,84 @@ export function subscribeCompilerSceneDocument(listener: () => void) {
     };
 }
 
+function compilerSceneCommandContext(nextDocument: CompilerSceneDocument): CompilerSceneCommandContext {
+    const sceneInterfaces = { ...nextDocument.sceneInterfaces };
+    if (nextDocument.descriptor?.scene) {
+        collectCompilerSceneResolvedInterfaces(nextDocument.template.children, nextDocument.descriptor.scene, sceneInterfaces);
+    }
+    return { sceneInterfaces };
+}
+
+function collectCompilerSceneResolvedInterfaces(
+    nodes: readonly CompilerSceneTemplateNode[],
+    ownerScenePath: string,
+    sceneInterfaces: Record<string, SceneTemplateInterface>,
+) {
+    for (const node of nodes) {
+        if (node.kind === 'pixi') {
+            collectCompilerSceneResolvedInterfaces(node.children, ownerScenePath, sceneInterfaces);
+            continue;
+        }
+        if (node.kind !== 'sceneInstance') {
+            continue;
+        }
+        const resolvedScenePath = resolveSceneReference(ownerScenePath, node.scene);
+        if (!sceneInterfaces[node.scene] && sceneInterfaces[resolvedScenePath]) {
+            sceneInterfaces[node.scene] = sceneInterfaces[resolvedScenePath];
+        }
+        for (const children of Object.values(node.slots)) {
+            collectCompilerSceneResolvedInterfaces(children, ownerScenePath, sceneInterfaces);
+        }
+    }
+}
+
+function compilerSceneCommand(commands: CompilerSceneCommand[]) {
+    if (commands.length === 0) {
+        return undefined;
+    }
+    if (commands.length === 1) {
+        return commands[0];
+    }
+    return {
+        op: 'batch',
+        commands,
+    } satisfies CompilerSceneCommand;
+}
+
+function executeCompilerSceneDocumentCommand(
+    command: CompilerSceneCommand,
+    options: CompilerSceneCommandStackOptions = {},
+    updates: Partial<Pick<CompilerSceneDocument, 'sceneInterfaces'>> = {},
+) {
+    if (!document) {
+        return {
+            ok: false as const,
+            command,
+            error: '未打开 Compiler Scene。',
+        };
+    }
+    const current = document;
+    const template = structuredClone(current.template);
+    const nextDocument = {
+        ...current,
+        ...updates,
+        template,
+    };
+    const result = commandStack.execute(template, command, options, compilerSceneCommandContext(nextDocument));
+    if (!result.ok) {
+        return result;
+    }
+    document = {
+        ...nextDocument,
+        selection: result.selection ?? current.selection,
+        dirty: commandStack.dirty,
+    };
+    emitCompilerSceneUpdate();
+    return result;
+}
+
 export function loadCompilerSceneDocument(next: Omit<CompilerSceneDocument, 'selection' | 'dirty'>) {
+    commandStack.clear();
     document = {
         ...next,
         selection: { type: 'scene' },
@@ -62,6 +146,7 @@ export function loadCompilerSceneDocument(next: Omit<CompilerSceneDocument, 'sel
 }
 
 export function closeCompilerSceneDocument() {
+    commandStack.clear();
     document = undefined;
     emitCompilerSceneUpdate();
 }
@@ -85,26 +170,25 @@ export function updateCompilerSceneTemplate(updates: {
     name?: string;
     props?: Record<string, SceneTemplateValue | undefined>;
 }) {
-    if (!document) {
-        return;
-    }
-    const template = structuredClone(document.template);
+    const commands: CompilerSceneCommand[] = [];
     if (updates.name !== undefined) {
-        template.name = updates.name;
+        commands.push({
+            op: 'setSceneName',
+            value: updates.name,
+        });
     }
     for (const [key, value] of Object.entries(updates.props ?? {})) {
-        if (value === undefined) {
-            delete template.props[key];
-        } else {
-            template.props[key] = value;
-        }
+        commands.push({
+            op: 'setSceneProp',
+            prop: key,
+            value,
+        });
     }
-    document = {
-        ...document,
-        template,
-        dirty: true,
-    };
-    emitCompilerSceneUpdate();
+    const command = compilerSceneCommand(commands);
+    if (!command) {
+        return;
+    }
+    executeCompilerSceneDocumentCommand(command);
 }
 
 export function refreshCompilerSceneDescriptor(descriptor: CompilerSceneScriptInterface) {
@@ -157,23 +241,42 @@ export function updateCompilerSceneNode(
         props?: Record<string, SceneTemplateValue | undefined>;
     },
 ) {
-    if (!document) {
+    const commands: CompilerSceneCommand[] = [];
+    for (const [key, value] of Object.entries(updates.props ?? {})) {
+        commands.push({
+            op: 'setNodeProp',
+            node: locator,
+            prop: key,
+            value,
+        });
+    }
+    for (const [key, value] of Object.entries(updates.events ?? {})) {
+        commands.push({
+            op: 'setNodeEvent',
+            node: locator,
+            event: key,
+            value,
+        });
+    }
+    if (updates.id !== undefined) {
+        commands.push({
+            op: 'setNodeId',
+            node: locator,
+            value: updates.id,
+        });
+    }
+    if (updates.slotName !== undefined) {
+        commands.push({
+            op: 'renameSlotOutlet',
+            node: locator,
+            name: updates.slotName,
+        });
+    }
+    const command = compilerSceneCommand(commands);
+    if (!command) {
         return;
     }
-    const template = structuredClone(document.template);
-    const updated = updateCompilerSceneNodes(template.children, locator, updates);
-    if (!updated) {
-        return;
-    }
-    document = {
-        ...document,
-        template,
-        selection: updates.id !== undefined || updates.slotName !== undefined
-            ? { type: 'node', node: updated.locator }
-            : document.selection,
-        dirty: true,
-    };
-    emitCompilerSceneUpdate();
+    executeCompilerSceneDocumentCommand(command);
 }
 
 export function createCompilerPixiTemplateNode(template: SceneTemplate, type: CompilerSceneAddablePixiType): CompilerSceneTemplateNode {
@@ -245,31 +348,28 @@ export function addCompilerSceneInstanceNode(
         };
     }
 
-    const template = structuredClone(document.template);
-    const node = createCompilerSceneInstanceTemplateNode(template, scene, scenePath, sceneInterface, className);
-    const inserted = insertCompilerSceneNode(template.children, parentLocator, node);
-    if (!inserted) {
+    const node = createCompilerSceneInstanceTemplateNode(document.template, scene, scenePath, sceneInterface, className);
+    const sceneInterfaces = {
+        ...document.sceneInterfaces,
+        [scenePath]: sceneInterface,
+    };
+    const result = executeCompilerSceneDocumentCommand({
+        op: 'insertNode',
+        parent: parentLocator,
+        node,
+    }, {}, {
+        sceneInterfaces,
+    });
+    if (!result.ok) {
         return {
             ok: false as const,
             error: '当前选择不能包含子节点。',
         };
     }
 
-    document = {
-        ...document,
-        template,
-        sceneInterfaces: {
-            ...document.sceneInterfaces,
-            [scenePath]: sceneInterface,
-        },
-        selection: { type: 'node', node: inserted.locator },
-        dirty: true,
-    };
-    emitCompilerSceneUpdate();
-
     return {
         ok: true as const,
-        locator: inserted.locator,
+        locator: result.selection?.type === 'node' ? result.selection.node : parentLocator,
     };
 }
 
@@ -281,26 +381,21 @@ export function addCompilerSceneNode(parentLocator: string, node: CompilerSceneT
         };
     }
 
-    const template = structuredClone(document.template);
-    const inserted = insertCompilerSceneNode(template.children, parentLocator, structuredClone(node));
-    if (!inserted) {
+    const result = executeCompilerSceneDocumentCommand({
+        op: 'insertNode',
+        parent: parentLocator,
+        node,
+    });
+    if (!result.ok) {
         return {
             ok: false as const,
             error: '当前选择不能包含子节点。',
         };
     }
 
-    document = {
-        ...document,
-        template,
-        selection: { type: 'node', node: inserted.locator },
-        dirty: true,
-    };
-    emitCompilerSceneUpdate();
-
     return {
         ok: true as const,
-        locator: inserted.locator,
+        locator: result.selection?.type === 'node' ? result.selection.node : parentLocator,
     };
 }
 
@@ -312,26 +407,20 @@ export function deleteCompilerSceneNode(locator: string) {
         };
     }
 
-    const template = structuredClone(document.template);
-    const deleted = removeCompilerSceneNode(template.children, locator, { type: 'scene' });
-    if (!deleted) {
+    const result = executeCompilerSceneDocumentCommand({
+        op: 'deleteNode',
+        node: locator,
+    });
+    if (!result.ok) {
         return {
             ok: false as const,
             error: '当前选择不能删除。',
         };
     }
 
-    document = {
-        ...document,
-        template,
-        selection: deleted.selection,
-        dirty: true,
-    };
-    emitCompilerSceneUpdate();
-
     return {
         ok: true as const,
-        selection: deleted.selection,
+        selection: result.selection ?? { type: 'scene' },
     };
 }
 
@@ -378,29 +467,22 @@ export function moveCompilerSceneNode(
         };
     }
 
-    const [node] = source.nodes.splice(source.index, 1);
-    let index = target.index;
-    if (source.nodes === target.nodes && source.index < index) {
-        index -= 1;
+    const result = executeCompilerSceneDocumentCommand({
+        op: 'moveNode',
+        node: sourceLocator,
+        parent: target.parentLocator,
+        index: target.index,
+    });
+    if (!result.ok) {
+        return {
+            ok: false as const,
+            error: '目标位置不能接收该节点。',
+        };
     }
-    target.nodes.splice(index, 0, node);
-
-    const locator = findCompilerSceneNodeLocator(template.children, node);
-    if (!locator) {
-        throw new Error('Moved Compiler Scene node is missing from the template.');
-    }
-
-    document = {
-        ...document,
-        template,
-        selection: { type: 'node', node: locator },
-        dirty: true,
-    };
-    emitCompilerSceneUpdate();
 
     return {
         ok: true as const,
-        locator,
+        locator: result.selection?.type === 'node' ? result.selection.node : target.parentLocator,
     };
 }
 
@@ -408,11 +490,60 @@ export function markCompilerSceneSaved() {
     if (!document) {
         return;
     }
+    commandStack.markSaved();
     document = {
         ...document,
-        dirty: false,
+        dirty: commandStack.dirty,
     };
     emitCompilerSceneUpdate();
+}
+
+export function canUndoCompilerSceneCommand() {
+    return Boolean(document) && commandStack.canUndo;
+}
+
+export function canRedoCompilerSceneCommand() {
+    return Boolean(document) && commandStack.canRedo;
+}
+
+export function undoCompilerSceneCommand() {
+    if (!document) {
+        return;
+    }
+    const current = document;
+    const template = structuredClone(current.template);
+    const result = commandStack.undo(template, compilerSceneCommandContext(current));
+    if (!result?.ok) {
+        return result;
+    }
+    document = {
+        ...current,
+        template,
+        selection: result.selection ?? current.selection,
+        dirty: commandStack.dirty,
+    };
+    emitCompilerSceneUpdate();
+    return result;
+}
+
+export function redoCompilerSceneCommand() {
+    if (!document) {
+        return;
+    }
+    const current = document;
+    const template = structuredClone(current.template);
+    const result = commandStack.redo(template, compilerSceneCommandContext(current));
+    if (!result?.ok) {
+        return result;
+    }
+    document = {
+        ...current,
+        template,
+        selection: result.selection ?? current.selection,
+        dirty: commandStack.dirty,
+    };
+    emitCompilerSceneUpdate();
+    return result;
 }
 
 export function compilerSceneNodeLocator(node: CompilerSceneTemplateNode, path = '') {
@@ -517,88 +648,20 @@ function sceneInterfaceForInstance(node: Extract<CompilerSceneTemplateNode, { ki
     return document.sceneInterfaces[resolveSceneReference(document.descriptor.scene, node.scene)];
 }
 
-function canInsertCompilerSceneNodeIntoParent(parentLocator: string, node: CompilerSceneTemplateNode) {
-    return parentLocator !== '__scene__' || node.kind !== 'slotOutlet';
-}
-
-function normalizeCompilerSlotName(value: string) {
-    return value.trim() || 'default';
-}
-
-function insertCompilerSceneNode(
-    nodes: CompilerSceneTemplateNode[],
-    parentLocator: string,
-    node: CompilerSceneTemplateNode,
-    path = '',
-): { locator: string } | undefined {
-    if (!path && parentLocator === '__scene__') {
-        if (!canInsertCompilerSceneNodeIntoParent(parentLocator, node)) {
-            return undefined;
-        }
-        const index = nodes.length;
-        nodes.push(node);
-        return { locator: compilerSceneNodeLocator(node, String(index)) };
-    }
-
-    for (const [index, parent] of nodes.entries()) {
-        const nodePath = path ? `${path}/${index}` : String(index);
-        const nodeLocator = compilerSceneNodeLocator(parent, nodePath);
-        if (nodeLocator === parentLocator) {
-            if (parent.kind !== 'pixi' || !pixiSceneNodeAcceptsChildren(parent.type)) {
-                return undefined;
-            }
-            if (!canInsertCompilerSceneNodeIntoParent(parentLocator, node)) {
-                return undefined;
-            }
-            const childIndex = parent.children.length;
-            parent.children.push(node);
-            return { locator: compilerSceneNodeLocator(node, `${nodeLocator}/${childIndex}`) };
-        }
-        if (parent.kind === 'pixi') {
-            const inserted = insertCompilerSceneNode(parent.children, parentLocator, node, nodeLocator);
-            if (inserted) {
-                return inserted;
-            }
-            continue;
-        }
-        if (parent.kind === 'sceneInstance') {
-            if (isDirectCompilerSlotLocator(nodeLocator, parentLocator)) {
-                if (node.kind === 'slotOutlet') {
-                    return undefined;
-                }
-                const slot = compilerSlotName(nodeLocator, parentLocator);
-                if (!sceneInstanceHasSlot(parent, slot)) {
-                    return undefined;
-                }
-                const children = parent.slots[slot] ?? [];
-                parent.slots[slot] = children;
-                const childIndex = children.length;
-                children.push(node);
-                return { locator: compilerSceneNodeLocator(node, `${parentLocator}/${childIndex}`) };
-            }
-            for (const [slot, children] of Object.entries(parent.slots)) {
-                const inserted = insertCompilerSceneNode(children, parentLocator, node, `${nodeLocator}/slot:${slot}`);
-                if (inserted) {
-                    return inserted;
-                }
-            }
-        }
-    }
-    return undefined;
-}
-
 interface CompilerSceneNodeLocation {
     acceptsSlotOutlet: boolean;
     index: number;
     locator: string;
     node: CompilerSceneTemplateNode;
     nodes: CompilerSceneTemplateNode[];
+    parentLocator: string;
 }
 
 interface CompilerSceneChildList {
     acceptsSlotOutlet: boolean;
     index: number;
     nodes: CompilerSceneTemplateNode[];
+    parentLocator: string;
 }
 
 function childCompilerSceneNodeLocator(parentLocator: string, node: CompilerSceneTemplateNode, index: number) {
@@ -620,6 +683,7 @@ function findCompilerSceneNodeLocation(
                 locator: nodeLocator,
                 node,
                 nodes,
+                parentLocator,
             };
         }
         if (node.kind === 'pixi') {
@@ -651,6 +715,7 @@ function findCompilerSceneChildList(
             acceptsSlotOutlet: false,
             index: nodes.length,
             nodes,
+            parentLocator: '__scene__',
         };
     }
 
@@ -663,6 +728,7 @@ function findCompilerSceneChildList(
                         acceptsSlotOutlet: true,
                         index: node.children.length,
                         nodes: node.children,
+                        parentLocator: nodeLocator,
                     }
                     : undefined;
             }
@@ -684,6 +750,7 @@ function findCompilerSceneChildList(
                     acceptsSlotOutlet: false,
                     index: children.length,
                     nodes: children,
+                    parentLocator: targetLocator,
                 };
             }
             for (const [slot, children] of Object.entries(node.slots)) {
@@ -710,139 +777,6 @@ function findCompilerSceneSiblingTarget(
         acceptsSlotOutlet: target.acceptsSlotOutlet,
         index: target.index + (position === 'after' ? 1 : 0),
         nodes: target.nodes,
+        parentLocator: target.parentLocator,
     };
-}
-
-function findCompilerSceneNodeLocator(
-    nodes: readonly CompilerSceneTemplateNode[],
-    target: CompilerSceneTemplateNode,
-    parentLocator = '__scene__',
-): string | undefined {
-    for (const [index, node] of nodes.entries()) {
-        const nodeLocator = childCompilerSceneNodeLocator(parentLocator, node, index);
-        if (node === target) {
-            return nodeLocator;
-        }
-        if (node.kind === 'pixi') {
-            const found = findCompilerSceneNodeLocator(node.children, target, nodeLocator);
-            if (found) {
-                return found;
-            }
-            continue;
-        }
-        if (node.kind === 'sceneInstance') {
-            for (const [slot, children] of Object.entries(node.slots)) {
-                const found = findCompilerSceneNodeLocator(children, target, `${nodeLocator}/slot:${slot}`);
-                if (found) {
-                    return found;
-                }
-            }
-        }
-    }
-    return undefined;
-}
-
-function removeCompilerSceneNode(
-    nodes: CompilerSceneTemplateNode[],
-    locator: string,
-    parentSelection: CompilerSceneSelection,
-    path = '',
-): { selection: CompilerSceneSelection } | undefined {
-    for (const [index, node] of nodes.entries()) {
-        const nodePath = path ? `${path}/${index}` : String(index);
-        const nodeLocator = compilerSceneNodeLocator(node, nodePath);
-        if (nodeLocator === locator) {
-            nodes.splice(index, 1);
-            return { selection: parentSelection };
-        }
-        if (node.kind === 'pixi') {
-            const removed = removeCompilerSceneNode(node.children, locator, { type: 'node', node: nodeLocator }, nodeLocator);
-            if (removed) {
-                return removed;
-            }
-            continue;
-        }
-        if (node.kind === 'sceneInstance') {
-            for (const [slot, children] of Object.entries(node.slots)) {
-                const slotLocator = `${nodeLocator}/slot:${slot}`;
-                const removed = removeCompilerSceneNode(children, locator, { type: 'node', node: slotLocator }, slotLocator);
-                if (removed) {
-                    return removed;
-                }
-            }
-        }
-    }
-    return undefined;
-}
-
-function updateCompilerSceneNodes(
-    nodes: CompilerSceneTemplateNode[],
-    locator: string,
-    updates: {
-        id?: string;
-        slotName?: string;
-        events?: Record<string, string | undefined>;
-        props?: Record<string, SceneTemplateValue | undefined>;
-    },
-    path = '',
-): { locator: string } | undefined {
-    for (const [index, node] of nodes.entries()) {
-        const nodePath = path ? `${path}/${index}` : String(index);
-        const nodeLocator = compilerSceneNodeLocator(node, nodePath);
-        if (nodeLocator === locator) {
-            updateCompilerSceneNodeData(node, updates);
-            return { locator: compilerSceneNodeLocator(node, nodePath) };
-        }
-        if (node.kind === 'pixi') {
-            const updated = updateCompilerSceneNodes(node.children, locator, updates, nodeLocator);
-            if (updated) {
-                return updated;
-            }
-        }
-        if (node.kind === 'sceneInstance') {
-            for (const [slot, children] of Object.entries(node.slots)) {
-                const updated = updateCompilerSceneNodes(children, locator, updates, `${nodeLocator}/slot:${slot}`);
-                if (updated) {
-                    return updated;
-                }
-            }
-        }
-    }
-    return undefined;
-}
-
-function updateCompilerSceneNodeData(
-    node: CompilerSceneTemplateNode,
-    updates: {
-        id?: string;
-        slotName?: string;
-        events?: Record<string, string | undefined>;
-        props?: Record<string, SceneTemplateValue | undefined>;
-    },
-) {
-    if (node.kind === 'slotOutlet') {
-        if (updates.slotName !== undefined) {
-            node.name = normalizeCompilerSlotName(updates.slotName);
-        }
-        return;
-    }
-    if (updates.id !== undefined) {
-        node.id = updates.id.trim() || undefined;
-    }
-    for (const [key, value] of Object.entries(updates.props ?? {})) {
-        if (value === undefined) {
-            delete node.props[key];
-        } else {
-            node.props[key] = value;
-        }
-    }
-    if (node.kind === 'sceneInstance') {
-        for (const [key, value] of Object.entries(updates.events ?? {})) {
-            if (value === undefined) {
-                delete node.events[key];
-            } else {
-                node.events[key] = value;
-            }
-        }
-    }
 }
