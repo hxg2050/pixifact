@@ -983,10 +983,6 @@ export function CompilerSceneHierarchyTree() {
     const treeItems = compilerTreeItem(compilerDocument);
     const expandedKeys = collectCompilerLocators(treeItems);
     const selected = compilerDocument.selection.type === 'node' ? compilerDocument.selection.node : '__scene__';
-    const selectedItem = selected === '__scene__'
-        ? treeItems[0]?.item
-        : findCompilerHierarchyItem(treeItems, selected);
-    const canDeleteNode = canDeleteCompilerSceneNode(selectedItem);
 
     useEffect(() => {
         if (!contextMenu) {
@@ -1078,17 +1074,6 @@ export function CompilerSceneHierarchyTree() {
         setDropTarget(undefined);
         setError(undefined);
     };
-    const deleteSelectedNode = () => {
-        if (!canDeleteNode) {
-            return;
-        }
-        const result = deleteCompilerSceneNode(selected);
-        if (!result.ok) {
-            setError(result.error);
-            return;
-        }
-        setError(undefined);
-    };
     const deleteCompilerContextNode = (locator: string) => {
         const item = findCompilerHierarchyItem(treeItems, locator);
         if (!canDeleteCompilerSceneNode(item)) {
@@ -1124,11 +1109,6 @@ export function CompilerSceneHierarchyTree() {
                 <div>
                     <div className="sectionTitle">{t('hierarchyTreeTitle')}</div>
                     <small>Compiler Scene</small>
-                </div>
-                <div className="hierarchyCreateActions" aria-label="Add compiler scene node">
-                    <button disabled={!canDeleteNode} onClick={deleteSelectedNode} title="Delete selected node" type="button">
-                        <SystemIcon name="trash" />
-                    </button>
                 </div>
             </div>
             {error ? <div className="errorBox">{error}</div> : null}
