@@ -122,13 +122,13 @@ export function countProjectFileTree(node: ProjectFileTreeNode): number {
     return 1 + (node.children ?? []).reduce((sum, child) => sum + countProjectFileTree(child), 0);
 }
 
-export function collectFolderPaths(node: ProjectFileTreeNode): string[] {
+export function collectFolderPaths(node: ProjectFileTreeNode, maxDepth = Number.POSITIVE_INFINITY): string[] {
     if (node.kind !== 'folder') {
         return [];
     }
     return [
         node.path,
-        ...(node.children ?? []).flatMap(collectFolderPaths),
+        ...(node.depth >= maxDepth ? [] : (node.children ?? []).flatMap((child) => collectFolderPaths(child, maxDepth))),
     ];
 }
 

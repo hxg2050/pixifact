@@ -10,6 +10,7 @@ import type { EditorLanguage } from './i18n';
 
 export const editorUiStorageKey = 'pixifact.editor.uiConfig.v1';
 export const defaultEditorLanguage: EditorLanguage = 'zh-CN';
+const defaultProjectFolderExpandedMaxDepth = 1;
 
 export interface EditorUiState {
     language: EditorLanguage;
@@ -44,7 +45,7 @@ export const useEditorStore = create<EditorUiState>()(
                 projectTree,
                 selectedProjectFilePath: projectTree.path,
                 openedScenePath: undefined,
-                expandedProjectFolders: collectFolderPaths(projectTree),
+                expandedProjectFolders: collectFolderPaths(projectTree, defaultProjectFolderExpandedMaxDepth),
             }),
             refreshProject: (projectTree, options) => set((state) => ({
                 projectName: projectTree.name,
