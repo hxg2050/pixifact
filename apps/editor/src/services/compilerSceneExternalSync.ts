@@ -2,6 +2,7 @@ import { getCompilerSceneDocument } from '../document/compilerSceneDocumentContr
 import { validateSceneContent } from '../../../../packages/pixifact/src/compiler/sceneValidation';
 import type { SceneContentValidationResult } from '../../../../packages/pixifact/src/compiler/sceneValidation';
 import { resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
+import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
 import type { HostProjectFileChangedEvent } from './hostBridge';
 import {
     findFileByPath,
@@ -56,13 +57,13 @@ function collectProjectAssets(projectTree: ProjectFileTreeNode) {
     return assets;
 }
 
-async function validateChangedScene(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
-    const content = await readProjectFileText(projectTree, file);
+async function validateChangedScene(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode, content?: string) {
+    const sceneContent = content ?? await readProjectFileText(projectTree, file);
     const scenePath = projectFileRelativePath(projectTree, file);
     const bindingIndex = await readCompilerSceneBindingIndex(projectTree);
     return validateSceneContent({
         scene: scenePath,
-        content,
+        content: sceneContent,
         existingAssets: collectProjectAssets(projectTree),
         sceneInterfaces: sceneInterfacesForCompilerTemplate(bindingIndex, bindingIndex[scenePath]?.template.children ?? [], scenePath),
         normalizeSceneReference: (scene) => resolveSceneReference(scenePath, scene),
@@ -96,7 +97,11 @@ export async function syncOpenedCompilerSceneFromHostChange({
                 message: dirtySkippedMessage,
             };
         }
-        const validation = await validateChangedScene(projectTree, file);
+        const content = await readProjectFileText(projectTree, file);
+        if (content === serializeSceneTemplate(document.template)) {
+            return { status: 'ignored' };
+        }
+        const validation = await validateChangedScene(projectTree, file, content);
         if (!validation.ok) {
             return {
                 status: 'validationFailed',

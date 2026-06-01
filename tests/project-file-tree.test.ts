@@ -7,6 +7,7 @@ import {
 } from '../apps/editor/src/document/sceneDocumentController';
 import {
     addCompilerSceneNode,
+    canUndoCompilerSceneCommand,
     compilerPixiTypeFromNodeTemplate,
     createCompilerPixiTemplateNode,
     createCompilerSceneToolTemplateNode,
@@ -14,6 +15,7 @@ import {
     getCompilerSceneDocument,
     moveCompilerSceneNode,
     resetCompilerSceneDocument,
+    undoCompilerSceneCommand,
     updateCompilerSceneTemplate,
     updateCompilerSceneNode,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
@@ -2051,6 +2053,56 @@ describe('project file tree service', () => {
         const saved = await host.readProjectFileText('/tmp/GameProject', 'GameProject/src/scenes/Button.scene');
         expect(saved).toContain('<Scene name="PrimaryButton" width="180" height="52">');
         expect(saved).toContain('<Text id="titleText" text="Start" x="40" y="10" fontSize="16" fill="#ffffff" pivotX="8" pivotY="4" skewX="0.1" skewY="0.2" alpha="0.9" eventMode="static" cursor="pointer" label="title" />');
+    });
+
+    it('keeps compiler undo history when the save file watcher reports the same Scene content', async () => {
+        host.reset({
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.scene': host.file(`
+                        <Scene name="Button">
+                          <Text id="labelText" text="Start" />
+                        </Scene>
+                    `),
+
+                    'Button.ts': emptySceneScript('Button'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/src/scenes/Button.scene');
+
+        await openCompilerSceneFile(tree, sceneFile!);
+        updateCompilerSceneNode('0:labelText', {
+            props: {
+                text: 'Continue',
+            },
+        });
+        const compilerDocument = getCompilerSceneDocument();
+
+        expect(await saveCompilerSceneFile(tree, 'GameProject/src/scenes/Button.scene', compilerDocument!)).toBe(true);
+        expect(getCompilerSceneDocument()?.dirty).toBe(false);
+        expect(canUndoCompilerSceneCommand()).toBe(true);
+
+        const result = await syncOpenedCompilerSceneFromHostChange({
+            projectTree: tree,
+            openedScenePath: 'GameProject/src/scenes/Button.scene',
+            event: {
+                projectRootPath: '/tmp/GameProject',
+                path: 'GameProject/src/scenes/Button.scene',
+                kind: 'scene',
+            },
+        });
+
+        expect(result).toEqual({ status: 'ignored' });
+        expect(canUndoCompilerSceneCommand()).toBe(true);
+        expect(undoCompilerSceneCommand()?.ok).toBe(true);
+        expect(getCompilerSceneDocument()?.template.children[0]).toMatchObject({
+            props: {
+                text: 'Start',
+            },
+        });
+        expect(getCompilerSceneDocument()?.dirty).toBe(true);
     });
 
     it('saves compiler Scene instance public prop and event edits back to XML', async () => {
