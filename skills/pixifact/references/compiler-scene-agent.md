@@ -40,17 +40,6 @@ bun run dev
 - If validation reports diagnostics, fix the `.scene` source and validate again.
 - Treat generated TypeScript as read-only build output unless the user explicitly asks to inspect generated output.
 
-## Optional Proposal Flow
-
-Use proposal check/apply only when the user wants base revision protection, explicit review, or stale-write protection.
-
-```bash
-bunx --no-install pixifact scene proposal check --project-root . --scene src/scenes/MainMenu.scene --proposal proposal.json
-bunx --no-install pixifact scene proposal apply --project-root . --scene src/scenes/MainMenu.scene --proposal proposal.json
-```
-
-The proposal content should be full proposed `.scene` source, not generated TypeScript changes.
-
 ## Editor Context
 
 If the Pixifact editor is running and exposes live context, use it only as read-only context for the opened scene, selected node, dirty state, revision state, and recent validation result. Do not use editor live context as a mutation path.

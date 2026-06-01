@@ -1,8 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-    applySceneProposal,
-    checkSceneProposal,
     createSceneRevision,
     defaultSceneSourceRoots,
     extractSceneScriptInterface,
@@ -26,7 +24,7 @@ import {
 } from 'pixifact';
 import type { SceneSpec, NodeSpec } from 'pixifact';
 import type { SceneProjectState } from 'pixifact';
-import type { SceneProposalDiagnostic, SceneTemplate, SceneTemplateInterface } from 'pixifact/compiler';
+import type { SceneTemplate, SceneTemplateInterface, SceneValidationDiagnostic } from 'pixifact/compiler';
 
 interface ProjectFileSummary {
     path: string;
@@ -45,7 +43,6 @@ interface ToolInput {
     scenePath?: unknown;
     node?: unknown;
     name?: unknown;
-    proposal?: unknown;
 }
 
 type DetailedNode = NodeSpec & {
@@ -182,19 +179,6 @@ function loadEditableDocument(projectRoot: unknown, scenePath: unknown): Editabl
     };
 }
 
-function assertProposal(value: unknown) {
-    const proposal = assertRecord(value, 'proposal');
-    if (proposal.kind !== 'pixifact.sceneProposal.v1') {
-        throw new Error('proposal.kind must be "pixifact.sceneProposal.v1".');
-    }
-    return {
-        kind: 'pixifact.sceneProposal.v1' as const,
-        scene: assertString(proposal.scene, 'proposal.scene'),
-        baseRevision: assertString(proposal.baseRevision, 'proposal.baseRevision'),
-        content: assertString(proposal.content, 'proposal.content'),
-    };
-}
-
 function loadCompilerScene(projectRoot: unknown, scenePath: unknown) {
     const { root, target } = resolveProjectPath(projectRoot, scenePath);
     const content = readTextFile(target);
@@ -312,7 +296,7 @@ function readCompilerScenePairContract(
     root: string,
     scenePath: string,
     template: SceneTemplate,
-): { diagnostics: SceneProposalDiagnostic[]; sceneInterface?: SceneTemplateInterface } {
+): { diagnostics: SceneValidationDiagnostic[]; sceneInterface?: SceneTemplateInterface } {
     const expectedName = sceneLocalName(scenePath);
     if (template.name !== expectedName) {
         return {
@@ -354,7 +338,7 @@ function readCompilerScenePairContract(
     };
 }
 
-function compilerSceneBasenameDiagnostic(actual: string, expectedName: string): SceneProposalDiagnostic {
+function compilerSceneBasenameDiagnostic(actual: string, expectedName: string): SceneValidationDiagnostic {
     return {
         path: '__scene__',
         prop: 'name',
@@ -364,7 +348,7 @@ function compilerSceneBasenameDiagnostic(actual: string, expectedName: string): 
     };
 }
 
-function missingCompilerSceneScriptDiagnostic(scriptPath: string): SceneProposalDiagnostic {
+function missingCompilerSceneScriptDiagnostic(scriptPath: string): SceneValidationDiagnostic {
     return {
         path: '__scene__',
         prop: 'script',
@@ -374,7 +358,7 @@ function missingCompilerSceneScriptDiagnostic(scriptPath: string): SceneProposal
     };
 }
 
-function compilerSceneClassDiagnostic(actual: string, expectedClass: string): SceneProposalDiagnostic {
+function compilerSceneClassDiagnostic(actual: string, expectedClass: string): SceneValidationDiagnostic {
     return {
         path: '__scene__',
         prop: 'name',
@@ -384,7 +368,7 @@ function compilerSceneClassDiagnostic(actual: string, expectedClass: string): Sc
     };
 }
 
-function compilerSceneScriptContractDiagnostic(error: unknown): SceneProposalDiagnostic {
+function compilerSceneScriptContractDiagnostic(error: unknown): SceneValidationDiagnostic {
     return {
         path: '__scene__',
         prop: 'script',
@@ -394,7 +378,7 @@ function compilerSceneScriptContractDiagnostic(error: unknown): SceneProposalDia
     };
 }
 
-function compilerScenePartDiagnostic(property: string, id: string): SceneProposalDiagnostic {
+function compilerScenePartDiagnostic(property: string, id: string): SceneValidationDiagnostic {
     return {
         path: '__scene__',
         prop: `@part ${property}`,
@@ -404,7 +388,7 @@ function compilerScenePartDiagnostic(property: string, id: string): SceneProposa
     };
 }
 
-function compilerSceneValidationFailure(scenePath: string, content: string, diagnostics: SceneProposalDiagnostic[]) {
+function compilerSceneValidationFailure(scenePath: string, content: string, diagnostics: SceneValidationDiagnostic[]) {
     return {
         ok: false as const,
         scene: scenePath,
@@ -591,40 +575,6 @@ export function createPixifactAutomation() {
             if (pair.diagnostics.length > 0) {
                 return compilerSceneValidationFailure(loaded.scenePath, loaded.content, pair.diagnostics);
             }
-            return {
-                ...result,
-                scenePath: loaded.scenePath,
-            };
-        },
-
-        checkCompilerSceneProposal(input: unknown) {
-            const args = assertRecord(input, 'input') as ToolInput;
-            const loaded = loadCompilerScene(args.projectRoot, args.scenePath);
-            const proposal = assertProposal(args.proposal);
-            return checkSceneProposal({
-                currentContent: loaded.content,
-                existingAssets: collectProjectAssets(loaded.root),
-                sceneInterfaces: collectCompilerSceneInterfaces(loaded.root),
-                normalizeSceneReference: normalizeCompilerSceneReference(loaded.scenePath),
-                proposal,
-            });
-        },
-
-        applyCompilerSceneProposal(input: unknown) {
-            const args = assertRecord(input, 'input') as ToolInput;
-            const loaded = loadCompilerScene(args.projectRoot, args.scenePath);
-            const proposal = assertProposal(args.proposal);
-            const result = applySceneProposal({
-                currentContent: loaded.content,
-                existingAssets: collectProjectAssets(loaded.root),
-                sceneInterfaces: collectCompilerSceneInterfaces(loaded.root),
-                normalizeSceneReference: normalizeCompilerSceneReference(loaded.scenePath),
-                proposal,
-            });
-            if (!result.ok) {
-                return result;
-            }
-            writeTextFile(loaded.target, result.content);
             return {
                 ...result,
                 scenePath: loaded.scenePath,

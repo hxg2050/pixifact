@@ -23,20 +23,3 @@ cd sample-projects/space-hud-game && bun run build
 ```
 
 Scene scripts are paired by same directory and same basename, for example `src/scenes/Hud.scene` and `src/scenes/Hud.ts`. Do not add `script="..."` to `.scene` files, and do not edit `.pixifact/generated`.
-
-## Optional Proposal Review
-
-`proposals/hud-hint-mobile.proposal.json` is a small `.scene proposal` for testing the Editor Agent review flow. It changes the HUD hint text from keyboard-only controls to a mobile-friendly hint.
-
-```bash
-cd ../..
-bun run pixifact -- scene proposal check --project-root sample-projects/space-hud-game --scene src/scenes/Hud.scene --proposal sample-projects/space-hud-game/proposals/hud-hint-mobile.proposal.json
-```
-
-In the Editor:
-
-1. Open `sample-projects/space-hud-game`.
-2. Open `src/scenes/Hud.scene`.
-3. Paste the proposal JSON into the Agent panel Proposal Review box.
-4. Click `检查 Proposal`, review the diff, then click `应用 Proposal`.
-5. Run the game to see the updated HUD hint.

@@ -1244,8 +1244,7 @@ textarea {
 .agentHero,
 .agentSteps,
 .agentTools,
-.agentPromptCard,
-.agentReviewCard {
+.agentPromptCard {
     border: 1px solid var(--line);
     border-radius: 8px;
     background: #fff;
@@ -1292,8 +1291,7 @@ textarea {
 
 .agentTools strong,
 .agentSteps strong,
-.agentPromptCard strong,
-.agentReviewCard strong {
+.agentPromptCard strong {
     color: var(--text);
     font-size: 12px;
 }
@@ -1318,75 +1316,6 @@ textarea {
 .agentPromptCard {
     display: grid;
     gap: 8px;
-}
-
-.agentReviewCard {
-    display: grid;
-    gap: 10px;
-}
-
-.agentReviewHeader {
-    display: grid;
-    gap: 4px;
-}
-
-.agentReviewHeader span {
-    color: var(--muted);
-    font-size: 12px;
-    line-height: 1.4;
-}
-
-.agentReviewCard textarea {
-    min-height: 126px;
-    resize: vertical;
-    border: 1px solid #cdd8e5;
-    border-radius: 7px;
-    background: #fbfdff;
-    padding: 8px;
-    color: var(--text);
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 11px;
-    line-height: 1.45;
-}
-
-.agentReviewCard textarea:focus-visible {
-    outline: 2px solid rgba(59, 130, 246, 0.35);
-    outline-offset: 1px;
-}
-
-.agentReviewActions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-
-.agentReviewResult {
-    display: grid;
-    gap: 8px;
-    border: 1px solid #9fc0f8;
-    border-radius: 7px;
-    background: #eff6ff;
-    padding: 10px;
-    color: #1e3a8a;
-    font-size: 12px;
-    line-height: 1.45;
-}
-
-.agentReviewResult.failed {
-    border-color: #f1bc65;
-    background: #fff7e6;
-    color: #7c2d12;
-}
-
-.agentReviewResult p,
-.agentReviewResult ul {
-    margin: 0;
-}
-
-.agentReviewResult ul {
-    display: grid;
-    gap: 5px;
-    padding-left: 18px;
 }
 
 .agentTools div {

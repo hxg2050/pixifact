@@ -21,23 +21,7 @@ Scenario: Agent edits a compiler scene without Editor
 
 TDD 入口：`tests/pixifact-cli.test.ts`。
 
-### BDD-AGENT-002 Proposal 作为可选保险
-
-Feature: Guarded scene proposal
-
-```gherkin
-Scenario: Agent submits a guarded proposal
-  Given the current .scene revision is known
-  When the agent submits a pixifact.sceneProposal.v1 envelope
-  Then Pixifact checks the base revision
-  And validates the proposed scene source
-  And returns a semantic diff
-  And writes the file only when apply is requested
-```
-
-TDD 入口：`tests/pixifact-cli.test.ts`、`tests/agent-proposal-review.test.ts`、`tests/agent-panel-ui.test.ts`。
-
-### BDD-AGENT-003 Editor live context 是只读增强
+### BDD-AGENT-002 Editor live context 是只读增强
 
 Feature: Editor live context
 

@@ -51,7 +51,6 @@ Prefer project scripts such as `bun run compile:scenes`, `bun run build`, and `b
 - Only `container` nodes can contain children.
 - Display data belongs on node fields such as `text.value`, `image.src`, `input.value`, and `shape.color`.
 - `Button`, `ProgressBar`, `ScrollView`, and similar controls are templates or compound UI, not primitive authored node kinds.
-- Use proposal check/apply only when the user asks for an explicit review step or stale-write protection. Direct `.scene` editing plus validation is the default.
 
 ## Game Code
 

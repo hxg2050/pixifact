@@ -1,6 +1,6 @@
 import { getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
-import { validateSceneContent } from '../../../../packages/pixifact/src/compiler/sceneProposal';
-import type { SceneContentValidationResult } from '../../../../packages/pixifact/src/compiler/sceneProposal';
+import { validateSceneContent } from '../../../../packages/pixifact/src/compiler/sceneValidation';
+import type { SceneContentValidationResult } from '../../../../packages/pixifact/src/compiler/sceneValidation';
 import { resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import type { HostProjectFileChangedEvent } from './hostBridge';
 import {

@@ -50,13 +50,6 @@ bun run pixifact -- compile-scenes --project-root /path/to/project
 
 Scene 脚本按同目录同 basename 自动配对，例如 `src/scenes/Main.scene` 与 `src/scenes/Main.ts`。不要在 `.scene` 中写 `script="..."`，不要编辑 `.pixifact/generated`。
 
-需要明确审查或防止覆盖时使用 proposal：
-
-```bash
-bun run pixifact -- scene proposal check --project-root /path/to/project --scene src/scenes/Main.scene --proposal proposal.json
-bun run pixifact -- scene proposal apply --project-root /path/to/project --scene src/scenes/Main.scene --proposal proposal.json
-```
-
 需要读取当前 editor 上下文时使用 live CLI。live CLI 是只读上下文能力，不负责修改项目：
 
 ```bash

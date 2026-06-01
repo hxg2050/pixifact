@@ -1,5 +1,5 @@
 import type { NodeSpec, SceneSpec } from 'pixifact';
-import { createSceneRevision, inspectSceneTemplate } from '../../../../packages/pixifact/src/compiler/sceneProposal';
+import { createSceneRevision, inspectSceneTemplate } from '../../../../packages/pixifact/src/compiler/sceneValidation';
 import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
 import type { SceneTemplateNode } from '../../../../packages/pixifact/src/compiler/spec';
 import { getSceneDocument } from '../document/sceneDocumentController';

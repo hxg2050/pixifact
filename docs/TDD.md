@@ -7,7 +7,7 @@
 ## 1. 测试原则
 
 - 先写行为，再写实现：新需求先补一个最小失败测试或一个可执行验收场景。
-- 测试公共语义层：优先覆盖 `pixifact` public exports、compiler `.scene` parser / validator / proposal、`SceneDocument`、editor services 和 CLI entrypoint。
+- 测试公共语义层：优先覆盖 `pixifact` public exports、compiler `.scene` parser / validator、`SceneDocument`、editor services 和 CLI entrypoint。
 - 不为旧 API 写兼容测试：项目处于开发阶段，不新增 legacy path、alias、fallback 或 deprecation shim。
 - 不测试静默默认值：除非需求明确，测试应让错误自然暴露，并断言真实失败原因。
 - 不让 UI state 成为项目数据源：测试必须确认项目数据来自 `.scene` 文件、compiler scene document 或必要的 `SceneDocument` 内部状态，而不是 Zustand 副本。
@@ -26,9 +26,8 @@
 | `tests/project-file-tree.test.ts` | desktop project file service | `.scene` 创建保存、文件树分类、重命名、删除、scene instance key isolation |
 | `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
 | `tests/editor-run-service.test.ts` | editor run service / host bridge | 运行状态、spawn 参数、stdout / stderr 摘要、停止 session、失败状态 |
-| `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate/proposal、path guard、read-only live context、exit code |
-| `tests/agent-proposal-review.test.ts` | Editor proposal review service | proposal check/apply、stale revision、asset validation、semantic diff |
-| `tests/agent-panel-ui.test.ts` | Editor Agent panel | proposal review UI、refresh after apply、compiler scene state |
+| `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、path guard、read-only live context、exit code |
+| `tests/agent-panel-ui.test.ts` | Editor Agent panel | direct `.scene` workflow commands、external compiler scene refresh state |
 
 新增测试应先落到这些既有边界；只有当行为无法归入现有边界时，才新增测试文件。
 
@@ -42,7 +41,7 @@
 
 2. 选测试边界
 
-   - compiler `.scene` parser / validator / proposal：`tests/pixifact-cli.test.ts`、`tests/agent-proposal-review.test.ts`
+   - compiler `.scene` parser / validator：`tests/pixifact-cli.test.ts`
    - SceneDocument 内部命令、undo、memory、logic：`tests/editor.test.ts`
    - runtime、布局、生命周期：`tests/core.test.ts`
    - DOM-backed node：`tests/ui.test.ts`
@@ -77,14 +76,12 @@
 - parser 接受合法 `.scene`。
 - validator 拒绝错误 prop、错误类型、缺失 asset、错误 scene instance contract。
 - serializer 输出 canonical source。
-- proposal check 不写文件并返回 semantic diff。
-- proposal apply 检查 base revision 后才写文件。
 - direct edit 后 `scene validate` 和 `compile-scenes` 通过。
 
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/pixifact-cli.test.ts tests/agent-proposal-review.test.ts
+bunx --no-install vitest run tests/pixifact-cli.test.ts tests/scene-compiler.test.ts
 ```
 
 ### 修改 Editor live context
@@ -176,8 +173,8 @@ bun run example:build
 
 - BDD 场景能解释用户行为、系统边界和失败状态。
 - 至少一个自动化测试覆盖主要成功路径。
-- 关键失败路径有测试，尤其是 invalid scene、path guard、invalid proposal、stale revision、asset/contract validation。
-- 外部 Agent 修改路径是 `.scene` direct edit + validation，或可选 `.scene proposal`。
+- 关键失败路径有测试，尤其是 invalid scene、path guard、asset/contract validation。
+- 外部 Agent 修改路径是 `.scene` direct edit + validation。
 - Editor live context 是只读增强，不写项目文件。
 - editor UI 没有保存 `SceneSpec` / `SceneDocument` 副本到 Zustand。
 - 相关最小验证通过。

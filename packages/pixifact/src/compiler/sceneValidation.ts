@@ -9,14 +9,7 @@ import {
 import { parseSceneTemplate } from './templateParser';
 import { serializeSceneTemplate } from './templateSerializer';
 
-export interface SceneProposalEnvelope {
-    kind: 'pixifact.sceneProposal.v1';
-    scene: string;
-    baseRevision: string;
-    content: string;
-}
-
-export interface SceneProposalNodeSummary {
+export interface SceneTemplateNodeSummary {
     id?: string;
     kind: SceneTemplateNode['kind'];
     type: string;
@@ -29,18 +22,10 @@ export interface SceneTemplateInspection {
     name: string;
     props: Record<string, SceneTemplateValue>;
     nodeCount: number;
-    nodes: SceneProposalNodeSummary[];
+    nodes: SceneTemplateNodeSummary[];
 }
 
-export type SceneProposalDiffEntry =
-    | { kind: 'scenePropChanged'; prop: string; before?: SceneTemplateValue; after?: SceneTemplateValue }
-    | { kind: 'nodeInserted'; path: string; node: string }
-    | { kind: 'nodeDeleted'; path: string; node: string }
-    | { kind: 'nodeTypeChanged'; path: string; before: string; after: string }
-    | { kind: 'nodePropChanged'; path: string; node: string; prop: string; before?: SceneTemplateValue; after?: SceneTemplateValue }
-    | { kind: 'childrenChanged'; path: string; before: string[]; after: string[] };
-
-export interface SceneProposalDiagnostic {
+export interface SceneValidationDiagnostic {
     path: string;
     prop: string;
     expected: string;
@@ -49,27 +34,6 @@ export interface SceneProposalDiagnostic {
     line?: number;
     column?: number;
 }
-
-export type SceneProposalCheckResult =
-    | {
-        ok: true;
-        scene: string;
-        baseRevision: string;
-        nextRevision: string;
-        canonicalContent: string;
-        current: SceneTemplateInspection;
-        proposed: SceneTemplateInspection;
-        diffs: SceneProposalDiffEntry[];
-    }
-    | {
-        ok: false;
-        scene: string;
-        baseRevision?: string;
-        currentRevision?: string;
-        error: string;
-        diagnostics?: SceneProposalDiagnostic[];
-        hint?: string;
-    };
 
 export function createSceneRevision(source: string) {
     const canonical = serializeSceneTemplate(parseSceneTemplate(source));
@@ -81,7 +45,7 @@ export function createSceneRevision(source: string) {
 }
 
 export function inspectSceneTemplate(template: SceneTemplate): SceneTemplateInspection {
-    const nodes: SceneProposalNodeSummary[] = [];
+    const nodes: SceneTemplateNodeSummary[] = [];
 
     function visit(node: SceneTemplateNode, path: string) {
         if (node.kind === 'slotOutlet') {
@@ -130,14 +94,6 @@ export function inspectSceneTemplate(template: SceneTemplate): SceneTemplateInsp
     };
 }
 
-export interface CheckSceneProposalOptions {
-    currentContent: string;
-    proposal: SceneProposalEnvelope;
-    existingAssets?: ReadonlySet<string>;
-    sceneInterfaces?: Record<string, SceneTemplateInterface>;
-    normalizeSceneReference?: (scene: string) => string;
-}
-
 export interface ValidateSceneContentOptions {
     scene: string;
     content: string;
@@ -150,68 +106,6 @@ interface SceneValidationContext {
     existingAssets?: ReadonlySet<string>;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
     normalizeSceneReference?: (scene: string) => string;
-}
-
-export function checkSceneProposal(options: CheckSceneProposalOptions): SceneProposalCheckResult {
-    const currentRevision = createSceneRevision(options.currentContent);
-    if (options.proposal.baseRevision !== currentRevision) {
-        return {
-            ok: false,
-            scene: options.proposal.scene,
-            baseRevision: options.proposal.baseRevision,
-            currentRevision,
-            error: 'Scene proposal baseRevision does not match current scene revision.',
-            hint: 'Re-read the current .scene file and create a new proposal with the current baseRevision.',
-        };
-    }
-
-    try {
-        const currentTemplate = parseSceneTemplate(options.currentContent);
-        const proposedTemplate = parseSceneTemplate(options.proposal.content);
-        if (currentTemplate.name !== proposedTemplate.name) {
-            return {
-                ok: false,
-                scene: options.proposal.scene,
-                baseRevision: options.proposal.baseRevision,
-                currentRevision,
-                error: `Scene proposal cannot change Scene name from "${currentTemplate.name}" to "${proposedTemplate.name}".`,
-                hint: 'Create or rename scenes through a dedicated project operation instead of a scene proposal.',
-            };
-        }
-
-        const diagnostics = validateSceneTemplateProposal(proposedTemplate, options);
-        if (diagnostics.length > 0) {
-            return {
-                ok: false,
-                scene: options.proposal.scene,
-                baseRevision: options.proposal.baseRevision,
-                currentRevision,
-                error: 'Scene proposal validation failed.',
-                diagnostics,
-                hint: 'Fix the listed diagnostics, then run scene proposal check again.',
-            };
-        }
-
-        const canonicalContent = serializeSceneTemplate(proposedTemplate);
-        return {
-            ok: true,
-            scene: options.proposal.scene,
-            baseRevision: options.proposal.baseRevision,
-            nextRevision: createSceneRevision(canonicalContent),
-            canonicalContent,
-            current: inspectSceneTemplate(currentTemplate),
-            proposed: inspectSceneTemplate(proposedTemplate),
-            diffs: diffSceneTemplates(currentTemplate, proposedTemplate),
-        };
-    } catch (error) {
-        return {
-            ok: false,
-            scene: options.proposal.scene,
-            baseRevision: options.proposal.baseRevision,
-            currentRevision,
-            error: error instanceof Error ? error.message : String(error),
-        };
-    }
 }
 
 export type SceneContentValidationResult =
@@ -227,14 +121,14 @@ export type SceneContentValidationResult =
         scene: string;
         revision?: string;
         error: string;
-        diagnostics?: SceneProposalDiagnostic[];
+        diagnostics?: SceneValidationDiagnostic[];
         hint?: string;
     };
 
 export function validateSceneContent(options: ValidateSceneContentOptions): SceneContentValidationResult {
     try {
         const template = parseSceneTemplate(options.content);
-        const diagnostics = validateSceneTemplateProposal(template, options);
+        const diagnostics = validateSceneTemplate(template, options);
         const revision = createSceneRevision(options.content);
         if (diagnostics.length > 0) {
             return {
@@ -265,7 +159,7 @@ export function validateSceneContent(options: ValidateSceneContentOptions): Scen
     }
 }
 
-function sceneSourceDiagnostic(source: string, message: string): SceneProposalDiagnostic {
+function sceneSourceDiagnostic(source: string, message: string): SceneValidationDiagnostic {
     return {
         path: '__scene__',
         prop: 'source',
@@ -293,45 +187,30 @@ function sourcePositionFromMessage(source: string, message: string) {
     };
 }
 
-export type SceneProposalApplyResult =
-    | (Extract<SceneProposalCheckResult, { ok: true }> & { content: string })
-    | Extract<SceneProposalCheckResult, { ok: false }>;
-
-export function applySceneProposal(options: CheckSceneProposalOptions): SceneProposalApplyResult {
-    const result = checkSceneProposal(options);
-    if (!result.ok) {
-        return result;
-    }
-    return {
-        ...result,
-        content: result.canonicalContent,
-    };
-}
-
-function validateSceneTemplateProposal(
+function validateSceneTemplate(
     template: SceneTemplate,
     context: SceneValidationContext,
-): SceneProposalDiagnostic[] {
-    return template.children.flatMap((child, index) => validateSceneNodeProposal(
+): SceneValidationDiagnostic[] {
+    return template.children.flatMap((child, index) => validateSceneNode(
         child,
         nodePathSegment(index, child),
         context,
     ));
 }
 
-function validateSceneNodeProposal(
+function validateSceneNode(
     node: SceneTemplateNode,
     path: string,
     context: SceneValidationContext,
-): SceneProposalDiagnostic[] {
+): SceneValidationDiagnostic[] {
     if (node.kind === 'slotOutlet') {
         return [];
     }
 
     if (node.kind === 'pixi') {
         return [
-            ...validatePixiNodeProposal(node, path, context.existingAssets),
-            ...node.children.flatMap((child, index) => validateSceneNodeProposal(
+            ...validatePixiNode(node, path, context.existingAssets),
+            ...node.children.flatMap((child, index) => validateSceneNode(
                 child,
                 `${path}/${nodePathSegment(index, child)}`,
                 context,
@@ -340,8 +219,8 @@ function validateSceneNodeProposal(
     }
 
     return [
-        ...validateSceneInstanceNodeProposal(node, path, context),
-        ...Object.entries(node.slots).flatMap(([slot, children]) => children.flatMap((child, index) => validateSceneNodeProposal(
+        ...validateSceneInstanceNode(node, path, context),
+        ...Object.entries(node.slots).flatMap(([slot, children]) => children.flatMap((child, index) => validateSceneNode(
             child,
             `${path}/slot:${slot}/${nodePathSegment(index, child)}`,
             context,
@@ -349,11 +228,11 @@ function validateSceneNodeProposal(
     ];
 }
 
-function validatePixiNodeProposal(
+function validatePixiNode(
     node: Exclude<SceneTemplateNode, SceneInstanceTemplateNode | { kind: 'slotOutlet' }>,
     path: string,
     existingAssets: ReadonlySet<string> | undefined,
-): SceneProposalDiagnostic[] {
+): SceneValidationDiagnostic[] {
     if (!isPixiSceneNodeType(node.type)) {
         return [{
             path,
@@ -364,7 +243,7 @@ function validatePixiNodeProposal(
         }];
     }
 
-    const diagnostics: SceneProposalDiagnostic[] = [];
+    const diagnostics: SceneValidationDiagnostic[] = [];
     const knownProps = new Set<string>([
         ...pixiSceneTransformProps,
         ...pixiSceneDisplayProps,
@@ -404,11 +283,11 @@ function validatePixiNodeProposal(
     return diagnostics;
 }
 
-function validateSceneInstanceNodeProposal(
+function validateSceneInstanceNode(
     node: SceneInstanceTemplateNode,
     path: string,
     context: SceneValidationContext,
-): SceneProposalDiagnostic[] {
+): SceneValidationDiagnostic[] {
     let scene = node.scene;
     try {
         scene = context.normalizeSceneReference ? context.normalizeSceneReference(node.scene) : node.scene;
@@ -436,7 +315,7 @@ function validateSceneInstanceNodeProposal(
         return [];
     }
 
-    const diagnostics: SceneProposalDiagnostic[] = [];
+    const diagnostics: SceneValidationDiagnostic[] = [];
     const allowedProps = new Set<string>([
         ...pixiSceneTransformProps,
         ...pixiSceneDisplayProps,
@@ -499,7 +378,7 @@ function validateTextureReference(
     path: string,
     texture: string,
     existingAssets: ReadonlySet<string> | undefined,
-): SceneProposalDiagnostic | undefined {
+): SceneValidationDiagnostic | undefined {
     if (!isProjectRelativeAssetPath(texture)) {
         return {
             path,
@@ -515,7 +394,7 @@ function validateTextureReference(
             prop: 'texture',
             expected: 'existing project asset',
             actual: texture,
-            hint: 'Use an asset path that exists in the project before applying the proposal.',
+            hint: 'Use an asset path that exists in the project before validating the scene.',
         };
     }
     return undefined;
@@ -584,133 +463,6 @@ function unknownPixiPropHint(prop: string) {
         return 'Use "texture" for Sprite image assets.';
     }
     return 'Use the editor inspector or scene inspect command to list supported props for this node type.';
-}
-
-function diffSceneTemplates(before: SceneTemplate, after: SceneTemplate): SceneProposalDiffEntry[] {
-    return [
-        ...diffProps(before.props, after.props).map((entry) => ({
-            kind: 'scenePropChanged' as const,
-            ...entry,
-        })),
-        ...diffChildren('__scene__', before.children, after.children),
-    ];
-}
-
-function diffChildren(path: string, before: SceneTemplateNode[], after: SceneTemplateNode[]): SceneProposalDiffEntry[] {
-    const diffs: SceneProposalDiffEntry[] = [];
-    const max = Math.max(before.length, after.length);
-    for (let index = 0; index < max; index += 1) {
-        const beforeNode = before[index];
-        const afterNode = after[index];
-        if (!beforeNode && afterNode) {
-            diffs.push({ kind: 'nodeInserted', path: childPath(path, index, afterNode), node: nodeLabel(afterNode) });
-            continue;
-        }
-        if (beforeNode && !afterNode) {
-            diffs.push({ kind: 'nodeDeleted', path: childPath(path, index, beforeNode), node: nodeLabel(beforeNode) });
-            continue;
-        }
-        if (beforeNode && afterNode) {
-            diffs.push(...diffNode(childPath(path, index, afterNode), beforeNode, afterNode));
-        }
-    }
-
-    const beforeLabels = before.map(nodeLabel);
-    const afterLabels = after.map(nodeLabel);
-    if (JSON.stringify(beforeLabels) !== JSON.stringify(afterLabels)) {
-        diffs.push({ kind: 'childrenChanged', path, before: beforeLabels, after: afterLabels });
-    }
-    return diffs;
-}
-
-function diffNode(path: string, before: SceneTemplateNode, after: SceneTemplateNode): SceneProposalDiffEntry[] {
-    const beforeLabel = nodeLabel(before);
-    const afterLabel = nodeLabel(after);
-    if (before.kind !== after.kind || nodeType(before) !== nodeType(after)) {
-        return [{ kind: 'nodeTypeChanged', path, before: beforeLabel, after: afterLabel }];
-    }
-
-    if (before.kind === 'slotOutlet') {
-        if (after.kind !== 'slotOutlet') {
-            return [{ kind: 'nodeTypeChanged', path, before: beforeLabel, after: afterLabel }];
-        }
-        return before.name === after.name ? [] : [{
-            kind: 'nodePropChanged',
-            path,
-            node: afterLabel,
-            prop: 'name',
-            before: before.name,
-            after: after.name,
-        }];
-    }
-    if (after.kind === 'slotOutlet') {
-        return [{ kind: 'nodeTypeChanged', path, before: beforeLabel, after: afterLabel }];
-    }
-
-    const diffs = diffProps(before.props, after.props).map((entry) => ({
-        kind: 'nodePropChanged' as const,
-        path,
-        node: afterLabel,
-        ...entry,
-    }));
-
-    if (before.kind === 'pixi' && after.kind === 'pixi') {
-        return [...diffs, ...diffChildren(path, before.children, after.children)];
-    }
-
-    if (before.kind === 'sceneInstance' && after.kind === 'sceneInstance') {
-        return [
-            ...diffs,
-            ...diffProps(before.events, after.events).map((entry) => ({
-                kind: 'nodePropChanged' as const,
-                path,
-                node: afterLabel,
-                prop: `@${entry.prop}`,
-                before: entry.before,
-                after: entry.after,
-            })),
-            ...diffSceneInstanceSlots(path, before, after),
-        ];
-    }
-
-    return diffs;
-}
-
-function diffSceneInstanceSlots(path: string, before: SceneInstanceTemplateNode, after: SceneInstanceTemplateNode) {
-    const diffs: SceneProposalDiffEntry[] = [];
-    const slots = new Set([...Object.keys(before.slots), ...Object.keys(after.slots)]);
-    for (const slot of [...slots].sort()) {
-        diffs.push(...diffChildren(`${path}/slot:${slot}`, before.slots[slot] ?? [], after.slots[slot] ?? []));
-    }
-    return diffs;
-}
-
-function diffProps(before: Record<string, SceneTemplateValue>, after: Record<string, SceneTemplateValue>) {
-    const diffs: Array<{ prop: string; before?: SceneTemplateValue; after?: SceneTemplateValue }> = [];
-    const props = new Set([...Object.keys(before), ...Object.keys(after)]);
-    for (const prop of [...props].sort()) {
-        if (before[prop] !== after[prop]) {
-            diffs.push({ prop, before: before[prop], after: after[prop] });
-        }
-    }
-    return diffs;
-}
-
-function nodeLabel(node: SceneTemplateNode) {
-    if (node.kind === 'slotOutlet') {
-        return `slot:${node.name}`;
-    }
-    return `${nodeType(node)}${node.id ? `#${node.id}` : ''}`;
-}
-
-function nodeType(node: SceneTemplateNode) {
-    if (node.kind === 'slotOutlet') return 'slot';
-    return node.type;
-}
-
-function childPath(parentPath: string, index: number, node: SceneTemplateNode) {
-    const segment = nodePathSegment(index, node);
-    return parentPath === '__scene__' ? segment : `${parentPath}/${segment}`;
 }
 
 function nodePathSegment(index: number, node: SceneTemplateNode) {

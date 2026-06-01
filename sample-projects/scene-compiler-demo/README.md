@@ -50,5 +50,3 @@ cd sample-projects/scene-compiler-demo && bun run build
 修改后运行 scene validate、compile-scenes 和 sample build。
 不要手动修改 .pixifact/generated。
 ```
-
-需要防止旧内容覆盖或需要先审查 diff 时，再使用 `scene proposal check/apply`。

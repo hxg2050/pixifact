@@ -18,12 +18,6 @@ Pixifact 使用 Godot-style 统一 `Scene` 资产，不做 Unity 式 Scene + Pre
 Codex / Claude Code -> inspect .scene -> edit .scene -> scene validate -> compile-scenes -> repair until valid
 ```
 
-`.scene proposal` 是可选保险路径，用于防覆盖、显式审查或协作审计，不是默认 AI 开发路径。
-
-```txt
-Codex / Claude Code -> .scene proposal -> check diff -> apply -> validate / compile
-```
-
 Editor 是能力增强：提供当前打开 Scene、当前选中节点、预览和资产上下文。没有 Editor 时，Agent 仍然可以通过文件编辑和 CLI 完整开发。
 
 Pixifact 的默认闭环到 `scene validate`、`compile-scenes` 和可选 live context 为止。Git diff、commit、revert、PR、CI 和任务编排由外部工具负责，不是 Pixifact 内建能力。
@@ -36,7 +30,7 @@ packages/pixifact/src/runtime/  Application、GameObject、Component、布局、
 packages/pixifact/src/nodes/    runtime 节点和行为组件
 packages/pixifact/src/scene/    legacy SceneSpec、DSL、Scene 实例化、Scene 模板
 packages/pixifact/src/commands/ SceneDocument 内部命令、校验、应用、撤销基础
-packages/pixifact/src/compiler/ compiler .scene 解析、校验、proposal、生成
+packages/pixifact/src/compiler/ compiler .scene 解析、校验、生成
 packages/pixifact/src/authoring/SceneDocument、selection、diff、locks、actions、logic
 packages/pixifact-cli/          Pixifact CLI，依赖 pixifact，不依赖桌面编辑器
 apps/editor/                    Pixifact 桌面编辑器 React / Vite 前端
@@ -78,13 +72,6 @@ bun run pixifact -- compile-scenes --project-root /path/to/project
 ```
 
 Scene 资产由同目录同名的 `.scene` 和 `.ts` 成对组成，例如 `src/scenes/Hud.scene` 与 `src/scenes/Hud.ts`。`.scene` 保存视觉结构、层级、布局和事件绑定，行为脚本按同目录同 basename 自动配对；不要在 `.scene` 中写 `script="..."`，也不要编辑 `.pixifact/generated`。
-
-可选 proposal 审查：
-
-```bash
-bun run pixifact -- scene proposal check --project-root /path/to/project --scene src/scenes/Button.scene --proposal proposal.json
-bun run pixifact -- scene proposal apply --project-root /path/to/project --scene src/scenes/Button.scene --proposal proposal.json
-```
 
 Editor live context 只读：
 

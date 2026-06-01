@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-import fs from 'node:fs/promises';
 import { createPixifactAutomation } from './automation';
 import { hintForCommandError } from 'pixifact';
 import { CompileSceneError, compileScenes } from 'pixifact/compiler-node';
-import type { SceneProposalDiagnostic } from 'pixifact/compiler';
+import type { SceneValidationDiagnostic } from 'pixifact/compiler';
 import { createLiveBridgeServer } from './liveBridgeServer';
 
 type Automation = ReturnType<typeof createPixifactAutomation>;
@@ -13,7 +12,6 @@ type LiveBridge = Pick<ReturnType<typeof createLiveBridgeServer>, 'connected' | 
 
 interface CliOptions {
     automation?: Automation;
-    input?: string | NodeJS.ReadableStream;
     liveBridge?: LiveBridge;
 }
 
@@ -69,27 +67,6 @@ function requireFlag(flags: Record<string, string | true>, name: string) {
     return value;
 }
 
-async function readInput(input: string | NodeJS.ReadableStream | undefined) {
-    if (typeof input === 'string') {
-        return input;
-    }
-
-    const stream = input ?? process.stdin;
-    const chunks: Buffer[] = [];
-    for await (const chunk of stream) {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
-    }
-    return Buffer.concat(chunks).toString('utf8');
-}
-
-async function readProposal(flags: Record<string, string | true>, input: string | NodeJS.ReadableStream | undefined) {
-    const proposalPath = requireFlag(flags, 'proposal');
-    const text = proposalPath === '-'
-        ? await readInput(input)
-        : await fs.readFile(proposalPath, 'utf8');
-    return JSON.parse(text);
-}
-
 function jsonLine(value: unknown) {
     return `${JSON.stringify(value, null, 2)}\n`;
 }
@@ -127,7 +104,7 @@ function compileScenesFailure(error: unknown): CliJsonResult {
                 expected: `file basename "${expectedName}"`,
                 actual,
                 hint: 'Rename the <Scene name> to match the .scene file basename, or rename the .scene/.ts pair.',
-            } satisfies SceneProposalDiagnostic],
+            } satisfies SceneValidationDiagnostic],
             hint: 'Fix the listed diagnostics, then run compile-scenes again.',
         };
     }
@@ -144,7 +121,7 @@ function compileScenesFailure(error: unknown): CliJsonResult {
                 expected: `paired script "${scriptPath}"`,
                 actual: 'missing script',
                 hint: 'Create a colocated TypeScript file with the same basename as the .scene file.',
-            } satisfies SceneProposalDiagnostic],
+            } satisfies SceneValidationDiagnostic],
             hint: 'Fix the listed diagnostics, then run compile-scenes again.',
         };
     }
@@ -161,7 +138,7 @@ function compileScenesFailure(error: unknown): CliJsonResult {
                 expected: `paired @scene class name "${expectedClass}"`,
                 actual,
                 hint: 'Rename the <Scene name> to match the paired @scene class, or update the class name in the paired script.',
-            } satisfies SceneProposalDiagnostic],
+            } satisfies SceneValidationDiagnostic],
             hint: 'Fix the listed diagnostics, then run compile-scenes again.',
         };
     }
@@ -178,7 +155,7 @@ function compileScenesFailure(error: unknown): CliJsonResult {
                 expected: `node id "${id}"`,
                 actual: 'missing node',
                 hint: 'Add a node with this id to the .scene file or update @part({ id }).',
-            } satisfies SceneProposalDiagnostic],
+            } satisfies SceneValidationDiagnostic],
             hint: 'Fix the listed diagnostics, then run compile-scenes again.',
         };
     }
@@ -189,7 +166,7 @@ function compileScenesFailure(error: unknown): CliJsonResult {
     };
 }
 
-function sourceDiagnosticFromMessage(source: string, message: string): SceneProposalDiagnostic | undefined {
+function sourceDiagnosticFromMessage(source: string, message: string): SceneValidationDiagnostic | undefined {
     if (!message.includes('offset')) {
         return undefined;
     }
@@ -220,8 +197,8 @@ function sourcePositionFromMessage(source: string, message: string) {
     };
 }
 
-async function executeFileCommand(positionals: string[], flags: Record<string, string | true>, automation: Automation, input: string | NodeJS.ReadableStream | undefined) {
-    const [area, action, subaction] = positionals;
+async function executeFileCommand(positionals: string[], flags: Record<string, string | true>, automation: Automation) {
+    const [area, action] = positionals;
 
     if (area === 'compile-scenes' && action === undefined) {
         const projectRoot = typeof flags['project-root'] === 'string' ? flags['project-root'] : process.cwd();
@@ -268,22 +245,6 @@ async function executeFileCommand(positionals: string[], flags: Record<string, s
         return automation.validateCompilerScene({
             projectRoot: requireFlag(flags, 'project-root'),
             scenePath: requireFlag(flags, 'scene'),
-        });
-    }
-
-    if (area === 'scene' && action === 'proposal' && subaction === 'check') {
-        return automation.checkCompilerSceneProposal({
-            projectRoot: requireFlag(flags, 'project-root'),
-            scenePath: requireFlag(flags, 'scene'),
-            proposal: await readProposal(flags, input),
-        });
-    }
-
-    if (area === 'scene' && action === 'proposal' && subaction === 'apply') {
-        return automation.applyCompilerSceneProposal({
-            projectRoot: requireFlag(flags, 'project-root'),
-            scenePath: requireFlag(flags, 'scene'),
-            proposal: await readProposal(flags, input),
         });
     }
 
@@ -337,8 +298,6 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'scene get',
                         'scene inspect',
                         'scene validate',
-                        'scene proposal check',
-                        'scene proposal apply',
                         'node inspect',
                         'live summary',
                         'live scene get',
@@ -357,7 +316,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                 parsed.flags,
                 options.liveBridge ?? (ownedBridge = createLiveBridgeServer()),
             )
-            : await executeFileCommand(parsed.positionals, parsed.flags, automation, options.input);
+            : await executeFileCommand(parsed.positionals, parsed.flags, automation);
         if (isFailedResult(result)) {
             return {
                 exitCode: 1,

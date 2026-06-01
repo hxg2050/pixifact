@@ -1,7 +1,6 @@
 import { act, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSceneRevision } from 'pixifact/compiler';
 import type { ProjectFileTreeNode } from '../apps/editor/src/services/projectFileTree';
 import { useEditorStore } from '../apps/editor/src/editorStore';
 import { EditorApp } from '../apps/editor/src/EditorApp';
@@ -191,15 +190,6 @@ function resetHostFiles() {
     host.fileChangedHandler = undefined;
 }
 
-function proposalText(content: string, baseRevision = createSceneRevision(currentScene())) {
-    return JSON.stringify({
-        kind: 'pixifact.sceneProposal.v1',
-        scene: 'src/scenes/Button.scene',
-        baseRevision,
-        content,
-    });
-}
-
 function setEditorProject() {
     useEditorStore.setState({
         language: 'zh-CN',
@@ -212,22 +202,8 @@ function setEditorProject() {
     });
 }
 
-function setNativeValue(element: HTMLTextAreaElement, value: string) {
-    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-    setter?.call(element, value);
-}
-
 function textContent(container: HTMLElement) {
     return container.textContent ?? '';
-}
-
-function buttonByText(container: HTMLElement, text: string) {
-    const button = [...container.querySelectorAll('button')]
-        .find((candidate) => candidate.textContent?.includes(text));
-    if (!button) {
-        throw new Error(`Missing button ${text}.`);
-    }
-    return button as HTMLButtonElement;
 }
 
 async function renderAgentPanel() {
@@ -267,24 +243,6 @@ async function renderEditorApp() {
     };
 }
 
-async function pasteProposal(container: HTMLElement, text: string) {
-    const textarea = container.querySelector('textarea[aria-label="Scene proposal JSON"]') as HTMLTextAreaElement | null;
-    if (!textarea) {
-        throw new Error('Missing proposal textarea.');
-    }
-    await act(async () => {
-        setNativeValue(textarea, text);
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-}
-
-async function clickButton(button: HTMLButtonElement) {
-    await act(async () => {
-        button.click();
-        await Promise.resolve();
-    });
-}
-
 beforeEach(() => {
     localStorage.clear();
     resetHostFiles();
@@ -297,42 +255,15 @@ afterEach(() => {
     document.body.innerHTML = '';
 });
 
-describe('Agent panel proposal review UI', () => {
-    it('reviews and applies a pasted scene proposal, then refreshes the current compiler scene document', async () => {
+describe('Agent panel direct Scene workflow UI', () => {
+    it('shows direct edit validation commands without review apply controls', async () => {
         const view = await renderAgentPanel();
         try {
-            await pasteProposal(view.container, proposalText(updatedScene()));
-
-            await clickButton(buttonByText(view.container, '检查 Proposal'));
-
-            expect(textContent(view.container)).toContain('Proposal 可应用');
-            expect(textContent(view.container)).toContain('Text#label.text: Start -> Play');
-            expect(host.writes).toEqual([]);
-
-            await clickButton(buttonByText(view.container, '应用 Proposal'));
-
-            expect(host.writes).toEqual([{
-                projectRootPath: '/repo/GameProject',
-                filePath: 'GameProject/src/scenes/Button.scene',
-                content: updatedScene(),
-            }]);
-            expect(getCompilerSceneDocument()?.scenePath).toBe('GameProject/src/scenes/Button.scene');
-            expect(getCompilerSceneDocument()?.template.children[0]?.props.text).toBe('Play');
-            expect(useEditorStore.getState().openedScenePath).toBe('GameProject/src/scenes/Button.scene');
-        } finally {
-            await view.cleanup();
-        }
-    });
-
-    it('shows stale proposal errors without writing files', async () => {
-        const view = await renderAgentPanel();
-        try {
-            await pasteProposal(view.container, proposalText(updatedScene(), 'scene:stale'));
-
-            await clickButton(buttonByText(view.container, '检查 Proposal'));
-
-            expect(textContent(view.container)).toContain('Scene proposal baseRevision does not match current scene revision.');
-            expect(buttonByText(view.container, '应用 Proposal').disabled).toBe(true);
+            expect(textContent(view.container)).toContain('scene inspect');
+            expect(textContent(view.container)).toContain('scene validate');
+            expect(textContent(view.container)).toContain('compile-scenes');
+            expect(view.container.querySelector('textarea')).toBeNull();
+            expect(view.container.querySelectorAll('button')).toHaveLength(0);
             expect(host.writes).toEqual([]);
         } finally {
             await view.cleanup();

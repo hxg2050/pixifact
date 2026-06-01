@@ -145,14 +145,8 @@ function createCompilerSceneProject() {
     return root;
 }
 
-function writeSceneProposal(root: string, proposal: unknown) {
-    const proposalPath = path.join(root, 'proposal.json');
-    fs.writeFileSync(proposalPath, JSON.stringify(proposal), 'utf8');
-    return proposalPath;
-}
-
-async function runCli(argv: string[], input?: string) {
-    const result = await executePixifactCli(argv, { input });
+async function runCli(argv: string[]) {
+    const result = await executePixifactCli(argv);
     return {
         ...result,
         json: JSON.parse(result.stdout || result.stderr),
@@ -535,137 +529,6 @@ describe('Pixifact CLI', () => {
         });
     });
 
-    it('checks compiler scene proposals without writing files', async () => {
-        const projectRoot = createCompilerSceneProject();
-        const scenePath = path.join(projectRoot, 'src', 'scenes', 'Button.scene');
-        const current = fs.readFileSync(scenePath, 'utf8');
-        const proposalPath = writeSceneProposal(projectRoot, {
-            kind: 'pixifact.sceneProposal.v1',
-            scene: 'src/scenes/Button.scene',
-            baseRevision: createSceneRevision(current),
-            content: '<Scene name="Button"><Text id="label" text="Play" /></Scene>',
-        });
-
-        const result = await runCli([
-            'scene',
-            'proposal',
-            'check',
-            '--project-root',
-            projectRoot,
-            '--scene',
-            'src/scenes/Button.scene',
-            '--proposal',
-            proposalPath,
-        ]);
-
-        expect(result.exitCode).toBe(0);
-        expect(result.json.ok).toBe(true);
-        expect(result.json.diffs[0]).toMatchObject({
-            kind: 'nodePropChanged',
-            prop: 'text',
-            before: 'Start',
-            after: 'Play',
-        });
-        expect(fs.readFileSync(scenePath, 'utf8')).toBe(current);
-    });
-
-    it('applies compiler scene proposals and writes canonical source', async () => {
-        const projectRoot = createCompilerSceneProject();
-        const scenePath = path.join(projectRoot, 'src', 'scenes', 'Button.scene');
-        const current = fs.readFileSync(scenePath, 'utf8');
-        const proposalPath = writeSceneProposal(projectRoot, {
-            kind: 'pixifact.sceneProposal.v1',
-            scene: 'src/scenes/Button.scene',
-            baseRevision: createSceneRevision(current),
-            content: '<Scene name="Button"><Text id="label" text="Play" /></Scene>',
-        });
-
-        const result = await runCli([
-            'scene',
-            'proposal',
-            'apply',
-            '--project-root',
-            projectRoot,
-            '--scene',
-            'src/scenes/Button.scene',
-            '--proposal',
-            proposalPath,
-        ]);
-
-        expect(result.exitCode).toBe(0);
-        expect(result.json.ok).toBe(true);
-        expect(fs.readFileSync(scenePath, 'utf8')).toBe([
-            '<Scene name="Button">',
-            '  <Text id="label" text="Play" />',
-            '</Scene>',
-            '',
-        ].join('\n'));
-    });
-
-    it('rejects stale compiler scene proposals through the CLI', async () => {
-        const projectRoot = createCompilerSceneProject();
-        const proposalPath = writeSceneProposal(projectRoot, {
-            kind: 'pixifact.sceneProposal.v1',
-            scene: 'src/scenes/Button.scene',
-            baseRevision: 'sha256:stale',
-            content: '<Scene name="Button"><Text id="label" text="Play" /></Scene>',
-        });
-
-        const result = await runCli([
-            'scene',
-            'proposal',
-            'apply',
-            '--project-root',
-            projectRoot,
-            '--scene',
-            'src/scenes/Button.scene',
-            '--proposal',
-            proposalPath,
-        ]);
-
-        expect(result.exitCode).toBe(1);
-        expect(result.json).toMatchObject({
-            ok: false,
-            error: 'Scene proposal baseRevision does not match current scene revision.',
-        });
-    });
-
-    it('rejects compiler scene proposals with missing texture assets through the CLI', async () => {
-        const projectRoot = createCompilerSceneProject();
-        const scenePath = path.join(projectRoot, 'src', 'scenes', 'Button.scene');
-        const current = fs.readFileSync(scenePath, 'utf8');
-        const proposalPath = writeSceneProposal(projectRoot, {
-            kind: 'pixifact.sceneProposal.v1',
-            scene: 'src/scenes/Button.scene',
-            baseRevision: createSceneRevision(current),
-            content: '<Scene name="Button"><Sprite id="icon" texture="assets/missing.png" /></Scene>',
-        });
-
-        const result = await runCli([
-            'scene',
-            'proposal',
-            'check',
-            '--project-root',
-            projectRoot,
-            '--scene',
-            'src/scenes/Button.scene',
-            '--proposal',
-            proposalPath,
-        ]);
-
-        expect(result.exitCode).toBe(1);
-        expect(result.json).toMatchObject({
-            ok: false,
-            error: 'Scene proposal validation failed.',
-            diagnostics: [{
-                path: '0:icon',
-                prop: 'texture',
-                expected: 'existing project asset',
-                actual: 'assets/missing.png',
-            }],
-        });
-    });
-
     it('rejects private compiler Scene instance props through the CLI', async () => {
         const projectRoot = createCompilerSceneProject();
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.scene'), [
@@ -697,35 +560,26 @@ describe('Pixifact CLI', () => {
             'export class MainMenu extends Container {}',
             '',
         ].join('\n'), 'utf8');
-        const scenePath = path.join(projectRoot, 'src', 'scenes', 'MainMenu.scene');
-        const current = fs.readFileSync(scenePath, 'utf8');
-        const proposalPath = writeSceneProposal(projectRoot, {
-            kind: 'pixifact.sceneProposal.v1',
-            scene: 'src/scenes/MainMenu.scene',
-            baseRevision: createSceneRevision(current),
-            content: [
-                '<Scene name="MainMenu">',
-                '  <Button id="start" scene="src/scenes/Button.scene" label="Start" secret="true" />',
-                '</Scene>',
-            ].join('\n'),
-        });
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'MainMenu.scene'), [
+            '<Scene name="MainMenu">',
+            '  <Button id="start" scene="src/scenes/Button.scene" label="Start" secret="true" />',
+            '</Scene>',
+            '',
+        ].join('\n'), 'utf8');
 
         const result = await runCli([
             'scene',
-            'proposal',
-            'check',
+            'validate',
             '--project-root',
             projectRoot,
             '--scene',
             'src/scenes/MainMenu.scene',
-            '--proposal',
-            proposalPath,
         ]);
 
         expect(result.exitCode).toBe(1);
         expect(result.json).toMatchObject({
             ok: false,
-            error: 'Scene proposal validation failed.',
+            error: 'Scene validation failed.',
             diagnostics: [{
                 path: '0:start',
                 prop: 'secret',
@@ -1307,7 +1161,7 @@ describe('Pixifact CLI', () => {
                     prop: 'texture',
                     expected: 'existing project asset',
                     actual: 'assets/missing.png',
-                    hint: 'Use an asset path that exists in the project before applying the proposal.',
+                    hint: 'Use an asset path that exists in the project before validating the scene.',
                 }],
                 hint: 'Fix the listed diagnostics, then run scene validate again.',
             },
