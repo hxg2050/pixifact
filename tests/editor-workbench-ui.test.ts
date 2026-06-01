@@ -429,6 +429,32 @@ describe('Editor workbench UI', () => {
         }
     });
 
+    it('auto commits Inspector number edits without pressing Enter', async () => {
+        selectCompilerSceneNode('0:label');
+        const view = await renderEditorApp();
+        vi.useFakeTimers();
+        try {
+            const xInput = view.container.querySelector('input[aria-label="x"]') as HTMLInputElement | null;
+            expect(xInput).toBeTruthy();
+
+            await act(async () => {
+                xInput!.focus();
+                fillInput(xInput!, '42');
+                await Promise.resolve();
+            });
+            expect(getCompilerSceneDocument()?.template.children[0].props.x).toBeUndefined();
+
+            await act(async () => {
+                vi.advanceTimersByTime(300);
+                await Promise.resolve();
+            });
+            expect(getCompilerSceneDocument()?.template.children[0].props.x).toBe(42);
+        } finally {
+            vi.useRealTimers();
+            await view.cleanup();
+        }
+    });
+
     it('creates a Scene from Project Shelf without opening it', async () => {
         const confirm = vi.fn(() => true);
         vi.stubGlobal('confirm', confirm);

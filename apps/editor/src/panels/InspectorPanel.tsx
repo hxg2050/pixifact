@@ -22,7 +22,6 @@ import type {
 import {
     Checkbox,
     DropZone,
-    NumberField,
     Select,
     TextField,
 } from '../components/system';
@@ -596,10 +595,11 @@ function EditableFieldRow({
         );
     } else if (field.type === 'number') {
         control = (
-            <NumberField
+            <TextField
                 aria-label={label}
                 disabled={locked}
                 inputProps={{
+                    inputMode: 'decimal',
                     onFocus: startEditSession,
                     onBlur: commitDraftImmediately,
                     onKeyDown: (event) => {
@@ -607,13 +607,13 @@ function EditableFieldRow({
                             event.currentTarget.blur();
                         }
                     },
+                    type: 'text',
                 }}
-                onChange={(nextValue) => {
-                    const nextDraft = Number.isNaN(nextValue) ? '' : String(nextValue);
+                onChange={(nextDraft) => {
                     setDraft(nextDraft);
                     scheduleAutoCommit(nextDraft);
                 }}
-                value={draft.trim() === '' ? NaN : Number(draft)}
+                value={draft}
             />
         );
     } else {
