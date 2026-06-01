@@ -1024,6 +1024,14 @@ textarea {
     padding: 8px 6px;
 }
 
+.nodeTree > .systemTree {
+    grid-row: 3;
+}
+
+.nodeTree > .rootDropZone {
+    grid-row: 4;
+}
+
 .nodeContextMenu {
     position: fixed;
     z-index: 1000;
@@ -1073,30 +1081,12 @@ textarea {
 }
 
 .rootDropZone {
-    display: grid;
+    display: block;
     min-height: 44px;
-    align-items: center;
-    gap: 2px;
-    margin: 6px 4px 0;
-    border: 1px dashed #c9d5e5;
+    margin: 4px;
+    border: 1px dashed transparent;
     border-radius: 6px;
-    background: #f8fafc;
-    color: var(--muted);
-    padding: 0 10px;
-    font-size: 11px;
-    font-weight: 760;
-}
-
-.rootDropZone strong {
-    color: #334155;
-    font-size: 12px;
-    font-weight: 850;
-}
-
-.rootDropZone span {
-    color: var(--muted);
-    font-size: 11px;
-    font-weight: 700;
+    background: transparent;
 }
 
 .rootDropZone.dropTarget,

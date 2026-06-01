@@ -776,7 +776,6 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
             <div className="sectionHeader hierarchyHeader">
                 <div>
                     <div className="sectionTitle">{t('hierarchyTreeTitle')}</div>
-                    <small>{t('hierarchyDropHint')}</small>
                 </div>
                 <div className="hierarchyCreateActions" aria-label={t('hierarchyExpandActionsLabel')}>
                     <button onClick={setAllNodesExpanded} type="button">{t('expandAll')}</button>
@@ -930,10 +929,7 @@ export function HierarchyTree({ document }: { document: SceneDocument }) {
                     }
                     addNodeTemplateToRoot(payload.data);
                 }}
-            >
-                <strong>{t('dropToSceneRoot')}</strong>
-                <span>{t('hierarchyDropHint')}</span>
-            </DropZone>
+            />
             {contextMenu && contextLocated ? (
                 <div
                     className="nodeContextMenu"
@@ -1219,10 +1215,7 @@ export function CompilerSceneHierarchyTree() {
                     }
                     addCompilerNodeTemplateUnderNode(payload.data, '__scene__');
                 }}
-            >
-                <strong>{t('dropToSceneRoot')}</strong>
-                <span>{t('hierarchyDropHint')}</span>
-            </DropZone>
+            />
         </div>
     );
 }

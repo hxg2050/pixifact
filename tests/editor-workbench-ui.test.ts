@@ -292,6 +292,13 @@ describe('Editor workbench UI', () => {
             expect(view.container.querySelector('[data-testid="workbench-inspector"]')).toBeTruthy();
             expect(view.container.querySelector('[data-testid="workbench-project-preview"]')).toBeTruthy();
             expect(view.container.querySelector('[data-testid="project-shelf"]')).toBeTruthy();
+            const hierarchy = view.container.querySelector('[data-testid="compiler-scene-hierarchy"]');
+            const rootDropZone = hierarchy?.querySelector('.rootDropZone');
+            expect(hierarchy).toBeTruthy();
+            expect(rootDropZone).toBeTruthy();
+            expect(rootDropZone?.textContent).toBe('');
+            expect(hierarchy?.textContent).not.toContain('放到根层级');
+            expect(hierarchy?.textContent).not.toContain('拖动调整层级');
             expect(view.container.querySelector('.dockHost')).toBeTruthy();
             expect(view.container.querySelector('.dv-dockview')).toBeTruthy();
             expect(textContent(view.container)).not.toContain('Dockview');
