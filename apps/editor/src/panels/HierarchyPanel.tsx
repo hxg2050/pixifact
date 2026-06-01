@@ -1238,17 +1238,24 @@ export function CompilerSceneHierarchyTree() {
                     onContextMenu={(event) => event.preventDefault()}
                     style={{ left: contextMenu.x, top: contextMenu.y }}
                 >
-                    <div className="nodeContextMenuTitle">{t('addNode')}</div>
-                    {pixiNodeTemplateLibrary.map((item) => (
-                        <button
-                            data-node-template={item.kind}
-                            key={item.kind}
-                            onClick={() => addCompilerNodeTemplateAtTarget(item.kind, contextMenu.locator)}
-                            type="button"
-                        >
-                            {t(item.nameKey)}
+                    <div className="nodeContextSubmenu">
+                        <button className="nodeContextSubmenuTrigger" type="button">
+                            <span>{t('addNode')}</span>
+                            <span aria-hidden="true">›</span>
                         </button>
-                    ))}
+                        <div className="nodeContextSubmenuPanel">
+                            {pixiNodeTemplateLibrary.map((item) => (
+                                <button
+                                    data-node-template={item.kind}
+                                    key={item.kind}
+                                    onClick={() => addCompilerNodeTemplateAtTarget(item.kind, contextMenu.locator)}
+                                    type="button"
+                                >
+                                    {t(item.nameKey)}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                     <div className="nodeContextMenuSeparator" />
                     <button
                         data-testid="compiler-node-menu-delete"
