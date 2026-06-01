@@ -101,6 +101,9 @@ export function ProjectShelf() {
     const [createSceneOpen, setCreateSceneOpen] = useState(false);
     const [createSceneDirectoryPath, setCreateSceneDirectoryPath] = useState('');
     const [createSceneError, setCreateSceneError] = useState('');
+    const [createFolderOpen, setCreateFolderOpen] = useState(false);
+    const [createFolderDirectoryPath, setCreateFolderDirectoryPath] = useState('');
+    const [createFolderError, setCreateFolderError] = useState('');
     const [newSceneName, setNewSceneName] = useState('');
     const [newFolderName, setNewFolderName] = useState('');
     const refreshProject = useEditorStore((state) => state.refreshProject);
@@ -132,12 +135,25 @@ export function ProjectShelf() {
     const createSceneLocation = createSceneDirectory?.kind === 'folder'
         ? createSceneDirectory
         : folder;
+    const createFolderDirectory = createFolderDirectoryPath
+        ? findFileByPath(projectTree, createFolderDirectoryPath)
+        : undefined;
+    const createFolderLocation = createFolderDirectory?.kind === 'folder'
+        ? createFolderDirectory
+        : folder;
 
     const closeCreateSceneDialog = () => {
         setCreateSceneOpen(false);
         setCreateSceneDirectoryPath('');
         setCreateSceneError('');
         setNewSceneName('');
+    };
+
+    const closeCreateFolderDialog = () => {
+        setCreateFolderOpen(false);
+        setCreateFolderDirectoryPath('');
+        setCreateFolderError('');
+        setNewFolderName('');
     };
 
     const openCreateSceneDialog = () => {
@@ -149,6 +165,17 @@ export function ProjectShelf() {
         setCreateSceneDirectoryPath(directory.path);
         setCreateSceneError('');
         setCreateSceneOpen(true);
+    };
+
+    const openCreateFolderDialog = () => {
+        const directory = containingDirectory(projectTree, selectedFile);
+        if (!directory) {
+            setActionText(t('cannotResolveNewFolderLocation'));
+            return;
+        }
+        setCreateFolderDirectoryPath(directory.path);
+        setCreateFolderError('');
+        setCreateFolderOpen(true);
     };
 
     const openFile = async (file: ProjectFileTreeNode) => {
@@ -221,27 +248,54 @@ export function ProjectShelf() {
         if (!name || !projectTree) {
             return;
         }
-        const directory = containingDirectory(projectTree, selectedFile);
-        if (!directory) {
+        const directory = createFolderDirectoryPath
+            ? findFileByPath(projectTree, createFolderDirectoryPath)
+            : containingDirectory(projectTree, selectedFile);
+        if (directory?.kind !== 'folder') {
+            setCreateFolderError(t('cannotResolveNewFolderLocation'));
             return;
         }
-        const created = await createFolder(directory, name);
-        setNewFolderName('');
-        const refreshedTree = await refreshProjectFileTree(projectTree);
-        refreshProject(refreshedTree, {
-            expandPaths: [directory.path, created.path],
-        });
-        setActionText(t('folderCreated', { name: created.name }));
+
+        try {
+            const created = await createFolder(directory, name);
+            const refreshedTree = await refreshProjectFileTree(projectTree);
+            refreshProject(refreshedTree, {
+                selectPath: created.path,
+                expandPaths: [directory.path, created.path],
+            });
+            setNewFolderName('');
+            setCreateFolderOpen(false);
+            setCreateFolderDirectoryPath('');
+            setCreateFolderError('');
+            setActionText(t('folderCreated', { name: created.name }));
+        } catch (error) {
+            setCreateFolderError(hostErrorMessage(error));
+        }
     };
 
     return (
         <section className="projectShelf" data-testid="project-shelf" aria-label={t('projectShelf')}>
             <header className="projectShelfHeader">
                 <div className="projectShelfTitle">
-                    <button type="button" aria-label={t('collapseProjectShelf')} title={t('collapseProjectShelf')}>▾</button>
                     <strong>{t('project')}</strong>
                 </div>
-                <div className="projectShelfPath" title={folder?.path ?? projectTree.path}>{folder?.path ?? projectTree.path}</div>
+                <div className="projectShelfActions" aria-label={t('fileOperationsLabel')}>
+                    <Button
+                        aria-label={t('createScene')}
+                        data-testid="create-scene"
+                        icon="plus"
+                        onPress={openCreateSceneDialog}
+                        title={t('createScene')}
+                    />
+                    <Button
+                        aria-label={t('createFolder')}
+                        data-testid="create-folder"
+                        icon="folder-plus"
+                        onPress={openCreateFolderDialog}
+                        title={t('createFolder')}
+                    />
+                </div>
+                <div className="projectShelfPath" title={folder?.path ?? projectTree.path}>{folder?.name ?? projectTree.name}</div>
                 <TextField
                     className="projectShelfSearch"
                     inputProps={{ 'aria-label': t('searchProject'), placeholder: t('search') }}
@@ -249,21 +303,6 @@ export function ProjectShelf() {
                     value={search}
                 />
             </header>
-            <div className="projectShelfToolbar">
-                <Button data-testid="create-scene" icon="plus" onPress={openCreateSceneDialog}>
-                    {t('createScene')}
-                </Button>
-                <div className="createSceneRow">
-                    <TextField
-                        inputProps={{ 'aria-label': t('folderName'), placeholder: t('folderName') }}
-                        onChange={setNewFolderName}
-                        value={newFolderName}
-                    />
-                    <Button disabled={newFolderName.trim() === ''} icon="folder-plus" onPress={() => void createFolderInSelected()}>
-                        {t('createFolder')}
-                    </Button>
-                </div>
-            </div>
             {createSceneOpen ? (
                 <div className="projectShelfDialogBackdrop" role="presentation">
                     <form
@@ -319,7 +358,61 @@ export function ProjectShelf() {
                     </form>
                 </div>
             ) : null}
-            {actionText ? <p className="projectShelfAction">{actionText}</p> : null}
+            {createFolderOpen ? (
+                <div className="projectShelfDialogBackdrop" role="presentation">
+                    <form
+                        aria-label={t('createFolder')}
+                        className="projectShelfDialog"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            void createFolderInSelected();
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Escape') {
+                                event.preventDefault();
+                                closeCreateFolderDialog();
+                            }
+                        }}
+                        role="dialog"
+                    >
+                        <header>
+                            <strong>{t('createFolder')}</strong>
+                            <small>{t('createSceneLocation', { path: createFolderLocation?.path ?? projectTree.path })}</small>
+                        </header>
+                        <TextField
+                            data-testid="create-folder-name"
+                            inputProps={{ 'aria-label': t('folderName'), autoFocus: true, placeholder: t('folderName') }}
+                            onChange={(value) => {
+                                setNewFolderName(value);
+                                setCreateFolderError('');
+                            }}
+                            value={newFolderName}
+                        />
+                        {createFolderError ? (
+                            <p className="projectShelfDialogError" data-testid="create-folder-error" role="alert">
+                                {createFolderError}
+                            </p>
+                        ) : null}
+                        <footer>
+                            <Button
+                                type="button"
+                                variant="subtle"
+                                onPress={closeCreateFolderDialog}
+                            >
+                                {t('cancel')}
+                            </Button>
+                            <Button
+                                data-testid="confirm-create-folder"
+                                disabled={newFolderName.trim() === ''}
+                                type="submit"
+                                variant="primary"
+                            >
+                                {t('create')}
+                            </Button>
+                        </footer>
+                    </form>
+                </div>
+            ) : null}
             <div className="projectShelfBody">
                 <div className="projectShelfTree" data-testid="project-shelf-tree">
                     <TreeView
@@ -350,6 +443,7 @@ export function ProjectShelf() {
                     />
                 </div>
             </div>
+            <p className="projectShelfAction" aria-live="polite">{actionText}</p>
         </section>
     );
 }

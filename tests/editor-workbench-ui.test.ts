@@ -15,6 +15,7 @@ import { parseSceneTemplate } from '../packages/pixifact/src/compiler/templatePa
 
 const host = vi.hoisted(() => ({
     files: new Map<string, string>(),
+    directories: new Set<string>(),
     fileChangedHandler: undefined as ((event: { projectRootPath: string; path: string; kind: string }) => void) | undefined,
 }));
 
@@ -25,7 +26,9 @@ function missingHostCall(name: string) {
 }
 
 vi.mock('../apps/editor/src/services/hostBridge', () => ({
-    createHostProjectDirectory: missingHostCall('createHostProjectDirectory'),
+    createHostProjectDirectory: vi.fn(async (_projectRootPath: string, directoryPath: string, folderName: string) => {
+        host.directories.add(`${directoryPath}/${folderName}`);
+    }),
     createHostProjectFile: vi.fn(async (_projectRootPath: string, directoryPath: string, fileName: string, content: string) => {
         host.files.set(`${directoryPath}/${fileName}`, content);
     }),
@@ -101,8 +104,19 @@ function projectTree(): ProjectFileTreeNode {
             depth: 3,
         });
     }
+    for (const folderPath of [...host.directories].filter((path) => path.startsWith('GameProject/src/scenes/')).sort()) {
+        const folderName = folderPath.split('/').pop() ?? folderPath;
+        sceneFiles.push({
+            id: folderPath,
+            name: folderName,
+            path: folderPath,
+            kind: 'folder',
+            depth: 3,
+            children: [],
+        });
+    }
 
-    return {
+    return withProjectRoot({
         id: 'GameProject',
         name: 'GameProject',
         path: 'GameProject',
@@ -138,6 +152,14 @@ function projectTree(): ProjectFileTreeNode {
                 depth: 2,
             }],
         }],
+    });
+}
+
+function withProjectRoot(node: ProjectFileTreeNode): ProjectFileTreeNode {
+    return {
+        ...node,
+        projectRootPath: '/repo/GameProject',
+        children: node.children?.map(withProjectRoot),
     };
 }
 
@@ -236,6 +258,7 @@ beforeEach(() => {
         ['GameProject/src/scenes/Button.ts', '@scene()\nexport class Button {}\n'],
         ['GameProject/src/scenes/Child.ts', '@scene()\nexport class Child {}\n'],
     ]);
+    host.directories = new Set();
     resetCompilerSceneDocument();
     setEditorProject();
 });
@@ -301,6 +324,7 @@ describe('Editor workbench UI', () => {
             const shelf = view.container.querySelector('[data-testid="project-shelf"]');
             const projectPreview = view.container.querySelector('[data-testid="project-preview-panel"]');
             const projectTree = shelf?.querySelector('[data-testid="project-shelf-tree"]');
+            const projectPath = shelf?.querySelector('.projectShelfPath');
             const nestedFolderRow = projectTree?.querySelector('[title="GameProject/src/scenes"]');
             const sceneFileTreeRow = projectTree?.querySelector('[title="GameProject/src/scenes/Button.scene"]');
             const assetFileTreeRow = projectTree?.querySelector('[title="GameProject/assets/play.png"]');
@@ -317,7 +341,8 @@ describe('Editor workbench UI', () => {
             expect(projectPreview?.textContent).toContain('Button.scene');
             expect(projectPreview?.textContent).toContain('双击进入 Scene 编辑');
             expect(shelf?.textContent).toContain('Project');
-            expect(shelf?.textContent).toContain('GameProject/src/scenes');
+            expect(projectPath?.textContent).toBe('scenes');
+            expect(projectPath?.getAttribute('title')).toBe('GameProject/src/scenes');
             expect(projectTree?.textContent).toContain('Button.scene');
             expect(projectTree?.textContent).toContain('Child.scene');
             expect(projectTree?.textContent).toContain('play.png');
@@ -328,7 +353,8 @@ describe('Editor workbench UI', () => {
             expect(nestedFolderGridRow?.getAttribute('role')).toBe('row');
             expect(nestedFolderChevron).toBeTruthy();
             expect(shelf?.querySelector('[data-testid="create-scene"]')).toBeTruthy();
-            expect(shelf?.querySelector('[data-testid="create-folder"]')).toBeFalsy();
+            expect(shelf?.querySelector('[data-testid="create-folder"]')).toBeTruthy();
+            expect(shelf?.querySelector('input[aria-label="文件夹名称"]')).toBeFalsy();
             expect(shelf?.querySelector('[data-testid="rename-entry"]')).toBeFalsy();
             expect(shelf?.textContent).not.toContain('All');
             expect(shelf?.textContent).not.toContain('Images');
@@ -376,6 +402,42 @@ describe('Editor workbench UI', () => {
             expect(host.files.get('GameProject/src/scenes/StatusPanel.ts')).toContain('export class StatusPanel');
             expect(view.container.querySelector('[title="GameProject/src/scenes/StatusPanel.scene"]')).toBeTruthy();
             expect(textContent(view.container)).toContain('已创建 StatusPanel.scene。');
+        } finally {
+            await view.cleanup();
+        }
+    });
+
+    it('creates a folder from the compact Project Shelf dialog', async () => {
+        const view = await renderEditorApp();
+        try {
+            const createButton = view.container.querySelector('[data-testid="create-folder"]');
+            expect(createButton).toBeTruthy();
+
+            await act(async () => {
+                click(createButton!);
+                await Promise.resolve();
+            });
+
+            const nameInput = document.body.querySelector('[data-testid="create-folder-name"]') as HTMLInputElement | null;
+            const submitButton = document.body.querySelector('[data-testid="confirm-create-folder"]');
+            expect(nameInput).toBeTruthy();
+            expect(submitButton).toBeTruthy();
+
+            await act(async () => {
+                fillInput(nameInput!, 'menus');
+                await Promise.resolve();
+            });
+            await act(async () => {
+                click(submitButton!);
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+
+            expect(host.directories.has('GameProject/src/scenes/menus')).toBe(true);
+            expect(useEditorStore.getState().selectedProjectFilePath).toBe('GameProject/src/scenes/menus');
+            expect(view.container.querySelector('[title="GameProject/src/scenes/menus"]')).toBeTruthy();
+            expect(textContent(view.container)).toContain('已创建文件夹 menus。');
+            expect(document.body.querySelector('[data-testid="create-folder-name"]')).toBeFalsy();
         } finally {
             await view.cleanup();
         }
