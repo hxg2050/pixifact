@@ -241,7 +241,7 @@ Run:
 bunx --no-install vitest run tests/agent-panel-ui.test.ts
 ```
 
-Expected: FAIL only on the new `workbench-status-bar` assertion. Existing proposal and sync behavior should continue to pass.
+Expected: FAIL only on the new `workbench-status-bar` assertion. Existing sync behavior should continue to pass.
 
 - [ ] **Step 5: Commit the failing tests**
 

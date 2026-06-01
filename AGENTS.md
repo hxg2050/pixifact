@@ -23,7 +23,7 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 - `packages/pixifact/src/nodes/`：runtime 节点和行为组件。
 - `packages/pixifact/src/scene/`：`SceneSpec`、Scene DSL、Scene 实例化、Scene 模板。
 - `packages/pixifact/src/commands/`：`SceneDocument` 内部 `SceneCommand` 校验、应用、撤销基础。
-- `packages/pixifact/src/compiler/`：compiler `.scene` 解析、校验、proposal、生成。
+- `packages/pixifact/src/compiler/`：compiler `.scene` 解析、校验、生成。
 - `packages/pixifact/src/authoring/`：`SceneDocument`、selection、diff、locks、actions、logic。
 - `packages/pixifact-cli/`：Pixifact CLI，依赖 `pixifact`，不依赖桌面编辑器。
 - `apps/editor/`：Pixifact 桌面编辑器产品应用。
@@ -37,7 +37,6 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 - `SceneDocument` 服务 legacy SceneSpec 和 editor 内部命令/undo，不作为外部 Agent 修改协议。
 - Zustand 只保存 UI 状态，不保存 `SceneSpec` / `SceneDocument` 的副本。
 - Compiler `.scene` 的默认 Agent 路径是直接编辑 `.scene` 源文件，然后运行 Pixifact CLI 的 `scene validate`、`compile-scenes` 和项目最小相关验证。
-- `.scene proposal` 是可选保险路径，用于防覆盖、显式审查或协作审计；不是默认 AI 开发路径。
 - Editor live bridge 只提供 summary、scene get、node inspect 等上下文能力，不提供旧 `SceneCommand` mutation 入口。
 - JSON 是资产格式，不作为主要编辑入口。
 - 不引入 Monaco，不做内嵌代码编辑器。

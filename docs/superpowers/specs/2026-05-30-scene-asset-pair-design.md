@@ -139,7 +139,7 @@ Relative reference:
 <Panel scene="../shared/Panel.scene" />
 ```
 
-The compiler, CLI, Editor preview, proposal checks, and live context should normalize references to project-relative asset ids before validation or code generation:
+The compiler, CLI, Editor preview, validation checks, and live context should normalize references to project-relative asset ids before validation or code generation:
 
 ```txt
 src/ui/Button.scene
