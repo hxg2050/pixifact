@@ -392,12 +392,14 @@ describe('Editor workbench UI', () => {
         try {
             const inspector = view.container.querySelector('[data-testid="compiler-scene-inspector"]');
             const sectionTitles = [...inspector?.querySelectorAll('.inspectorSection h3') ?? []].map((title) => title.textContent);
+            const visibleCheckbox = inspector?.querySelector('[aria-label="visible"]') as HTMLInputElement | null;
 
             expect(inspector).toBeTruthy();
             expect(sectionTitles).toEqual(['标识', 'Transform', 'Display', 'Text']);
             expect(sectionTitles).not.toContain('Scene');
             expect(sectionTitles).not.toContain('脚本绑定');
             expect(sectionTitles).not.toContain('公开契约');
+            expect(visibleCheckbox?.checked).toBe(true);
         } finally {
             await view.cleanup();
         }

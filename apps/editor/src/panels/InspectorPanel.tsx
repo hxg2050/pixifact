@@ -355,7 +355,7 @@ function compilerDisplayFields(node: SelectedCompilerItem): InspectorFieldModel[
     if (!node || node.kind === 'slot' || node.kind === 'slotOutlet') {
         return [];
     }
-    return pixiSceneDisplayProps.map((key) => compilerField(key, node.props[key]));
+    return pixiSceneDisplayProps.map((key) => compilerField(key, key === 'visible' ? node.props[key] ?? true : node.props[key]));
 }
 
 interface CompilerFieldSection {
