@@ -25,6 +25,10 @@ For scene, UI, HUD, menu, layout, or visual asset tasks, edit `.scene` source fi
    ```bash
    bunx --no-install pixifact scene validate --project-root . --scene src/scenes/MainMenu.scene
    ```
+   For broad edits or uncertain impact, validate every compiler scene:
+   ```bash
+   bunx --no-install pixifact scene validate --project-root . --all
+   ```
 5. Compile after validation passes:
    ```bash
    bun run compile:scenes

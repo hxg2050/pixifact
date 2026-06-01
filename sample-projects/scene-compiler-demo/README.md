@@ -38,6 +38,7 @@ Codex / Claude Code 修改这个示例时，默认直接编辑项目相对 `.sce
 bun run pixifact -- scene inspect --project-root sample-projects/scene-compiler-demo --scene src/scenes/Button.scene
 # 编辑 sample-projects/scene-compiler-demo/src/scenes/Button.scene
 bun run pixifact -- scene validate --project-root sample-projects/scene-compiler-demo --scene src/scenes/Button.scene
+bun run pixifact -- scene validate --project-root sample-projects/scene-compiler-demo --all
 bun run pixifact -- compile-scenes --project-root sample-projects/scene-compiler-demo
 cd sample-projects/scene-compiler-demo && bun run build
 ```

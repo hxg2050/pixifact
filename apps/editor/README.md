@@ -45,8 +45,11 @@ bun run desktop:build
 bun run pixifact -- summary --project-root /path/to/project
 bun run pixifact -- scene inspect --project-root /path/to/project --scene src/scenes/Main.scene
 bun run pixifact -- scene validate --project-root /path/to/project --scene src/scenes/Main.scene
+bun run pixifact -- scene validate --project-root /path/to/project --all
 bun run pixifact -- compile-scenes --project-root /path/to/project
 ```
+
+小范围改动可以校验当前 Scene；批量改动或不确定影响范围时用 `scene validate --all` 校验所有 compiler Scene。
 
 Scene 脚本按同目录同 basename 自动配对，例如 `src/scenes/Main.scene` 与 `src/scenes/Main.ts`。不要在 `.scene` 中写 `script="..."`，不要编辑 `.pixifact/generated`。
 

@@ -9,10 +9,11 @@ The `.scene` file is the authored source. Generated TypeScript is build output.
 ```bash
 bunx --no-install pixifact scene inspect --project-root . --scene src/scenes/MainMenu.scene
 bunx --no-install pixifact scene validate --project-root . --scene src/scenes/MainMenu.scene
+bunx --no-install pixifact scene validate --project-root . --all
 bun run compile:scenes
 ```
 
-If validation or compilation fails, fix the `.scene` source and rerun the failing command. Prefer package scripts from `package.json` when the project provides them.
+Use `--scene` for a known target and `--all` after broad edits or when the touched scene set is uncertain. If validation or compilation fails, fix the `.scene` source and rerun the failing command. Prefer package scripts from `package.json` when the project provides them.
 
 After compilation, run the smallest relevant project check:
 
@@ -35,7 +36,7 @@ bun run dev
 - Reference other Scenes with `.scene` paths, never bare names.
 - Do not edit `.pixifact/generated/*.scene.generated.ts` or `.pixifact/generated/scenes.generated.ts`.
 - Do not edit `src/generated/*.scene.generated.ts` or `src/generated/scenes.generated.ts`.
-- Run `scene validate` after every edited compiler scene.
+- Run `scene validate --scene <path>` after targeted edits, or `scene validate --all` after broad edits.
 - Run `compile-scenes` after validation passes.
 - If validation reports diagnostics, fix the `.scene` source and validate again.
 - Treat generated TypeScript as read-only build output unless the user explicitly asks to inspect generated output.

@@ -45,7 +45,7 @@ Agents should follow this loop:
 
 1. Inspect the current scene.
 2. Edit project-relative `.scene` paths such as `src/scenes/Hud.scene` and related source assets/scripts requested by the user.
-3. Run `scene validate` on every edited compiler scene.
+3. Run `scene validate` on every edited compiler scene, or `scene validate --all` after broad edits.
 4. Run `compile-scenes`.
 5. If validation or compilation reports diagnostics, repair the `.scene` source and rerun the failing command.
 6. Run the smallest relevant project build or test.
@@ -56,11 +56,12 @@ Example:
 ```bash
 bun run pixifact -- scene inspect --project-root sample-projects/scene-compiler-demo --scene src/scenes/Button.scene
 bun run pixifact -- scene validate --project-root sample-projects/scene-compiler-demo --scene src/scenes/Button.scene
+bun run pixifact -- scene validate --project-root sample-projects/scene-compiler-demo --all
 bun run pixifact -- compile-scenes --project-root sample-projects/scene-compiler-demo
 cd sample-projects/scene-compiler-demo && bun run build
 ```
 
-`scene validate` checks parse errors, prop names, prop value types, asset references, and public Scene instance contracts. It is the required safety check after direct `.scene` edits. Git state, commits, rollback, branch isolation, and merge strategy are intentionally outside Pixifact; external agents and developer tools should manage them directly.
+`scene validate` checks parse errors, prop names, prop value types, asset references, and public Scene instance contracts. Use `--scene` for a known target and `--all` when multiple scenes may have changed. It is the required safety check after direct `.scene` edits. Git state, commits, rollback, branch isolation, and merge strategy are intentionally outside Pixifact; external agents and developer tools should manage them directly.
 
 Pixifact does not decide when to commit or open a PR. Its responsibility is to make the `.scene` edit diagnosable and compilable; Git diff, commit, revert, branch isolation, PR review, CI, and task management remain outside the Pixifact capability boundary.
 
@@ -88,7 +89,7 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 - Reference other Scenes with `.scene` paths, never bare names.
 - `.pixifact/generated` is never an agent editing target.
 - Every editable node must have a stable ID.
-- Direct edits must be followed by `scene validate`.
+- Direct edits must be followed by `scene validate --scene <path>` or `scene validate --all`.
 - Pixifact must use a canonical formatter for generated output and editor refreshes.
 - Pixifact must reject scene sources that fail parse, validation, contract checks, or asset checks.
 - CLI and editor save flows must use the same parse and validate rules.
@@ -138,6 +139,8 @@ Pixifact Scene asset rules:
 - Current Scene: <scene-path>
 - After editing, run:
   bun run pixifact -- scene validate --project-root <project-root> --scene <scene-path>
+- If multiple scenes changed, run:
+  bun run pixifact -- scene validate --project-root <project-root> --all
 - Then run:
   bun run pixifact -- compile-scenes --project-root <project-root>
 - Finally run the smallest relevant build or test.
@@ -163,6 +166,7 @@ Compiler scene agent workflows should move toward these commands:
 ```bash
 bun run pixifact -- scene inspect --project-root <project-root> --scene src/scenes/Button.scene
 bun run pixifact -- scene validate --project-root <project-root> --scene src/scenes/Button.scene
+bun run pixifact -- scene validate --project-root <project-root> --all
 bun run pixifact -- compile-scenes --project-root <project-root>
 ```
 
@@ -195,6 +199,6 @@ These costs are acceptable because they keep the final authoring model simple an
 
 ## Migration Notes
 
-Existing legacy agent flows based on `SceneCommand[]` are retired from the CLI and live bridge surface. Compiler scene edits should use direct `.scene` source changes followed by `scene validate`.
+Existing legacy agent flows based on `SceneCommand[]` are retired from the CLI and live bridge surface. Compiler scene edits should use direct `.scene` source changes followed by `scene validate --scene <path>` or `scene validate --all`.
 
 The live editor bridge is read-only context: `live summary`, `live scene get`, and `live node inspect`. It exists to expose the current editor state, selected node, and latest external `.scene` refresh or validation result, not to mutate project files.

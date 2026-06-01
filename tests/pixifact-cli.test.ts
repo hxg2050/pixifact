@@ -405,6 +405,86 @@ describe('Pixifact CLI', () => {
         });
     });
 
+    it('validates all compiler scene files through the CLI', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'MainMenu.scene'), [
+            '<Scene name="MainMenu">',
+            '  <Button id="start" scene="src/scenes/Button.scene" />',
+            '</Scene>',
+            '',
+        ].join('\n'), 'utf8');
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'MainMenu.ts'), [
+            'import { Container } from "pixi.js";',
+            'import { scene } from "pixifact/compiler";',
+            '',
+            '@scene()',
+            'export class MainMenu extends Container {}',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--all',
+        ]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json).toMatchObject({
+            ok: true,
+            projectRoot,
+            sceneCount: 2,
+            scenes: [
+                { scenePath: 'src/scenes/Button.scene' },
+                { scenePath: 'src/scenes/MainMenu.scene' },
+            ],
+        });
+    });
+
+    it('returns aggregated diagnostics when validating all compiler scenes fails', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Broken.scene'), [
+            '<Scene name="Broken">',
+            '  <Sprite id="icon" texture="assets/missing.png" />',
+            '</Scene>',
+            '',
+        ].join('\n'), 'utf8');
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Broken.ts'), [
+            'import { Container } from "pixi.js";',
+            'import { scene } from "pixifact/compiler";',
+            '',
+            '@scene()',
+            'export class Broken extends Container {}',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--all',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            projectRoot,
+            sceneCount: 2,
+            failures: [{
+                scene: 'src/scenes/Broken.scene',
+                error: 'Scene validation failed.',
+                diagnostics: [{
+                    path: '0:icon',
+                    prop: 'texture',
+                    expected: 'existing project asset',
+                    actual: 'assets/missing.png',
+                }],
+            }],
+        });
+    });
+
     it('rejects invalid directly edited compiler scene files', async () => {
         const projectRoot = createCompilerSceneProject();
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.scene'), [

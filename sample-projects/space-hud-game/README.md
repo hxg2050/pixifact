@@ -18,6 +18,7 @@ The default Agent workflow is direct `.scene` editing followed by Pixifact valid
 cd ../..
 bun run pixifact -- scene inspect --project-root sample-projects/space-hud-game --scene src/scenes/Hud.scene
 bun run pixifact -- scene validate --project-root sample-projects/space-hud-game --scene src/scenes/Hud.scene
+bun run pixifact -- scene validate --project-root sample-projects/space-hud-game --all
 bun run pixifact -- compile-scenes --project-root sample-projects/space-hud-game
 cd sample-projects/space-hud-game && bun run build
 ```

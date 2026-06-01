@@ -43,7 +43,7 @@ function parseArgs(argv: string[]): ParsedArgs {
         }
 
         const name = arg.slice(2);
-        if (name === 'help') {
+        if (name === 'help' || name === 'all') {
             flags[name] = true;
             continue;
         }
@@ -242,6 +242,14 @@ async function executeFileCommand(positionals: string[], flags: Record<string, s
     }
 
     if (area === 'scene' && action === 'validate') {
+        if (flags.all === true) {
+            if (typeof flags.scene === 'string') {
+                throw new Error('Use either --all or --scene, not both.');
+            }
+            return automation.validateAllCompilerScenes({
+                projectRoot: requireFlag(flags, 'project-root'),
+            });
+        }
         return automation.validateCompilerScene({
             projectRoot: requireFlag(flags, 'project-root'),
             scenePath: requireFlag(flags, 'scene'),
@@ -298,6 +306,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'scene get',
                         'scene inspect',
                         'scene validate',
+                        'scene validate --all',
                         'node inspect',
                         'live summary',
                         'live scene get',

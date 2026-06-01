@@ -45,6 +45,9 @@ interface ToolInput {
     name?: unknown;
 }
 
+type CompilerSceneValidationSuccess = ReturnType<typeof validateCompilerSceneFile> & { ok: true };
+type CompilerSceneValidationFailure = ReturnType<typeof validateCompilerSceneFile> & { ok: false };
+
 type DetailedNode = NodeSpec & {
     locator: string;
     depth: number;
@@ -399,6 +402,56 @@ function compilerSceneValidationFailure(scenePath: string, content: string, diag
     };
 }
 
+function validateCompilerSceneFile(root: string, scenePath: string) {
+    const content = readTextFile(path.join(root, scenePath));
+    const sourceRootFailure = compilerSceneSourceRootFailure(scenePath);
+    if (sourceRootFailure) {
+        return sourceRootFailure;
+    }
+    const result = validateSceneContent({
+        scene: scenePath,
+        content,
+        existingAssets: collectProjectAssets(root),
+        sceneInterfaces: collectCompilerSceneInterfaces(root, scenePath),
+        normalizeSceneReference: normalizeCompilerSceneReference(scenePath),
+    });
+    if (!result.ok) {
+        return result;
+    }
+    const pair = readCompilerScenePairContract(root, scenePath, parseSceneTemplate(content));
+    if (pair.diagnostics.length > 0) {
+        return compilerSceneValidationFailure(scenePath, content, pair.diagnostics);
+    }
+    return {
+        ...result,
+        scenePath,
+    };
+}
+
+function validateAllCompilerScenes(root: string) {
+    const results = collectCompilerScenePaths(root).map((scenePath) => validateCompilerSceneFile(root, scenePath));
+    const failures = results.filter((result): result is CompilerSceneValidationFailure => !result.ok);
+    const scenes = results
+        .filter((result): result is CompilerSceneValidationSuccess => result.ok)
+        .map(({ scenePath, revision, summary }) => ({ scenePath, revision, summary }));
+    if (failures.length > 0) {
+        return {
+            ok: false as const,
+            projectRoot: root,
+            sceneCount: results.length,
+            scenes,
+            failures,
+            hint: 'Fix the listed diagnostics, then run scene validate --all again.',
+        };
+    }
+    return {
+        ok: true as const,
+        projectRoot: root,
+        sceneCount: results.length,
+        scenes,
+    };
+}
+
 function nodeLocator(node: NodeSpec) {
     return node.id ?? node.key ?? node.name ?? '';
 }
@@ -557,28 +610,13 @@ export function createPixifactAutomation() {
         validateCompilerScene(input: unknown) {
             const args = assertRecord(input, 'input') as ToolInput;
             const loaded = loadCompilerScene(args.projectRoot, args.scenePath);
-            const sourceRootFailure = compilerSceneSourceRootFailure(loaded.scenePath);
-            if (sourceRootFailure) {
-                return sourceRootFailure;
-            }
-            const result = validateSceneContent({
-                scene: loaded.scenePath,
-                content: loaded.content,
-                existingAssets: collectProjectAssets(loaded.root),
-                sceneInterfaces: collectCompilerSceneInterfaces(loaded.root, loaded.scenePath),
-                normalizeSceneReference: normalizeCompilerSceneReference(loaded.scenePath),
-            });
-            if (!result.ok) {
-                return result;
-            }
-            const pair = readCompilerScenePairContract(loaded.root, loaded.scenePath, parseSceneTemplate(loaded.content));
-            if (pair.diagnostics.length > 0) {
-                return compilerSceneValidationFailure(loaded.scenePath, loaded.content, pair.diagnostics);
-            }
-            return {
-                ...result,
-                scenePath: loaded.scenePath,
-            };
+            return validateCompilerSceneFile(loaded.root, loaded.scenePath);
+        },
+
+        validateAllCompilerScenes(input: unknown) {
+            const args = assertRecord(input, 'input') as ToolInput;
+            const { root } = resolveProjectPath(args.projectRoot, '.');
+            return validateAllCompilerScenes(root);
         },
 
         inspectNode(input: unknown) {
