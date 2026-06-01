@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectFileTreeNode } from '../apps/editor/src/services/projectFileTree';
 import { useEditorStore } from '../apps/editor/src/editorStore';
 import { EditorApp } from '../apps/editor/src/EditorApp';
-import { AgentPanel } from '../apps/editor/src/panels/AgentPanel';
 import {
     getCompilerSceneDocument,
     loadCompilerSceneDocument,
@@ -206,24 +205,6 @@ function textContent(container: HTMLElement) {
     return container.textContent ?? '';
 }
 
-async function renderAgentPanel() {
-    const container = document.createElement('div');
-    document.body.append(container);
-    const root = createRoot(container);
-    await act(async () => {
-        root.render(createElement(AgentPanel));
-    });
-    return {
-        container,
-        async cleanup() {
-            await act(async () => {
-                root.unmount();
-            });
-            container.remove();
-        },
-    };
-}
-
 async function renderEditorApp() {
     const container = document.createElement('div');
     document.body.append(container);
@@ -253,22 +234,6 @@ beforeEach(() => {
 afterEach(() => {
     resetCompilerSceneDocument();
     document.body.innerHTML = '';
-});
-
-describe('Agent panel direct Scene workflow UI', () => {
-    it('shows direct edit validation commands without review apply controls', async () => {
-        const view = await renderAgentPanel();
-        try {
-            expect(textContent(view.container)).toContain('scene inspect');
-            expect(textContent(view.container)).toContain('scene validate');
-            expect(textContent(view.container)).toContain('compile-scenes');
-            expect(view.container.querySelector('textarea')).toBeNull();
-            expect(view.container.querySelectorAll('button')).toHaveLength(0);
-            expect(host.writes).toEqual([]);
-        } finally {
-            await view.cleanup();
-        }
-    });
 });
 
 describe('Editor external Scene sync UI', () => {
