@@ -9,6 +9,7 @@ import { EditorApp } from '../apps/editor/src/EditorApp';
 import {
     loadCompilerSceneDocument,
     resetCompilerSceneDocument,
+    updateCompilerSceneTemplate,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
 import { parseSceneTemplate } from '../packages/pixifact/src/compiler/templateParser';
 
@@ -25,7 +26,9 @@ function missingHostCall(name: string) {
 
 vi.mock('../apps/editor/src/services/hostBridge', () => ({
     createHostProjectDirectory: missingHostCall('createHostProjectDirectory'),
-    createHostProjectFile: missingHostCall('createHostProjectFile'),
+    createHostProjectFile: vi.fn(async (_projectRootPath: string, directoryPath: string, fileName: string, content: string) => {
+        host.files.set(`${directoryPath}/${fileName}`, content);
+    }),
     deleteHostProjectEntry: missingHostCall('deleteHostProjectEntry'),
     openHostCodeFile: missingHostCall('openHostCodeFile'),
     openHostDefaultFile: missingHostCall('openHostDefaultFile'),
@@ -55,6 +58,50 @@ const originalHTMLElementClientWidth = Object.getOwnPropertyDescriptor(HTMLEleme
 const originalHTMLElementClientHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight');
 
 function projectTree(): ProjectFileTreeNode {
+    const sceneFiles: ProjectFileTreeNode[] = [{
+        id: 'GameProject/src/scenes/Button.scene',
+        name: 'Button.scene',
+        path: 'GameProject/src/scenes/Button.scene',
+        kind: 'scene',
+        depth: 3,
+    }, {
+        id: 'GameProject/src/scenes/Child.scene',
+        name: 'Child.scene',
+        path: 'GameProject/src/scenes/Child.scene',
+        kind: 'scene',
+        depth: 3,
+    }, {
+        id: 'GameProject/src/scenes/Button.ts',
+        name: 'Button.ts',
+        path: 'GameProject/src/scenes/Button.ts',
+        kind: 'script',
+        depth: 3,
+    }, {
+        id: 'GameProject/src/scenes/Child.ts',
+        name: 'Child.ts',
+        path: 'GameProject/src/scenes/Child.ts',
+        kind: 'script',
+        depth: 3,
+    }];
+    if (host.files.has('GameProject/src/scenes/StatusPanel.scene')) {
+        sceneFiles.push({
+            id: 'GameProject/src/scenes/StatusPanel.scene',
+            name: 'StatusPanel.scene',
+            path: 'GameProject/src/scenes/StatusPanel.scene',
+            kind: 'scene',
+            depth: 3,
+        });
+    }
+    if (host.files.has('GameProject/src/scenes/StatusPanel.ts')) {
+        sceneFiles.push({
+            id: 'GameProject/src/scenes/StatusPanel.ts',
+            name: 'StatusPanel.ts',
+            path: 'GameProject/src/scenes/StatusPanel.ts',
+            kind: 'script',
+            depth: 3,
+        });
+    }
+
     return {
         id: 'GameProject',
         name: 'GameProject',
@@ -75,31 +122,7 @@ function projectTree(): ProjectFileTreeNode {
                 path: 'GameProject/src/scenes',
                 kind: 'folder',
                 depth: 2,
-                children: [{
-                    id: 'GameProject/src/scenes/Button.scene',
-                    name: 'Button.scene',
-                    path: 'GameProject/src/scenes/Button.scene',
-                    kind: 'scene',
-                    depth: 3,
-                }, {
-                    id: 'GameProject/src/scenes/Child.scene',
-                    name: 'Child.scene',
-                    path: 'GameProject/src/scenes/Child.scene',
-                    kind: 'scene',
-                    depth: 3,
-                }, {
-                    id: 'GameProject/src/scenes/Button.ts',
-                    name: 'Button.ts',
-                    path: 'GameProject/src/scenes/Button.ts',
-                    kind: 'script',
-                    depth: 3,
-                }, {
-                    id: 'GameProject/src/scenes/Child.ts',
-                    name: 'Child.ts',
-                    path: 'GameProject/src/scenes/Child.ts',
-                    kind: 'script',
-                    depth: 3,
-                }],
+                children: sceneFiles,
             }],
         }, {
             id: 'GameProject/assets',
@@ -179,6 +202,16 @@ function dockviewSashes(container: HTMLElement) {
     return [...container.getElementsByClassName('dv-sash')] as HTMLElement[];
 }
 
+function click(element: Element) {
+    element.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+}
+
+function fillInput(input: HTMLInputElement, value: string) {
+    const valueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+    valueSetter?.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 beforeEach(() => {
     Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
         configurable: true,
@@ -215,6 +248,7 @@ afterEach(() => {
         Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight');
     }
     resetCompilerSceneDocument();
+    vi.unstubAllGlobals();
     document.body.innerHTML = '';
 });
 
@@ -290,13 +324,55 @@ describe('Editor workbench UI', () => {
             expect(nestedFolderGridRow?.style.getPropertyValue('--tree-indent')).toBe('28px');
             expect(nestedFolderGridRow?.getAttribute('role')).toBe('row');
             expect(nestedFolderChevron).toBeTruthy();
-            expect(shelf?.querySelector('[data-testid="create-scene"]')).toBeFalsy();
+            expect(shelf?.querySelector('[data-testid="create-scene"]')).toBeTruthy();
             expect(shelf?.querySelector('[data-testid="create-folder"]')).toBeFalsy();
             expect(shelf?.querySelector('[data-testid="rename-entry"]')).toBeFalsy();
             expect(shelf?.textContent).not.toContain('All');
             expect(shelf?.textContent).not.toContain('Images');
             expect(shelf?.textContent).not.toContain('Scripts');
             expect(shelf?.textContent).not.toContain('Docs');
+        } finally {
+            await view.cleanup();
+        }
+    });
+
+    it('creates a Scene from Project Shelf without opening it', async () => {
+        const confirm = vi.fn(() => true);
+        vi.stubGlobal('confirm', confirm);
+        updateCompilerSceneTemplate({ props: { width: 961 } });
+        const view = await renderEditorApp();
+        try {
+            const createButton = view.container.querySelector('[data-testid="create-scene"]');
+            expect(createButton).toBeTruthy();
+
+            await act(async () => {
+                click(createButton!);
+                await Promise.resolve();
+            });
+
+            const nameInput = document.body.querySelector('[data-testid="create-scene-name"]') as HTMLInputElement | null;
+            const submitButton = document.body.querySelector('[data-testid="confirm-create-scene"]');
+            expect(nameInput).toBeTruthy();
+            expect(submitButton).toBeTruthy();
+
+            await act(async () => {
+                fillInput(nameInput!, 'status panel');
+                await Promise.resolve();
+            });
+            await act(async () => {
+                click(submitButton!);
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+
+            const state = useEditorStore.getState();
+            expect(confirm).not.toHaveBeenCalled();
+            expect(state.openedScenePath).toBe('GameProject/src/scenes/Button.scene');
+            expect(state.selectedProjectFilePath).toBe('GameProject/src/scenes/StatusPanel.scene');
+            expect(host.files.get('GameProject/src/scenes/StatusPanel.scene')).toBe('<Scene name="StatusPanel" width="960" height="540">\n</Scene>\n');
+            expect(host.files.get('GameProject/src/scenes/StatusPanel.ts')).toContain('export class StatusPanel');
+            expect(view.container.querySelector('[title="GameProject/src/scenes/StatusPanel.scene"]')).toBeTruthy();
+            expect(textContent(view.container)).toContain('已创建 StatusPanel.scene。');
         } finally {
             await view.cleanup();
         }

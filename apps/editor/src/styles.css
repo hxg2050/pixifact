@@ -458,6 +458,58 @@ textarea {
     white-space: nowrap;
 }
 
+.projectShelfDialogBackdrop {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    background: rgba(21, 32, 51, 0.16);
+    padding-top: 84px;
+    z-index: 20;
+}
+
+.projectShelfDialog {
+    display: grid;
+    width: min(360px, calc(100vw - 32px));
+    gap: 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    padding: 14px;
+}
+
+.projectShelfDialog header {
+    display: grid;
+    gap: 4px;
+}
+
+.projectShelfDialog header strong {
+    font-size: 13px;
+}
+
+.projectShelfDialog header small {
+    overflow: hidden;
+    color: var(--muted);
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.projectShelfDialog input {
+    width: 100%;
+    height: 30px;
+    padding: 0 8px;
+    font-size: 12px;
+}
+
+.projectShelfDialog footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
 .projectShelfHeader {
     display: grid;
     min-width: 0;
