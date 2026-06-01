@@ -25,16 +25,29 @@ import {
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import { useCompilerSceneRevision } from './common';
 
-function folderTreeItem(folder: ProjectFileTreeNode): TreeViewItem<ProjectFileTreeNode> {
+function projectTreeItem(file: ProjectFileTreeNode, query = ''): TreeViewItem<ProjectFileTreeNode> | undefined {
+    const childItems = file.children
+        ?.map((child) => projectTreeItem(child, query))
+        .filter((child): child is TreeViewItem<ProjectFileTreeNode> => Boolean(child));
+    const matches = !query || file.name.toLowerCase().includes(query);
+    if (!matches && (!childItems || childItems.length === 0)) {
+        return undefined;
+    }
+
     return {
-        children: folder.children
-            ?.filter((file) => file.kind === 'folder')
-            .map(folderTreeItem),
-        className: folder.kind,
-        id: folder.path,
-        item: folder,
-        textValue: folder.name,
+        children: childItems,
+        className: file.kind,
+        id: file.path,
+        item: file,
+        textValue: file.name,
     };
+}
+
+function collectVisibleFolderPaths(node: TreeViewItem<ProjectFileTreeNode>): string[] {
+    return [
+        node.item.kind === 'folder' ? node.item.path : undefined,
+        ...(node.children?.flatMap(collectVisibleFolderPaths) ?? []),
+    ].filter((path): path is string => Boolean(path));
 }
 
 function fileDragPayload(file: ProjectFileTreeNode) {
@@ -61,15 +74,6 @@ function currentFolder(projectTree: ProjectFileTreeNode, selectedPath?: string) 
         return selected;
     }
     return selected ? findFileByPath(projectTree, parentPath(selected.path)) ?? projectTree : projectTree;
-}
-
-function currentFolderFiles(folder: ProjectFileTreeNode, search: string) {
-    const query = search.trim().toLowerCase();
-    const files = folder.children?.filter((file) => file.kind !== 'folder') ?? [];
-    if (!query) {
-        return files;
-    }
-    return files.filter((file) => file.name.toLowerCase().includes(query));
 }
 
 async function loadSceneFile(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode, t: ReturnType<typeof useI18n>) {
@@ -101,16 +105,22 @@ export function ProjectShelf() {
     const [newFolderName, setNewFolderName] = useState('');
     const refreshProject = useEditorStore((state) => state.refreshProject);
 
-    const expandedFolders = useMemo(() => new Set(expandedProjectFolders), [expandedProjectFolders]);
-    const treeItems = useMemo(() => projectTree ? [folderTreeItem(projectTree)] : [], [projectTree]);
+    const query = search.trim().toLowerCase();
+    const treeItems = useMemo(() => {
+        const root = projectTree ? projectTreeItem(projectTree, query) : undefined;
+        return root ? [root] : [];
+    }, [projectTree, query]);
+    const expandedFolders = useMemo(() => {
+        if (query && treeItems[0]) {
+            return new Set([
+                ...expandedProjectFolders,
+                ...collectVisibleFolderPaths(treeItems[0]),
+            ]);
+        }
+        return new Set(expandedProjectFolders);
+    }, [expandedProjectFolders, query, treeItems]);
     const selectedFile = projectTree && selectedPath ? findFileByPath(projectTree, selectedPath) : projectTree;
     const folder = projectTree ? currentFolder(projectTree, selectedPath) : undefined;
-    const contentFiles = useMemo(() => {
-        if (!folder) {
-            return [];
-        }
-        return currentFolderFiles(folder, search);
-    }, [folder, search]);
 
     if (!projectTree) {
         return null;
@@ -238,7 +248,6 @@ export function ProjectShelf() {
                     onChange={setSearch}
                     value={search}
                 />
-                <div className="projectShelfDetailsTitle">{t('selectedItem')}</div>
             </header>
             <div className="projectShelfToolbar">
                 <Button data-testid="create-scene" icon="plus" onPress={openCreateSceneDialog}>
@@ -319,51 +328,25 @@ export function ProjectShelf() {
                         onExpandedChange={(keys) => setExpandedProjectFolders([...keys].map(String))}
                         onItemAction={(file) => setSelectedProjectFile(file.path)}
                         onSelectedKeyChange={(_, file) => setSelectedProjectFile(file.path)}
-                        selectedKeys={folder ? [folder.path] : []}
+                        selectedKeys={selectedFile ? [selectedFile.path] : []}
                         renderItem={({ item: file, level }) => (
-                            <button
+                            <DragSource
+                                as="button"
                                 className={[
                                     'projectFolderRow',
                                     file.kind,
                                     selectedPath === file.path ? 'selected' : '',
                                 ].filter(Boolean).join(' ')}
                                 onDoubleClick={() => void openFile(file)}
+                                payload={fileDragPayload(file)}
                                 style={{ '--tree-indent': `${Math.max(0, level - 1) * 14}px` } as CSSProperties}
                                 title={file.path}
                                 type="button"
                             >
                                 {file.name}
-                            </button>
+                            </DragSource>
                         )}
                     />
-                </div>
-                <div className="projectShelfContents" data-testid="project-shelf-contents">
-                    {contentFiles.map((file) => (
-                        <DragSource
-                            as="div"
-                            className={[
-                                'projectFileCard',
-                                file.kind,
-                                selectedPath === file.path ? 'selected' : '',
-                            ].filter(Boolean).join(' ')}
-                            key={file.path}
-                            onClick={() => setSelectedProjectFile(file.path)}
-                            onDoubleClick={() => void openFile(file)}
-                            onKeyDown={(event) => {
-                                if (event.key === 'Enter' || event.key === ' ') {
-                                    event.preventDefault();
-                                    void openFile(file);
-                                }
-                            }}
-                            payload={fileDragPayload(file)}
-                            role="button"
-                            tabIndex={0}
-                            title={file.path}
-                        >
-                            <strong>{file.name}</strong>
-                            <span>{file.kind === 'scene' ? t('dragSceneToHierarchy') : file.kind}</span>
-                        </DragSource>
-                    ))}
                 </div>
                 <aside className="projectShelfDetails">
                     <strong>{selectedFile?.name ?? projectTree.name}</strong>

@@ -157,7 +157,7 @@ function setEditorProject() {
         projectTree: projectTree(),
         selectedProjectFilePath: 'GameProject/src/scenes/Button.scene',
         openedScenePath: 'GameProject/src/scenes/Button.scene',
-        expandedProjectFolders: ['GameProject', 'GameProject/src', 'GameProject/src/scenes'],
+        expandedProjectFolders: ['GameProject', 'GameProject/src', 'GameProject/src/scenes', 'GameProject/assets'],
         expandedHierarchyNodesByScene: {},
     });
     loadCompilerSceneDocument({
@@ -275,35 +275,30 @@ describe('Editor workbench UI', () => {
             expect(textContent(view.container)).toContain('Project');
             const root = dockviewApi?.toJSON().grid.root;
             const rootData = root?.type === 'branch' && Array.isArray(root.data) ? root.data : [];
-            const workspaceRoot = rootData[0];
-            const inspector = rootData[1];
-            const workspaceData = workspaceRoot?.type === 'branch' && Array.isArray(workspaceRoot.data) ? workspaceRoot.data : [];
-            const upperWorkspace = workspaceData[0];
-            const project = workspaceData[1];
-            const upperWorkspaceData = upperWorkspace?.type === 'branch' && Array.isArray(upperWorkspace.data) ? upperWorkspace.data : [];
+            const leftColumn = rootData[0];
+            const rightColumn = rootData[1];
+            const leftColumnData = leftColumn?.type === 'branch' && Array.isArray(leftColumn.data) ? leftColumn.data : [];
+            const rightColumnData = rightColumn?.type === 'branch' && Array.isArray(rightColumn.data) ? rightColumn.data : [];
             expect(dockviewApi).toBeTruthy();
             expect(dockviewApi?.toJSON().grid.orientation).toBe('HORIZONTAL');
             expect(rootData).toHaveLength(2);
-            expect(workspaceData).toHaveLength(2);
-            expect(upperWorkspaceData.map((node) => panelIdFromGroup(node.data))).toEqual(['hierarchy', 'preview']);
-            expect(panelIdFromGroup(project?.data)).toBe('project');
-            expect(panelIdFromGroup(inspector?.data)).toBe('inspector');
+            expect(leftColumnData).toHaveLength(2);
+            expect(rightColumnData).toHaveLength(2);
+            expect(leftColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['project', 'hierarchy']);
+            expect(rightColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['inspector', 'preview']);
         } finally {
             await view.cleanup();
         }
     });
 
-    it('shows a plain Project Shelf with folders on the left and current folder files on the right', async () => {
+    it('shows a plain Project Shelf as a single tree with selected item details', async () => {
         const view = await renderEditorApp();
         try {
             const shelf = view.container.querySelector('[data-testid="project-shelf"]');
-            const sceneCards = [...view.container.querySelectorAll('.projectFileCard.scene')];
-            const childSceneCard = sceneCards.find((card) => card.textContent?.includes('Child.scene'));
             const projectTree = shelf?.querySelector('[data-testid="project-shelf-tree"]');
             const nestedFolderRow = projectTree?.querySelector('[title="GameProject/src/scenes"]');
             const sceneFileTreeRow = projectTree?.querySelector('[title="GameProject/src/scenes/Button.scene"]');
             const assetFileTreeRow = projectTree?.querySelector('[title="GameProject/assets/play.png"]');
-            const projectContents = shelf?.querySelector('[data-testid="project-shelf-contents"]');
             const nestedFolderGridRow = nestedFolderRow?.closest('[role="row"]') as HTMLElement | null;
             const nestedFolderChevron = nestedFolderGridRow?.querySelector('.treeChevron') as HTMLElement | null;
             expect(shelf).toBeTruthy();
@@ -311,20 +306,16 @@ describe('Editor workbench UI', () => {
             expect(shelf?.querySelector('.projectShelfBody')).toBeTruthy();
             expect(shelf?.querySelector('[data-testid="project-shelf-tree"]')).toBeTruthy();
             expect(shelf?.querySelector('.systemTree')).toBeTruthy();
-            expect(shelf?.querySelector('.projectShelfContents')).toBeTruthy();
+            expect(shelf?.querySelector('.projectShelfContents')).toBeFalsy();
             expect(shelf?.querySelector('.projectShelfDetails')).toBeTruthy();
             expect(shelf?.textContent).toContain('Project');
             expect(shelf?.textContent).toContain('GameProject/src/scenes');
-            expect(projectTree?.textContent).not.toContain('Button.scene');
-            expect(projectTree?.textContent).not.toContain('play.png');
-            expect(sceneFileTreeRow).toBeFalsy();
-            expect(assetFileTreeRow).toBeFalsy();
-            expect(projectContents?.textContent).toContain('Button.scene');
-            expect(projectContents?.textContent).toContain('Child.scene');
-            expect(projectContents?.textContent).not.toContain('play.png');
-            expect(childSceneCard?.tagName).toBe('DIV');
-            expect(childSceneCard?.getAttribute('role')).toBe('button');
-            expect(childSceneCard?.getAttribute('tabindex')).toBe('0');
+            expect(projectTree?.textContent).toContain('Button.scene');
+            expect(projectTree?.textContent).toContain('Child.scene');
+            expect(projectTree?.textContent).toContain('play.png');
+            expect(sceneFileTreeRow).toBeTruthy();
+            expect(assetFileTreeRow).toBeTruthy();
+            expect(sceneFileTreeRow?.tagName).toBe('BUTTON');
             expect(nestedFolderGridRow?.style.getPropertyValue('--tree-indent')).toBe('28px');
             expect(nestedFolderGridRow?.getAttribute('role')).toBe('row');
             expect(nestedFolderChevron).toBeTruthy();

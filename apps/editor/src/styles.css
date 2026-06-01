@@ -408,14 +408,6 @@ textarea {
     background: var(--panel);
 }
 
-.workbenchHierarchy {
-    border-right: 1px solid var(--line-strong);
-}
-
-.workbenchInspector {
-    border-left: 1px solid var(--line-strong);
-}
-
 .workbenchPreview {
     background: #edf2f7;
 }
@@ -523,7 +515,7 @@ textarea {
     min-width: 0;
     align-items: center;
     gap: 8px;
-    grid-template-columns: 220px minmax(160px, 1fr) 220px 220px;
+    grid-template-columns: 96px minmax(0, 1fr);
     border-bottom: 1px solid var(--line);
     background: #f6f9fc;
     padding: 0 10px;
@@ -548,8 +540,7 @@ textarea {
     padding: 0;
 }
 
-.projectShelfPath,
-.projectShelfDetailsTitle {
+.projectShelfPath {
     overflow: hidden;
     color: var(--muted);
     font-size: 11px;
@@ -574,12 +565,11 @@ textarea {
 .projectShelfBody {
     display: grid;
     min-height: 0;
-    grid-template-columns: 260px minmax(360px, 1fr) 260px;
+    grid-template-rows: minmax(0, 1fr) auto;
     overflow: hidden;
 }
 
 .projectShelfTree,
-.projectShelfContents,
 .projectShelfDetails {
     min-width: 0;
     min-height: 0;
@@ -587,7 +577,6 @@ textarea {
 }
 
 .projectShelfTree {
-    border-right: 1px solid var(--line);
     background: #fbfcfe;
     padding: 6px 4px;
 }
@@ -620,74 +609,11 @@ textarea {
     background: #edf2f7;
 }
 
-.projectShelfContents {
-    display: grid;
-    align-content: start;
-    gap: 6px;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    padding: 8px;
-}
-
-.projectFileCard {
-    display: grid;
-    min-width: 0;
-    min-height: 54px;
-    align-content: center;
-    gap: 4px;
-    border: 1px solid #dbe3ee;
-    border-radius: 6px;
-    background: #fff;
-    padding: 8px 10px;
-    text-align: left;
-}
-
-.projectFileCard:hover:not(:disabled),
-.projectFileCard.selected {
-    border-color: #9bbcf4;
-    background: #f3f7ff;
-}
-
-.projectFileCard strong,
-.projectFileCard span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.projectFileCard strong {
-    color: #172033;
-    font-size: 12px;
-}
-
-.projectFileCard span {
-    color: var(--muted);
-    font-size: 11px;
-    font-weight: 700;
-}
-
-.projectFileCard.scene {
-    border-left: 3px solid #2563eb;
-}
-
-.projectFileCard.asset {
-    border-left: 3px solid #16a34a;
-}
-
-.projectFileCard.folder {
-    border-left: 3px solid #8b5cf6;
-}
-
-.projectFileCard.script,
-.projectFileCard.component {
-    border-left: 3px solid #f59e0b;
-}
-
 .projectShelfDetails {
     display: grid;
     align-content: start;
     gap: 6px;
-    border-left: 1px solid var(--line);
+    border-top: 1px solid var(--line);
     background: #f8fafc;
     padding: 10px;
 }

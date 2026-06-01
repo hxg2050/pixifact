@@ -53,9 +53,9 @@ function setDockPanelTitles(api: DockviewApi, language: EditorLanguage) {
 }
 
 function setInitialDockLayout(api: DockviewApi) {
-    api.getPanel('hierarchy')?.group.api.setSize({ width: 300 });
+    api.getPanel('project')?.group.api.setSize({ width: 340, height: 260 });
     api.getPanel('inspector')?.group.api.setSize({ width: 420 });
-    api.getPanel('project')?.group.api.setSize({ height: 220 });
+    api.getPanel('preview')?.group.api.setSize({ height: 320 });
 }
 
 function externalSceneSyncStatus(result: CompilerSceneExternalSyncResult): ExternalSceneSyncStatus | undefined {
@@ -143,26 +143,13 @@ function createDockComponents() {
 function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
     const titles = dockPanelTitles(language);
     event.api.addPanel({
-        id: 'hierarchy',
-        component: 'hierarchy',
-        title: titles.hierarchy,
-        initialWidth: 300,
-        minimumWidth: 240,
-    });
-    const preview = event.api.addPanel({
-        id: 'preview',
-        component: 'preview',
-        title: titles.preview,
-        minimumWidth: 420,
-        position: { direction: 'right' },
-    });
-    event.api.addPanel({
         id: 'project',
         component: 'project',
         title: titles.project,
-        initialHeight: 220,
-        minimumHeight: 150,
-        position: { direction: 'below' },
+        initialWidth: 340,
+        initialHeight: 260,
+        minimumWidth: 240,
+        minimumHeight: 160,
     });
     event.api.addPanel({
         id: 'inspector',
@@ -170,7 +157,23 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
         title: titles.inspector,
         initialWidth: 420,
         minimumWidth: 300,
-        position: { direction: 'right' },
+        position: { direction: 'right', referencePanel: 'project' },
+    });
+    event.api.addPanel({
+        id: 'hierarchy',
+        component: 'hierarchy',
+        title: titles.hierarchy,
+        minimumWidth: 240,
+        minimumHeight: 180,
+        position: { direction: 'below', referencePanel: 'project' },
+    });
+    event.api.addPanel({
+        id: 'preview',
+        component: 'preview',
+        title: titles.preview,
+        minimumWidth: 300,
+        minimumHeight: 220,
+        position: { direction: 'below', referencePanel: 'inspector' },
     });
 }
 
