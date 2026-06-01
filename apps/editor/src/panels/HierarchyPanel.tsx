@@ -1089,6 +1089,19 @@ export function CompilerSceneHierarchyTree() {
         }
         setError(undefined);
     };
+    const deleteCompilerContextNode = (locator: string) => {
+        const item = findCompilerHierarchyItem(treeItems, locator);
+        if (!canDeleteCompilerSceneNode(item)) {
+            return;
+        }
+        const result = deleteCompilerSceneNode(locator);
+        if (!result.ok) {
+            setError(result.error);
+            return;
+        }
+        setContextMenu(undefined);
+        setError(undefined);
+    };
     const moveCompilerNode = (sourceLocator: string, targetLocator: string, position: NodeDropPosition) => {
         const result = moveCompilerSceneNode(sourceLocator, targetLocator, position);
         if (!result.ok) {
@@ -1236,6 +1249,15 @@ export function CompilerSceneHierarchyTree() {
                             {t(item.nameKey)}
                         </button>
                     ))}
+                    <div className="nodeContextMenuSeparator" />
+                    <button
+                        data-testid="compiler-node-menu-delete"
+                        disabled={!canDeleteCompilerSceneNode(findCompilerHierarchyItem(treeItems, contextMenu.locator))}
+                        onClick={() => deleteCompilerContextNode(contextMenu.locator)}
+                        type="button"
+                    >
+                        {t('delete')}
+                    </button>
                 </div>
             ) : null}
             <DropZone

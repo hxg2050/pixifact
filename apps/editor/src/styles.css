@@ -1054,6 +1054,12 @@ textarea {
     font-size: 11px;
 }
 
+.nodeContextMenuSeparator {
+    height: 1px;
+    margin: 4px;
+    background: var(--line);
+}
+
 .nodeContextMenu button:hover:not(:disabled) {
     background: #edf2f7;
 }
