@@ -51,7 +51,7 @@ Scenario: External agent changes the opened .scene file
   And the viewport reflects the new source
 ```
 
-TDD 入口：`tests/project-file-tree.test.ts`、`tests/agent-panel-ui.test.ts`。
+TDD 入口：`tests/project-file-tree.test.ts`、`tests/editor-live-context-ui.test.ts`。
 
 ### BDD-EDITOR-002 资产浏览不编辑源资源
 

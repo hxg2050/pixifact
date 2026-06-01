@@ -36,7 +36,7 @@ packages/pixifact/src/runtime/    runtime foundation
 packages/pixifact/src/nodes/      runtime nodes and behavior components
 packages/pixifact/src/scene/      SceneSpec、DSL、instantiateScene、templates
 packages/pixifact/src/commands/   SceneDocument internal command validate / apply / undo
-packages/pixifact/src/compiler/   compiler .scene parse / validate / proposal / generate
+packages/pixifact/src/compiler/   compiler .scene parse / validate / generate
 packages/pixifact/src/authoring/  SceneDocument、diff、memory、logic
 packages/pixifact-cli/            Pixifact CLI
 apps/editor/                      desktop editor frontend
@@ -55,7 +55,7 @@ apps/editor/src-tauri/            Tauri host
 - [x] Compiler `.scene` 成为外部 Agent 的 source of truth。
 - [x] `instantiateScene` 将 Scene 节点映射到 runtime。
 - [x] 编辑器创建项、Hierarchy、Inspector、Viewport 基于 Scene 语义工作。
-- [x] CLI 提供 `scene inspect`、`scene validate`、`scene proposal check/apply` 和 `compile-scenes`。
+- [x] CLI 提供 `scene inspect`、`scene validate`、`scene validate --all` 和 `compile-scenes`。
 - [x] Editor live bridge 提供只读 `summary`、`scene get`、`node inspect` 上下文能力。
 - [x] Inspector 按公开节点类型展示专属字段，不暴露内部 runtime authoring 组件。
 - [x] Scene 模板库包含 Button、ProgressBar、ScrollView，并通过 editor template library 创建。
@@ -64,7 +64,7 @@ apps/editor/src-tauri/            Tauri host
 
 - [x] 跑通运行真实游戏的 MVP 闭环，详见 `docs/RUN_MVP_PLAN.md`。
 - [x] 新增完整示例游戏 `sample-projects/space-hud-game`，作为运行、Scene 集成和 Agent 工作流的黄金路径。
-- [ ] 将 editor 主流程从 Alpha proposal 审查器继续收敛为 Agent / CLI-first 的 Scene 预览、校验反馈和自动刷新工作流。
+- [ ] 继续完善 Agent / CLI-first 的 Scene 预览、校验反馈、诊断展示和自动刷新工作流。
 - [ ] 继续优化桌面版本机能力：文件打开、系统默认程序打开、外部代码编辑器跳转。
 - [ ] 扩充 Scene 模板库：常用 HUD 组合。
 - [ ] 增加 `.scene` 创建、保存、CLI 修改和 editor 预览的 E2E 覆盖。

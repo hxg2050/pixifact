@@ -1306,12 +1306,12 @@ describe('Pixifact CLI', () => {
         });
     });
 
-    it('does not expose legacy live mutation commands', async () => {
+    it('does not expose live mutation commands', async () => {
         const callAction = vi.fn(async () => ({}));
         const result = await executePixifactCli([
             'live',
-            'commands',
-            'apply',
+            'template',
+            'add',
         ], {
             liveBridge: {
                 connected: true,
@@ -1324,7 +1324,7 @@ describe('Pixifact CLI', () => {
         expect(result.exitCode).toBe(1);
         expect(parsed).toMatchObject({
             ok: false,
-            error: 'Unknown Pixifact live command "commands apply".',
+            error: 'Unknown Pixifact live command "template add".',
         });
         expect(callAction).not.toHaveBeenCalled();
     });

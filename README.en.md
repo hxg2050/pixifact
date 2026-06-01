@@ -18,12 +18,6 @@ The current primary agent authoring path is compiler `.scene`:
 Codex / Claude Code -> inspect .scene -> edit .scene -> scene validate -> compile-scenes -> repair until valid
 ```
 
-`.scene proposal` is an optional safety path for stale-write protection, explicit review, or collaborative audit. It is not the default AI development path.
-
-```txt
-Codex / Claude Code -> .scene proposal -> check diff -> apply -> validate / compile
-```
-
 Editor is an enhancer: it provides the currently opened Scene, selected node, preview, and asset context. Without Editor, agents can still develop fully through file editing and the CLI.
 
 Pixifact's default loop ends at `scene validate`, `compile-scenes`, and optional live context. Git diff, commits, reverts, PRs, CI, and task orchestration belong to external tools, not Pixifact built-ins.
@@ -36,7 +30,7 @@ packages/pixifact/src/runtime/  Application, GameObject, Component, layout, Pixi
 packages/pixifact/src/nodes/    runtime nodes and behavior components
 packages/pixifact/src/scene/    legacy SceneSpec, DSL, Scene instantiation, Scene templates
 packages/pixifact/src/commands/ SceneDocument internal commands, validation, application, undo foundation
-packages/pixifact/src/compiler/ compiler .scene parsing, validation, proposal, generation
+packages/pixifact/src/compiler/ compiler .scene parsing, validation, generation
 packages/pixifact/src/authoring/SceneDocument, selection, diff, locks, actions, logic
 packages/pixifact-cli/          Pixifact CLI; depends on pixifact, not on the desktop editor
 apps/editor/                    Pixifact desktop editor React / Vite frontend
@@ -72,17 +66,13 @@ Common commands:
 
 ```bash
 bun run pixifact -- summary --project-root /path/to/project
-bun run pixifact -- scene inspect --project-root /path/to/project --scene scenes/Button.scene
-bun run pixifact -- scene validate --project-root /path/to/project --scene scenes/Button.scene
+bun run pixifact -- scene inspect --project-root /path/to/project --scene src/scenes/Button.scene
+bun run pixifact -- scene validate --project-root /path/to/project --scene src/scenes/Button.scene
+bun run pixifact -- scene validate --project-root /path/to/project --all
 bun run pixifact -- compile-scenes --project-root /path/to/project
 ```
 
-Optional proposal review:
-
-```bash
-bun run pixifact -- scene proposal check --project-root /path/to/project --scene scenes/Button.scene --proposal proposal.json
-bun run pixifact -- scene proposal apply --project-root /path/to/project --scene scenes/Button.scene --proposal proposal.json
-```
+Use `scene validate --all` after broad edits or when multiple `.scene` files may have changed.
 
 Read-only Editor live context:
 

@@ -27,7 +27,7 @@
 | `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
 | `tests/editor-run-service.test.ts` | editor run service / host bridge | 运行状态、spawn 参数、stdout / stderr 摘要、停止 session、失败状态 |
 | `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、path guard、read-only live context、exit code |
-| `tests/agent-panel-ui.test.ts` | Editor Agent panel | direct `.scene` workflow commands、external compiler scene refresh state |
+| `tests/editor-live-context-ui.test.ts` | Editor live context UI | external compiler scene refresh state |
 
 新增测试应先落到这些既有边界；只有当行为无法归入现有边界时，才新增测试文件。
 

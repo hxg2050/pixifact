@@ -40,4 +40,4 @@ bun run pixifact -- live node inspect --node 0:content/0:label
 
 `live scene get` 可返回当前打开 Scene、当前选中节点、dirty / revision 状态，以及最近一次外部 `.scene` 刷新或校验结果。Agent 用这些信息判断直接编辑是否需要修复。
 
-live mode 不提供 `commands apply`、`template add` 或其他 mutation action。Git diff、commit、PR、CI 和任务编排由外部工具负责，不属于 Pixifact live bridge。
+live mode 只提供上下文读取，不提供 mutation action。Git diff、commit、PR、CI 和任务编排由外部工具负责，不属于 Pixifact live bridge。

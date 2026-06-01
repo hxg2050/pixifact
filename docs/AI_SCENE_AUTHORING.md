@@ -170,11 +170,11 @@ bun run pixifact -- scene validate --project-root <project-root> --all
 bun run pixifact -- compile-scenes --project-root <project-root>
 ```
 
-Legacy `commands dry-run/apply` and live mutation commands have been removed from the external CLI surface. The supported agent-facing mutation path is direct `.scene` source editing plus validation.
+Live mutation commands have been removed from the external CLI surface. The supported agent-facing mutation path is direct `.scene` source editing plus validation.
 
-## Editor Agent Panel
+## Editor Live Context
 
-The Editor Agent panel should primarily help external agents use the direct `.scene` workflow by showing the current project root, opened scene path, and exact CLI commands for inspect, validate, compile, and project build/run checks. It is not the main place where AI work is planned or orchestrated.
+The Editor can help external agents use the direct `.scene` workflow by exposing the current project root, opened scene path, selection, preview context, and latest external refresh or validation result. It is not the place where AI work is planned or orchestrated.
 
 The live editor bridge is an optional context source. `live scene get` should help agents see the currently opened compiler scene, current selection, dirty state, revision, and the last external refresh or validation result for that scene. It must remain read-only; it is not a hidden apply channel.
 
