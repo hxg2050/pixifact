@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { Button, DragSource, TextField, TreeView } from '../components/system';
-import type { TreeViewItem } from '../components/system';
+import { Button, DragSource, SystemIcon, TextField, TreeView } from '../components/system';
+import type { SystemIconName, TreeViewItem } from '../components/system';
 import { getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
@@ -62,6 +62,19 @@ function fileDragPayload(file: ProjectFileTreeNode) {
         return assetDragPayload(file);
     }
     return undefined;
+}
+
+function projectFileIcon(file: ProjectFileTreeNode): SystemIconName {
+    if (file.kind === 'folder') {
+        return 'folder-open';
+    }
+    if (file.kind === 'scene') {
+        return 'file-box';
+    }
+    if (file.name.endsWith('.ts') || file.name.endsWith('.tsx')) {
+        return 'file-code';
+    }
+    return 'file';
 }
 
 function parentPath(path: string) {
@@ -423,23 +436,27 @@ export function ProjectShelf() {
                         onItemAction={(file) => setSelectedProjectFile(file.path)}
                         onSelectedKeyChange={(_, file) => setSelectedProjectFile(file.path)}
                         selectedKeys={selectedFile ? [selectedFile.path] : []}
-                        renderItem={({ item: file, level }) => (
-                            <DragSource
-                                as="button"
-                                className={[
-                                    'projectFolderRow',
-                                    file.kind,
-                                    selectedPath === file.path ? 'selected' : '',
-                                ].filter(Boolean).join(' ')}
-                                onDoubleClick={() => void openFile(file)}
-                                payload={fileDragPayload(file)}
-                                style={{ '--tree-indent': `${Math.max(0, level - 1) * 14}px` } as CSSProperties}
-                                title={file.path}
-                                type="button"
-                            >
-                                {file.name}
-                            </DragSource>
-                        )}
+                        renderItem={({ item: file, level }) => {
+                            const iconName = projectFileIcon(file);
+                            return (
+                                <DragSource
+                                    as="button"
+                                    className={[
+                                        'projectFolderRow',
+                                        file.kind,
+                                        selectedPath === file.path ? 'selected' : '',
+                                    ].filter(Boolean).join(' ')}
+                                    onDoubleClick={() => void openFile(file)}
+                                    payload={fileDragPayload(file)}
+                                    style={{ '--tree-indent': `${Math.max(0, level - 1) * 14}px` } as CSSProperties}
+                                    title={file.path}
+                                    type="button"
+                                >
+                                    <SystemIcon className={`projectFileIcon projectFileIcon--${iconName}`} name={iconName} />
+                                    <span className="projectFileName">{file.name}</span>
+                                </DragSource>
+                            );
+                        }}
                     />
                 </div>
             </div>

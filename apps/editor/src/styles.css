@@ -578,12 +578,14 @@ textarea {
 }
 
 .projectFolderRow {
-    display: block;
+    display: flex;
     width: 100%;
     min-height: 24px;
+    align-items: center;
     border-color: transparent;
     border-radius: 4px;
     background: transparent;
+    gap: 6px;
     padding: 0 8px 0 calc(24px + var(--tree-indent, 0px));
     color: #334155;
     font-size: 12px;
@@ -592,6 +594,31 @@ textarea {
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.projectFileIcon {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+    color: #64748b;
+}
+
+.projectFileIcon--folder-open {
+    color: #b7791f;
+}
+
+.projectFileIcon--file-box {
+    color: #2563eb;
+}
+
+.projectFileIcon--file-code {
+    color: #7c3aed;
+}
+
+.projectFileName {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .projectFolderRow:hover:not(:disabled) {

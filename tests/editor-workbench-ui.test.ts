@@ -327,6 +327,7 @@ describe('Editor workbench UI', () => {
             const projectPath = shelf?.querySelector('.projectShelfPath');
             const nestedFolderRow = projectTree?.querySelector('[title="GameProject/src/scenes"]');
             const sceneFileTreeRow = projectTree?.querySelector('[title="GameProject/src/scenes/Button.scene"]');
+            const tsFileTreeRow = projectTree?.querySelector('[title="GameProject/src/scenes/Button.ts"]');
             const assetFileTreeRow = projectTree?.querySelector('[title="GameProject/assets/play.png"]');
             const nestedFolderGridRow = nestedFolderRow?.closest('[role="row"]') as HTMLElement | null;
             const nestedFolderChevron = nestedFolderGridRow?.querySelector('.treeChevron') as HTMLElement | null;
@@ -349,6 +350,10 @@ describe('Editor workbench UI', () => {
             expect(sceneFileTreeRow).toBeTruthy();
             expect(assetFileTreeRow).toBeTruthy();
             expect(sceneFileTreeRow?.tagName).toBe('BUTTON');
+            expect(nestedFolderRow?.querySelector('.projectFileIcon--folder-open')).toBeTruthy();
+            expect(sceneFileTreeRow?.querySelector('.projectFileIcon--file-box')).toBeTruthy();
+            expect(tsFileTreeRow?.querySelector('.projectFileIcon--file-code')).toBeTruthy();
+            expect(assetFileTreeRow?.querySelector('.projectFileIcon--file')).toBeTruthy();
             expect(nestedFolderGridRow?.style.getPropertyValue('--tree-indent')).toBe('28px');
             expect(nestedFolderGridRow?.getAttribute('role')).toBe('row');
             expect(nestedFolderChevron).toBeTruthy();

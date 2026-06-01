@@ -8,6 +8,9 @@ import {
     Edit3,
     Ellipsis,
     Eye,
+    File,
+    FileBox,
+    FileCode,
     FolderOpen,
     ExternalLink,
     FolderPlus,
@@ -37,6 +40,9 @@ export type SystemIconName =
     | 'download'
     | 'edit'
     | 'eye'
+    | 'file'
+    | 'file-box'
+    | 'file-code'
     | 'external'
     | 'folder-open'
     | 'more'
@@ -66,6 +72,9 @@ const iconComponents: Record<SystemIconName, ComponentType<SVGProps<SVGSVGElemen
     download: Download,
     edit: Edit3,
     eye: Eye,
+    file: File,
+    'file-box': FileBox,
+    'file-code': FileCode,
     external: ExternalLink,
     'folder-open': FolderOpen,
     more: Ellipsis,
