@@ -95,6 +95,8 @@ export function ProjectShelf() {
     const [search, setSearch] = useState('');
     const [actionText, setActionText] = useState('');
     const [createSceneOpen, setCreateSceneOpen] = useState(false);
+    const [createSceneDirectoryPath, setCreateSceneDirectoryPath] = useState('');
+    const [createSceneError, setCreateSceneError] = useState('');
     const [newSceneName, setNewSceneName] = useState('');
     const [newFolderName, setNewFolderName] = useState('');
     const refreshProject = useEditorStore((state) => state.refreshProject);
@@ -113,6 +115,31 @@ export function ProjectShelf() {
     if (!projectTree) {
         return null;
     }
+
+    const createSceneDirectory = createSceneDirectoryPath
+        ? findFileByPath(projectTree, createSceneDirectoryPath)
+        : undefined;
+    const createSceneLocation = createSceneDirectory?.kind === 'folder'
+        ? createSceneDirectory
+        : folder;
+
+    const closeCreateSceneDialog = () => {
+        setCreateSceneOpen(false);
+        setCreateSceneDirectoryPath('');
+        setCreateSceneError('');
+        setNewSceneName('');
+    };
+
+    const openCreateSceneDialog = () => {
+        const directory = containingDirectory(projectTree, selectedFile);
+        if (!directory) {
+            setActionText(t('cannotResolveNewSceneLocation'));
+            return;
+        }
+        setCreateSceneDirectoryPath(directory.path);
+        setCreateSceneError('');
+        setCreateSceneOpen(true);
+    };
 
     const openFile = async (file: ProjectFileTreeNode) => {
         setSelectedProjectFile(file.path);
@@ -154,20 +181,29 @@ export function ProjectShelf() {
         if (!name || !projectTree) {
             return;
         }
-        const directory = containingDirectory(projectTree, selectedFile);
-        if (!directory) {
+        const directory = createSceneDirectoryPath
+            ? findFileByPath(projectTree, createSceneDirectoryPath)
+            : containingDirectory(projectTree, selectedFile);
+        if (directory?.kind !== 'folder') {
+            setCreateSceneError(t('cannotResolveNewSceneLocation'));
             return;
         }
 
-        const created = await createSceneFile(projectTree, directory, name);
-        const refreshedTree = await refreshProjectFileTree(projectTree);
-        refreshProject(refreshedTree, {
-            selectPath: created.path,
-            expandPaths: [directory.path],
-        });
-        setNewSceneName('');
-        setCreateSceneOpen(false);
-        setActionText(t('sceneCreated', { file: created.fileName }));
+        try {
+            const created = await createSceneFile(projectTree, directory, name);
+            const refreshedTree = await refreshProjectFileTree(projectTree);
+            refreshProject(refreshedTree, {
+                selectPath: created.path,
+                expandPaths: [directory.path],
+            });
+            setNewSceneName('');
+            setCreateSceneOpen(false);
+            setCreateSceneDirectoryPath('');
+            setCreateSceneError('');
+            setActionText(t('sceneCreated', { file: created.fileName }));
+        } catch (error) {
+            setCreateSceneError(hostErrorMessage(error));
+        }
     };
 
     const createFolderInSelected = async () => {
@@ -205,7 +241,7 @@ export function ProjectShelf() {
                 <div className="projectShelfDetailsTitle">{t('selectedItem')}</div>
             </header>
             <div className="projectShelfToolbar">
-                <Button data-testid="create-scene" icon="plus" onPress={() => setCreateSceneOpen(true)}>
+                <Button data-testid="create-scene" icon="plus" onPress={openCreateSceneDialog}>
                     {t('createScene')}
                 </Button>
                 <div className="createSceneRow">
@@ -228,26 +264,37 @@ export function ProjectShelf() {
                             event.preventDefault();
                             void createScene();
                         }}
+                        onKeyDown={(event) => {
+                            if (event.key === 'Escape') {
+                                event.preventDefault();
+                                closeCreateSceneDialog();
+                            }
+                        }}
                         role="dialog"
                     >
                         <header>
                             <strong>{t('createScene')}</strong>
-                            <small>{t('createSceneLocation', { path: folder?.path ?? projectTree.path })}</small>
+                            <small>{t('createSceneLocation', { path: createSceneLocation?.path ?? projectTree.path })}</small>
                         </header>
                         <TextField
                             data-testid="create-scene-name"
                             inputProps={{ 'aria-label': t('sceneName'), autoFocus: true, placeholder: t('sceneName') }}
-                            onChange={setNewSceneName}
+                            onChange={(value) => {
+                                setNewSceneName(value);
+                                setCreateSceneError('');
+                            }}
                             value={newSceneName}
                         />
+                        {createSceneError ? (
+                            <p className="projectShelfDialogError" data-testid="create-scene-error" role="alert">
+                                {createSceneError}
+                            </p>
+                        ) : null}
                         <footer>
                             <Button
                                 type="button"
                                 variant="subtle"
-                                onPress={() => {
-                                    setCreateSceneOpen(false);
-                                    setNewSceneName('');
-                                }}
+                                onPress={closeCreateSceneDialog}
                             >
                                 {t('cancel')}
                             </Button>

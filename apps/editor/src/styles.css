@@ -504,6 +504,14 @@ textarea {
     font-size: 12px;
 }
 
+.projectShelfDialogError {
+    min-height: 18px;
+    margin: 0;
+    color: var(--danger);
+    font-size: 12px;
+    line-height: 18px;
+}
+
 .projectShelfDialog footer {
     display: flex;
     justify-content: flex-end;

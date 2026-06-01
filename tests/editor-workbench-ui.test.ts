@@ -212,6 +212,10 @@ function fillInput(input: HTMLInputElement, value: string) {
     input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+function keyDown(element: Element, key: string) {
+    element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key }));
+}
+
 beforeEach(() => {
     Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
         configurable: true,
@@ -373,6 +377,75 @@ describe('Editor workbench UI', () => {
             expect(host.files.get('GameProject/src/scenes/StatusPanel.ts')).toContain('export class StatusPanel');
             expect(view.container.querySelector('[title="GameProject/src/scenes/StatusPanel.scene"]')).toBeTruthy();
             expect(textContent(view.container)).toContain('已创建 StatusPanel.scene。');
+        } finally {
+            await view.cleanup();
+        }
+    });
+
+    it('keeps duplicate Scene creation errors inside the dialog', async () => {
+        const view = await renderEditorApp();
+        try {
+            const createButton = view.container.querySelector('[data-testid="create-scene"]');
+            await act(async () => {
+                click(createButton!);
+                await Promise.resolve();
+            });
+
+            const nameInput = document.body.querySelector('[data-testid="create-scene-name"]') as HTMLInputElement | null;
+            const submitButton = document.body.querySelector('[data-testid="confirm-create-scene"]');
+            expect(nameInput).toBeTruthy();
+            expect(submitButton).toBeTruthy();
+
+            await act(async () => {
+                fillInput(nameInput!, 'button');
+                await Promise.resolve();
+            });
+            await act(async () => {
+                click(submitButton!);
+                await Promise.resolve();
+            });
+
+            const error = document.body.querySelector('[data-testid="create-scene-error"]');
+            expect(error?.textContent).toContain('已存在 Button.scene');
+            expect(document.body.querySelector('[data-testid="create-scene-name"]')).toBeTruthy();
+            expect((document.body.querySelector('[data-testid="create-scene-name"]') as HTMLInputElement | null)?.value).toBe('button');
+            expect(useEditorStore.getState().openedScenePath).toBe('GameProject/src/scenes/Button.scene');
+            expect(useEditorStore.getState().selectedProjectFilePath).toBe('GameProject/src/scenes/Button.scene');
+        } finally {
+            await view.cleanup();
+        }
+    });
+
+    it('closes the create Scene dialog with Escape and clears the draft', async () => {
+        const view = await renderEditorApp();
+        try {
+            const createButton = view.container.querySelector('[data-testid="create-scene"]');
+            await act(async () => {
+                click(createButton!);
+                await Promise.resolve();
+            });
+
+            const nameInput = document.body.querySelector('[data-testid="create-scene-name"]') as HTMLInputElement | null;
+            expect(nameInput).toBeTruthy();
+            await act(async () => {
+                fillInput(nameInput!, 'draft scene');
+                await Promise.resolve();
+            });
+            await act(async () => {
+                keyDown(document.body.querySelector('[role="dialog"]')!, 'Escape');
+                await Promise.resolve();
+            });
+
+            expect(document.body.querySelector('[data-testid="create-scene-name"]')).toBeFalsy();
+
+            await act(async () => {
+                click(createButton!);
+                await Promise.resolve();
+            });
+
+            const reopenedInput = document.body.querySelector('[data-testid="create-scene-name"]') as HTMLInputElement | null;
+            expect(reopenedInput).toBeTruthy();
+            expect(reopenedInput?.value).toBe('');
         } finally {
             await view.cleanup();
         }
