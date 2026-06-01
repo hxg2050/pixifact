@@ -351,11 +351,27 @@ function compilerTransformFields(node: SelectedCompilerItem): InspectorFieldMode
     return pixiSceneTransformProps.map((key) => compilerField(key, node.props[key]));
 }
 
+function compilerDisplayFieldValue(key: string, value: unknown) {
+    if (value !== undefined) {
+        return value;
+    }
+    if (key === 'alpha') {
+        return 1;
+    }
+    if (key === 'visible') {
+        return true;
+    }
+    if (key === 'zIndex') {
+        return 0;
+    }
+    return value;
+}
+
 function compilerDisplayFields(node: SelectedCompilerItem): InspectorFieldModel[] {
     if (!node || node.kind === 'slot' || node.kind === 'slotOutlet') {
         return [];
     }
-    return pixiSceneDisplayProps.map((key) => compilerField(key, key === 'visible' ? node.props[key] ?? true : node.props[key]));
+    return pixiSceneDisplayProps.map((key) => compilerField(key, compilerDisplayFieldValue(key, node.props[key])));
 }
 
 interface CompilerFieldSection {
