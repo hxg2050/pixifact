@@ -287,7 +287,7 @@ describe('Editor workbench UI', () => {
             expect(rootData).toHaveLength(3);
             expect(leftColumnData).toHaveLength(2);
             expect(rightColumnData).toHaveLength(2);
-            expect(leftColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['project', 'hierarchy']);
+            expect(leftColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['hierarchy', 'project']);
             expect(panelIdFromGroup(centerPanel?.data)).toBe('preview');
             expect(rightColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['inspector', 'projectPreview']);
         } finally {

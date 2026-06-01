@@ -55,7 +55,8 @@ function setDockPanelTitles(api: DockviewApi, language: EditorLanguage) {
 }
 
 function setInitialDockLayout(api: DockviewApi) {
-    api.getPanel('project')?.group.api.setSize({ width: 340, height: 260 });
+    api.getPanel('hierarchy')?.group.api.setSize({ width: 340 });
+    api.getPanel('project')?.group.api.setSize({ height: 260 });
     api.getPanel('preview')?.group.api.setSize({ width: 640 });
     api.getPanel('inspector')?.group.api.setSize({ width: 420 });
     api.getPanel('projectPreview')?.group.api.setSize({ height: 220 });
@@ -157,13 +158,12 @@ function createDockComponents() {
 function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
     const titles = dockPanelTitles(language);
     event.api.addPanel({
-        id: 'project',
-        component: 'project',
-        title: titles.project,
+        id: 'hierarchy',
+        component: 'hierarchy',
+        title: titles.hierarchy,
         initialWidth: 340,
-        initialHeight: 260,
         minimumWidth: 240,
-        minimumHeight: 160,
+        minimumHeight: 180,
     });
     event.api.addPanel({
         id: 'preview',
@@ -171,15 +171,16 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
         title: titles.preview,
         minimumWidth: 420,
         minimumHeight: 300,
-        position: { direction: 'right', referencePanel: 'project' },
+        position: { direction: 'right', referencePanel: 'hierarchy' },
     });
     event.api.addPanel({
-        id: 'hierarchy',
-        component: 'hierarchy',
-        title: titles.hierarchy,
+        id: 'project',
+        component: 'project',
+        title: titles.project,
+        initialHeight: 260,
         minimumWidth: 240,
-        minimumHeight: 180,
-        position: { direction: 'below', referencePanel: 'project' },
+        minimumHeight: 160,
+        position: { direction: 'below', referencePanel: 'hierarchy' },
     });
     event.api.addPanel({
         id: 'inspector',
