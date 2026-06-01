@@ -958,18 +958,6 @@ textarea {
     background: #edf4fb;
 }
 
-.inlineRenameInput {
-    width: 100%;
-    min-width: 0;
-    height: 20px;
-    border: 1px solid #2563eb;
-    border-radius: 2px;
-    background: #fff;
-    color: var(--text);
-    font-size: 12px;
-    padding: 0 4px;
-}
-
 .nodeRow strong {
     min-width: 0;
     overflow: hidden;
@@ -1155,29 +1143,6 @@ textarea {
 
 .hierarchyHeader .sectionTitle {
     padding-top: 7px;
-}
-
-.hierarchyCreateActions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 4px;
-}
-
-.hierarchyCreateActions button {
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    background: #fff;
-    color: var(--text);
-    padding: 5px 7px;
-    font-size: 11px;
-    font-weight: 800;
-}
-
-.hierarchyCreateActions button:hover {
-    border-color: #9fc0f8;
-    background: var(--blue-soft);
-    color: #174ea6;
 }
 
 .nodeRow {

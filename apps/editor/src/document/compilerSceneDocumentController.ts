@@ -13,8 +13,6 @@ import type {
     CompilerSceneTemplateNode,
 } from '../services/projectFileTree';
 import { pixiNodeTypeFromTemplateKind } from '../services/nodeTemplateLibrary';
-import type { NodeTemplateKind } from '../services/nodeTemplateLibrary';
-import type { SceneToolKind } from '../services/sceneToolLibrary';
 
 export type CompilerSceneAddablePixiType = PixiSceneNodeType;
 export type CompilerSceneNodeDropPosition = 'before' | 'inside' | 'after';
@@ -291,23 +289,8 @@ export function createCompilerPixiTemplateNode(template: SceneTemplate, type: Co
     };
 }
 
-export function compilerPixiTypeFromNodeTemplate(kind: NodeTemplateKind): CompilerSceneAddablePixiType | undefined {
-    if (kind.startsWith('pixi-')) {
-        return pixiNodeTypeFromTemplateKind(kind);
-    }
-    if (kind === 'container') {
-        return 'Container';
-    }
-    if (kind === 'image') {
-        return 'Sprite';
-    }
-    if (kind === 'text') {
-        return 'Text';
-    }
-    if (kind === 'shape') {
-        return 'Graphics';
-    }
-    return undefined;
+export function compilerPixiTypeFromNodeTemplate(kind: string): CompilerSceneAddablePixiType | undefined {
+    return pixiNodeTypeFromTemplateKind(kind);
 }
 
 export function createCompilerSceneInstanceTemplateNode(
@@ -328,7 +311,7 @@ export function createCompilerSceneInstanceTemplateNode(
     };
 }
 
-export function createCompilerSceneToolTemplateNode(template: SceneTemplate, kind: SceneToolKind): CompilerSceneTemplateNode {
+export function createCompilerSlotOutletTemplateNode(template: SceneTemplate): CompilerSceneTemplateNode {
     return {
         kind: 'slotOutlet',
         name: nextCompilerSceneSlotName(template.children),

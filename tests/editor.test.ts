@@ -23,7 +23,7 @@ import {
     validateCommand,
 } from 'pixifact';
 import type { SceneSpec } from 'pixifact';
-import { createNodeTemplateNode, pixiNodeTemplateLibrary, pixiNodeTypeFromTemplateKind } from '../apps/editor/src/services/nodeTemplateLibrary';
+import { pixiNodeTemplateLibrary, pixiNodeTypeFromTemplateKind } from '../apps/editor/src/services/nodeTemplateLibrary';
 
 function createButtonScene(): SceneSpec {
     return scene('PrimaryButton',
@@ -636,21 +636,6 @@ describe('SceneDocument', () => {
 });
 
 describe('editor scene templates', () => {
-    it('adds only base nodes through the editor template library', () => {
-        const doc = new SceneDocument(createButtonScene());
-        const group = createNodeTemplateNode(doc, 'container');
-        const label = createNodeTemplateNode(doc, 'text');
-        const sprite = createNodeTemplateNode(doc, 'image');
-        const field = createNodeTemplateNode(doc, 'input');
-        const box = createNodeTemplateNode(doc, 'shape');
-
-        expect(group.kind).toBe('container');
-        expect(label.kind).toBe('text');
-        expect(sprite.kind).toBe('image');
-        expect(field.kind).toBe('input');
-        expect(box.kind).toBe('shape');
-    });
-
     it('builds compiler Pixi node templates from schema types', () => {
         expect(pixiNodeTemplateLibrary.map((item) => [item.kind, item.name])).toEqual([
             ['pixi-container', 'Container'],

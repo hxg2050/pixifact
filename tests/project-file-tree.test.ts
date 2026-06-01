@@ -8,9 +8,8 @@ import {
 import {
     addCompilerSceneNode,
     canUndoCompilerSceneCommand,
-    compilerPixiTypeFromNodeTemplate,
     createCompilerPixiTemplateNode,
-    createCompilerSceneToolTemplateNode,
+    createCompilerSlotOutletTemplateNode,
     deleteCompilerSceneNode,
     getCompilerSceneDocument,
     moveCompilerSceneNode,
@@ -1407,22 +1406,6 @@ describe('project file tree service', () => {
         expect(compilerDocument?.dirty).toBe(true);
     });
 
-    it('maps old node templates to compiler Pixi nodes', () => {
-        expect(compilerPixiTypeFromNodeTemplate('container')).toBe('Container');
-        expect(compilerPixiTypeFromNodeTemplate('image')).toBe('Sprite');
-        expect(compilerPixiTypeFromNodeTemplate('text')).toBe('Text');
-        expect(compilerPixiTypeFromNodeTemplate('shape')).toBe('Graphics');
-        expect(compilerPixiTypeFromNodeTemplate('input')).toBeUndefined();
-        expect(compilerPixiTypeFromNodeTemplate('pixi-container')).toBe('Container');
-        expect(compilerPixiTypeFromNodeTemplate('pixi-sprite')).toBe('Sprite');
-        expect(compilerPixiTypeFromNodeTemplate('pixi-nine-slice-sprite')).toBe('NineSliceSprite');
-        expect(compilerPixiTypeFromNodeTemplate('pixi-tiling-sprite')).toBe('TilingSprite');
-        expect(compilerPixiTypeFromNodeTemplate('pixi-text')).toBe('Text');
-        expect(compilerPixiTypeFromNodeTemplate('pixi-bitmap-text')).toBe('BitmapText');
-        expect(compilerPixiTypeFromNodeTemplate('pixi-html-text')).toBe('HTMLText');
-        expect(compilerPixiTypeFromNodeTemplate('pixi-graphics')).toBe('Graphics');
-    });
-
     it('creates compiler Pixi basic nodes with type defaults', () => {
         const template = parseSceneTemplate('<Scene name="Library" />');
 
@@ -1531,11 +1514,11 @@ describe('project file tree service', () => {
         let compilerDocument = getCompilerSceneDocument();
         expect(compilerDocument).toBeDefined();
 
-        const rootResult = addCompilerSceneNode('__scene__', createCompilerSceneToolTemplateNode(compilerDocument!.template, 'slotOutlet'));
+        const rootResult = addCompilerSceneNode('__scene__', createCompilerSlotOutletTemplateNode(compilerDocument!.template));
         compilerDocument = getCompilerSceneDocument();
-        const containerResult = addCompilerSceneNode('0:content', createCompilerSceneToolTemplateNode(compilerDocument!.template, 'slotOutlet'));
+        const containerResult = addCompilerSceneNode('0:content', createCompilerSlotOutletTemplateNode(compilerDocument!.template));
         compilerDocument = getCompilerSceneDocument();
-        const sceneSlotResult = addCompilerSceneNode('1:settingsPanel/slot:footer', createCompilerSceneToolTemplateNode(compilerDocument!.template, 'slotOutlet'));
+        const sceneSlotResult = addCompilerSceneNode('1:settingsPanel/slot:footer', createCompilerSlotOutletTemplateNode(compilerDocument!.template));
 
         expect(rootResult.ok).toBe(false);
         expect(containerResult).toEqual({ ok: true, locator: '0:content/0:slot:slot1' });
