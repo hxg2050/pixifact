@@ -479,6 +479,12 @@ function parseFieldValue(type: string, value: string) {
     }
 }
 
+function fieldRowClassName(field: InspectorFieldModel) {
+    return field.key === 'text' || field.key === 'src' || field.key === 'texture'
+        ? 'editableFieldRow editableFieldRow--wide'
+        : 'editableFieldRow';
+}
+
 interface EditableFieldRowProps {
     label: string;
     field: InspectorFieldModel;
@@ -583,7 +589,7 @@ function EditableFieldRow({
     }
 
     const row = (
-        <div className={warning ? 'editableFieldRow warning' : 'editableFieldRow'}>
+        <div className={[fieldRowClassName(field), warning ? 'warning' : ''].filter(Boolean).join(' ')}>
             <label>
                 <span>{label}</span>
                 <div data-field-key={field.key}>{control}</div>
@@ -741,7 +747,7 @@ export function InspectorPanel() {
                     <small>{compilerNodeKind(selectedCompiler, t)} · {compilerSelectionLocator(compilerDocument)}</small>
                 </section>
                 {sceneSelected ? (
-                    <section className="inspectorSection">
+                    <section className="inspectorSection inspectorSection--scene">
                         <h3>{t('compilerSceneSection')}</h3>
                         <div className="fieldStack">
                             <EditableFieldRow
@@ -764,7 +770,7 @@ export function InspectorPanel() {
                 ) : null}
                 {selectedCompiler ? (
                     <>
-                        <section className="inspectorSection">
+                        <section className="inspectorSection inspectorSection--identity">
                             <h3>{t('compilerIdentitySection')}</h3>
                             <div className="fieldStack">
                                 {'id' in selectedCompiler ? (
@@ -794,9 +800,9 @@ export function InspectorPanel() {
                             </div>
                         </section>
                         {compilerTransformEditorFields.length ? (
-                            <section className="inspectorSection">
+                            <section className="inspectorSection inspectorSection--transform">
                                 <h3>{t('compilerTransformSection')}</h3>
-                                <div className="fieldStack">
+                                <div className="fieldGrid inspectorTransformGrid">
                                     {compilerTransformEditorFields.map((field) => (
                                         <EditableFieldRow
                                             field={field}
@@ -809,9 +815,9 @@ export function InspectorPanel() {
                             </section>
                         ) : null}
                         {compilerDisplayEditorFields.length ? (
-                            <section className="inspectorSection">
+                            <section className="inspectorSection inspectorSection--display">
                                 <h3>{t('compilerDisplaySection')}</h3>
-                                <div className="fieldStack">
+                                <div className="fieldGrid inspectorCompactGrid">
                                     {compilerDisplayEditorFields.map((field) => (
                                         <EditableFieldRow
                                             field={field}
@@ -825,9 +831,9 @@ export function InspectorPanel() {
                         ) : null}
                         {compilerPropEditorSections.map((section) => (
                             section.fields.length ? (
-                                <section className="inspectorSection" key={section.title}>
+                                <section className="inspectorSection inspectorSection--props" key={section.title}>
                                     <h3>{section.title === 'Props' ? t('compilerPropsSection') : section.title}</h3>
-                                    <div className="fieldStack">
+                                    <div className="fieldGrid inspectorPropGrid">
                                         {section.fields.map((field) => (
                                             <EditableFieldRow
                                                 field={field}
@@ -844,9 +850,9 @@ export function InspectorPanel() {
                             ) : null
                         ))}
                         {compilerEventEditorFields.length ? (
-                            <section className="inspectorSection">
+                            <section className="inspectorSection inspectorSection--events">
                                 <h3>{t('compilerEventsSection')}</h3>
-                                <div className="fieldStack">
+                                <div className="fieldGrid inspectorPropGrid">
                                     {compilerEventEditorFields.map((field) => (
                                         <EditableFieldRow
                                             field={field}
@@ -859,7 +865,7 @@ export function InspectorPanel() {
                             </section>
                         ) : null}
                         {selectedSlotRows.length ? (
-                            <section className="inspectorSection">
+                            <section className="inspectorSection inspectorSection--slots">
                                 <h3>{t('compilerSlotsSection')}</h3>
                                 <p className="inspectorHint">{t('compilerSlotsReadonlyHint')}</p>
                                 <div className="fieldStack">
@@ -877,7 +883,7 @@ export function InspectorPanel() {
                 ) : null}
                 {sceneSelected ? (
                     <>
-                        <section className="inspectorSection">
+                        <section className="inspectorSection inspectorSection--scene">
                             <h3>{t('compilerSceneSection')}</h3>
                             <div className="fieldStack">
                                 <FieldRow label="name" value={compilerDocument.template.name} />
@@ -888,7 +894,7 @@ export function InspectorPanel() {
                                 <FieldRow label={t('compilerPath')} value={compilerDocument.scenePath} />
                             </div>
                         </section>
-                        <section className="inspectorSection">
+                        <section className="inspectorSection inspectorSection--binding">
                             <div className="sectionHeader">
                                 <h3>{t('compilerScriptBindingSection')}</h3>
                                 <span className={compilerBindingStatus?.ok ? 'bindingState ok' : 'bindingState error'}>
@@ -905,7 +911,7 @@ export function InspectorPanel() {
                                 </div>
                             </div>
                         </section>
-                        <section className="inspectorSection">
+                        <section className="inspectorSection inspectorSection--contract">
                             <h3>{t('compilerPublicContractSection')}</h3>
                             <p className="inspectorHint">{t('compilerPublicContractHint')}</p>
                             <div className="fieldStack">

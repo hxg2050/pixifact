@@ -1232,20 +1232,32 @@ textarea {
 }
 
 .inspectorSurface {
+    container-type: inline-size;
     overflow: auto;
     background: #fbfcfe;
 }
 
 .inspectorSection {
     border-bottom: 1px solid var(--line);
-    padding: 12px 12px 14px;
+    padding: 10px 12px 12px;
 }
 
 .inspectorSection h3 {
-    margin: 0 0 10px;
-    color: #2f3b4f;
+    margin: 0 0 8px;
+    color: #42526a;
     font-size: 12px;
     font-weight: 850;
+}
+
+.inspectorSection--transform {
+    background: #fff;
+}
+
+.inspectorSection--identity,
+.inspectorSection--scene,
+.inspectorSection--binding,
+.inspectorSection--contract {
+    background: #fbfcfe;
 }
 
 .inspectorSection .sectionHeader h3 {
@@ -1314,6 +1326,17 @@ textarea {
     gap: 6px 8px;
 }
 
+.inspectorTransformGrid {
+    grid-template-columns: repeat(2, minmax(112px, 1fr));
+    gap: 6px 8px;
+}
+
+.inspectorCompactGrid,
+.inspectorPropGrid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 6px 8px;
+}
+
 .fieldRow,
 .editableFieldRow {
     display: grid;
@@ -1332,7 +1355,7 @@ textarea {
 }
 
 .editableFieldRow {
-    grid-template-columns: minmax(0, 1fr) 28px;
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .editableFieldRow label {
@@ -1348,8 +1371,22 @@ textarea {
 }
 
 .fieldGrid.four .fieldRow,
-.fieldGrid.four .editableFieldRow label {
+.fieldGrid.four .editableFieldRow label,
+.inspectorTransformGrid .editableFieldRow label {
     grid-template-columns: 34px minmax(0, 1fr);
+}
+
+.inspectorCompactGrid .editableFieldRow label,
+.inspectorPropGrid .editableFieldRow label {
+    grid-template-columns: minmax(58px, 0.5fr) minmax(0, 1fr);
+}
+
+.editableFieldRow--wide {
+    grid-column: 1 / -1;
+}
+
+.editableFieldRow--wide label {
+    grid-template-columns: 76px minmax(0, 1fr);
 }
 
 .fieldRow span,
@@ -1439,7 +1476,13 @@ textarea {
 }
 
 .editableFieldRow input[type="color"] {
+    max-width: 64px;
     padding: 2px;
+}
+
+.inspectorPropGrid .editableFieldRow input[type="color"],
+.inspectorCompactGrid .editableFieldRow input[type="color"] {
+    max-width: none;
 }
 
 .editableFieldRow input:disabled,
@@ -1498,6 +1541,19 @@ textarea {
     color: var(--warning);
     font-size: 11px;
     line-height: 1.35;
+}
+
+@container (max-width: 360px) {
+    .inspectorTransformGrid,
+    .inspectorCompactGrid,
+    .inspectorPropGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .inspectorCompactGrid .editableFieldRow label,
+    .inspectorPropGrid .editableFieldRow label {
+        grid-template-columns: 76px minmax(0, 1fr);
+    }
 }
 
 .sectionHeader {
