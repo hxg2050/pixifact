@@ -875,44 +875,48 @@ export function InspectorPanel() {
                         ) : null}
                     </>
                 ) : null}
-                <section className="inspectorSection">
-                    <h3>{t('compilerSceneSection')}</h3>
-                    <div className="fieldStack">
-                        <FieldRow label="name" value={compilerDocument.template.name} />
-                        <FieldRow label="width" value={compilerDocument.template.props.width} />
-                        <FieldRow label="height" value={compilerDocument.template.props.height} />
-                        <FieldRow label="script" value={compilerBindingStatus?.scriptPath} />
-                        <FieldRow label={t('compilerClass')} value={compilerDocument.descriptor?.className} />
-                        <FieldRow label={t('compilerPath')} value={compilerDocument.scenePath} />
-                    </div>
-                </section>
-                <section className="inspectorSection">
-                    <div className="sectionHeader">
-                        <h3>{t('compilerScriptBindingSection')}</h3>
-                        <span className={compilerBindingStatus?.ok ? 'bindingState ok' : 'bindingState error'}>
-                            {compilerBindingStatus?.message ?? t('compilerBindingChecking')}
-                        </span>
-                    </div>
-                    <div className="fieldStack">
-                        <FieldRow label="scene" value={compilerBindingStatus?.scenePath ?? compilerDocument.scenePath} />
-                        <FieldRow label={t('compilerContract')} value={compilerBindingStatus?.contractScene ?? compilerDocument.descriptor?.scene} />
-                        <FieldRow label="script" value={compilerBindingStatus?.scriptPath} />
-                        <FieldRow label={t('compilerClass')} value={compilerBindingStatus?.className ?? compilerDocument.descriptor?.className} />
-                        <div className="inspectorActionRow">
-                            <button onClick={openCompilerScript} type="button">{t('compilerOpenScript')}</button>
-                        </div>
-                    </div>
-                </section>
-                <section className="inspectorSection">
-                    <h3>{t('compilerPublicContractSection')}</h3>
-                    <p className="inspectorHint">{t('compilerPublicContractHint')}</p>
-                    <div className="fieldStack">
-                        <FieldRow label="props" value={`${contractCount(publicInterface, 'props')}: ${contractNames(publicInterface, 'props', t)}`} />
-                        <FieldRow label="events" value={`${contractCount(publicInterface, 'events')}: ${contractNames(publicInterface, 'events', t)}`} />
-                        <FieldRow label="slots" value={`${contractCount(publicInterface, 'slots')}: ${contractNames(publicInterface, 'slots', t)}`} />
-                        <FieldRow label="parts" value={partNames(compilerDocument.descriptor, t)} />
-                    </div>
-                </section>
+                {sceneSelected ? (
+                    <>
+                        <section className="inspectorSection">
+                            <h3>{t('compilerSceneSection')}</h3>
+                            <div className="fieldStack">
+                                <FieldRow label="name" value={compilerDocument.template.name} />
+                                <FieldRow label="width" value={compilerDocument.template.props.width} />
+                                <FieldRow label="height" value={compilerDocument.template.props.height} />
+                                <FieldRow label="script" value={compilerBindingStatus?.scriptPath} />
+                                <FieldRow label={t('compilerClass')} value={compilerDocument.descriptor?.className} />
+                                <FieldRow label={t('compilerPath')} value={compilerDocument.scenePath} />
+                            </div>
+                        </section>
+                        <section className="inspectorSection">
+                            <div className="sectionHeader">
+                                <h3>{t('compilerScriptBindingSection')}</h3>
+                                <span className={compilerBindingStatus?.ok ? 'bindingState ok' : 'bindingState error'}>
+                                    {compilerBindingStatus?.message ?? t('compilerBindingChecking')}
+                                </span>
+                            </div>
+                            <div className="fieldStack">
+                                <FieldRow label="scene" value={compilerBindingStatus?.scenePath ?? compilerDocument.scenePath} />
+                                <FieldRow label={t('compilerContract')} value={compilerBindingStatus?.contractScene ?? compilerDocument.descriptor?.scene} />
+                                <FieldRow label="script" value={compilerBindingStatus?.scriptPath} />
+                                <FieldRow label={t('compilerClass')} value={compilerBindingStatus?.className ?? compilerDocument.descriptor?.className} />
+                                <div className="inspectorActionRow">
+                                    <button onClick={openCompilerScript} type="button">{t('compilerOpenScript')}</button>
+                                </div>
+                            </div>
+                        </section>
+                        <section className="inspectorSection">
+                            <h3>{t('compilerPublicContractSection')}</h3>
+                            <p className="inspectorHint">{t('compilerPublicContractHint')}</p>
+                            <div className="fieldStack">
+                                <FieldRow label="props" value={`${contractCount(publicInterface, 'props')}: ${contractNames(publicInterface, 'props', t)}`} />
+                                <FieldRow label="events" value={`${contractCount(publicInterface, 'events')}: ${contractNames(publicInterface, 'events', t)}`} />
+                                <FieldRow label="slots" value={`${contractCount(publicInterface, 'slots')}: ${contractNames(publicInterface, 'slots', t)}`} />
+                                <FieldRow label="parts" value={partNames(compilerDocument.descriptor, t)} />
+                            </div>
+                        </section>
+                    </>
+                ) : null}
             </div>
         );
     }

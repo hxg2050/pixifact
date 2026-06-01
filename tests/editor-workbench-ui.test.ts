@@ -386,7 +386,7 @@ describe('Editor workbench UI', () => {
         }
     });
 
-    it('prioritizes the selected compiler node before Scene file metadata in Inspector', async () => {
+    it('shows only the selected compiler node details in Inspector', async () => {
         selectCompilerSceneNode('0:label');
         const view = await renderEditorApp();
         try {
@@ -394,8 +394,10 @@ describe('Editor workbench UI', () => {
             const sectionTitles = [...inspector?.querySelectorAll('.inspectorSection h3') ?? []].map((title) => title.textContent);
 
             expect(inspector).toBeTruthy();
-            expect(sectionTitles.slice(0, 4)).toEqual(['标识', 'Transform', 'Display', 'Text']);
-            expect(sectionTitles.indexOf('Scene')).toBeGreaterThan(sectionTitles.indexOf('Text'));
+            expect(sectionTitles).toEqual(['标识', 'Transform', 'Display', 'Text']);
+            expect(sectionTitles).not.toContain('Scene');
+            expect(sectionTitles).not.toContain('脚本绑定');
+            expect(sectionTitles).not.toContain('公开契约');
         } finally {
             await view.cleanup();
         }
