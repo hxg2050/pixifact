@@ -646,10 +646,10 @@ function EditableFieldRow({
 
     const row = (
         <div className={[fieldRowClassName(field), warning ? 'warning' : ''].filter(Boolean).join(' ')}>
-            <label className="editableFieldLabel">
+            <div className="editableFieldLabel">
                 <span>{label}</span>
                 <div data-field-key={field.key}>{control}</div>
-            </label>
+            </div>
             {warning ? <small>{warning}</small> : null}
         </div>
     );
