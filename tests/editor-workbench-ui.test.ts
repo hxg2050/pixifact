@@ -299,6 +299,9 @@ describe('Editor workbench UI', () => {
             expect(rootDropZone?.textContent).toBe('');
             expect(hierarchy?.textContent).not.toContain('放到根层级');
             expect(hierarchy?.textContent).not.toContain('拖动调整层级');
+            expect(hierarchy?.querySelector('button[title="Add Container"]')).toBeFalsy();
+            expect(hierarchy?.querySelector('button[title="Add Text"]')).toBeFalsy();
+            expect(hierarchy?.querySelector('button[title="Add Graphics"]')).toBeFalsy();
             expect(view.container.querySelector('.dockHost')).toBeTruthy();
             expect(view.container.querySelector('.dv-dockview')).toBeTruthy();
             expect(textContent(view.container)).not.toContain('Dockview');

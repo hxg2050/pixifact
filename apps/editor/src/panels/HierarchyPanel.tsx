@@ -12,7 +12,6 @@ import {
     compilerPixiTypeFromNodeTemplate,
     createCompilerPixiTemplateNode,
     createCompilerSceneToolTemplateNode,
-    type CompilerSceneAddablePixiType,
     deleteCompilerSceneNode,
     compilerSceneNodeLocator,
     getCompilerSceneDocument,
@@ -978,20 +977,8 @@ export function CompilerSceneHierarchyTree() {
     const selectedItem = selected === '__scene__'
         ? treeItems[0]?.item
         : findCompilerHierarchyItem(treeItems, selected);
-    const canAddNode = canAddCompilerSceneNode(selectedItem);
     const canDeleteNode = canDeleteCompilerSceneNode(selectedItem);
 
-    const addPixiNode = (type: CompilerSceneAddablePixiType) => {
-        if (!canAddNode) {
-            return;
-        }
-        const result = addCompilerSceneNode(selected, createCompilerPixiTemplateNode(compilerDocument.template, type));
-        if (!result.ok) {
-            setError(result.error);
-            return;
-        }
-        setError(undefined);
-    };
     const addCompilerNodeTemplateUnderNode = (kind: string, parent: string) => {
         if (!isNodeTemplateKind(kind)) {
             setError(t('nodeTemplateMissing'));
@@ -1080,15 +1067,6 @@ export function CompilerSceneHierarchyTree() {
                     <small>Compiler Scene</small>
                 </div>
                 <div className="hierarchyCreateActions" aria-label="Add compiler scene node">
-                    <button disabled={!canAddNode} onClick={() => addPixiNode('Container')} title="Add Container" type="button">
-                        Container
-                    </button>
-                    <button disabled={!canAddNode} onClick={() => addPixiNode('Text')} title="Add Text" type="button">
-                        Text
-                    </button>
-                    <button disabled={!canAddNode} onClick={() => addPixiNode('Graphics')} title="Add Graphics" type="button">
-                        Graphics
-                    </button>
                     <button disabled={!canDeleteNode} onClick={deleteSelectedNode} title="Delete selected node" type="button">
                         <SystemIcon name="trash" />
                     </button>
