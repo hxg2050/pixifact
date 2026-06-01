@@ -10,6 +10,7 @@ import {
     getCompilerSceneDocument,
     loadCompilerSceneDocument,
     resetCompilerSceneDocument,
+    selectCompilerSceneNode,
     updateCompilerSceneTemplate,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
 import { parseSceneTemplate } from '../packages/pixifact/src/compiler/templateParser';
@@ -380,6 +381,21 @@ describe('Editor workbench UI', () => {
             expect(shelf?.textContent).not.toContain('Images');
             expect(shelf?.textContent).not.toContain('Scripts');
             expect(shelf?.textContent).not.toContain('Docs');
+        } finally {
+            await view.cleanup();
+        }
+    });
+
+    it('prioritizes the selected compiler node before Scene file metadata in Inspector', async () => {
+        selectCompilerSceneNode('0:label');
+        const view = await renderEditorApp();
+        try {
+            const inspector = view.container.querySelector('[data-testid="compiler-scene-inspector"]');
+            const sectionTitles = [...inspector?.querySelectorAll('.inspectorSection h3') ?? []].map((title) => title.textContent);
+
+            expect(inspector).toBeTruthy();
+            expect(sectionTitles.slice(0, 4)).toEqual(['标识', 'Transform', 'Display', 'Text']);
+            expect(sectionTitles.indexOf('Scene')).toBeGreaterThan(sectionTitles.indexOf('Text'));
         } finally {
             await view.cleanup();
         }

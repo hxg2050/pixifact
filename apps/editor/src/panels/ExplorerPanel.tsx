@@ -20,7 +20,6 @@ import {
 } from '../services/nodeTemplateLibrary';
 import {
     nodeTemplateDragPayload,
-    componentDragPayload,
     sceneDragPayload,
     sceneToolDragPayload,
 } from '../services/dragPayload';
@@ -30,7 +29,6 @@ import {
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import {
     collectFolderPaths,
-    componentTypeFromPath,
     countProjectFileTree,
     createAndOpenSceneFile,
     createFolder,
@@ -116,10 +114,6 @@ function findFileInTree(node: ProjectFileTreeNode, path: string): ProjectFileTre
 function fileDragPayload(file: ProjectFileTreeNode) {
     if (file.kind === 'scene') {
         return sceneDragPayload(file.path, file.name);
-    }
-    if (file.kind === 'component') {
-        const componentType = componentTypeFromPath(file.path);
-        return componentType ? componentDragPayload(componentType, file.name) : undefined;
     }
     if (file.kind === 'asset') {
         return assetDragPayload(file);

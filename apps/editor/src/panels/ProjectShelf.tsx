@@ -6,13 +6,11 @@ import { getCompilerSceneDocument } from '../document/compilerSceneDocumentContr
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
 import {
-    componentDragPayload,
     sceneDragPayload,
 } from '../services/dragPayload';
 import { hostErrorMessage } from '../services/hostBridge';
 import {
     assetDragPayload,
-    componentTypeFromPath,
     containingDirectory,
     createFolder,
     createSceneFile,
@@ -53,10 +51,6 @@ function collectVisibleFolderPaths(node: TreeViewItem<ProjectFileTreeNode>): str
 function fileDragPayload(file: ProjectFileTreeNode) {
     if (file.kind === 'scene') {
         return sceneDragPayload(file.path, file.name);
-    }
-    if (file.kind === 'component') {
-        const componentType = componentTypeFromPath(file.path);
-        return componentType ? componentDragPayload(componentType, file.name) : undefined;
     }
     if (file.kind === 'asset') {
         return assetDragPayload(file);
