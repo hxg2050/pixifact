@@ -392,6 +392,12 @@ describe('Editor workbench UI', () => {
         try {
             const inspector = view.container.querySelector('[data-testid="compiler-scene-inspector"]');
             const sectionTitles = [...inspector?.querySelectorAll('.inspectorSection h3') ?? []].map((title) => title.textContent);
+            const xInput = inspector?.querySelector('input[aria-label="x"]') as HTMLInputElement | null;
+            const yInput = inspector?.querySelector('input[aria-label="y"]') as HTMLInputElement | null;
+            const widthInput = inspector?.querySelector('input[aria-label="width"]') as HTMLInputElement | null;
+            const heightInput = inspector?.querySelector('input[aria-label="height"]') as HTMLInputElement | null;
+            const scaleXInput = inspector?.querySelector('input[aria-label="scaleX"]') as HTMLInputElement | null;
+            const scaleYInput = inspector?.querySelector('input[aria-label="scaleY"]') as HTMLInputElement | null;
             const alphaInput = inspector?.querySelector('input[aria-label="alpha"]') as HTMLInputElement | null;
             const visibleCheckbox = inspector?.querySelector('[aria-label="visible"]') as HTMLInputElement | null;
             const zIndexInput = inspector?.querySelector('input[aria-label="zIndex"]') as HTMLInputElement | null;
@@ -401,6 +407,12 @@ describe('Editor workbench UI', () => {
             expect(sectionTitles).not.toContain('Scene');
             expect(sectionTitles).not.toContain('脚本绑定');
             expect(sectionTitles).not.toContain('公开契约');
+            expect(xInput?.value).toBe('0');
+            expect(yInput?.value).toBe('0');
+            expect(widthInput?.value).toBe('120');
+            expect(heightInput?.value).toBe('28');
+            expect(scaleXInput?.value).toBe('1');
+            expect(scaleYInput?.value).toBe('1');
             expect(alphaInput?.value).toBe('1');
             expect(visibleCheckbox?.checked).toBe(true);
             expect(zIndexInput?.value).toBe('0');

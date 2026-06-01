@@ -10,6 +10,7 @@ import {
     pixiSceneDisplayProps,
     pixiSceneFieldSchema,
     pixiSceneKnownProps,
+    pixiSceneNodeDefaults,
     pixiSceneNodePropGroups,
     pixiSceneNodePropKeys,
     type PixiScenePropGroup,
@@ -344,11 +345,28 @@ function compilerField(key: string, value: unknown, type?: string): InspectorFie
     };
 }
 
+function compilerTransformFieldValue(node: Exclude<SelectedCompilerItem, SelectedCompilerSlot | undefined>, key: string) {
+    const value = node.props[key];
+    if (value !== undefined) {
+        return value;
+    }
+    if (node.kind === 'pixi' && isPixiSceneNodeType(node.type)) {
+        const defaultValue = pixiSceneNodeDefaults(node.type)[key];
+        if (defaultValue !== undefined) {
+            return defaultValue;
+        }
+    }
+    if (key === 'scaleX' || key === 'scaleY') {
+        return 1;
+    }
+    return 0;
+}
+
 function compilerTransformFields(node: SelectedCompilerItem): InspectorFieldModel[] {
     if (!node || node.kind === 'slot' || node.kind === 'slotOutlet') {
         return [];
     }
-    return pixiSceneTransformProps.map((key) => compilerField(key, node.props[key]));
+    return pixiSceneTransformProps.map((key) => compilerField(key, compilerTransformFieldValue(node, key)));
 }
 
 function compilerDisplayFieldValue(key: string, value: unknown) {
