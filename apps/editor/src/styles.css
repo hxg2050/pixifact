@@ -416,7 +416,7 @@ textarea {
     display: grid;
     height: 100%;
     min-height: 0;
-    grid-template-rows: 34px auto minmax(0, 1fr);
+    grid-template-rows: 34px auto auto minmax(0, 1fr);
     background: var(--panel);
 }
 
@@ -563,16 +563,16 @@ textarea {
 }
 
 .projectShelfBody {
-    display: grid;
+    display: block;
+    grid-row: 4;
     min-height: 0;
-    grid-template-rows: minmax(0, 1fr) auto;
     overflow: hidden;
 }
 
 .projectShelfTree,
-.projectShelfDetails {
-    min-width: 0;
-    min-height: 0;
+.projectShelfBody .systemTreeKeyboardLayer {
+    width: 100%;
+    height: 100%;
     overflow: auto;
 }
 
@@ -609,45 +609,53 @@ textarea {
     background: #edf2f7;
 }
 
-.projectShelfDetails {
+.projectShelfAction {
+    margin: 0;
+    border-bottom: 1px solid var(--line);
+    background: #f8fafc;
+    padding: 6px 10px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+.projectPreviewPanel {
     display: grid;
     align-content: start;
     gap: 6px;
-    border-top: 1px solid var(--line);
+    height: 100%;
+    min-height: 0;
     background: #f8fafc;
     padding: 10px;
+    overflow: auto;
 }
 
-.projectShelfDetails strong,
-.projectShelfDetails span,
-.projectShelfDetails small,
-.projectShelfDetails p {
+.projectPreviewPanel strong,
+.projectPreviewPanel span,
+.projectPreviewPanel small,
+.projectPreviewPanel p {
     margin: 0;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.projectShelfDetails strong {
+.projectPreviewPanel strong {
     color: #172033;
     font-size: 13px;
 }
 
-.projectShelfDetails span {
+.projectPreviewPanel span {
     color: var(--blue);
     font-size: 11px;
     font-weight: 800;
 }
 
-.projectShelfDetails small,
-.projectShelfDetails p {
+.projectPreviewPanel small,
+.projectPreviewPanel p {
     color: var(--muted);
     font-size: 11px;
     line-height: 1.4;
-}
-
-.projectShelfAction {
-    color: var(--text);
 }
 
 .welcomeHost {

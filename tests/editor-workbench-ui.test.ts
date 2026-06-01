@@ -267,6 +267,7 @@ describe('Editor workbench UI', () => {
             expect(view.container.querySelector('[data-testid="workbench-hierarchy"]')).toBeTruthy();
             expect(view.container.querySelector('[data-testid="workbench-preview"]')).toBeTruthy();
             expect(view.container.querySelector('[data-testid="workbench-inspector"]')).toBeTruthy();
+            expect(view.container.querySelector('[data-testid="workbench-project-preview"]')).toBeTruthy();
             expect(view.container.querySelector('[data-testid="project-shelf"]')).toBeTruthy();
             expect(view.container.querySelector('.dockHost')).toBeTruthy();
             expect(view.container.querySelector('.dv-dockview')).toBeTruthy();
@@ -276,25 +277,29 @@ describe('Editor workbench UI', () => {
             const root = dockviewApi?.toJSON().grid.root;
             const rootData = root?.type === 'branch' && Array.isArray(root.data) ? root.data : [];
             const leftColumn = rootData[0];
-            const rightColumn = rootData[1];
+            const centerColumn = rootData[1];
+            const rightColumn = rootData[2];
             const leftColumnData = leftColumn?.type === 'branch' && Array.isArray(leftColumn.data) ? leftColumn.data : [];
+            const centerPanel = centerColumn?.type === 'leaf' ? centerColumn : undefined;
             const rightColumnData = rightColumn?.type === 'branch' && Array.isArray(rightColumn.data) ? rightColumn.data : [];
             expect(dockviewApi).toBeTruthy();
             expect(dockviewApi?.toJSON().grid.orientation).toBe('HORIZONTAL');
-            expect(rootData).toHaveLength(2);
+            expect(rootData).toHaveLength(3);
             expect(leftColumnData).toHaveLength(2);
             expect(rightColumnData).toHaveLength(2);
             expect(leftColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['project', 'hierarchy']);
-            expect(rightColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['inspector', 'preview']);
+            expect(panelIdFromGroup(centerPanel?.data)).toBe('preview');
+            expect(rightColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['inspector', 'projectPreview']);
         } finally {
             await view.cleanup();
         }
     });
 
-    it('shows a plain Project Shelf as a single tree with selected item details', async () => {
+    it('shows a plain Project Shelf as a single tree with selected item details in a separate panel', async () => {
         const view = await renderEditorApp();
         try {
             const shelf = view.container.querySelector('[data-testid="project-shelf"]');
+            const projectPreview = view.container.querySelector('[data-testid="project-preview-panel"]');
             const projectTree = shelf?.querySelector('[data-testid="project-shelf-tree"]');
             const nestedFolderRow = projectTree?.querySelector('[title="GameProject/src/scenes"]');
             const sceneFileTreeRow = projectTree?.querySelector('[title="GameProject/src/scenes/Button.scene"]');
@@ -307,7 +312,10 @@ describe('Editor workbench UI', () => {
             expect(shelf?.querySelector('[data-testid="project-shelf-tree"]')).toBeTruthy();
             expect(shelf?.querySelector('.systemTree')).toBeTruthy();
             expect(shelf?.querySelector('.projectShelfContents')).toBeFalsy();
-            expect(shelf?.querySelector('.projectShelfDetails')).toBeTruthy();
+            expect(shelf?.querySelector('.projectShelfDetails')).toBeFalsy();
+            expect(projectPreview).toBeTruthy();
+            expect(projectPreview?.textContent).toContain('Button.scene');
+            expect(projectPreview?.textContent).toContain('双击进入 Scene 编辑');
             expect(shelf?.textContent).toContain('Project');
             expect(shelf?.textContent).toContain('GameProject/src/scenes');
             expect(projectTree?.textContent).toContain('Button.scene');
@@ -468,8 +476,8 @@ describe('Editor workbench UI', () => {
         try {
             dockviewApi?.layout(1400, 800);
             const sashes = dockviewSashes(view.container);
-            expect(sashes).toHaveLength(3);
-            expect(sashes.every((sash) => sash.classList.contains('dv-enabled'))).toBe(true);
+            expect(sashes).toHaveLength(4);
+            expect(sashes.filter((sash) => sash.classList.contains('dv-enabled'))).toHaveLength(3);
             expect(sashes.some((sash) => sash.classList.contains('dv-disabled'))).toBe(false);
         } finally {
             await view.cleanup();

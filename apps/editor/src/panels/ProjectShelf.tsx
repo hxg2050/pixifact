@@ -319,6 +319,7 @@ export function ProjectShelf() {
                     </form>
                 </div>
             ) : null}
+            {actionText ? <p className="projectShelfAction">{actionText}</p> : null}
             <div className="projectShelfBody">
                 <div className="projectShelfTree" data-testid="project-shelf-tree">
                     <TreeView
@@ -348,16 +349,35 @@ export function ProjectShelf() {
                         )}
                     />
                 </div>
-                <aside className="projectShelfDetails">
-                    <strong>{selectedFile?.name ?? projectTree.name}</strong>
-                    <span>{selectedFile?.kind ?? projectTree.kind}</span>
-                    <small>{selectedFile?.path ?? projectTree.path}</small>
-                    {selectedFile?.kind === 'scene' ? <p>{t('scenePreviewRule')}</p> : null}
-                    {selectedFile?.kind === 'asset' ? <p>{t('assetPreviewRule')}</p> : null}
-                    {selectedFile?.kind === 'script' ? <p>{t('scriptPreviewRule')}</p> : null}
-                    {actionText ? <p className="projectShelfAction">{actionText}</p> : null}
-                </aside>
             </div>
         </section>
+    );
+}
+
+export function ProjectPreviewPanel() {
+    const t = useI18n();
+    const projectTree = useEditorStore((state) => state.projectTree);
+    const selectedPath = useEditorStore((state) => state.selectedProjectFilePath);
+    const selectedFile = projectTree && selectedPath ? findFileByPath(projectTree, selectedPath) : projectTree;
+    const selectedFolderCount = selectedFile?.kind === 'folder'
+        ? selectedFile.children?.filter((child) => child.kind === 'folder').length ?? 0
+        : 0;
+
+    if (!projectTree) {
+        return null;
+    }
+
+    return (
+        <aside className="projectPreviewPanel" data-testid="project-preview-panel" aria-label={t('selectedItem')}>
+            <strong>{selectedFile?.name ?? projectTree.name}</strong>
+            <span>{selectedFile?.kind ?? projectTree.kind}</span>
+            <small>{selectedFile?.path ?? projectTree.path}</small>
+            {selectedFile?.kind === 'scene' ? <p>{t('scenePreviewRule')}</p> : null}
+            {selectedFile?.kind === 'asset' ? <p>{t('assetPreviewRule')}</p> : null}
+            {selectedFile?.kind === 'script' ? <p>{t('scriptPreviewRule')}</p> : null}
+            {selectedFile?.kind === 'component' ? <p>{t('componentPreviewRule')}</p> : null}
+            {selectedFile?.kind === 'doc' ? <p>{t('docPreviewRule')}</p> : null}
+            {selectedFile?.kind === 'folder' ? <p>{t('folderPreviewRule', { count: selectedFolderCount })}</p> : null}
+        </aside>
     );
 }

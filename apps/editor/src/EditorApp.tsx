@@ -12,7 +12,7 @@ import { CompilerSceneHierarchyTree } from './panels/HierarchyPanel';
 import { InspectorPanel } from './panels/InspectorPanel';
 import { ViewportPanel } from './panels/ViewportPanel';
 import { useCompilerSceneRevision } from './panels/common';
-import { ProjectShelf } from './panels/ProjectShelf';
+import { ProjectPreviewPanel, ProjectShelf } from './panels/ProjectShelf';
 import {
     openProjectFolder,
     saveCompilerSceneFile,
@@ -40,6 +40,7 @@ function dockPanelTitles(language: EditorLanguage) {
         hierarchy: translate(language, 'hierarchyLabel'),
         preview: translate(language, 'viewportLabel'),
         inspector: 'Inspector',
+        projectPreview: translate(language, 'selectedItem'),
         project: translate(language, 'project'),
     };
 }
@@ -49,13 +50,15 @@ function setDockPanelTitles(api: DockviewApi, language: EditorLanguage) {
     api.getPanel('hierarchy')?.api.setTitle(titles.hierarchy);
     api.getPanel('preview')?.api.setTitle(titles.preview);
     api.getPanel('inspector')?.api.setTitle(titles.inspector);
+    api.getPanel('projectPreview')?.api.setTitle(titles.projectPreview);
     api.getPanel('project')?.api.setTitle(titles.project);
 }
 
 function setInitialDockLayout(api: DockviewApi) {
     api.getPanel('project')?.group.api.setSize({ width: 340, height: 260 });
+    api.getPanel('preview')?.group.api.setSize({ width: 640 });
     api.getPanel('inspector')?.group.api.setSize({ width: 420 });
-    api.getPanel('preview')?.group.api.setSize({ height: 320 });
+    api.getPanel('projectPreview')?.group.api.setSize({ height: 220 });
 }
 
 function externalSceneSyncStatus(result: CompilerSceneExternalSyncResult): ExternalSceneSyncStatus | undefined {
@@ -131,11 +134,22 @@ function ProjectDockPanel(_props: IDockviewPanelProps<EditorDockPanelParams>) {
     return <ProjectShelf />;
 }
 
+function ProjectPreviewDockPanel(_props: IDockviewPanelProps<EditorDockPanelParams>) {
+    const t = useI18n();
+
+    return (
+        <section className="workbenchPane workbenchProjectPreview" data-testid="workbench-project-preview" aria-label={t('selectedItem')}>
+            <ProjectPreviewPanel />
+        </section>
+    );
+}
+
 function createDockComponents() {
     return {
         hierarchy: HierarchyDockPanel,
         preview: PreviewDockPanel,
         inspector: InspectorDockPanel,
+        projectPreview: ProjectPreviewDockPanel,
         project: ProjectDockPanel,
     };
 }
@@ -152,11 +166,11 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
         minimumHeight: 160,
     });
     event.api.addPanel({
-        id: 'inspector',
-        component: 'inspector',
-        title: titles.inspector,
-        initialWidth: 420,
-        minimumWidth: 300,
+        id: 'preview',
+        component: 'preview',
+        title: titles.preview,
+        minimumWidth: 420,
+        minimumHeight: 300,
         position: { direction: 'right', referencePanel: 'project' },
     });
     event.api.addPanel({
@@ -168,9 +182,17 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
         position: { direction: 'below', referencePanel: 'project' },
     });
     event.api.addPanel({
-        id: 'preview',
-        component: 'preview',
-        title: titles.preview,
+        id: 'inspector',
+        component: 'inspector',
+        title: titles.inspector,
+        initialWidth: 420,
+        minimumWidth: 300,
+        position: { direction: 'right', referencePanel: 'preview' },
+    });
+    event.api.addPanel({
+        id: 'projectPreview',
+        component: 'projectPreview',
+        title: titles.projectPreview,
         minimumWidth: 300,
         minimumHeight: 220,
         position: { direction: 'below', referencePanel: 'inspector' },
