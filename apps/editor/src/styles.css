@@ -1234,7 +1234,9 @@ textarea {
 
 .inspectorSurface {
     container-type: inline-size;
-    overflow: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     background: #fbfcfe;
 }
 
