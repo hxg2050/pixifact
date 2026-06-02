@@ -66,9 +66,51 @@ const pixiProps = new Set<string>(pixiSceneDisplayProps);
 const spriteProps = new Set<string>(pixiSceneSpriteLikeProps);
 const graphicsProps = new Set<string>(pixiSceneGraphicsProps);
 const textStyleProps = new Set<string>(pixiSceneTextStyleProps);
+const previewFlexItems = new WeakMap<Container, PreviewFlexItemProps>();
+const previewFlexLayouts = new WeakMap<Container, Record<string, SceneTemplateValue>>();
+const previewFlexLayoutBoxes = new WeakMap<Container, PreviewFlexSize>();
+
+type PreviewFlexDirection = 'row' | 'column';
+type PreviewFlexAlign = 'start' | 'center' | 'end' | 'stretch';
+type PreviewFlexJustify = 'start' | 'center' | 'end' | 'space-between';
+type PreviewFlexAlignSelf = 'auto' | PreviewFlexAlign;
+type PreviewFlexBasis = number | 'auto';
+
+interface PreviewFlexSize {
+    width: number;
+    height: number;
+}
+
+interface PreviewFlexItemProps {
+    grow: number;
+    shrink: number;
+    basis: PreviewFlexBasis;
+    minWidth: number;
+    minHeight: number;
+    maxWidth: number;
+    maxHeight: number;
+    marginLeft: number;
+    marginRight: number;
+    marginTop: number;
+    marginBottom: number;
+    alignSelf: PreviewFlexAlignSelf;
+}
+
+interface PreviewFlexLayoutItem {
+    child: Container;
+    props: PreviewFlexItemProps;
+    baseMain: number;
+    baseCross: number;
+    mainSize: number;
+    crossSize: number;
+}
 
 function numericProp(value: SceneTemplateValue | undefined, defaultValue: number) {
     return typeof value === 'number' ? value : defaultValue;
+}
+
+function optionalNumericProp(value: SceneTemplateValue | undefined) {
+    return typeof value === 'number' ? value : undefined;
 }
 
 function stringProp(value: SceneTemplateValue | undefined, defaultValue = '') {
@@ -314,6 +356,298 @@ function applyNodeProps(target: Container, props: Record<string, SceneTemplateVa
     }
 }
 
+const defaultPreviewFlexItemProps: PreviewFlexItemProps = {
+    grow: 0,
+    shrink: 1,
+    basis: 'auto',
+    minWidth: 0,
+    minHeight: 0,
+    maxWidth: -1,
+    maxHeight: -1,
+    marginLeft: 0,
+    marginRight: 0,
+    marginTop: 0,
+    marginBottom: 0,
+    alignSelf: 'auto',
+};
+
+function previewFlexItemProps(props: Record<string, SceneTemplateValue>): PreviewFlexItemProps {
+    return {
+        grow: Math.max(0, numericProp(props.grow, 0)),
+        shrink: Math.max(0, numericProp(props.shrink, 1)),
+        basis: previewFlexBasis(props.basis),
+        minWidth: Math.max(0, numericProp(props.minWidth, 0)),
+        minHeight: Math.max(0, numericProp(props.minHeight, 0)),
+        maxWidth: numericProp(props.maxWidth, -1),
+        maxHeight: numericProp(props.maxHeight, -1),
+        marginLeft: numericProp(props.marginLeft, 0),
+        marginRight: numericProp(props.marginRight, 0),
+        marginTop: numericProp(props.marginTop, 0),
+        marginBottom: numericProp(props.marginBottom, 0),
+        alignSelf: previewFlexAlignSelf(props.alignSelf),
+    };
+}
+
+function previewFlexBasis(value: SceneTemplateValue | undefined): PreviewFlexBasis {
+    if (value === 'auto') {
+        return 'auto';
+    }
+    const basis = numericProp(value, -1);
+    return basis >= 0 ? basis : 'auto';
+}
+
+function previewFlexDirection(value: SceneTemplateValue | undefined): PreviewFlexDirection {
+    return value === 'column' ? 'column' : 'row';
+}
+
+function previewFlexAlign(value: SceneTemplateValue | undefined): PreviewFlexAlign {
+    if (value === 'center' || value === 'end' || value === 'stretch') {
+        return value;
+    }
+    return 'start';
+}
+
+function previewFlexAlignSelf(value: SceneTemplateValue | undefined): PreviewFlexAlignSelf {
+    if (value === 'start' || value === 'center' || value === 'end' || value === 'stretch') {
+        return value;
+    }
+    return 'auto';
+}
+
+function previewFlexJustify(value: SceneTemplateValue | undefined): PreviewFlexJustify {
+    if (value === 'center' || value === 'end' || value === 'space-between') {
+        return value;
+    }
+    return 'start';
+}
+
+function measurePreviewFlexChildren(container: Container): PreviewFlexSize {
+    let maxX = 0;
+    let maxY = 0;
+    for (const child of container.children) {
+        maxX = Math.max(maxX, child.x + child.width);
+        maxY = Math.max(maxY, child.y + child.height);
+    }
+    return { width: maxX, height: maxY };
+}
+
+function measurePreviewFlexChild(child: Container): PreviewFlexSize {
+    const layoutBox = previewFlexLayoutBoxes.get(child);
+    if (layoutBox) {
+        return layoutBox;
+    }
+    if (previewFlexItems.has(child)) {
+        return measurePreviewFlexChildren(child);
+    }
+    return {
+        width: child.width,
+        height: child.height,
+    };
+}
+
+function previewFlexMax(value: number) {
+    return value >= 0 ? value : Number.POSITIVE_INFINITY;
+}
+
+function previewFlexClamp(value: number, min: number, max: number) {
+    return Math.min(max, Math.max(min, value));
+}
+
+function previewFlexMarginMain(props: PreviewFlexItemProps, horizontal: boolean) {
+    return horizontal
+        ? props.marginLeft + props.marginRight
+        : props.marginTop + props.marginBottom;
+}
+
+function previewFlexMarginCross(props: PreviewFlexItemProps, horizontal: boolean) {
+    return horizontal
+        ? props.marginTop + props.marginBottom
+        : props.marginLeft + props.marginRight;
+}
+
+function previewFlexClampMain(value: number, props: PreviewFlexItemProps, horizontal: boolean) {
+    return horizontal
+        ? previewFlexClamp(value, props.minWidth, previewFlexMax(props.maxWidth))
+        : previewFlexClamp(value, props.minHeight, previewFlexMax(props.maxHeight));
+}
+
+function previewFlexClampCross(value: number, props: PreviewFlexItemProps, horizontal: boolean) {
+    return horizontal
+        ? previewFlexClamp(value, props.minHeight, previewFlexMax(props.maxHeight))
+        : previewFlexClamp(value, props.minWidth, previewFlexMax(props.maxWidth));
+}
+
+function previewFlexJustifyOffset(justify: PreviewFlexJustify, remaining: number) {
+    if (justify === 'center') {
+        return remaining / 2;
+    }
+    if (justify === 'end') {
+        return remaining;
+    }
+    return 0;
+}
+
+function previewFlexAlignOffset(align: PreviewFlexAlign | PreviewFlexAlignSelf, remaining: number) {
+    if (align === 'center') {
+        return remaining / 2;
+    }
+    if (align === 'end') {
+        return remaining;
+    }
+    return 0;
+}
+
+function previewFlexContainerSize(
+    root: Container,
+    axis: PreviewFlexDirection,
+    props: Record<string, SceneTemplateValue>,
+    naturalSize: number,
+) {
+    const layoutBox = previewFlexLayoutBoxes.get(root);
+    if (axis === 'row') {
+        return layoutBox?.width ?? optionalNumericProp(props.width) ?? naturalSize;
+    }
+    return layoutBox?.height ?? optionalNumericProp(props.height) ?? naturalSize;
+}
+
+function createPreviewFlexLayoutItem(child: Container, mainAxis: PreviewFlexDirection, crossAxis: PreviewFlexDirection): PreviewFlexLayoutItem {
+    const props = previewFlexItems.get(child) ?? defaultPreviewFlexItemProps;
+    const natural = measurePreviewFlexChild(child);
+    const naturalMain = mainAxis === 'row' ? natural.width : natural.height;
+    const naturalCross = crossAxis === 'row' ? natural.width : natural.height;
+    const minMain = mainAxis === 'row' ? props.minWidth : props.minHeight;
+    const maxMain = previewFlexMax(mainAxis === 'row' ? props.maxWidth : props.maxHeight);
+    const minCross = crossAxis === 'row' ? props.minWidth : props.minHeight;
+    const maxCross = previewFlexMax(crossAxis === 'row' ? props.maxWidth : props.maxHeight);
+    const basis = props.basis === 'auto' ? naturalMain : props.basis;
+    const baseMain = previewFlexClamp(basis, minMain, maxMain);
+    const baseCross = previewFlexClamp(naturalCross, minCross, maxCross);
+    return {
+        child,
+        props,
+        baseMain,
+        baseCross,
+        mainSize: baseMain,
+        crossSize: baseCross,
+    };
+}
+
+function resolvePreviewFlexMainSizes(items: PreviewFlexLayoutItem[], freeMain: number, horizontal: boolean) {
+    if (freeMain > 0) {
+        const totalGrow = items.reduce((sum, item) => sum + item.props.grow, 0);
+        if (totalGrow > 0) {
+            for (const item of items) {
+                item.mainSize = previewFlexClampMain(item.baseMain + freeMain * (item.props.grow / totalGrow), item.props, horizontal);
+            }
+        }
+        return;
+    }
+
+    if (freeMain < 0) {
+        const totalShrink = items.reduce((sum, item) => sum + item.props.shrink * item.baseMain, 0);
+        if (totalShrink > 0) {
+            for (const item of items) {
+                const weighted = item.props.shrink * item.baseMain;
+                item.mainSize = previewFlexClampMain(item.baseMain + freeMain * (weighted / totalShrink), item.props, horizontal);
+            }
+        }
+    }
+}
+
+function resolvePreviewFlexCrossSizes(
+    items: PreviewFlexLayoutItem[],
+    innerCross: number,
+    align: PreviewFlexAlign,
+    horizontal: boolean,
+) {
+    for (const item of items) {
+        const alignSelf = item.props.alignSelf === 'auto' ? align : item.props.alignSelf;
+        if (alignSelf === 'stretch') {
+            item.crossSize = previewFlexClampCross(innerCross - previewFlexMarginCross(item.props, horizontal), item.props, horizontal);
+        }
+    }
+}
+
+function setPreviewFlexChildBox(child: Container, x: number, y: number, width: number, height: number) {
+    child.position.set(x, y);
+    if (previewFlexItems.has(child)) {
+        previewFlexLayoutBoxes.set(child, { width, height });
+        return;
+    }
+    const nestedFlexProps = previewFlexLayouts.get(child);
+    if (nestedFlexProps) {
+        previewFlexLayoutBoxes.set(child, { width, height });
+        applyPreviewFlexLayout(child, nestedFlexProps);
+        return;
+    }
+    child.width = width;
+    child.height = height;
+}
+
+function applyPreviewFlexLayout(root: Container, props: Record<string, SceneTemplateValue>) {
+    const children = root.children as Container[];
+    if (children.length === 0) {
+        return;
+    }
+    const direction = previewFlexDirection(props.direction);
+    const align = previewFlexAlign(props.align);
+    const justify = previewFlexJustify(props.justify);
+    const gap = Math.max(0, numericProp(props.gap, 0));
+    const paddingX = Math.max(0, numericProp(props.paddingX, 0));
+    const paddingY = Math.max(0, numericProp(props.paddingY, 0));
+    const paddingLeft = Math.max(0, numericProp(props.paddingLeft, paddingX));
+    const paddingRight = Math.max(0, numericProp(props.paddingRight, paddingX));
+    const paddingTop = Math.max(0, numericProp(props.paddingTop, paddingY));
+    const paddingBottom = Math.max(0, numericProp(props.paddingBottom, paddingY));
+    const horizontal = direction === 'row';
+    const mainAxis: PreviewFlexDirection = horizontal ? 'row' : 'column';
+    const crossAxis: PreviewFlexDirection = horizontal ? 'column' : 'row';
+    const paddingMainStart = horizontal ? paddingLeft : paddingTop;
+    const paddingMainEnd = horizontal ? paddingRight : paddingBottom;
+    const paddingCrossStart = horizontal ? paddingTop : paddingLeft;
+    const paddingCrossEnd = horizontal ? paddingBottom : paddingRight;
+    const items = children.map((child) => createPreviewFlexLayoutItem(child, mainAxis, crossAxis));
+    const gapTotal = gap * Math.max(0, items.length - 1);
+    const naturalMain = items.reduce((sum, item) => sum + item.baseMain + previewFlexMarginMain(item.props, horizontal), 0);
+    const naturalCross = items.reduce((max, item) => Math.max(max, item.baseCross + previewFlexMarginCross(item.props, horizontal)), 0);
+    const containerMain = previewFlexContainerSize(root, mainAxis, props, naturalMain + gapTotal + paddingMainStart + paddingMainEnd);
+    const containerCross = previewFlexContainerSize(root, crossAxis, props, naturalCross + paddingCrossStart + paddingCrossEnd);
+    const innerMain = Math.max(0, containerMain - paddingMainStart - paddingMainEnd - gapTotal);
+    const innerCross = Math.max(0, containerCross - paddingCrossStart - paddingCrossEnd);
+    const freeMain = innerMain - naturalMain;
+
+    resolvePreviewFlexMainSizes(items, freeMain, horizontal);
+    resolvePreviewFlexCrossSizes(items, innerCross, align, horizontal);
+
+    const usedMain = items.reduce((sum, item) => sum + item.mainSize + previewFlexMarginMain(item.props, horizontal), 0);
+    const remaining = Math.max(0, containerMain - paddingMainStart - paddingMainEnd - usedMain - gapTotal);
+    const actualGap = justify === 'space-between' && items.length > 1
+        ? gap + remaining / (items.length - 1)
+        : gap;
+    let cursor = paddingMainStart + previewFlexJustifyOffset(justify, remaining);
+
+    for (const item of items) {
+        const mainStartMargin = horizontal ? item.props.marginLeft : item.props.marginTop;
+        const mainEndMargin = horizontal ? item.props.marginRight : item.props.marginBottom;
+        const crossStartMargin = horizontal ? item.props.marginTop : item.props.marginLeft;
+        const crossEndMargin = horizontal ? item.props.marginBottom : item.props.marginRight;
+        const alignSelf = item.props.alignSelf === 'auto' ? align : item.props.alignSelf;
+        const crossFree = Math.max(0, innerCross - item.crossSize - crossStartMargin - crossEndMargin);
+        const main = cursor + mainStartMargin;
+        const cross = paddingCrossStart + crossStartMargin + previewFlexAlignOffset(alignSelf, crossFree);
+        const x = horizontal ? main : cross;
+        const y = horizontal ? cross : main;
+        const width = horizontal ? item.mainSize : item.crossSize;
+        const height = horizontal ? item.crossSize : item.mainSize;
+        setPreviewFlexChildBox(item.child, x, y, width, height);
+        cursor = main + item.mainSize + mainEndMargin + actualGap;
+    }
+
+    previewFlexLayoutBoxes.set(root, horizontal
+        ? { width: containerMain, height: containerCross }
+        : { width: containerCross, height: containerMain });
+}
+
 async function renderScene(template: SceneTemplate, context: RenderContext): Promise<RenderedCompilerScene> {
     const root = new Container({ label: template.name });
     const slots = new Map<string, Container>();
@@ -371,6 +705,14 @@ async function renderSceneInstance(node: SceneInstanceTemplateNode, context: Ren
             ...context,
             locatorPath: `${context.locatorPath}/slot:${slot}`,
         }, rendered.slots, nodes);
+    }
+
+    if (loaded.template.name === 'FlexItem') {
+        previewFlexItems.set(rendered.root, previewFlexItemProps(node.props));
+    }
+    if (loaded.template.name === 'FlexLayout') {
+        previewFlexLayouts.set(rendered.root, node.props);
+        applyPreviewFlexLayout(rendered.root, node.props);
     }
 
     return rendered.root;
