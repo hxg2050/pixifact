@@ -171,6 +171,8 @@ npm trust github pixifact-cli --repo hxg2050/pixifact --file publish.yml --allow
 npm trust github create-pixifact --repo hxg2050/pixifact --file publish.yml --allow-publish
 ```
 
+If `npm trust github ...` returns `E403` while the current user is still listed as package owner, configure the trusted publisher from the npm website package settings instead. This can happen even when `--dry-run` succeeds.
+
 Trusted Publishing uses GitHub Actions OIDC. Do not add a long-lived `NPM_TOKEN` secret for the normal release path.
 
 The workflow is `.github/workflows/publish.yml`. It runs when a `v*.*.*` tag is pushed and uses:
