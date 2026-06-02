@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { pixiSceneNodeAcceptsChildren } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import { defaultSceneSourceRoots, resolveSceneReference, toPosixPath } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import { DragSource, DropZone, SystemIcon, TreeView } from '../components/system';
-import type { SystemIconName, TreeViewItem } from '../components/system';
+import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/system';
 import {
     addCompilerSceneNode,
     addCompilerSceneNodeAtTarget,
@@ -186,10 +186,10 @@ function compilerDocumentAssetPath(scenePath: string) {
     return parts.join('/');
 }
 
-function collectCompilerLocators(items: TreeViewItem<CompilerHierarchyTreeNode>[]): string[] {
+function collectExpandableCompilerLocators(items: TreeViewItem<CompilerHierarchyTreeNode>[]): string[] {
     return items.flatMap((item) => [
-        String(item.id),
-        ...collectCompilerLocators(item.children ?? []),
+        ...(item.children?.length ? [String(item.id)] : []),
+        ...collectExpandableCompilerLocators(item.children ?? []),
     ]);
 }
 
@@ -263,6 +263,8 @@ export function CompilerSceneHierarchyTree() {
     const [nodeDropTarget, setNodeDropTarget] = useState<NodeDropTargetState>();
     const [draggedNodeLocator, setDraggedNodeLocator] = useState<string>();
     const [contextMenu, setContextMenu] = useState<CompilerNodeContextMenuState>();
+    const [expandedKeys, setExpandedKeys] = useState<Set<TreeViewKey>>(new Set());
+    const previousExpandableKeysRef = useRef<{ scenePath?: string; keys: Set<string> }>({ keys: new Set() });
     const nodeRowRefs = useRef(new Map<string, HTMLDivElement>());
 
     if (!compilerDocument) {
@@ -270,8 +272,35 @@ export function CompilerSceneHierarchyTree() {
     }
 
     const treeItems = compilerTreeItem(compilerDocument);
-    const expandedKeys = collectCompilerLocators(treeItems);
+    const expandableKeys = collectExpandableCompilerLocators(treeItems);
+    const expandableKeysSignature = expandableKeys.join('\n');
     const selected = compilerDocument.selection.type === 'node' ? compilerDocument.selection.node : '__scene__';
+
+    useEffect(() => {
+        const availableKeys = new Set(expandableKeys);
+        const previous = previousExpandableKeysRef.current;
+        setExpandedKeys((currentKeys) => {
+            if (previous.scenePath !== compilerDocument.scenePath || previous.keys.size === 0) {
+                return new Set(availableKeys);
+            }
+            const nextKeys = new Set<TreeViewKey>();
+            for (const key of currentKeys) {
+                if (availableKeys.has(String(key))) {
+                    nextKeys.add(key);
+                }
+            }
+            for (const key of availableKeys) {
+                if (!previous.keys.has(key)) {
+                    nextKeys.add(key);
+                }
+            }
+            return nextKeys;
+        });
+        previousExpandableKeysRef.current = {
+            scenePath: compilerDocument.scenePath,
+            keys: availableKeys,
+        };
+    }, [compilerDocument.scenePath, expandableKeysSignature]);
 
     useEffect(() => {
         if (!contextMenu) {
@@ -379,6 +408,7 @@ export function CompilerSceneHierarchyTree() {
                 ariaLabel={t('sceneNodeTreeLabel')}
                 expandedKeys={expandedKeys}
                 items={treeItems}
+                onExpandedChange={setExpandedKeys}
                 onItemAction={(item) => selectCompilerSceneNode(item.locator)}
                 onSelectedKeyChange={(_, item) => selectCompilerSceneNode(item.locator)}
                 selectedKeys={[selected]}
