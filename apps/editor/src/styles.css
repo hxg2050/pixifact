@@ -1164,10 +1164,6 @@ textarea {
     overflow: auto;
 }
 
-.nodeTree > .rootDropZone {
-    grid-row: 4;
-}
-
 .nodeContextMenu {
     position: fixed;
     z-index: 1000;
@@ -1250,23 +1246,6 @@ textarea {
 
 .nodeRow.nodeDropTarget.after {
     box-shadow: inset 0 -2px 0 #16a34a;
-}
-
-.rootDropZone {
-    display: block;
-    min-height: 44px;
-    margin: 4px;
-    border: 1px dashed transparent;
-    border-radius: 6px;
-    background: transparent;
-}
-
-.rootDropZone.dropTarget,
-.rootDropZone[data-drop-target] {
-    border-color: #16a34a;
-    background: #edfdf3;
-    color: #166534;
-    box-shadow: inset 0 0 0 1px rgba(22, 163, 74, 0.24);
 }
 
 .nodeDragContent {

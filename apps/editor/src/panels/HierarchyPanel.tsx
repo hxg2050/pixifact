@@ -49,8 +49,6 @@ interface NodeDropTargetState {
     position: NodeDropPosition;
 }
 
-const rootDropLocator = '__scene_root_drop__';
-
 function compilerNodeIcon(node: CompilerSceneTemplateNode | 'scene' | CompilerSlot): SystemIconName {
     if (node === 'scene') {
         return 'folder-open';
@@ -392,10 +390,6 @@ export function CompilerSceneHierarchyTree() {
         setDraggedNodeLocator(undefined);
         setError(undefined);
     };
-    const moveCompilerNodeToRoot = (sourceLocator: string) => {
-        moveCompilerNode(sourceLocator, '__scene__', 'inside');
-    };
-
     return (
         <div className="nodeTree" data-testid="compiler-scene-hierarchy">
             <div className="sectionHeader hierarchyHeader">
@@ -532,33 +526,6 @@ export function CompilerSceneHierarchyTree() {
                     </button>
                 </div>
             ) : null}
-            <DropZone
-                acceptedTypes={[sceneDragDataType, editorDragDataTypes.hierarchyNode]}
-                aria-label={t('dropToSceneRoot')}
-                className={[
-                    'rootDropZone',
-                    dropTarget === rootDropLocator ? 'dropTarget' : '',
-                ].filter(Boolean).join(' ')}
-                getDropOperation={(types, allowedOperations) => {
-                    if (types.has(editorDragDataTypes.hierarchyNode)) {
-                        return allowedOperations.includes('move') ? 'move' : 'cancel';
-                    }
-                    return allowedOperations.includes('copy') ? 'copy' : allowedOperations[0] ?? 'copy';
-                }}
-                onDropEnter={() => setDropTarget(rootDropLocator)}
-                onDropExit={() => setDropTarget((target) => target === rootDropLocator ? undefined : target)}
-                onPayloadDrop={(payload) => {
-                    setDropTarget(rootDropLocator);
-                    setNodeDropTarget(undefined);
-                    if (payload.type === editorDragDataTypes.hierarchyNode) {
-                        moveCompilerNodeToRoot(payload.data);
-                        return;
-                    }
-                    if (payload.type === sceneDragDataType) {
-                        void addCompilerSceneUnderNode(payload.data, '__scene__');
-                    }
-                }}
-            />
         </div>
     );
 }
