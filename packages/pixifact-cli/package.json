@@ -1,7 +1,7 @@
 {
   "name": "pixifact-cli",
   "version": "0.1.3",
-  "description": "CLI for Pixifact Scene automation.",
+  "description": "Pixifact Scene 自动化 CLI。",
   "packageManager": "bun@1.3.13",
   "type": "module",
   "bin": {

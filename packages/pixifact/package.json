@@ -1,7 +1,7 @@
 {
   "name": "pixifact",
   "version": "0.1.3",
-  "description": "Pixif semantic framework for 2D UI and lightweight game scenes.",
+  "description": "Pixifact 2D UI 和轻量游戏 Scene 语义框架。",
   "packageManager": "bun@1.3.13",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
