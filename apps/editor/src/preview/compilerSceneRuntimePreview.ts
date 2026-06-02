@@ -1,0 +1,622 @@
+import ts from 'typescript';
+import * as Pixi from 'pixi.js';
+import { Container } from 'pixi.js';
+import * as compilerRuntime from '../../../../packages/pixifact/src/compiler';
+import {
+    compileSceneTemplateToTs,
+    normalizeSceneAssetId,
+    pairedSceneScriptPath,
+    resolveSceneReference,
+    sceneClassAlias,
+    toPosixPath,
+} from '../../../../packages/pixifact/src/compiler';
+import type { SceneTemplate, SceneTemplateInterface, SceneTemplateNode } from '../../../../packages/pixifact/src/compiler';
+import { compilerSceneNodeLocator } from '../document/compilerSceneDocumentController';
+import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
+import {
+    findFileByPath,
+    readProjectFileBytes,
+    readProjectFileText,
+} from '../services/projectFileTree';
+import { readCompilerSceneBindingIndex } from '../services/sceneBindingIndex';
+import type { CompilerSceneBindingIndex } from '../services/sceneBindingIndex';
+import type { ProjectFileTreeNode } from '../services/projectFileTree';
+
+interface CreateCompilerSceneRuntimePreviewOptions {
+    document: CompilerSceneDocument;
+    projectTree: ProjectFileTreeNode;
+    scenePath: string;
+}
+
+export interface CompilerSceneRuntimePreview {
+    root: Container;
+    nodes: Map<string, Container>;
+    width: number;
+    height: number;
+    dispose: () => void;
+}
+
+interface PreviewModule {
+    id: string;
+    kind: 'generated' | 'project';
+    source: string;
+}
+
+interface PreviewModuleRecord {
+    exports: Record<string, unknown>;
+    loaded: boolean;
+}
+
+interface PreviewRuntimeContext {
+    projectTree: ProjectFileTreeNode;
+    scenePath: string;
+    templates: Map<string, SceneTemplate>;
+    sceneInterfaces: Record<string, SceneTemplateInterface>;
+    slotsByTarget: WeakMap<Container, Map<string, Container>>;
+    mountedChildrenByTarget: WeakMap<Container, Map<string, Container[]>>;
+    objectUrls: string[];
+}
+
+const compilerModuleId = 'pixifact/compiler';
+const pixiModuleId = 'pixi.js';
+const projectModulePrefix = 'pixifact-preview:project:';
+const generatedModulePrefix = 'pixifact-preview:generated:';
+const projectScriptExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'] as const;
+const assetMimeTypes: Record<string, string> = {
+    '.gif': 'image/gif',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
+    '.webp': 'image/webp',
+};
+
+function numericProp(value: unknown, defaultValue: number) {
+    return typeof value === 'number' ? value : defaultValue;
+}
+
+function sceneSize(template: SceneTemplate) {
+    return {
+        width: numericProp(template.props.width, 960),
+        height: numericProp(template.props.height, 540),
+    };
+}
+
+function sceneScriptModuleId(scenePath: string) {
+    return projectModuleId(pairedSceneScriptPath(scenePath));
+}
+
+function sceneGeneratedModuleId(scenePath: string) {
+    return `${generatedModulePrefix}${scenePath}`;
+}
+
+function projectAbsolutePath(projectTree: ProjectFileTreeNode, relativePath: string) {
+    return `${projectTree.path}/${relativePath}`;
+}
+
+function projectModuleId(projectPath: string) {
+    return `${projectModulePrefix}${normalizeProjectPath(projectPath)}`;
+}
+
+function projectModulePath(moduleId: string) {
+    return moduleId.startsWith(projectModulePrefix)
+        ? moduleId.slice(projectModulePrefix.length)
+        : undefined;
+}
+
+function normalizeProjectPath(value: string) {
+    const segments: string[] = [];
+    for (const segment of toPosixPath(value).split('/')) {
+        if (!segment || segment === '.') {
+            continue;
+        }
+        if (segment === '..') {
+            if (segments.length === 0) {
+                throw new Error(`项目模块路径不能离开项目根目录：${value}`);
+            }
+            segments.pop();
+            continue;
+        }
+        segments.push(segment);
+    }
+    return segments.join('/');
+}
+
+function projectDirname(projectPath: string) {
+    const index = projectPath.lastIndexOf('/');
+    return index >= 0 ? projectPath.slice(0, index) : '';
+}
+
+function projectExtension(projectPath: string) {
+    const fileName = projectPath.split('/').at(-1) ?? projectPath;
+    const index = fileName.lastIndexOf('.');
+    return index >= 0 ? fileName.slice(index).toLowerCase() : '';
+}
+
+function projectJoin(...parts: string[]) {
+    return normalizeProjectPath(parts.filter(Boolean).join('/'));
+}
+
+function isRelativeModuleSpecifier(value: string) {
+    return value.startsWith('./') || value.startsWith('../') || value.startsWith('/');
+}
+
+function projectModuleCandidates(projectPath: string) {
+    if (projectScriptExtensions.includes(projectExtension(projectPath) as typeof projectScriptExtensions[number])) {
+        return [projectPath];
+    }
+    return [
+        ...projectScriptExtensions.map((extension) => `${projectPath}${extension}`),
+        ...projectScriptExtensions.map((extension) => `${projectPath}/index${extension}`),
+    ];
+}
+
+function resolveProjectModulePath(projectTree: ProjectFileTreeNode, importerPath: string, source: string) {
+    const basePath = source.startsWith('/')
+        ? normalizeProjectPath(source)
+        : projectJoin(projectDirname(importerPath), source);
+    for (const candidate of projectModuleCandidates(basePath)) {
+        if (findFileByPath(projectTree, projectAbsolutePath(projectTree, candidate))) {
+            return candidate;
+        }
+    }
+    throw new Error(`找不到项目模块：${source}（来自 ${importerPath}）`);
+}
+
+function moduleIdFromImport(context: PreviewRuntimeContext, importerId: string, source: string) {
+    if (
+        source === pixiModuleId
+        || source === compilerModuleId
+        || source.startsWith(projectModulePrefix)
+        || source.startsWith(generatedModulePrefix)
+    ) {
+        return source;
+    }
+    if (isRelativeModuleSpecifier(source)) {
+        const importerPath = projectModulePath(importerId);
+        if (!importerPath) {
+            throw new Error(`预览模块 ${importerId} 不能使用相对导入 ${source}。`);
+        }
+        return projectModuleId(resolveProjectModulePath(context.projectTree, importerPath, source));
+    }
+    return source;
+}
+
+function transpilePreviewModule(source: string) {
+    return ts.transpileModule(source, {
+        compilerOptions: {
+            esModuleInterop: true,
+            experimentalDecorators: true,
+            importHelpers: false,
+            module: ts.ModuleKind.CommonJS,
+            target: ts.ScriptTarget.ES2022,
+            useDefineForClassFields: true,
+        },
+    }).outputText;
+}
+
+function collectStaticModuleSpecifiers(source: string) {
+    const specifiers = new Set<string>();
+    const sourceFile = ts.createSourceFile('pixifact-preview.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+
+    function addModuleSpecifier(moduleSpecifier: ts.Expression | undefined) {
+        if (moduleSpecifier && ts.isStringLiteralLike(moduleSpecifier)) {
+            specifiers.add(moduleSpecifier.text);
+        }
+    }
+
+    function visit(node: ts.Node) {
+        if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+            addModuleSpecifier(node.moduleSpecifier);
+            return;
+        }
+        if (
+            ts.isImportEqualsDeclaration(node)
+            && ts.isExternalModuleReference(node.moduleReference)
+        ) {
+            addModuleSpecifier(node.moduleReference.expression);
+            return;
+        }
+        if (
+            ts.isCallExpression(node)
+            && ts.isIdentifier(node.expression)
+            && node.expression.text === 'require'
+        ) {
+            addModuleSpecifier(node.arguments[0]);
+            return;
+        }
+        ts.forEachChild(node, visit);
+    }
+
+    visit(sourceFile);
+    return [...specifiers];
+}
+
+function collectSceneInstancePaths(
+    scenePath: string,
+    nodes: readonly SceneTemplateNode[],
+    paths = new Set<string>(),
+) {
+    for (const node of nodes) {
+        if (node.kind === 'slotOutlet') {
+            continue;
+        }
+        if (node.kind === 'pixi') {
+            collectSceneInstancePaths(scenePath, node.children, paths);
+            continue;
+        }
+        const resolved = resolveSceneReference(scenePath, node.scene);
+        paths.add(resolved);
+        for (const children of Object.values(node.slots)) {
+            collectSceneInstancePaths(scenePath, children, paths);
+        }
+    }
+    return paths;
+}
+
+function sceneImportsFor(scenePath: string, template: SceneTemplate, templates: Map<string, SceneTemplate>) {
+    return [...collectSceneInstancePaths(scenePath, template.children)]
+        .sort()
+        .map((referencedScenePath) => {
+            const sceneTemplate = templates.get(referencedScenePath);
+            if (!sceneTemplate) {
+                throw new Error(`Scene "${scenePath}" references unknown Scene "${referencedScenePath}".`);
+            }
+            return {
+                exportName: sceneTemplate.name,
+                localName: sceneClassAlias(referencedScenePath),
+                source: sceneScriptModuleId(referencedScenePath),
+            };
+        });
+}
+
+function sceneClassAliasesFor(scenePath: string, template: SceneTemplate) {
+    return Object.fromEntries(
+        [...collectSceneInstancePaths(scenePath, template.children)]
+            .map((referencedScenePath) => [referencedScenePath, sceneClassAlias(referencedScenePath)]),
+    );
+}
+
+function sceneInterfacesFor(scenePath: string, template: SceneTemplate, sceneInterfaces: Record<string, SceneTemplateInterface>) {
+    return Object.fromEntries(
+        [...collectSceneInstancePaths(scenePath, template.children)]
+            .filter((referencedScenePath) => sceneInterfaces[referencedScenePath])
+            .map((referencedScenePath) => [referencedScenePath, sceneInterfaces[referencedScenePath]]),
+    );
+}
+
+async function readProjectModule(
+    projectTree: ProjectFileTreeNode,
+    projectPath: string,
+    modulesById: Map<string, PreviewModule>,
+): Promise<PreviewModule> {
+    const normalizedPath = normalizeProjectPath(projectPath);
+    const id = projectModuleId(normalizedPath);
+    const existing = modulesById.get(id);
+    if (existing) {
+        return existing;
+    }
+
+    const file = findFileByPath(projectTree, projectAbsolutePath(projectTree, normalizedPath));
+    if (!file) {
+        throw new Error(`找不到项目脚本：${normalizedPath}`);
+    }
+    const module: PreviewModule = {
+        id,
+        kind: 'project',
+        source: await readProjectFileText(projectTree, file),
+    };
+    modulesById.set(id, module);
+
+    for (const source of collectStaticModuleSpecifiers(transpilePreviewModule(module.source))) {
+        if (isRelativeModuleSpecifier(source)) {
+            await readProjectModule(
+                projectTree,
+                resolveProjectModulePath(projectTree, normalizedPath, source),
+                modulesById,
+            );
+        }
+    }
+
+    return module;
+}
+
+function createGeneratedSceneModule(
+    scenePath: string,
+    template: SceneTemplate,
+    templates: Map<string, SceneTemplate>,
+    sceneInterfaces: Record<string, SceneTemplateInterface>,
+): PreviewModule {
+    return {
+        id: sceneGeneratedModuleId(scenePath),
+        kind: 'generated',
+        source: compileSceneTemplateToTs(template, {
+            registrationPath: scenePath,
+            scriptImport: {
+                exportName: template.name,
+                localName: sceneClassAlias(scenePath),
+                source: sceneScriptModuleId(scenePath),
+            },
+            sceneImports: sceneImportsFor(scenePath, template, templates),
+            sceneClassAliases: sceneClassAliasesFor(scenePath, template),
+            sceneInterfaces: sceneInterfacesFor(scenePath, template, sceneInterfaces),
+        }),
+    };
+}
+
+async function collectPreviewModules(
+    context: PreviewRuntimeContext,
+    bindingIndex: CompilerSceneBindingIndex,
+    document: CompilerSceneDocument,
+) {
+    const scenePaths = new Set<string>();
+
+    function includeScene(scenePath: string) {
+        if (scenePaths.has(scenePath)) {
+            return;
+        }
+        scenePaths.add(scenePath);
+        if (scenePath === context.scenePath) {
+            context.templates.set(scenePath, document.template);
+        } else {
+            const binding = bindingIndex[scenePath];
+            if (!binding) {
+                throw new Error(`找不到 Scene：${scenePath}`);
+            }
+            context.templates.set(scenePath, binding.template);
+            context.sceneInterfaces[scenePath] = binding.interface;
+        }
+        const template = context.templates.get(scenePath)!;
+        for (const referencedScenePath of collectSceneInstancePaths(scenePath, template.children)) {
+            includeScene(referencedScenePath);
+        }
+    }
+
+    includeScene(context.scenePath);
+
+    const modulesById = new Map<string, PreviewModule>();
+    for (const scenePath of [...scenePaths].sort()) {
+        await readProjectModule(context.projectTree, pairedSceneScriptPath(scenePath), modulesById);
+    }
+    for (const scenePath of [...scenePaths].sort()) {
+        const module = createGeneratedSceneModule(
+            scenePath,
+            context.templates.get(scenePath)!,
+            context.templates,
+            context.sceneInterfaces,
+        );
+        modulesById.set(module.id, module);
+    }
+    return [...modulesById.values()];
+}
+
+function createPreviewCompilerRuntime(context: PreviewRuntimeContext) {
+    return {
+        ...compilerRuntime,
+        registerSlot(target: Container, name: string, host: Container) {
+            compilerRuntime.registerSlot(target, name, host);
+            let slots = context.slotsByTarget.get(target);
+            if (!slots) {
+                slots = new Map();
+                context.slotsByTarget.set(target, slots);
+            }
+            slots.set(name, host);
+        },
+        mount<T extends Container>(target: Container, child: T, slot = 'default') {
+            const mounted = compilerRuntime.mount(target, child, slot);
+            let slots = context.mountedChildrenByTarget.get(target);
+            if (!slots) {
+                slots = new Map();
+                context.mountedChildrenByTarget.set(target, slots);
+            }
+            const children = slots.get(slot) ?? [];
+            children.push(child);
+            slots.set(slot, children);
+            return mounted;
+        },
+    };
+}
+
+function createModuleLoader(context: PreviewRuntimeContext, modules: PreviewModule[]) {
+    const moduleSources = new Map(modules.map((module) => [module.id, transpilePreviewModule(module.source)]));
+    const records = new Map<string, PreviewModuleRecord>();
+    const runtime = createPreviewCompilerRuntime(context);
+    const pixiRuntime = createPreviewPixiRuntime(context);
+
+    function requireModule(id: string, importerId?: string): Record<string, unknown> {
+        const resolvedId = importerId ? moduleIdFromImport(context, importerId, id) : id;
+        if (resolvedId === pixiModuleId) {
+            return pixiRuntime as unknown as Record<string, unknown>;
+        }
+        if (resolvedId === compilerModuleId) {
+            return runtime as unknown as Record<string, unknown>;
+        }
+
+        const existing = records.get(resolvedId);
+        if (existing) {
+            return existing.exports;
+        }
+
+        const source = moduleSources.get(resolvedId);
+        if (!source) {
+            throw new Error(`预览暂不支持导入模块：${resolvedId}`);
+        }
+
+        const record = { exports: {}, loaded: false };
+        records.set(resolvedId, record);
+        const module = { exports: record.exports };
+        const execute = new Function('exports', 'require', 'module', source);
+        execute(record.exports, (source: string) => requireModule(source, resolvedId), module);
+        record.exports = module.exports as Record<string, unknown>;
+        record.loaded = true;
+        records.set(resolvedId, record);
+        return record.exports;
+    }
+
+    async function loadModule(id: string) {
+        const existing = records.get(id);
+        if (existing?.loaded) {
+            return existing.exports;
+        }
+        const source = moduleSources.get(id);
+        if (!source) {
+            throw new Error(`预览暂不支持导入模块：${id}`);
+        }
+
+        const record = existing ?? { exports: {}, loaded: false };
+        records.set(id, record);
+        const module = { exports: record.exports };
+        const execute = new Function('exports', 'require', 'module', `return (async () => {\n${source}\n})();`);
+        await execute(record.exports, (source: string) => requireModule(source, id), module);
+        record.exports = module.exports as Record<string, unknown>;
+        record.loaded = true;
+        records.set(id, record);
+        return record.exports;
+    }
+
+    return { loadModule, requireModule };
+}
+
+function createPreviewPixiRuntime(context: PreviewRuntimeContext) {
+    return {
+        ...Pixi,
+        Assets: {
+            ...Pixi.Assets,
+            load: (source: unknown) => loadPreviewAsset(context, source),
+        },
+    };
+}
+
+async function loadPreviewAsset(context: PreviewRuntimeContext, source: unknown) {
+    if (typeof source !== 'string' || !isProjectAssetReference(source)) {
+        return Pixi.Assets.load(source as Parameters<typeof Pixi.Assets.load>[0]);
+    }
+
+    const assetPath = normalizeProjectPath(source);
+    const file = findFileByPath(context.projectTree, projectAbsolutePath(context.projectTree, assetPath));
+    if (!file) {
+        return Pixi.Assets.load(source);
+    }
+
+    const bytes = await readProjectFileBytes(context.projectTree, file);
+    const objectUrl = URL.createObjectURL(new Blob([bytes as BlobPart], { type: assetMimeType(assetPath) }));
+    context.objectUrls.push(objectUrl);
+    return Pixi.Assets.load(objectUrl);
+}
+
+function isProjectAssetReference(source: string) {
+    return source.trim() !== ''
+        && !source.startsWith('/')
+        && !source.startsWith('./')
+        && !source.includes('\\')
+        && !source.split('/').includes('..')
+        && !/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(source);
+}
+
+function assetMimeType(projectPath: string) {
+    return assetMimeTypes[projectExtension(projectPath)] ?? 'application/octet-stream';
+}
+
+function directRenderedChildren(parent: Container, expectedCount: number) {
+    return parent.children.slice(0, expectedCount).filter((child): child is Container => child instanceof Container);
+}
+
+function mapRenderedNodes(
+    context: PreviewRuntimeContext,
+    scenePath: string,
+    parent: Container,
+    nodes: readonly SceneTemplateNode[],
+    locatorPath: string,
+    output: Map<string, Container>,
+    providedChildren?: readonly Container[],
+) {
+    const visibleNodes = nodes.filter((node) => node.kind !== 'slotOutlet');
+    const renderedChildren = providedChildren ?? directRenderedChildren(parent, visibleNodes.length);
+    let renderedIndex = 0;
+
+    for (const [index, node] of nodes.entries()) {
+        if (node.kind === 'slotOutlet') {
+            continue;
+        }
+        const rendered = renderedChildren[renderedIndex];
+        renderedIndex += 1;
+        if (!rendered) {
+            continue;
+        }
+
+        const path = locatorPath ? `${locatorPath}/${index}` : String(index);
+        const locator = compilerSceneNodeLocator(node, path);
+        output.set(locator, rendered);
+
+        if (node.kind === 'pixi') {
+            mapRenderedNodes(context, scenePath, rendered, node.children, locator, output);
+            continue;
+        }
+
+        for (const [slot, children] of Object.entries(node.slots)) {
+            const mountedChildren = context.mountedChildrenByTarget.get(rendered)?.get(slot) ?? [];
+            mapRenderedNodes(
+                context,
+                resolveSceneReference(scenePath, node.scene),
+                rendered,
+                children,
+                `${locator}/slot:${slot}`,
+                output,
+                mountedChildren,
+            );
+        }
+    }
+}
+
+export async function createCompilerSceneRuntimePreview(options: CreateCompilerSceneRuntimePreviewOptions): Promise<CompilerSceneRuntimePreview> {
+    const bindingIndex = await readCompilerSceneBindingIndex(options.projectTree);
+    const context: PreviewRuntimeContext = {
+        projectTree: options.projectTree,
+        scenePath: normalizeSceneAssetId(options.scenePath),
+        templates: new Map([[normalizeSceneAssetId(options.scenePath), options.document.template]]),
+        sceneInterfaces: {
+            ...options.document.sceneInterfaces,
+            [normalizeSceneAssetId(options.scenePath)]: options.document.template.interface,
+        },
+        slotsByTarget: new WeakMap(),
+        mountedChildrenByTarget: new WeakMap(),
+        objectUrls: [],
+    };
+    const modules = await collectPreviewModules(context, bindingIndex, options.document);
+    const loader = createModuleLoader(context, modules);
+
+    for (const module of modules.filter((module) => module.kind === 'project')) {
+        loader.requireModule(module.id);
+    }
+    for (const module of modules.filter((module) => module.kind === 'generated')) {
+        await loader.loadModule(module.id);
+    }
+
+    const scriptExports = loader.requireModule(sceneScriptModuleId(context.scenePath));
+    const SceneClass = scriptExports[options.document.template.name];
+    if (typeof SceneClass !== 'function') {
+        throw new Error(`Scene 脚本没有导出 ${options.document.template.name}。`);
+    }
+
+    const SceneConstructor = SceneClass as new () => Container;
+    const root = new SceneConstructor();
+    const nodes = new Map<string, Container>();
+    mapRenderedNodes(context, context.scenePath, root, options.document.template.children, '', nodes);
+    const size = sceneSize(options.document.template);
+    return {
+        root,
+        nodes,
+        width: size.width,
+        height: size.height,
+        dispose: () => {
+            root.destroy({ children: true });
+            for (const objectUrl of context.objectUrls) {
+                URL.revokeObjectURL(objectUrl);
+            }
+        },
+    };
+}
+
+export function destroyCompilerSceneRuntimePreview(preview?: CompilerSceneRuntimePreview) {
+    preview?.dispose();
+}
