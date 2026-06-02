@@ -271,18 +271,52 @@ function sceneImportsFor(scenePath: string, template: SceneTemplate, templates: 
 }
 
 function sceneClassAliasesFor(scenePath: string, template: SceneTemplate) {
-    return Object.fromEntries(
-        [...collectSceneInstancePaths(scenePath, template.children)]
-            .map((referencedScenePath) => [referencedScenePath, sceneClassAlias(referencedScenePath)]),
-    );
+    const aliases: Record<string, string> = {};
+    function visit(nodes: readonly SceneTemplateNode[]) {
+        for (const node of nodes) {
+            if (node.kind === 'slotOutlet') {
+                continue;
+            }
+            if (node.kind === 'pixi') {
+                visit(node.children);
+                continue;
+            }
+            const referencedScenePath = resolveSceneReference(scenePath, node.scene);
+            aliases[node.scene] = sceneClassAlias(referencedScenePath);
+            aliases[referencedScenePath] = sceneClassAlias(referencedScenePath);
+            for (const children of Object.values(node.slots)) {
+                visit(children);
+            }
+        }
+    }
+    visit(template.children);
+    return aliases;
 }
 
 function sceneInterfacesFor(scenePath: string, template: SceneTemplate, sceneInterfaces: Record<string, SceneTemplateInterface>) {
-    return Object.fromEntries(
-        [...collectSceneInstancePaths(scenePath, template.children)]
-            .filter((referencedScenePath) => sceneInterfaces[referencedScenePath])
-            .map((referencedScenePath) => [referencedScenePath, sceneInterfaces[referencedScenePath]]),
-    );
+    const interfaces: Record<string, SceneTemplateInterface> = {};
+    function visit(nodes: readonly SceneTemplateNode[]) {
+        for (const node of nodes) {
+            if (node.kind === 'slotOutlet') {
+                continue;
+            }
+            if (node.kind === 'pixi') {
+                visit(node.children);
+                continue;
+            }
+            const referencedScenePath = resolveSceneReference(scenePath, node.scene);
+            const sceneInterface = sceneInterfaces[referencedScenePath];
+            if (sceneInterface) {
+                interfaces[node.scene] = sceneInterface;
+                interfaces[referencedScenePath] = sceneInterface;
+            }
+            for (const children of Object.values(node.slots)) {
+                visit(children);
+            }
+        }
+    }
+    visit(template.children);
+    return interfaces;
 }
 
 async function readProjectModule(
