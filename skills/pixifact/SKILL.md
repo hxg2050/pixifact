@@ -7,9 +7,11 @@ description: Use when working in a Pixifact game project: editing project-relati
 
 ## Purpose
 
-Use this skill for Pixifact user projects. Pixifact is the authoring layer for 2D game UI, HUDs, menus, lightweight scenes, and project scene assets on top of PixiJS v8.
+Use this skill for downstream Pixifact game projects. Pixifact is the authoring layer for 2D game UI, HUDs, menus, lightweight scenes, and project scene assets on top of PixiJS v8.
 
 Assume a Pixifact game project when the workspace contains `pixifact.project.json`, project-relative `.scene` assets such as `src/scenes/Hud.scene`, generated Pixifact scene output, or `package.json` dependencies on `pixifact` / `pixifact-cli`.
+
+When working in the Pixifact framework repository itself, follow the repository `AGENTS.md` first. Use this skill there only for sample project `.scene` assets or downstream-game workflows.
 
 ## Scene Workflow
 
@@ -33,6 +35,10 @@ For scene, UI, HUD, menu, layout, or visual asset tasks, edit `.scene` source fi
    ```bash
    bun run compile:scenes
    ```
+   If no script exists:
+   ```bash
+   bunx --no-install pixifact compile-scenes --project-root .
+   ```
 6. Run the smallest relevant project check, usually:
    ```bash
    bun run build
@@ -50,11 +56,12 @@ Prefer project scripts such as `bun run compile:scenes`, `bun run build`, and `b
 - Reference other Scenes with `.scene` paths, never bare names.
 - Do not edit generated scene files such as `.pixifact/generated/**`, `src/generated/**`, `*.scene.generated.ts`, or `scenes.generated.ts`.
 - If validation reports diagnostics, fix the `.scene` source and validate again.
-- Public authored node kinds are `container`, `image`, `text`, `input`, and `shape`.
-- Scene roots must be `container`.
-- Only `container` nodes can contain children.
-- Display data belongs on node fields such as `text.value`, `image.src`, `input.value`, and `shape.color`.
-- `Button`, `ProgressBar`, `ScrollView`, and similar controls are templates or compound UI, not primitive authored node kinds.
+- Compiler `.scene` files use a `<Scene name="...">` root.
+- Primitive `.scene` tags are `Container`, `Sprite`, `NineSliceSprite`, `TilingSprite`, `Text`, `BitmapText`, `HTMLText`, and `Graphics`.
+- Only `Container` accepts direct primitive children. Child Scene instances accept children only through declared slots.
+- Use `<slot name="..."/>` for slot outlets.
+- Use `.scene` fields such as `Text text="..."`, `Sprite texture="assets/..."`, and `Graphics shape="roundRect" fill="#ffffff"`.
+- Give editable nodes stable `id` values.
 
 ## Game Code
 

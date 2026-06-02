@@ -13,7 +13,7 @@ bunx --no-install pixifact scene validate --project-root . --all
 bun run compile:scenes
 ```
 
-Use `--scene` for a known target and `--all` after broad edits or when the touched scene set is uncertain. If validation or compilation fails, fix the `.scene` source and rerun the failing command. Prefer package scripts from `package.json` when the project provides them.
+Use `--scene` for a known target and `--all` after broad edits or when the touched scene set is uncertain. If validation or compilation fails, fix the `.scene` source and rerun the failing command. Prefer package scripts from `package.json` when the project provides them; if there is no compile script, run `bunx --no-install pixifact compile-scenes --project-root .`.
 
 After compilation, run the smallest relevant project check:
 
@@ -40,6 +40,16 @@ bun run dev
 - Run `compile-scenes` after validation passes.
 - If validation reports diagnostics, fix the `.scene` source and validate again.
 - Treat generated TypeScript as read-only build output unless the user explicitly asks to inspect generated output.
+
+## Compiler Scene Syntax
+
+- `.scene` files use a `<Scene name="...">` root.
+- Primitive tags are `Container`, `Sprite`, `NineSliceSprite`, `TilingSprite`, `Text`, `BitmapText`, `HTMLText`, and `Graphics`.
+- Only `Container` accepts direct primitive children.
+- Child Scene instances use a custom tag with `scene="relative-or-project.scene"` and accept children only through declared slots.
+- Slot outlets are written as `<slot name="..."/>`.
+- Display props live on XML attributes, for example `Text text="..."`, `Sprite texture="assets/..."`, and `Graphics shape="roundRect" fill="#ffffff"`.
+- Structured Scene props use dot-path attributes such as `rectTransform.x="0"`; do not pass JSON strings.
 
 ## Editor Context
 
