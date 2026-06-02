@@ -25,6 +25,8 @@ The first npm release has been completed:
 
 The first release was published manually because npm Trusted Publishing requires the package to already exist before trust can be configured.
 
+Trusted Publishing has since been configured from the npm website for all three packages.
+
 ## Local Auth For Manual Publishing
 
 Use the official npm registry for all publish commands:
@@ -172,6 +174,16 @@ npm trust github create-pixifact --repo hxg2050/pixifact --file publish.yml --al
 ```
 
 If `npm trust github ...` returns `E403` while the current user is still listed as package owner, configure the trusted publisher from the npm website package settings instead. This can happen even when `--dry-run` succeeds.
+
+After configuration, you can try to list trusted publishers:
+
+```bash
+npm trust list pixifact
+npm trust list pixifact-cli
+npm trust list create-pixifact
+```
+
+If `npm trust list ...` also returns `E403`, confirm the configuration from the npm website. The final end-to-end verification is the next tag release successfully publishing through GitHub Actions OIDC.
 
 Trusted Publishing uses GitHub Actions OIDC. Do not add a long-lived `NPM_TOKEN` secret for the normal release path.
 
