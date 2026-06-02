@@ -71,6 +71,8 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 
 ### 文案
 
+Pixifact 主要面向中国用户。默认 Editor 界面、README 主文档、CLI 用户提示、release notes 和 npm 包 README 都应中文优先；英文内容作为补充，例如 `README.en.md` 或明确的英文语言切换。
+
 主要使用中文，但不要为了中文而中文。
 
 适合中文化：
