@@ -263,6 +263,15 @@ const zh = {
     advanced: '高级',
     agentStatusTitle: 'Agent 连接状态',
     agentEditorTarget: '当前编辑对象',
+    sceneSyncDiagnosticsTitle: 'Scene 同步诊断',
+    sceneSyncValidationFailed: '外部 Scene 修改未刷新',
+    sceneSyncPreviewKept: '预览仍为上一次有效 Scene。',
+    sceneSyncIssueCount: '{count} 个问题',
+    sceneSyncSourcePath: 'Scene 源文件',
+    sceneSyncProp: '字段',
+    sceneSyncExpected: '期望',
+    sceneSyncActual: '实际',
+    sceneSyncRepairCommands: '修复后运行',
 } as const;
 
 const en: Record<keyof typeof zh, string> = {
@@ -520,6 +529,15 @@ const en: Record<keyof typeof zh, string> = {
     advanced: 'Advanced',
     agentStatusTitle: 'Agent connection status',
     agentEditorTarget: 'Current edit target',
+    sceneSyncDiagnosticsTitle: 'Scene sync diagnostics',
+    sceneSyncValidationFailed: 'External Scene change was not refreshed',
+    sceneSyncPreviewKept: 'Preview is still showing the last valid Scene.',
+    sceneSyncIssueCount: '{count} issues',
+    sceneSyncSourcePath: 'Scene source',
+    sceneSyncProp: 'Field',
+    sceneSyncExpected: 'Expected',
+    sceneSyncActual: 'Actual',
+    sceneSyncRepairCommands: 'Run after fixing',
 };
 
 export type I18nKey = keyof typeof zh;

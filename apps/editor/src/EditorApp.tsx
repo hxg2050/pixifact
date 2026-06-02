@@ -37,7 +37,11 @@ import type { CompilerSceneExternalSyncResult } from './services/compilerSceneEx
 import { setLastExternalSceneSync } from './services/externalSceneSyncState';
 
 type EditorDockPanelParams = Record<string, never>;
-type ExternalSceneSyncStatus = { message: string; tone: 'saved' | 'dirty' };
+type ExternalSceneSyncViewState = {
+    message: string;
+    tone: 'saved' | 'dirty';
+    result?: Exclude<CompilerSceneExternalSyncResult, { status: 'ignored' }>;
+};
 
 function dockPanelTitles(language: EditorLanguage) {
     return {
@@ -66,14 +70,30 @@ function setInitialDockLayout(api: DockviewApi) {
     api.getPanel('projectPreview')?.group.api.setSize({ height: 220 });
 }
 
-function externalSceneSyncStatus(result: CompilerSceneExternalSyncResult): ExternalSceneSyncStatus | undefined {
+function externalSceneSyncStatus(result: CompilerSceneExternalSyncResult): ExternalSceneSyncViewState | undefined {
     if (!('message' in result)) {
         return undefined;
     }
     return {
         message: result.message,
         tone: result.status === 'sceneReloaded' ? 'saved' : 'dirty',
+        result,
     };
+}
+
+function externalSceneSyncStatusText(state: ExternalSceneSyncViewState, t: ReturnType<typeof useI18n>) {
+    if (state.result?.status !== 'validationFailed') {
+        return state.message;
+    }
+    const count = state.result.validation.diagnostics?.length ?? 0;
+    return `${state.message} ${t('sceneSyncIssueCount', { count })}`;
+}
+
+function sceneSyncLocation(scene: string, line?: number, column?: number) {
+    if (!line) {
+        return scene;
+    }
+    return column ? `${scene}:${line}:${column}` : `${scene}:${line}`;
 }
 
 function isEditableKeyboardTarget(target: EventTarget | null) {
@@ -156,6 +176,76 @@ function ProjectPreviewDockPanel(_props: IDockviewPanelProps<EditorDockPanelPara
     );
 }
 
+function SceneSyncDiagnostics({
+    projectRoot,
+    result,
+}: {
+    projectRoot: string;
+    result?: Extract<CompilerSceneExternalSyncResult, { status: 'validationFailed' }>;
+}) {
+    const t = useI18n();
+
+    if (!result) {
+        return null;
+    }
+
+    const diagnostics = result.validation.diagnostics ?? [];
+    const validateCommand = `bun run pixifact -- scene validate --project-root ${projectRoot} --scene ${result.validation.scene}`;
+    const compileCommand = `bun run pixifact -- compile-scenes --project-root ${projectRoot}`;
+
+    return (
+        <section
+            aria-label={t('sceneSyncDiagnosticsTitle')}
+            className="sceneSyncDiagnostics"
+            data-testid="scene-sync-diagnostics"
+        >
+            <header>
+                <div>
+                    <strong>{t('sceneSyncValidationFailed')}</strong>
+                    <span>{t('sceneSyncPreviewKept')}</span>
+                </div>
+                <small>{t('sceneSyncIssueCount', { count: diagnostics.length })}</small>
+            </header>
+            <ol className="sceneSyncDiagnosticList">
+                {diagnostics.map((diagnostic, index) => (
+                    <li key={`${diagnostic.path}:${diagnostic.prop}:${index}`}>
+                        <div className="sceneSyncDiagnosticLocation">
+                            <strong>{sceneSyncLocation(result.validation.scene, diagnostic.line, diagnostic.column)}</strong>
+                            <span>{diagnostic.path === '__scene__' ? t('sceneSyncSourcePath') : diagnostic.path}</span>
+                        </div>
+                        <dl>
+                            <div>
+                                <dt>{t('compilerPath')}</dt>
+                                <dd>{diagnostic.path}</dd>
+                            </div>
+                            <div>
+                                <dt>{t('sceneSyncProp')}</dt>
+                                <dd>{diagnostic.prop}</dd>
+                            </div>
+                            <div>
+                                <dt>{t('sceneSyncExpected')}</dt>
+                                <dd>{diagnostic.expected}</dd>
+                            </div>
+                            <div>
+                                <dt>{t('sceneSyncActual')}</dt>
+                                <dd>{diagnostic.actual}</dd>
+                            </div>
+                        </dl>
+                        {diagnostic.hint ? (
+                            <p>{diagnostic.hint}</p>
+                        ) : null}
+                    </li>
+                ))}
+            </ol>
+            <div className="sceneSyncCommands">
+                <span>{t('sceneSyncRepairCommands')}</span>
+                <code>{validateCommand}</code>
+                <code>{compileCommand}</code>
+            </div>
+        </section>
+    );
+}
+
 function createDockComponents() {
     return {
         hierarchy: HierarchyDockPanel,
@@ -222,7 +312,7 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
     const [saveStatusKey, setSaveStatusKey] = useState<'closed' | 'treeLoaded' | 'noScene' | 'savedFile' | 'compiledFile' | 'compileFailed'>('closed');
     const [savedFileName, setSavedFileName] = useState('');
     const [saveError, setSaveError] = useState('');
-    const [externalSceneSyncStatusState, setExternalSceneSyncStatusState] = useState<ExternalSceneSyncStatus | undefined>();
+    const [externalSceneSyncStatusState, setExternalSceneSyncStatusState] = useState<ExternalSceneSyncViewState | undefined>();
     const [runStatus, setRunStatus] = useState<EditorRunStatus>({
         state: 'unconfigured',
         stdout: [],
@@ -237,6 +327,10 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
     const currentSceneName = compilerSceneOpened ? compilerDocument.template.name : t('sceneEmptyTitle');
     const canUndoCompilerScene = Boolean(compilerSceneOpened) && canUndoCompilerSceneCommand();
     const canRedoCompilerScene = Boolean(compilerSceneOpened) && canRedoCompilerSceneCommand();
+    const projectRootPath = projectTree?.projectRootPath ?? projectTree?.systemPath ?? '<project-root>';
+    const externalSceneValidationFailure = externalSceneSyncStatusState?.result?.status === 'validationFailed'
+        ? externalSceneSyncStatusState.result
+        : undefined;
     const saveStatus = useMemo(() => {
         switch (saveStatusKey) {
             case 'treeLoaded':
@@ -528,12 +622,18 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
                     <WelcomePage onOpenFolder={() => void openFolder()} />
                 )}
             </main>
+            {externalSceneValidationFailure ? (
+                <SceneSyncDiagnostics
+                    projectRoot={projectRootPath}
+                    result={externalSceneValidationFailure}
+                />
+            ) : null}
             <footer className="workbenchStatusBar" aria-label={t('agentStatusTitle')} data-testid="workbench-status-bar">
                 <div className="statusBarGroup">
                     <span>{currentSceneDirty ? t('dirtyUnsaved') : t('saved')}</span>
                     <strong data-testid="save-status">{saveStatus}</strong>
                     {externalSceneSyncStatusState ? (
-                        <small className={externalSceneSyncStatusState.tone}>Sync: {externalSceneSyncStatusState.message}</small>
+                        <small className={externalSceneSyncStatusState.tone}>Sync: {externalSceneSyncStatusText(externalSceneSyncStatusState, t)}</small>
                     ) : (
                         <small>{compilerSceneOpened ? `${currentSceneName}.scene` : currentSceneName}</small>
                     )}

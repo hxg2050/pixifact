@@ -150,6 +150,15 @@ function updatedScene() {
     ].join('\n');
 }
 
+function invalidScene() {
+    return [
+        '<Scene name="Button">',
+        '  <Text id="label" unknownProp="Broken" />',
+        '</Scene>',
+        '',
+    ].join('\n');
+}
+
 function scriptSource() {
     return [
         'import { Container } from "pixi.js";',
@@ -260,6 +269,47 @@ describe('Editor external Scene sync UI', () => {
             expect(view.container.querySelector('[data-testid="workbench-status-bar"]')).toBeTruthy();
             expect(textContent(view.container)).toContain('Sync: 外部 Scene 修改已刷新，校验通过。');
             expect(getCompilerSceneDocument()?.template.children[0]?.props.text).toBe('Play');
+        } finally {
+            await view.cleanup();
+        }
+    });
+
+    it('shows readable diagnostics when external compiler Scene refresh validation fails', async () => {
+        loadCompilerSceneDocument({
+            scenePath: 'GameProject/src/scenes/Button.scene',
+            template: parseSceneTemplate(currentScene()),
+            sceneInterfaces: {},
+        });
+        const view = await renderEditorApp();
+        try {
+            await act(async () => {
+                host.files.set('GameProject/src/scenes/Button.scene', invalidScene());
+                host.fileChangedHandler?.({
+                    projectRootPath: '/repo/GameProject',
+                    path: 'GameProject/src/scenes/Button.scene',
+                    kind: 'scene',
+                });
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+
+            const diagnosticsPanel = view.container.querySelector('[data-testid="scene-sync-diagnostics"]');
+            const text = textContent(view.container);
+
+            expect(diagnosticsPanel).toBeTruthy();
+            expect(text).toContain('Sync: 外部 Scene 修改未刷新：校验失败。');
+            expect(text).toContain('外部 Scene 修改未刷新');
+            expect(text).toContain('预览仍为上一次有效 Scene。');
+            expect(text).toContain('src/scenes/Button.scene');
+            expect(text).toContain('0:label');
+            expect(text).toContain('unknownProp');
+            expect(text).toContain('known Text prop');
+            expect(text).toContain('unknown prop');
+            expect(text).toContain('Use the editor inspector or scene inspect command to list supported props for this node type.');
+            expect(text).toContain('bun run pixifact -- scene validate --project-root');
+            expect(text).toContain('--scene src/scenes/Button.scene');
+            expect(text).toContain('bun run pixifact -- compile-scenes --project-root');
+            expect(getCompilerSceneDocument()?.template.children[0]?.props.text).toBe('Start');
         } finally {
             await view.cleanup();
         }
