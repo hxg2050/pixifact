@@ -301,8 +301,7 @@ describe('Editor workbench UI', () => {
             const hierarchy = view.container.querySelector('[data-testid="compiler-scene-hierarchy"]');
             const rootDropZone = hierarchy?.querySelector('.rootDropZone');
             expect(hierarchy).toBeTruthy();
-            expect(rootDropZone).toBeTruthy();
-            expect(rootDropZone?.textContent).toBe('');
+            expect(rootDropZone).toBeFalsy();
             expect(hierarchy?.textContent).not.toContain('放到根层级');
             expect(hierarchy?.textContent).not.toContain('拖动调整层级');
             expect(hierarchy?.querySelector('button[title="Add Container"]')).toBeFalsy();
