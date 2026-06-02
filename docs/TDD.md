@@ -27,6 +27,9 @@
 | `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
 | `tests/editor-run-service.test.ts` | editor run service / host bridge | 运行状态、spawn 参数、stdout / stderr 摘要、停止 session、失败状态 |
 | `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、path guard、read-only live context、exit code |
+| `tests/scene-script-interface.test.ts` | compiler Scene script contract | `@scene` / `@prop` / `@event` / `@slot` / `@part` 提取，primitive 和 structured prop contract |
+| `tests/scene-compiler.test.ts` | compiler `.scene` parser / serializer / validator / codegen | scene source canonicalization、scene instance contract、structured prop dot-path、generated TypeScript |
+| `tests/compiler-scene-commands.test.ts` | compiler scene internal commands | node prop 更新、nested prop path、undo/redo inverse |
 | `tests/editor-live-context-ui.test.ts` | Editor live context UI | external compiler scene refresh state |
 
 新增测试应先落到这些既有边界；只有当行为无法归入现有边界时，才新增测试文件。
@@ -82,6 +85,41 @@
 
 ```bash
 bunx --no-install vitest run tests/pixifact-cli.test.ts tests/scene-compiler.test.ts
+```
+
+### 修改 Scene script public contract
+
+必须先覆盖：
+
+- `@prop({ type: String | Number | Boolean })` 提取为 primitive contract。
+- 旧字符串类型写法被拒绝，不新增兼容层。
+- struct prop 使用导出的同文件 class，例如 `RectTransform`。
+- struct class 必须可无参构造。
+- struct fields 只支持带 primitive initializer 的字段。
+- struct prop default 来自 class field initializer，不接受 `@prop` default。
+
+验证命令：
+
+```bash
+bunx --no-install vitest run tests/scene-script-interface.test.ts
+```
+
+### 修改 structured Scene props
+
+必须先覆盖：
+
+- parser 将 `rectTransform.width="420"` 合并成 nested prop。
+- serializer 将 nested prop 写回 dot-path attribute。
+- validator 根据 referenced Scene contract 校验 struct field 名称和类型。
+- compiler 生成 `new RectTransform()` 和逐字段赋值，不生成 plain object。
+- command / controller 更新 `rectTransform.width` 后 undo 能恢复。
+- Inspector 将 struct prop 显示为字段组，而不是 JSON 输入框。
+
+验证命令：
+
+```bash
+bunx --no-install vitest run tests/scene-script-interface.test.ts tests/scene-compiler.test.ts tests/compiler-scene-commands.test.ts tests/project-file-tree.test.ts tests/editor-workbench-ui.test.ts
+bun run editor:frontend:build
 ```
 
 ### 修改 Editor live context

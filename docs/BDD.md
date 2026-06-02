@@ -37,7 +37,57 @@ Scenario: Agent reads selected node from the running Editor
 
 TDD 入口：`tests/pixifact-cli.test.ts`。
 
-## 2. Editor
+## 2. Compiler Scene Props
+
+### BDD-PROP-001 Scene script prop types use constructors
+
+Feature: Scene script public props
+
+```gherkin
+Scenario: Script exposes primitive props
+  Given a Scene script declares "@prop({ type: String, default: \"Button\" })"
+  And declares Number and Boolean public props
+  When Pixifact extracts the Scene script interface
+  Then the contract contains string, number, and boolean prop types
+  And the old string type form is rejected
+```
+
+TDD 入口：`tests/scene-script-interface.test.ts`。
+
+### BDD-PROP-002 Structured props compile to real class instances
+
+Feature: Structured Scene props
+
+```gherkin
+Scenario: Parent scene sets a RectTransform prop
+  Given a child Scene script exports RectTransform
+  And exposes "@prop({ type: RectTransform })"
+  When a parent .scene sets "rectTransform.width=\"420\""
+  Then Pixifact validates the field against the child Scene contract
+  And serialized source keeps dot-path attributes
+  And generated TypeScript constructs "new RectTransform()"
+  And the setter receives the RectTransform instance rather than a plain object
+```
+
+TDD 入口：`tests/scene-script-interface.test.ts`、`tests/scene-compiler.test.ts`、`tests/compiler-scene-commands.test.ts`。
+
+### BDD-PROP-003 Inspector edits structured fields
+
+Feature: Inspector structured prop editing
+
+```gherkin
+Scenario: User edits a structured field
+  Given a Scene instance with a RectTransform prop is selected
+  When the Inspector renders its public props
+  Then RectTransform fields are shown as editable primitive fields
+  When the user changes width
+  Then the compiler scene document updates "rectTransform.width"
+  And saving writes "rectTransform.width" as a dot-path attribute
+```
+
+TDD 入口：`tests/project-file-tree.test.ts`、`tests/editor-workbench-ui.test.ts`。
+
+## 3. Editor
 
 ### BDD-EDITOR-001 Editor 预览外部修改
 
@@ -81,7 +131,7 @@ Scenario: Editor UI preferences are persisted
 
 TDD 入口：`tests/editor-store.test.ts`。
 
-## 3. CLI
+## 4. CLI
 
 ### BDD-CLI-001 Inspect and validate compiler scenes
 
@@ -126,7 +176,7 @@ Scenario: Agent passes a path outside the project root
 
 TDD 入口：`tests/pixifact-cli.test.ts`。
 
-## 4. Runtime
+## 5. Runtime
 
 ### BDD-RUNTIME-001 Scene runtime loads generated output
 
@@ -142,7 +192,7 @@ Scenario: Game loads compiled scene output
 
 TDD 入口：`tests/core.test.ts`、`tests/ui.test.ts`、sample project build tests。
 
-## 5. Non-Goals
+## 6. Non-Goals
 
 - Pixifact 不提供内置模型服务、模拟 Agent 服务或内置 AI chat 作为主开发路径。
 - Pixifact 不提供 Git/PR/CI/任务编排能力。

@@ -65,6 +65,72 @@ cd sample-projects/scene-compiler-demo && bun run build
 
 Pixifact does not decide when to commit or open a PR. Its responsibility is to make the `.scene` edit diagnosable and compilable; Git diff, commit, revert, branch isolation, PR review, CI, and task management remain outside the Pixifact capability boundary.
 
+## Scene Script Contracts
+
+Scene scripts expose the public contract consumed by parent `.scene` files and by the Editor Inspector. A public prop must use runtime constructor types:
+
+```ts
+@prop({ type: String, default: 'Button' })
+@prop({ type: Number, default: 0 })
+@prop({ type: Boolean, default: false })
+```
+
+The old string form is not supported:
+
+```ts
+@prop({ type: 'string' })
+```
+
+Structured props use an exported, same-file class as the prop type. The class must be constructable with no required constructor parameters, and its public fields must have primitive initializers:
+
+```ts
+export class RectTransform {
+    x = 0;
+    y = 0;
+    width = 188;
+    height = 48;
+}
+
+@scene()
+export class Button extends Container {
+    @prop({ type: RectTransform })
+    set rectTransform(value: RectTransform) {
+        this.position.set(value.x, value.y);
+        this.width = value.width;
+        this.height = value.height;
+    }
+}
+```
+
+Primitive prop defaults are declared on `@prop`. Structured prop defaults come from the struct class field initializers; `@prop({ type: RectTransform, default: ... })` is not valid.
+
+Parent scenes set structured fields with dot-path attributes:
+
+```xml
+<Button
+  id="restartButton"
+  scene="./Button.scene"
+  text="RESTART"
+  rectTransform.x="150"
+  rectTransform.y="692"
+  rectTransform.width="420"
+  rectTransform.height="92"
+/>
+```
+
+The compiler builds a real struct instance:
+
+```ts
+const restartButtonRectTransform = new RectTransform();
+restartButtonRectTransform.x = 150;
+restartButtonRectTransform.y = 692;
+restartButtonRectTransform.width = 420;
+restartButtonRectTransform.height = 92;
+restartButton.rectTransform = restartButtonRectTransform;
+```
+
+It does not pass a plain object or JSON string to the setter. Fields omitted from `.scene` keep the class initializer value.
+
 ## Validation Boundary
 
 Pixifact treats edited `.scene` source as untrusted until it passes validation and compile checks:
@@ -89,6 +155,8 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 - Reference other Scenes with `.scene` paths, never bare names.
 - `.pixifact/generated` is never an agent editing target.
 - Every editable node must have a stable ID.
+- Scene script props must use `String` / `Number` / `Boolean` or an exported struct class type.
+- Structured scene props must use dot-path `.scene` attributes, not JSON strings.
 - Direct edits must be followed by `scene validate --scene <path>` or `scene validate --all`.
 - Pixifact must use a canonical formatter for generated output and editor refreshes.
 - Pixifact must reject scene sources that fail parse, validation, contract checks, or asset checks.
@@ -110,6 +178,7 @@ External agents should receive a concise authoring context instead of raw projec
 - The target `.scene` source.
 - A normalized scene outline with node IDs and node types.
 - Editable props and expected value types.
+- Structured prop fields and their primitive field types.
 - Available image, audio, and other asset references.
 - Referenced scene contracts and public props.
 - Current selection or requested subtree when the task is scoped.
