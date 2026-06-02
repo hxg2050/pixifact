@@ -66,6 +66,7 @@ apps/editor/src-tauri/            Tauri host
 - [x] 新增完整示例游戏 `sample-projects/space-hud-game`，作为运行、Scene 集成和 Agent 工作流的黄金路径。
 - [ ] 继续完善 Agent / CLI-first 的 Scene 预览、校验反馈、诊断展示和自动刷新工作流。
 - [ ] 继续优化桌面版本机能力：文件打开、系统默认程序打开、外部代码编辑器跳转。
+- [ ] 落地官方 Flex Scene 布局：`FlexLayout` / `FlexItem`，详见 `docs/FLEX_SCENE_LAYOUT.md`。
 - [ ] 扩充 Scene 模板库：常用 HUD 组合。
 - [ ] 增加 `.scene` 创建、保存、CLI 修改和 editor 预览的 E2E 覆盖。
 
