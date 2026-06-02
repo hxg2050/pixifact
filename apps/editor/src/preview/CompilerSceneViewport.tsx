@@ -77,8 +77,8 @@ export function CompilerSceneViewport({ document, projectTree }: CompilerSceneVi
                 await app.init({
                     width: previewWidth,
                     height: previewHeight,
-                    background: 0xffffff,
-                    backgroundAlpha: 0,
+                    background: 0x020617,
+                    backgroundAlpha: 1,
                     antialias: true,
                     autoDensity: true,
                     resolution: Math.min(window.devicePixelRatio || 1, 2),
