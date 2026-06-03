@@ -8,6 +8,10 @@ import centerContainerSceneSource from '../../../../packages/pixifact/src/builti
 import centerContainerTsSource from '../../../../packages/pixifact/src/builtin-scenes/CenterContainer.ts?raw';
 import controlSceneSource from '../../../../packages/pixifact/src/builtin-scenes/Control.scene?raw';
 import controlTsSource from '../../../../packages/pixifact/src/builtin-scenes/Control.ts?raw';
+import flexItemSceneSource from '../../../../packages/pixifact/src/builtin-scenes/FlexItem.scene?raw';
+import flexItemTsSource from '../../../../packages/pixifact/src/builtin-scenes/FlexItem.ts?raw';
+import flexLayoutSceneSource from '../../../../packages/pixifact/src/builtin-scenes/FlexLayout.scene?raw';
+import flexLayoutTsSource from '../../../../packages/pixifact/src/builtin-scenes/FlexLayout.ts?raw';
 import hBoxContainerSceneSource from '../../../../packages/pixifact/src/builtin-scenes/HBoxContainer.scene?raw';
 import hBoxContainerTsSource from '../../../../packages/pixifact/src/builtin-scenes/HBoxContainer.ts?raw';
 import marginContainerSceneSource from '../../../../packages/pixifact/src/builtin-scenes/MarginContainer.scene?raw';
@@ -96,6 +100,10 @@ const builtinPreviewSources: Record<string, string> = {
     'CenterContainer.ts': centerContainerTsSource,
     'Control.scene': controlSceneSource,
     'Control.ts': controlTsSource,
+    'FlexItem.scene': flexItemSceneSource,
+    'FlexItem.ts': flexItemTsSource,
+    'FlexLayout.scene': flexLayoutSceneSource,
+    'FlexLayout.ts': flexLayoutTsSource,
     'HBoxContainer.scene': hBoxContainerSceneSource,
     'HBoxContainer.ts': hBoxContainerTsSource,
     'MarginContainer.scene': marginContainerSceneSource,

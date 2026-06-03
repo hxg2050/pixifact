@@ -821,6 +821,44 @@ describe('Pixifact scene compiler spike', () => {
         });
     });
 
+    it('resolves built-in Flex tags with their public props', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="Hud">
+              <FlexLayout id="topStats" direction="row" align="center" justify="space-between" gap="16">
+                <FlexItem grow="1" minWidth="240">
+                  <Text id="score" text="000000" />
+                </FlexItem>
+              </FlexLayout>
+            </Scene>
+        `);
+
+        expect(template.children[0]).toMatchObject({
+            kind: 'sceneInstance',
+            type: 'FlexLayout',
+            id: 'topStats',
+            scene: builtinSceneAssetId('FlexLayout'),
+            props: {
+                direction: 'row',
+                align: 'center',
+                justify: 'space-between',
+                gap: 16,
+            },
+        });
+
+        const source = serializeSceneTemplate(template);
+        expect(source).toContain('<FlexLayout id="topStats" direction="row" align="center" justify="space-between" gap="16">');
+        expect(source).toContain('<FlexItem grow="1" minWidth="240">');
+        expect(source).not.toContain('scene="pixifact:FlexLayout.scene"');
+        expect(source).not.toContain('scene="pixifact:FlexItem.scene"');
+        expect(validateSceneContent({
+            scene: 'src/scenes/Hud.scene',
+            content: source,
+            sceneInterfaces: builtinSceneInterfaces(),
+        })).toMatchObject({
+            ok: true,
+        });
+    });
+
     it('generates scene registry files from colocated Scene asset pairs', async () => {
         const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
         try {

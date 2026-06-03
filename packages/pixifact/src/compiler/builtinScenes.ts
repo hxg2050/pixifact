@@ -4,6 +4,8 @@ export const builtinScenePrefix = 'pixifact:';
 export const builtinSceneNames = [
     'CenterContainer',
     'Control',
+    'FlexItem',
+    'FlexLayout',
     'HBoxContainer',
     'MarginContainer',
     'VBoxContainer',
@@ -66,6 +68,44 @@ export function builtinSceneInterface(assetId: string): SceneTemplateInterface {
                 gap: { type: 'number', default: 0 },
                 alignY: { type: 'string', default: 'start' },
                 justify: { type: 'string', default: 'start' },
+            },
+            events: {},
+            slots: { default: {} },
+        };
+    }
+    if (name === 'FlexLayout') {
+        return {
+            props: {
+                direction: { type: 'string', default: 'row' },
+                align: { type: 'string', default: 'start' },
+                justify: { type: 'string', default: 'start' },
+                gap: { type: 'number', default: 0 },
+                paddingX: { type: 'number', default: 0 },
+                paddingY: { type: 'number', default: 0 },
+                paddingLeft: { type: 'number' },
+                paddingRight: { type: 'number' },
+                paddingTop: { type: 'number' },
+                paddingBottom: { type: 'number' },
+            },
+            events: {},
+            slots: { default: {} },
+        };
+    }
+    if (name === 'FlexItem') {
+        return {
+            props: {
+                grow: { type: 'number', default: 0 },
+                shrink: { type: 'number', default: 1 },
+                basis: { type: 'number', default: -1 },
+                minWidth: { type: 'number', default: 0 },
+                minHeight: { type: 'number', default: 0 },
+                maxWidth: { type: 'number', default: -1 },
+                maxHeight: { type: 'number', default: -1 },
+                marginLeft: { type: 'number', default: 0 },
+                marginRight: { type: 'number', default: 0 },
+                marginTop: { type: 'number', default: 0 },
+                marginBottom: { type: 'number', default: 0 },
+                alignSelf: { type: 'string', default: 'auto' },
             },
             events: {},
             slots: { default: {} },
