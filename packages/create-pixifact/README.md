@@ -1,8 +1,8 @@
 # create-pixifact
 
-Create a Bun-first Pixifact game project.
+创建 Bun-first 的 Pixifact 游戏项目。
 
-## Usage
+## 使用
 
 ```bash
 bun create pixifact my-game
@@ -11,14 +11,14 @@ bun install
 bun run dev
 ```
 
-The generated project includes:
+生成的项目包含：
 
 - `pixifact.project.json`
-- a minimal Pixifact Scene pair
-- Vite project scripts
-- `pixifact` and `pixifact-cli` dependencies
+- 一个最小 Pixifact Scene 资产对
+- Vite 项目脚本
+- `pixifact` 和 `pixifact-cli` 依赖
 
-## Generated Scripts
+## 生成脚本
 
 ```bash
 bun run compile:scenes
@@ -26,6 +26,6 @@ bun run dev
 bun run build
 ```
 
-## Requirements
+## 环境要求
 
 - Bun

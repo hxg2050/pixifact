@@ -67,6 +67,39 @@ describe('Pixifact scene compiler spike', () => {
         expect(source).not.toMatch(/\bpath\./);
     });
 
+    it('rewrites dist relative specifiers to file modules or directory index modules', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'pixifact-dist-imports-'));
+        try {
+            const compilerDir = join(root, 'compiler');
+            await mkdir(join(compilerDir, 'commands'), { recursive: true });
+            await writeFile(join(compilerDir, 'commands', 'index.js'), '');
+            await writeFile(join(compilerDir, 'decorators.js'), '');
+            const { rewriteRelativeSpecifiers } = await import('../packages/pixifact/scripts/fix-dist-esm-imports.mjs');
+
+            const source = [
+                "export * from './commands';",
+                "export * from './decorators';",
+                '',
+            ].join('\n');
+            const rewritten = await rewriteRelativeSpecifiers(source, join(compilerDir, 'index.js'));
+
+            expect(rewritten).toBe([
+                "export * from './commands/index.js';",
+                "export * from './decorators.js';",
+                '',
+            ].join('\n'));
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
+    });
+
+    it('declares compiler runtime dependencies in pixifact dependencies', async () => {
+        const packageJson = JSON.parse(await readFile(join(process.cwd(), 'packages/pixifact/package.json'), 'utf8'));
+
+        expect(packageJson.dependencies).toHaveProperty('typescript');
+        expect(packageJson.devDependencies).not.toHaveProperty('typescript');
+    });
+
     it('resolves relative and project-relative Scene references from a containing scene', () => {
         expect(resolveSceneReference('src/menu/MainMenu.scene', './Button.scene')).toBe('src/menu/Button.scene');
         expect(resolveSceneReference('src/menu/MainMenu.scene', '../ui/Button.scene')).toBe('src/ui/Button.scene');

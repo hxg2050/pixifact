@@ -8,6 +8,49 @@ Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestra
 
 [中文](./README.md)
 
+## npm Quick Start
+
+The first Pixifact npm packages have been published:
+
+- `pixifact`: runtime, Scene DSL, compiler, and authoring APIs.
+- `pixifact-cli`: Bun-first Scene automation CLI.
+- `create-pixifact`: Bun-first project scaffold.
+
+Create a new project:
+
+```bash
+bun create pixifact my-game
+cd my-game
+bun install
+bun run build
+```
+
+Use runtime and compiler APIs in an existing Bun project:
+
+```bash
+bun add pixifact pixi.js
+bun add -d pixifact-cli
+```
+
+Common installed CLI commands:
+
+```bash
+pixifact scene validate --project-root . --all
+pixifact compile-scenes --project-root .
+```
+
+`pixifact-cli` and `create-pixifact` are Bun-first tools in this release, so Bun must be installed locally.
+
+## 0.1.3 Release Notes
+
+`v0.1.3` is the first Pixifact npm release and includes:
+
+- `pixifact@0.1.3`
+- `pixifact-cli@0.1.3`
+- `create-pixifact@0.1.3`
+
+After publishing, the release was verified with `bun create pixifact npm-smoke`, `bun install`, and `bun run build` from npm registry packages.
+
 ## Core Model
 
 Pixifact uses a Godot-style unified `Scene` asset model. It does not use a Unity-style split between Scene resources and Prefab resources.

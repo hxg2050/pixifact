@@ -1,44 +1,44 @@
 # Pixifact CLI
 
-Command line tools for Pixifact Scene automation.
+Pixifact Scene 自动化命令行工具。
 
-The CLI is Bun-first in this release.
+本版本 CLI 是 Bun-first 工具。
 
-## Install
+## 安装
 
 ```bash
 bun add -d pixifact-cli
 ```
 
-## Commands
+## 命令
 
-Inspect a Scene:
+查看 Scene：
 
 ```bash
 pixifact scene inspect --project-root . --scene src/scenes/Hud.scene
 ```
 
-Validate one Scene:
+校验单个 Scene：
 
 ```bash
 pixifact scene validate --project-root . --scene src/scenes/Hud.scene
 ```
 
-Validate every compiler Scene:
+校验所有 compiler Scene：
 
 ```bash
 pixifact scene validate --project-root . --all
 ```
 
-Compile generated Scene runtime files:
+编译生成 Scene runtime 文件：
 
 ```bash
 pixifact compile-scenes --project-root .
 ```
 
-## Agent Workflow
+## Agent 工作流
 
-Codex, Claude Code, and other coding agents should edit `.scene` files directly, then run:
+Codex、Claude Code 和其他 coding agent 应直接编辑 `.scene` 文件，然后运行：
 
 ```bash
 pixifact scene validate --project-root . --all
@@ -46,9 +46,9 @@ pixifact compile-scenes --project-root .
 bun run build
 ```
 
-Do not edit generated files under `.pixifact/generated/**`.
+不要编辑 `.pixifact/generated/**` 下的生成文件。
 
-## Requirements
+## 环境要求
 
 - Bun
-- `pixifact` installed in the target project
+- 目标项目已安装 `pixifact`

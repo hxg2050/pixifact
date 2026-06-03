@@ -1,8 +1,10 @@
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
-const distRoot = fileURLToPath(new URL('../dist/', import.meta.url));
+function defaultDistRoot() {
+    return fileURLToPath(new URL('../dist/', import.meta.url));
+}
 
 async function walk(directory) {
     const files = [];
@@ -18,27 +20,67 @@ async function walk(directory) {
     return files;
 }
 
-function hasExtension(specifier) {
+export function hasExtension(specifier) {
     return /\.[a-zA-Z0-9]+$/.test(specifier);
 }
 
-function rewriteRelativeSpecifiers(source) {
-    const lines = source.split('\n');
-    return lines.map((line) => line.replace(
-        /^(\s*(?:import|export)\s+(?:[^'"]*?\s+from\s+)?)(['"])(\.\.?\/[^'"]+)\2/g,
-        (match, prefix, quote, specifier) => {
-            if (hasExtension(specifier)) {
-                return match;
-            }
-            return `${prefix}${quote}${specifier}.js${quote}`;
-        },
-    )).join('\n');
+async function isFile(filePath) {
+    try {
+        const fileStat = await stat(filePath);
+        return fileStat.isFile();
+    } catch (error) {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+            return false;
+        }
+        throw error;
+    }
 }
 
-for (const filePath of await walk(distRoot)) {
-    const source = await readFile(filePath, 'utf8');
-    const next = rewriteRelativeSpecifiers(source);
-    if (next !== source) {
-        await writeFile(filePath, next, 'utf8');
+export async function resolveRelativeSpecifier(filePath, specifier) {
+    if (hasExtension(specifier)) {
+        return specifier;
     }
+
+    const resolvedPath = path.resolve(path.dirname(filePath), specifier);
+    if (await isFile(`${resolvedPath}.js`) || await isFile(`${resolvedPath}.d.ts`)) {
+        return `${specifier}.js`;
+    }
+    if (await isFile(path.join(resolvedPath, 'index.js')) || await isFile(path.join(resolvedPath, 'index.d.ts'))) {
+        return `${specifier}/index.js`;
+    }
+
+    throw new Error(`Cannot resolve ${specifier} from ${filePath}`);
+}
+
+export async function rewriteRelativeSpecifiers(source, filePath) {
+    const lines = source.split('\n');
+    const rewritten = [];
+
+    for (const line of lines) {
+        const match = line.match(/^(\s*(?:import|export)\s+(?:[^'"]*?\s+from\s+)?)(['"])(\.\.?\/[^'"]+)\2(.*)$/);
+        if (!match) {
+            rewritten.push(line);
+            continue;
+        }
+
+        const [, prefix, quote, specifier, suffix] = match;
+        const resolvedSpecifier = await resolveRelativeSpecifier(filePath, specifier);
+        rewritten.push(`${prefix}${quote}${resolvedSpecifier}${quote}${suffix}`);
+    }
+
+    return rewritten.join('\n');
+}
+
+export async function fixDistEsmImports(distRoot = defaultDistRoot()) {
+    for (const filePath of await walk(distRoot)) {
+        const source = await readFile(filePath, 'utf8');
+        const next = await rewriteRelativeSpecifiers(source, filePath);
+        if (next !== source) {
+            await writeFile(filePath, next, 'utf8');
+        }
+    }
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+    await fixDistEsmImports();
 }
