@@ -1,0 +1,3 @@
+<Scene name="VBoxContainer">
+    <slot name="default" />
+</Scene>
