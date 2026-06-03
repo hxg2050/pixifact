@@ -8,6 +8,7 @@ import type {
     SlotOutletTemplateNode,
 } from './spec';
 import { pixiSceneFieldSchema } from './pixiNodeSchema';
+import { builtinSceneAssetId, isBuiltinSceneName } from './builtinScenes';
 
 interface XmlElement {
     name: string;
@@ -87,7 +88,7 @@ function parseTemplateNode(element: XmlElement): SceneTemplateNode {
         return node;
     }
 
-    if (element.attributes.scene) {
+    if (element.attributes.scene !== undefined || isBuiltinSceneName(element.name)) {
         const slots: Record<string, SceneTemplateNode[]> = {};
         for (const child of element.children) {
             const slot = child.attributes.slot || 'default';
@@ -98,7 +99,7 @@ function parseTemplateNode(element: XmlElement): SceneTemplateNode {
         const node: SceneInstanceTemplateNode = {
             kind: 'sceneInstance',
             type: element.name,
-            scene: element.attributes.scene,
+            scene: element.attributes.scene !== undefined ? element.attributes.scene : builtinSceneAssetId(element.name),
             props: parseProps(element, ['id', 'scene', 'slot'], isEventAttribute),
             events: parseEvents(element),
             slots,
@@ -107,7 +108,7 @@ function parseTemplateNode(element: XmlElement): SceneTemplateNode {
         return node;
     }
 
-    throw new Error(`Unsupported template tag <${element.name}>.`);
+    throw new Error(`Unsupported template tag <${element.name}>. Add scene="..." or use a built-in Scene name.`);
 }
 
 function parseProps(

@@ -1,14 +1,14 @@
 <Scene name="MainMenu" width="720" height="1280">
   <Graphics id="backgroundPanel" shape="roundRect" x="58" y="270" width="604" height="620" radius="34" fill="#111827" fillAlpha="0.9" strokeColor="#38bdf8" strokeWidth="2" strokeAlpha="0.7" />
-  <VBoxContainer id="menuStack" scene="./VBoxContainer.scene" x="104" y="330" width="512" height="520" gap="32" alignX="center">
+  <VBoxContainer id="menuStack" x="104" y="330" width="512" height="520" gap="32" alignX="center">
     <Text id="eyebrowText" text="PIXIFACT SAMPLE" fontSize="22" fontWeight="700" fill="#38bdf8" />
     <Text id="titleText" text="SPACE HUD" fontSize="72" fontWeight="700" fill="#f8fafc" />
     <Text id="subtitleText" text="Portrait runtime demo" fontSize="28" fontWeight="700" fill="#c4b5fd" />
     <Text id="bodyText" text="Dodge asteroids. Keep the HUD alive." fontSize="24" fontWeight="500" fill="#cbd5e1" />
-    <MarginContainer id="startButtonOffset" scene="./MarginContainer.scene" marginTop="38">
-      <Control id="startButton" scene="./Control.scene">
+    <MarginContainer id="startButtonOffset" marginTop="38">
+      <Control id="startButton">
         <Graphics id="startButtonBack" shape="roundRect" width="424" height="96" radius="28" fill="#2563eb" />
-        <CenterContainer id="startButtonLabelBox" scene="./CenterContainer.scene" width="424" height="96">
+        <CenterContainer id="startButtonLabelBox" width="424" height="96">
           <Text id="startLabel" text="START" fontSize="34" fontWeight="700" fill="#ffffff" />
         </CenterContainer>
       </Control>

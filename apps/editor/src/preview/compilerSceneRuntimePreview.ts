@@ -1,14 +1,33 @@
+/// <reference path="../vite-env.d.ts" />
+
 import ts from 'typescript';
 import * as Pixi from 'pixi.js';
 import { Container } from 'pixi.js';
 import * as compilerRuntime from '../../../../packages/pixifact/src/compiler';
+import centerContainerSceneSource from '../../../../packages/pixifact/src/builtin-scenes/CenterContainer.scene?raw';
+import centerContainerTsSource from '../../../../packages/pixifact/src/builtin-scenes/CenterContainer.ts?raw';
+import controlSceneSource from '../../../../packages/pixifact/src/builtin-scenes/Control.scene?raw';
+import controlTsSource from '../../../../packages/pixifact/src/builtin-scenes/Control.ts?raw';
+import hBoxContainerSceneSource from '../../../../packages/pixifact/src/builtin-scenes/HBoxContainer.scene?raw';
+import hBoxContainerTsSource from '../../../../packages/pixifact/src/builtin-scenes/HBoxContainer.ts?raw';
+import marginContainerSceneSource from '../../../../packages/pixifact/src/builtin-scenes/MarginContainer.scene?raw';
+import marginContainerTsSource from '../../../../packages/pixifact/src/builtin-scenes/MarginContainer.ts?raw';
+import vBoxContainerSceneSource from '../../../../packages/pixifact/src/builtin-scenes/VBoxContainer.scene?raw';
+import vBoxContainerTsSource from '../../../../packages/pixifact/src/builtin-scenes/VBoxContainer.ts?raw';
+import controlLayoutTsSource from '../../../../packages/pixifact/src/builtin-scenes/controlLayout.ts?raw';
 import {
     compileSceneTemplateToTs,
+    builtinSceneAssetIds,
+    builtinSceneInterface,
+    builtinSceneInterfaces,
+    builtinSceneNameFromAssetId,
+    isBuiltinSceneAssetId,
     normalizeSceneAssetId,
     pairedSceneScriptPath,
     resolveSceneReference,
     sceneClassAlias,
     toPosixPath,
+    parseSceneTemplate,
 } from '../../../../packages/pixifact/src/compiler';
 import type { SceneTemplate, SceneTemplateInterface, SceneTemplateNode } from '../../../../packages/pixifact/src/compiler';
 import { compilerSceneNodeLocator } from '../document/compilerSceneDocumentController';
@@ -38,7 +57,7 @@ export interface CompilerSceneRuntimePreview {
 
 interface PreviewModule {
     id: string;
-    kind: 'generated' | 'project';
+    kind: 'generated' | 'project' | 'builtin';
     source: string;
 }
 
@@ -60,6 +79,7 @@ interface PreviewRuntimeContext {
 const compilerModuleId = 'pixifact/compiler';
 const pixiModuleId = 'pixi.js';
 const projectModulePrefix = 'pixifact-preview:project:';
+const builtinModulePrefix = 'pixifact-preview:builtin:';
 const generatedModulePrefix = 'pixifact-preview:generated:';
 const projectScriptExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'] as const;
 const assetMimeTypes: Record<string, string> = {
@@ -69,6 +89,20 @@ const assetMimeTypes: Record<string, string> = {
     '.png': 'image/png',
     '.svg': 'image/svg+xml',
     '.webp': 'image/webp',
+};
+
+const builtinPreviewSources: Record<string, string> = {
+    'CenterContainer.scene': centerContainerSceneSource,
+    'CenterContainer.ts': centerContainerTsSource,
+    'Control.scene': controlSceneSource,
+    'Control.ts': controlTsSource,
+    'HBoxContainer.scene': hBoxContainerSceneSource,
+    'HBoxContainer.ts': hBoxContainerTsSource,
+    'MarginContainer.scene': marginContainerSceneSource,
+    'MarginContainer.ts': marginContainerTsSource,
+    'VBoxContainer.scene': vBoxContainerSceneSource,
+    'VBoxContainer.ts': vBoxContainerTsSource,
+    'controlLayout.ts': controlLayoutTsSource,
 };
 
 function numericProp(value: unknown, defaultValue: number) {
@@ -83,11 +117,17 @@ function sceneSize(template: SceneTemplate) {
 }
 
 function sceneScriptModuleId(scenePath: string) {
-    return projectModuleId(pairedSceneScriptPath(scenePath));
+    return isBuiltinSceneAssetId(scenePath)
+        ? builtinModuleId(`${builtinSceneNameFromAssetId(scenePath)}.ts`)
+        : projectModuleId(pairedSceneScriptPath(scenePath));
 }
 
 function sceneGeneratedModuleId(scenePath: string) {
     return `${generatedModulePrefix}${scenePath}`;
+}
+
+function builtinSceneSource(scenePath: string) {
+    return builtinPreviewSources[`${builtinSceneNameFromAssetId(scenePath)}.scene`];
 }
 
 function projectAbsolutePath(projectTree: ProjectFileTreeNode, relativePath: string) {
@@ -101,6 +141,16 @@ function projectModuleId(projectPath: string) {
 function projectModulePath(moduleId: string) {
     return moduleId.startsWith(projectModulePrefix)
         ? moduleId.slice(projectModulePrefix.length)
+        : undefined;
+}
+
+function builtinModuleId(modulePath: string) {
+    return `${builtinModulePrefix}${normalizeProjectPath(modulePath)}`;
+}
+
+function builtinModulePath(moduleId: string) {
+    return moduleId.startsWith(builtinModulePrefix)
+        ? moduleId.slice(builtinModulePrefix.length)
         : undefined;
 }
 
@@ -168,18 +218,35 @@ function moduleIdFromImport(context: PreviewRuntimeContext, importerId: string, 
         source === pixiModuleId
         || source === compilerModuleId
         || source.startsWith(projectModulePrefix)
+        || source.startsWith(builtinModulePrefix)
         || source.startsWith(generatedModulePrefix)
     ) {
         return source;
     }
     if (isRelativeModuleSpecifier(source)) {
         const importerPath = projectModulePath(importerId);
+        const builtinImporterPath = builtinModulePath(importerId);
+        if (builtinImporterPath) {
+            return builtinModuleId(resolveBuiltinModulePath(builtinImporterPath, source));
+        }
         if (!importerPath) {
             throw new Error(`预览模块 ${importerId} 不能使用相对导入 ${source}。`);
         }
         return projectModuleId(resolveProjectModulePath(context.projectTree, importerPath, source));
     }
     return source;
+}
+
+function resolveBuiltinModulePath(importerPath: string, source: string) {
+    const basePath = source.startsWith('/')
+        ? normalizeProjectPath(source)
+        : projectJoin(projectDirname(importerPath), source);
+    for (const candidate of projectModuleCandidates(basePath)) {
+        if (builtinPreviewSources[candidate]) {
+            return candidate;
+        }
+    }
+    throw new Error(`找不到内置模块：${source}（来自 ${importerPath}）`);
 }
 
 function transpilePreviewModule(source: string) {
@@ -355,6 +422,37 @@ async function readProjectModule(
     return module;
 }
 
+async function readBuiltinModule(
+    modulePath: string,
+    modulesById: Map<string, PreviewModule>,
+) {
+    const normalizedPath = normalizeProjectPath(modulePath);
+    const id = builtinModuleId(normalizedPath);
+    const existing = modulesById.get(id);
+    if (existing) {
+        return existing;
+    }
+
+    const source = builtinPreviewSources[normalizedPath];
+    if (!source) {
+        throw new Error(`找不到内置脚本：${normalizedPath}`);
+    }
+    const module: PreviewModule = {
+        id,
+        kind: 'builtin',
+        source,
+    };
+    modulesById.set(id, module);
+
+    for (const dependency of collectStaticModuleSpecifiers(transpilePreviewModule(source))) {
+        if (isRelativeModuleSpecifier(dependency)) {
+            await readBuiltinModule(resolveBuiltinModulePath(normalizedPath, dependency), modulesById);
+        }
+    }
+
+    return module;
+}
+
 function createGeneratedSceneModule(
     scenePath: string,
     template: SceneTemplate,
@@ -392,6 +490,15 @@ async function collectPreviewModules(
         scenePaths.add(scenePath);
         if (scenePath === context.scenePath) {
             context.templates.set(scenePath, document.template);
+        } else if (isBuiltinSceneAssetId(scenePath)) {
+            const source = builtinSceneSource(scenePath);
+            if (!source) {
+                throw new Error(`找不到内置 Scene：${scenePath}`);
+            }
+            const template = parseSceneTemplate(source);
+            template.interface = builtinSceneInterface(scenePath);
+            context.templates.set(scenePath, template);
+            context.sceneInterfaces[scenePath] = template.interface;
         } else {
             const binding = bindingIndex[scenePath];
             if (!binding) {
@@ -410,7 +517,11 @@ async function collectPreviewModules(
 
     const modulesById = new Map<string, PreviewModule>();
     for (const scenePath of [...scenePaths].sort()) {
-        await readProjectModule(context.projectTree, pairedSceneScriptPath(scenePath), modulesById);
+        if (isBuiltinSceneAssetId(scenePath)) {
+            await readBuiltinModule(`${builtinSceneNameFromAssetId(scenePath)}.ts`, modulesById);
+        } else {
+            await readProjectModule(context.projectTree, pairedSceneScriptPath(scenePath), modulesById);
+        }
     }
     for (const scenePath of [...scenePaths].sort()) {
         const module = createGeneratedSceneModule(
@@ -609,6 +720,7 @@ export async function createCompilerSceneRuntimePreview(options: CreateCompilerS
         scenePath: normalizeSceneAssetId(options.scenePath),
         templates: new Map([[normalizeSceneAssetId(options.scenePath), options.document.template]]),
         sceneInterfaces: {
+            ...builtinSceneInterfaces(),
             ...options.document.sceneInterfaces,
             [normalizeSceneAssetId(options.scenePath)]: options.document.template.interface,
         },
@@ -619,7 +731,7 @@ export async function createCompilerSceneRuntimePreview(options: CreateCompilerS
     const modules = await collectPreviewModules(context, bindingIndex, options.document);
     const loader = createModuleLoader(context, modules);
 
-    for (const module of modules.filter((module) => module.kind === 'project')) {
+    for (const module of modules.filter((module) => module.kind === 'project' || module.kind === 'builtin')) {
         loader.requireModule(module.id);
     }
     for (const module of modules.filter((module) => module.kind === 'generated')) {

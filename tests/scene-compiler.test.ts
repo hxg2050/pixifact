@@ -7,6 +7,8 @@ import {
     connectSceneEvent,
     compileSceneTemplateToTs,
     createSceneRevision,
+    builtinSceneAssetId,
+    builtinSceneInterfaces,
     generatedSceneModuleImport,
     generatedSceneModulePath,
     mount,
@@ -46,11 +48,16 @@ describe('Pixifact scene compiler spike', () => {
 
     it('normalizes compiler Scene asset paths and paired script paths', () => {
         expect(normalizeSceneAssetId('src\\ui\\Button.scene')).toBe('src/ui/Button.scene');
+        expect(normalizeSceneAssetId('pixifact:VBoxContainer.scene')).toBe('pixifact:VBoxContainer.scene');
         expect(pairedSceneScriptPath('src/ui/Button.scene')).toBe('src/ui/Button.ts');
+        expect(pairedSceneScriptPath('pixifact:VBoxContainer.scene')).toBe('VBoxContainer.ts');
         expect(sceneLocalName('src/features/shop/Button.scene')).toBe('Button');
+        expect(sceneLocalName('pixifact:VBoxContainer.scene')).toBe('VBoxContainer');
         expect(generatedSceneModulePath('src/features/shop/Button.scene')).toBe('src/features/shop/Button.scene.generated.ts');
+        expect(generatedSceneModulePath('pixifact:VBoxContainer.scene')).toBe('pixifact-builtin/VBoxContainer.scene.generated.ts');
         expect(generatedSceneModuleImport('src/features/shop/Button.scene')).toBe('./src/features/shop/Button.scene.generated');
         expect(sceneClassAlias('src/features/shop/Button.scene')).toBe('SceneClass_src_features_shop_Button');
+        expect(sceneClassAlias('pixifact:VBoxContainer.scene')).toBe('BuiltinSceneClass_VBoxContainer');
     });
 
     it('keeps Scene asset paths browser-safe', async () => {
@@ -65,6 +72,7 @@ describe('Pixifact scene compiler spike', () => {
         expect(resolveSceneReference('src/menu/MainMenu.scene', '../ui/Button.scene')).toBe('src/ui/Button.scene');
         expect(resolveSceneReference('src/menu/MainMenu.scene', '..\\ui\\Button.scene')).toBe('src/ui/Button.scene');
         expect(resolveSceneReference('src/menu/MainMenu.scene', 'src/shared/Panel.scene')).toBe('src/shared/Panel.scene');
+        expect(resolveSceneReference('src/menu/MainMenu.scene', 'pixifact:VBoxContainer.scene')).toBe('pixifact:VBoxContainer.scene');
         expect(() => resolveSceneReference('src/menu/MainMenu.scene', 'Button')).toThrow('Scene references must use .scene paths.');
         expect(() => resolveSceneReference('src/menu/MainMenu.scene', '../../../Button.scene')).toThrow('must stay inside projectRoot');
     });
@@ -332,6 +340,30 @@ describe('Pixifact scene compiler spike', () => {
     it('rejects root script attributes because Scene scripts are paired by file path', () => {
         expect(() => parseSceneTemplate('<Scene name="Button" script="src/scenes/Button.ts" />'))
             .toThrow('Scene script binding is inferred from the colocated TypeScript file.');
+    });
+
+    it('does not treat empty explicit Scene references as built-in defaults', () => {
+        expect(() => validateSceneContent({
+            scene: 'src/scenes/MainMenu.scene',
+            content: '<Scene name="MainMenu"><VBoxContainer scene="" /></Scene>',
+            sceneInterfaces: builtinSceneInterfaces(),
+            normalizeSceneReference: (scenePath) => resolveSceneReference('src/scenes/MainMenu.scene', scenePath),
+        })).not.toThrow();
+
+        expect(validateSceneContent({
+            scene: 'src/scenes/MainMenu.scene',
+            content: '<Scene name="MainMenu"><VBoxContainer scene="" /></Scene>',
+            sceneInterfaces: builtinSceneInterfaces(),
+            normalizeSceneReference: (scenePath) => resolveSceneReference('src/scenes/MainMenu.scene', scenePath),
+        })).toMatchObject({
+            ok: false,
+            diagnostics: [{
+                path: '0:sceneInstance',
+                prop: 'scene',
+                expected: 'project-relative or relative .scene path',
+                actual: '',
+            }],
+        });
     });
 
     it('rejects root class attributes because Scene classes are paired by script', () => {
@@ -749,6 +781,46 @@ describe('Pixifact scene compiler spike', () => {
         expect(next).toEqual(template);
     });
 
+    it('resolves built-in Scene tags without serializing internal scene ids', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="MainMenu">
+              <VBoxContainer id="menuStack" gap="12" alignX="center">
+                <Text id="title" text="Start" />
+              </VBoxContainer>
+            </Scene>
+        `);
+
+        expect(template.children[0]).toMatchObject({
+            kind: 'sceneInstance',
+            type: 'VBoxContainer',
+            id: 'menuStack',
+            scene: builtinSceneAssetId('VBoxContainer'),
+            props: {
+                gap: 12,
+                alignX: 'center',
+            },
+            slots: {
+                default: [{
+                    kind: 'pixi',
+                    type: 'Text',
+                    id: 'title',
+                }],
+            },
+        });
+
+        const source = serializeSceneTemplate(template);
+        expect(source).toContain('<VBoxContainer id="menuStack" gap="12" alignX="center">');
+        expect(source).not.toContain('scene="pixifact:VBoxContainer.scene"');
+        expect(parseSceneTemplate(source)).toEqual(template);
+        expect(validateSceneContent({
+            scene: 'src/scenes/MainMenu.scene',
+            content: source,
+            sceneInterfaces: builtinSceneInterfaces(),
+        })).toMatchObject({
+            ok: true,
+        });
+    });
+
     it('generates scene registry files from colocated Scene asset pairs', async () => {
         const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
         try {
@@ -833,6 +905,85 @@ describe('Pixifact scene compiler spike', () => {
             expect(registry).toContain('import "./src/screens/Main.scene.generated";');
             expect(registry).not.toContain('BuildOnly');
             expect(registry).not.toContain('GeneratedOnly');
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
+    });
+
+    it('generates built-in Scene modules when project scenes use built-in tags', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
+        try {
+            await mkdir(join(root, 'src', 'scenes'), { recursive: true });
+            await writeFile(join(root, 'src', 'scenes', 'Main.scene'), `
+                <Scene name="Main">
+                  <VBoxContainer id="menuStack" gap="10">
+                    <Text id="label" text="Play" />
+                  </VBoxContainer>
+                </Scene>
+            `);
+            await writeFile(join(root, 'src', 'scenes', 'Main.ts'), `
+                import { Container } from 'pixi.js';
+                import { scene } from 'pixifact/compiler';
+
+                @scene()
+                export class Main extends Container {}
+            `);
+
+            await compileScenes({ projectRoot: root });
+
+            const mainGenerated = await readFile(join(root, '.pixifact', 'generated', 'src', 'scenes', 'Main.scene.generated.ts'), 'utf8');
+            const builtinGenerated = await readFile(join(root, '.pixifact', 'generated', 'pixifact-builtin', 'VBoxContainer.scene.generated.ts'), 'utf8');
+            const registry = await readFile(join(root, '.pixifact', 'generated', 'scenes.generated.ts'), 'utf8');
+
+            expect(mainGenerated).toContain('import { VBoxContainer as BuiltinSceneClass_VBoxContainer }');
+            expect(mainGenerated).toContain('const menuStack = new BuiltinSceneClass_VBoxContainer();');
+            expect(mainGenerated).toContain('menuStack.gap = 10;');
+            expect(mainGenerated).toContain('mount(menuStack, label, "default");');
+            expect(builtinGenerated).toContain('registerScene("pixifact:VBoxContainer.scene"');
+            expect(builtinGenerated).toContain('registerSceneClass(BuiltinSceneClass_VBoxContainer, "pixifact:VBoxContainer.scene");');
+            expect(registry).toContain('import "./pixifact-builtin/VBoxContainer.scene.generated";');
+            expect(registry).toContain('import "./src/scenes/Main.scene.generated";');
+            expect(registry.indexOf('pixifact-builtin/VBoxContainer')).toBeLessThan(registry.indexOf('src/scenes/Main'));
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
+    });
+
+    it('keeps explicit project Scene references ahead of built-in Scene names', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
+        try {
+            await mkdir(join(root, 'src', 'scenes'), { recursive: true });
+            await writeFile(join(root, 'src', 'scenes', 'VBoxContainer.scene'), '<Scene name="VBoxContainer" />');
+            await writeFile(join(root, 'src', 'scenes', 'VBoxContainer.ts'), `
+                import { Container } from 'pixi.js';
+                import { scene } from 'pixifact/compiler';
+
+                @scene()
+                export class VBoxContainer extends Container {}
+            `);
+            await writeFile(join(root, 'src', 'scenes', 'Main.scene'), `
+                <Scene name="Main">
+                  <VBoxContainer id="menuStack" scene="./VBoxContainer.scene" />
+                </Scene>
+            `);
+            await writeFile(join(root, 'src', 'scenes', 'Main.ts'), `
+                import { Container } from 'pixi.js';
+                import { scene } from 'pixifact/compiler';
+
+                @scene()
+                export class Main extends Container {}
+            `);
+
+            await compileScenes({ projectRoot: root });
+
+            const mainGenerated = await readFile(join(root, '.pixifact', 'generated', 'src', 'scenes', 'Main.scene.generated.ts'), 'utf8');
+            const registry = await readFile(join(root, '.pixifact', 'generated', 'scenes.generated.ts'), 'utf8');
+
+            expect(mainGenerated).toContain('import { VBoxContainer as SceneClass_src_scenes_VBoxContainer }');
+            expect(mainGenerated).toContain('const menuStack = new SceneClass_src_scenes_VBoxContainer();');
+            expect(mainGenerated).not.toContain('BuiltinSceneClass_VBoxContainer');
+            expect(registry).toContain('import "./src/scenes/VBoxContainer.scene.generated";');
+            expect(registry).not.toContain('import "./pixifact-builtin/VBoxContainer.scene.generated";');
         } finally {
             await rm(root, { recursive: true, force: true });
         }

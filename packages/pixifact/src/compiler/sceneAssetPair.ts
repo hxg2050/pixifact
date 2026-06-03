@@ -1,3 +1,5 @@
+import { builtinSceneAssetId, builtinSceneNameFromAssetId, isBuiltinSceneAssetId } from './builtinScenes';
+
 export const defaultSceneSourceRoots = ['src'] as const;
 export const ignoredSceneSourceDirectories = new Set([
     'node_modules',
@@ -50,6 +52,9 @@ function posixJoin(...parts: string[]) {
 }
 
 export function normalizeSceneAssetId(value: string) {
+    if (isBuiltinSceneAssetId(value)) {
+        return builtinSceneAssetId(builtinSceneNameFromAssetId(value));
+    }
     const normalized = toPosixPath(value).replace(/^\.\/+/, '').replace(/^\/+/, '');
     const parts = normalized.split('/').filter(Boolean);
     if (parts.includes('..')) {
@@ -66,15 +71,24 @@ export function isIgnoredSceneSourceDirectory(name: string) {
 }
 
 export function sceneLocalName(scenePath: string) {
+    if (isBuiltinSceneAssetId(scenePath)) {
+        return builtinSceneNameFromAssetId(scenePath);
+    }
     return posixBasename(normalizeSceneAssetId(scenePath), '.scene');
 }
 
 export function pairedSceneScriptPath(scenePath: string) {
+    if (isBuiltinSceneAssetId(scenePath)) {
+        return `${builtinSceneNameFromAssetId(scenePath)}.ts`;
+    }
     const assetId = normalizeSceneAssetId(scenePath);
     return `${assetId.slice(0, -'.scene'.length)}.ts`;
 }
 
 export function generatedSceneModulePath(scenePath: string) {
+    if (isBuiltinSceneAssetId(scenePath)) {
+        return `pixifact-builtin/${builtinSceneNameFromAssetId(scenePath)}.scene.generated.ts`;
+    }
     return `${normalizeSceneAssetId(scenePath).slice(0, -'.scene'.length)}.scene.generated.ts`;
 }
 
@@ -83,6 +97,9 @@ export function generatedSceneModuleImport(scenePath: string) {
 }
 
 export function sceneClassAlias(scenePath: string) {
+    if (isBuiltinSceneAssetId(scenePath)) {
+        return `BuiltinSceneClass_${builtinSceneNameFromAssetId(scenePath)}`;
+    }
     const base = normalizeSceneAssetId(scenePath)
         .slice(0, -'.scene'.length)
         .split('/')
@@ -93,6 +110,9 @@ export function sceneClassAlias(scenePath: string) {
 
 export function resolveSceneReference(fromScenePath: string, reference: string) {
     const value = toPosixPath(reference.trim());
+    if (isBuiltinSceneAssetId(value)) {
+        return normalizeSceneAssetId(value);
+    }
     if (!value.endsWith('.scene')) {
         throw new Error('Scene references must use .scene paths.');
     }

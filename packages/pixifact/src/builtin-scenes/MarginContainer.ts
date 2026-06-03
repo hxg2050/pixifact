@@ -14,12 +14,17 @@ import {
 } from './controlLayout';
 
 @scene()
-export class CenterContainer extends Container {
+export class MarginContainer extends Container {
     @slot()
     readonly default!: Container;
 
-    #alignX: ControlAlign = 'center';
-    #alignY: ControlAlign = 'center';
+    #margin = 0;
+    #marginLeft: number | undefined;
+    #marginRight: number | undefined;
+    #marginTop: number | undefined;
+    #marginBottom: number | undefined;
+    #alignX: ControlAlign = 'start';
+    #alignY: ControlAlign = 'start';
     #explicitWidth: number | undefined;
     #explicitHeight: number | undefined;
     #layoutWidth: number | undefined;
@@ -44,11 +49,61 @@ export class CenterContainer extends Container {
         this.layout();
     }
 
+    get margin() {
+        return this.#margin;
+    }
+
+    @prop({ type: Number, default: 0 })
+    set margin(value: number) {
+        this.#margin = Math.max(0, finiteNumber(value, 0));
+        this.layout();
+    }
+
+    get marginLeft() {
+        return this.#marginLeft ?? this.#margin;
+    }
+
+    @prop({ type: Number })
+    set marginLeft(value: number) {
+        this.#marginLeft = Math.max(0, finiteNumber(value, 0));
+        this.layout();
+    }
+
+    get marginRight() {
+        return this.#marginRight ?? this.#margin;
+    }
+
+    @prop({ type: Number })
+    set marginRight(value: number) {
+        this.#marginRight = Math.max(0, finiteNumber(value, 0));
+        this.layout();
+    }
+
+    get marginTop() {
+        return this.#marginTop ?? this.#margin;
+    }
+
+    @prop({ type: Number })
+    set marginTop(value: number) {
+        this.#marginTop = Math.max(0, finiteNumber(value, 0));
+        this.layout();
+    }
+
+    get marginBottom() {
+        return this.#marginBottom ?? this.#margin;
+    }
+
+    @prop({ type: Number })
+    set marginBottom(value: number) {
+        this.#marginBottom = Math.max(0, finiteNumber(value, 0));
+        this.layout();
+    }
+
     get alignX() {
         return this.#alignX;
     }
 
-    @prop({ type: String, default: 'center' })
+    @prop({ type: String, default: 'start' })
     set alignX(value: string) {
         this.#alignX = parseAlign(value);
         this.layout();
@@ -58,7 +113,7 @@ export class CenterContainer extends Container {
         return this.#alignY;
     }
 
-    @prop({ type: String, default: 'center' })
+    @prop({ type: String, default: 'start' })
     set alignY(value: string) {
         this.#alignY = parseAlign(value);
         this.layout();
@@ -67,7 +122,13 @@ export class CenterContainer extends Container {
     onMounted() {
         this.default.on('childAdded', this.layout, this);
         this.default.on('childRemoved', this.layout, this);
+        this.once('destroyed', this.unmountLayout, this);
         this.layout();
+    }
+
+    private unmountLayout() {
+        this.default.off('childAdded', this.layout, this);
+        this.default.off('childRemoved', this.layout, this);
     }
 
     layout() {
@@ -79,15 +140,17 @@ export class CenterContainer extends Container {
         const natural = this.measureControlNaturalSize();
         const width = this.#layoutWidth ?? this.#explicitWidth ?? natural.width;
         const height = this.#layoutHeight ?? this.#explicitHeight ?? natural.height;
+        const innerWidth = Math.max(0, width - this.marginLeft - this.marginRight);
+        const innerHeight = Math.max(0, height - this.marginTop - this.marginBottom);
 
         for (const child of children) {
             const props = controlChildProps(child);
             const childSize = controlMinSize(child, this.#baseSizes);
-            const childWidth = fillOrExpand(props.hSize) ? width : childSize.width;
-            const childHeight = fillOrExpand(props.vSize) ? height : childSize.height;
+            const childWidth = fillOrExpand(props.hSize) ? innerWidth : childSize.width;
+            const childHeight = fillOrExpand(props.vSize) ? innerHeight : childSize.height;
             setControlChildBox(child, {
-                x: alignOffset(this.#alignX, Math.max(0, width - childWidth)),
-                y: alignOffset(this.#alignY, Math.max(0, height - childHeight)),
+                x: this.marginLeft + alignOffset(this.#alignX, Math.max(0, innerWidth - childWidth)),
+                y: this.marginTop + alignOffset(this.#alignY, Math.max(0, innerHeight - childHeight)),
                 width: childWidth,
                 height: childHeight,
             });
@@ -97,12 +160,15 @@ export class CenterContainer extends Container {
     measureControlNaturalSize(): Size {
         const children = this.default?.children as ControlLayoutChild[] | undefined;
         if (!children || children.length === 0) {
-            return { width: 0, height: 0 };
+            return {
+                width: this.marginLeft + this.marginRight,
+                height: this.marginTop + this.marginBottom,
+            };
         }
         const sizes = children.map((child) => controlMinSize(child, this.#baseSizes));
         return {
-            width: sizes.reduce((max, size) => Math.max(max, size.width), 0),
-            height: sizes.reduce((max, size) => Math.max(max, size.height), 0),
+            width: this.marginLeft + this.marginRight + sizes.reduce((max, size) => Math.max(max, size.width), 0),
+            height: this.marginTop + this.marginBottom + sizes.reduce((max, size) => Math.max(max, size.height), 0),
         };
     }
 

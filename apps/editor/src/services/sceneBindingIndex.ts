@@ -1,4 +1,5 @@
 import { extractSceneScriptInterface } from '../../../../packages/pixifact/src/compiler/scriptInterfaceExtractor';
+import { builtinSceneInterfaces } from '../../../../packages/pixifact/src/compiler/builtinScenes';
 import {
     defaultSceneSourceRoots,
     isIgnoredSceneSourceDirectory,
@@ -83,11 +84,12 @@ export function sceneInterfacesForCompilerTemplate(
     nodes: readonly SceneTemplateNode[],
     ownerScenePath?: string,
 ) {
-    return Object.fromEntries(
-        [...collectSceneInstancePaths(nodes, new Set(), ownerScenePath)]
+    return {
+        ...builtinSceneInterfaces(),
+        ...Object.fromEntries([...collectSceneInstancePaths(nodes, new Set(), ownerScenePath)]
             .filter((scenePath) => index[scenePath])
-            .map((scenePath) => [scenePath, index[scenePath].interface]),
-    );
+            .map((scenePath) => [scenePath, index[scenePath].interface])),
+    };
 }
 
 function collectCompilerSceneFiles(

@@ -207,10 +207,6 @@ export function fillOrExpand(mode: ControlSizeMode) {
     return mode === 'fill' || mode === 'expand';
 }
 
-export function axisSize(size: Size, axis: ControlAxis) {
-    return axis === 'horizontal' ? size.width : size.height;
-}
-
 export function crossAxis(axis: ControlAxis): ControlAxis {
     return axis === 'horizontal' ? 'vertical' : 'horizontal';
 }

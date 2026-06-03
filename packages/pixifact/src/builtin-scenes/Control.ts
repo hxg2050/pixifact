@@ -124,7 +124,13 @@ export class Control extends Container {
     onMounted() {
         this.default.on('childAdded', this.layoutContent, this);
         this.default.on('childRemoved', this.layoutContent, this);
+        this.once('destroyed', this.unmountLayout, this);
         this.layoutContent();
+    }
+
+    private unmountLayout() {
+        this.default.off('childAdded', this.layoutContent, this);
+        this.default.off('childRemoved', this.layoutContent, this);
     }
 
     getControlLayoutProps(): ControlLayoutProps {

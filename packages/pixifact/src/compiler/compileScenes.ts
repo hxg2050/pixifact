@@ -3,6 +3,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { SceneTemplate, SceneTemplateNode } from './spec';
 import {
+    builtinSceneAssetIds,
+    builtinSceneInterface,
+    isBuiltinSceneAssetId,
+} from './builtinScenes';
+import {
     defaultSceneSourceRoots,
     generatedSceneModuleImport,
     generatedSceneModulePath,
@@ -14,6 +19,10 @@ import {
     sceneLocalName,
     toPosixPath,
 } from './sceneAssetPair';
+import {
+    builtinSceneScriptPath,
+    readBuiltinSceneSource,
+} from '../compiler-node/builtinSceneAssets';
 import { extractSceneScriptInterface } from './scriptInterfaceExtractor';
 import { findMissingScenePartReferences } from './scenePartValidation';
 import { parseSceneTemplate } from './templateParser';
@@ -36,31 +45,46 @@ export class CompileSceneError extends Error {
     }
 }
 
+interface SceneAssetRecord {
+    scenePath: string;
+    kind: 'project' | 'builtin';
+}
+
 export async function compileScenes(options: CompileScenesOptions) {
     const projectRoot = typeof options.projectRoot === 'string'
         ? options.projectRoot
         : fileURLToPath(options.projectRoot);
     const generatedDir = path.resolve(projectRoot, options.generatedDir ?? '.pixifact/generated');
-    const scenePaths = await collectSceneAssetIds(projectRoot, options.sourceRoots);
+    const projectScenePaths = await collectSceneAssetIds(projectRoot, options.sourceRoots);
+    const sceneRecords = [
+        ...projectScenePaths.map((scenePath): SceneAssetRecord => ({ scenePath, kind: 'project' })),
+        ...builtinSceneAssetIds().map((scenePath): SceneAssetRecord => ({ scenePath, kind: 'builtin' })),
+    ];
 
     await mkdir(generatedDir, { recursive: true });
 
     const templates = new Map<string, SceneTemplate>();
-    for (const scenePath of scenePaths) {
-        const source = await readFile(path.resolve(projectRoot, scenePath), 'utf8');
+    for (const record of sceneRecords) {
+        const { scenePath } = record;
+        const source = record.kind === 'builtin'
+            ? await readBuiltinSceneSource(scenePath)
+            : await readFile(path.resolve(projectRoot, scenePath), 'utf8');
         try {
             const template = parseSceneTemplate(source);
             assertSceneLocalName(scenePath, template);
-            const descriptor = await readPairedSceneScript(projectRoot, scenePath, template);
-            template.interface = descriptor.interface;
+            template.interface = record.kind === 'builtin'
+                ? builtinSceneInterface(scenePath)
+                : (await readPairedSceneScript(projectRoot, scenePath, template)).interface;
             templates.set(scenePath, normalizeSceneReferences(scenePath, template));
         } catch (error) {
             throw new CompileSceneError(error instanceof Error ? error.message : String(error), scenePath, source);
         }
     }
 
-    const registryImports: string[] = [];
-    for (const scenePath of scenePaths) {
+    const projectRegistryImports: string[] = [];
+    const builtinRegistryImports: string[] = [];
+    for (const record of sceneRecords) {
+        const { scenePath } = record;
         const template = templates.get(scenePath);
         if (!template) {
             throw new Error(`Missing parsed template for ${scenePath}.`);
@@ -74,7 +98,7 @@ export async function compileScenes(options: CompileScenesOptions) {
             scriptImport: {
                 exportName: template.name,
                 localName: sceneClassAlias(scenePath),
-                source: importSourceFor(path.resolve(projectRoot, pairedSceneScriptPath(scenePath)), generatedFileDir),
+                source: importSourceFor(sceneScriptAbsolutePath(projectRoot, scenePath), generatedFileDir),
             },
             sceneImports: sceneImportsFor(template, templates, projectRoot, generatedFileDir),
             sceneClassAliases: sceneClassAliasesFor(template),
@@ -84,10 +108,49 @@ export async function compileScenes(options: CompileScenesOptions) {
 
         await mkdir(path.dirname(generatedFile), { recursive: true });
         await writeFile(generatedFile, code);
-        registryImports.push(`import ${JSON.stringify(generatedSceneModuleImport(scenePath))};`);
+        if (record.kind === 'project') {
+            projectRegistryImports.push(`import ${JSON.stringify(generatedSceneModuleImport(scenePath))};`);
+        } else if (sceneIsReferencedByProjectScenes(scenePath, projectScenePaths, templates)) {
+            builtinRegistryImports.push(`import ${JSON.stringify(generatedSceneModuleImport(scenePath))};`);
+        }
     }
 
-    await writeFile(path.join(generatedDir, 'scenes.generated.ts'), `${registryImports.join('\n')}\n`);
+    await writeFile(path.join(generatedDir, 'scenes.generated.ts'), `${[
+        ...builtinRegistryImports,
+        ...projectRegistryImports,
+    ].join('\n')}\n`);
+}
+
+function sceneIsReferencedByProjectScenes(
+    scenePath: string,
+    projectScenePaths: readonly string[],
+    templates: Map<string, SceneTemplate>,
+) {
+    if (!isBuiltinSceneAssetId(scenePath)) {
+        return false;
+    }
+    const visited = new Set<string>();
+    const stack = [...projectScenePaths];
+    while (stack.length > 0) {
+        const current = stack.pop()!;
+        if (visited.has(current)) {
+            continue;
+        }
+        visited.add(current);
+        for (const referencedScenePath of collectSceneInstancePaths(templates.get(current)?.children ?? [])) {
+            if (referencedScenePath === scenePath) {
+                return true;
+            }
+            stack.push(referencedScenePath);
+        }
+    }
+    return false;
+}
+
+function sceneScriptAbsolutePath(projectRoot: string, scenePath: string) {
+    return isBuiltinSceneAssetId(scenePath)
+        ? builtinSceneScriptPath(scenePath)
+        : path.resolve(projectRoot, pairedSceneScriptPath(scenePath));
 }
 
 async function collectSceneAssetIds(projectRoot: string, sourceRoots: readonly string[] = defaultSceneSourceRoots) {
@@ -188,7 +251,7 @@ function sceneImportsFor(
             return {
                 exportName: sceneTemplate.name,
                 localName: sceneClassAlias(scenePath),
-                source: importSourceFor(path.resolve(projectRoot, pairedSceneScriptPath(scenePath)), generatedFileDir),
+                source: importSourceFor(sceneScriptAbsolutePath(projectRoot, scenePath), generatedFileDir),
             };
         });
 }

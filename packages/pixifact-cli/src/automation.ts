@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
     createSceneRevision,
+    builtinSceneInterfaces,
     defaultSceneSourceRoots,
     extractSceneScriptInterface,
     findMissingScenePartReferences,
@@ -217,7 +218,9 @@ function collectAssetFiles(root: string, directory: string, assets: Set<string>)
 }
 
 function collectCompilerSceneInterfaces(root: string, skippedScene?: string) {
-    const interfaces: Record<string, SceneTemplateInterface> = {};
+    const interfaces: Record<string, SceneTemplateInterface> = {
+        ...builtinSceneInterfaces(),
+    };
 
     for (const scenePath of collectCompilerScenePaths(root)) {
         if (scenePath === skippedScene) {
