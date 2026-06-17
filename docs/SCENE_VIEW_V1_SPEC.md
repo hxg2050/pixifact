@@ -280,6 +280,265 @@ deltaSceneX = deltaViewportX / camera.scale
 deltaSceneY = deltaViewportY / camera.scale
 ```
 
+## TDD / BDD 实施计划
+
+本节基于当前项目现状制定。Scene View v1 不先大改结构，而是围绕已有文件逐步补测试、补实现：
+
+- `apps/editor/src/preview/CompilerSceneViewport.tsx`：当前 `.scene` 视口入口，已包含 Fit、100%、zoom、pan、grid 和 overlay 基础。
+- `apps/editor/src/panels/ViewportPanel.tsx`：当前 toolbar 入口，已连接 `fit()`、`setActualSize()`、`toggleGrid()`。
+- `apps/editor/src/preview/compilerSceneRuntimePreview.ts`：当前 Pixi runtime preview 创建入口，已返回 locator 到 Pixi `Container` 的映射。
+- `apps/editor/src/document/compilerSceneDocumentController.ts`：当前 `.scene` 内存态更新入口，已有 `selectCompilerSceneNode()`、`updateCompilerSceneNode()`、undo / redo 和 `mergeKey`。
+- `tests/editor-workbench-ui.test.ts`：当前 editor UI 行为测试入口，已有 viewport transform 和 toolbar 测试。
+- `tests/compiler-scene-document-controller.test.ts`：当前 compiler scene 文档、undo / redo 测试入口。
+
+### 测试分层
+
+v1 使用三层测试，不直接从 UI 测所有细节。
+
+```txt
+纯函数 TDD
+  -> 坐标、camera、move、resize、hit 选择规则
+
+文档控制器 TDD
+  -> updateCompilerSceneNode、dirty、mergeKey、undo / redo、save 前内存态
+
+Editor UI BDD
+  -> 用户可见行为：网格、选择框、拖动、resize、Inspector 同步、撤销
+```
+
+原则：
+
+- 坐标换算和编辑计算必须先写纯函数测试。
+- React / Pixi 组件只负责接事件、渲染状态、调用纯函数和文档控制器。
+- Pixi event adapter 尽量薄，避免把核心规则藏在 pointer handler 里。
+- 能在 `tests/editor-workbench-ui.test.ts` 验证的用户行为，用 Given / When / Then 写成 BDD 风格。
+- 不为了测试新增真实项目数据源；`.scene` 仍然由 compiler scene document controller 管理。
+
+### TDD 阶段 1：锁定视口坐标系统
+
+目标：先确保网格、Scene、Overlay 使用同一套 camera。
+
+优先测试：
+
+- `fitViewportTransform()`：大 Scene 缩小完整显示。
+- `fitViewportTransform()`：小 Scene 最多放大到 `4x`。
+- `actualSizeViewportTransform()`：`100%` 后 Scene 居中。
+- `zoomViewportTransform()`：鼠标所在 Scene 点缩放前后不漂移。
+- `panViewportTransform()`：只改变 offset，不改变 scale。
+- `resizeManualViewportTransform()`：手动模式 resize 后保持视口中心。
+- `viewportPointToScenePoint()`：屏幕点正确转 Scene 坐标。
+- `viewportDeltaToSceneDelta()`：拖动距离按 `scale` 正确换算。
+
+当前已有一部分测试在 `tests/editor-workbench-ui.test.ts`，后续如果纯函数继续增多，应抽到：
+
+```txt
+apps/editor/src/preview/sceneViewTransform.ts
+```
+
+对应测试仍可放在 `tests/editor-workbench-ui.test.ts`，或在测试膨胀后拆成：
+
+```txt
+tests/editor-scene-view-transform.test.ts
+```
+
+### TDD 阶段 2：定义可编辑节点和 hit 规则
+
+目标：点击时能从 runtime 对象稳定映射回 `.scene` locator。
+
+建议新增纯函数：
+
+```txt
+isEditableSceneViewNode(node)
+pickTopEditableHit(candidates)
+sceneViewSelectionRect(bounds)
+```
+
+优先测试：
+
+- `slotOutlet` 不可编辑。
+- 无 locator 的 runtime 对象不可编辑。
+- 多个节点重叠时选择视觉最上层节点。
+- 空白点击返回无选中。
+- 选中框忽略 `width <= 0` 或 `height <= 0` 的 bounds。
+- 缩放 / 平移后 selection rect 和 Pixi bounds 对齐。
+
+说明：当前 `compilerSceneSelectionRect()` 直接使用 Pixi `getBounds()` 结果，也就是屏幕变换后的 bounds。后续如果改成 Scene 坐标 overlay，必须同步修改测试，不能混用两套坐标。
+
+### TDD 阶段 3：定义 move / resize 编辑计算
+
+目标：拖动过程只做确定的数学计算，不把规则写散在 pointer handler 里。
+
+建议新增纯函数：
+
+```txt
+moveSceneNodeProps(startProps, deltaScene)
+resizeSceneNodeProps(startProps, startBounds, handle, deltaScene)
+```
+
+move 测试：
+
+- 原本有 `x/y` 时，在起点基础上加 Scene 坐标 delta。
+- 原本没有 `x/y` 时，以 `0/0` 为起点，并写入明确字段。
+- viewport delta 必须除以 camera scale 后再写入 `.scene`。
+- 负坐标允许，除非后续产品明确限制。
+
+resize 测试：
+
+- 右边 handle 只修改 `width`。
+- 下边 handle 只修改 `height`。
+- 右下角 handle 同时修改 `width/height`。
+- 原本没有 `width/height` 时，以当前 bounds 尺寸为起点。
+- 最小尺寸 clamp 到 `1`。
+- resize 不修改 `x/y`。
+
+### TDD 阶段 4：接入文档控制器和 undo
+
+目标：视口编辑实时更新 compiler scene document，但一次拖动只形成一个 undo step。
+
+优先在 `tests/compiler-scene-document-controller.test.ts` 补测试：
+
+- 连续 move update 使用同一个 `mergeKey`，undo 一次回到拖动前。
+- 连续 resize update 使用同一个 `mergeKey`，undo 一次回到 resize 前。
+- move 和 resize 使用不同 `mergeKey`，分别形成独立 undo step。
+- scene instance 的 `x/y/width/height` 也通过 `props` 更新。
+- `slotOutlet` 不允许通过 Scene View edit 写入 props。
+
+当前 `CompilerSceneCommandStack` 已支持 `mergeKey`，所以 v1 不需要新增 command stack 机制。建议 Scene View 使用类似：
+
+```txt
+scene-view:move:{locator}:{sessionId}
+scene-view:resize:{locator}:{handle}:{sessionId}
+```
+
+### BDD 阶段 5：Editor UI 行为验收
+
+BDD 主要放在 `tests/editor-workbench-ui.test.ts`。每个场景以用户行为描述，不以内部函数命名。
+
+场景：打开 `.scene` 后显示基础视口
+
+```txt
+Given 已打开 GameProject/src/scenes/Button.scene
+When Editor 渲染完成
+Then 视口 toolbar 显示 Scene 名称、尺寸和缩放百分比
+And 网格默认可见
+And Scene 边界框存在
+And “适配”按钮处于 active 状态
+```
+
+场景：切换网格
+
+```txt
+Given 已打开 `.scene`
+When 点击“网格”
+Then 网格隐藏
+And “网格”按钮 aria-pressed 为 false
+
+When 再次点击“网格”
+Then 网格显示
+And “网格”按钮 aria-pressed 为 true
+```
+
+场景：点击选择节点
+
+```txt
+Given 视口中有 Text 节点 label
+When 点击 label 的可点击区域
+Then compiler scene selection 是 label locator
+And 层级面板选中 label
+And Inspector 显示 label 的字段
+And Overlay 显示选中框
+```
+
+场景：点击空白取消选择
+
+```txt
+Given 当前已选中 label
+When 点击 Scene 空白区域
+Then selection 回到 Scene
+And Overlay 不显示节点选中框
+```
+
+场景：拖动节点实时移动
+
+```txt
+Given 当前选中 label，label 的 x=10，y=20
+When 在节点主体上 pointer down
+And 鼠标在 200% 缩放下向右移动 20px、向下移动 10px
+Then Inspector 中 x 实时显示 20
+And Inspector 中 y 实时显示 25
+And 文档 dirty 状态为 true
+And Overlay 选中框跟随节点移动
+
+When pointer up
+And 点击撤销
+Then x/y 回到 10/20
+```
+
+场景：resize 节点实时修改尺寸
+
+```txt
+Given 当前选中 label，label 的 width=100，height=40
+When 拖动右边 handle 向右 30 Scene 坐标
+Then width 实时显示 130
+And height 保持 40
+
+When 撤销
+Then width/height 回到 100/40
+```
+
+场景：导航不破坏编辑对齐
+
+```txt
+Given 当前选中 label
+When 滚轮缩放
+And 空格 + 左键拖拽平移
+Then 网格、Scene 边界、选中框仍然对齐
+And 普通左键拖节点不会触发平移
+```
+
+### 测试实现约束
+
+- UI 测试继续使用 Vitest + React DOM + happy-dom。
+- Tauri host 继续按现有测试方式 mock，不引入真实桌面窗口。
+- 视口数学和编辑计算优先纯函数测试，不依赖真实 WebGL。
+- Pixi runtime preview 可以在 UI 行为测试中使用轻量 mock，但 mock 必须保留 locator、bounds、root transform 这些关键语义。
+- 不用 snapshot 测试锁定大段 DOM。
+- 不用像素级截图作为 v1 自动化门槛；对齐优先用 transform、bounds、DOM 属性断言。
+- 若某个行为必须依赖真实 Pixi pointer event，先把业务规则抽成可测函数，再让 Pixi listener 只做事件转发。
+
+### 推荐实现顺序
+
+1. 补齐 viewport transform / grid 默认显示测试，让当前视口结构可验证。
+2. 抽出 Scene View 坐标和编辑纯函数，先写失败测试，再实现。
+3. 给 document controller 补 `mergeKey` 驱动的 move / resize undo 测试。
+4. 接入选择：点击节点、空白取消、Overlay 更新。
+5. 接入 move：实时更新 `x/y`、Inspector、dirty、undo。
+6. 接入 resize：三个 handle、实时更新 `width/height`、undo、Esc cancel。
+7. 跑 editor 相关验证，再跑 frontend build。
+
+### 验证命令
+
+每个小阶段优先跑最小测试：
+
+```bash
+bunx --no-install vitest run tests/editor-workbench-ui.test.ts
+bunx --no-install vitest run tests/compiler-scene-document-controller.test.ts
+```
+
+完成 v1 行为后跑：
+
+```bash
+bun run editor:frontend:build
+```
+
+如果改到 compiler command stack，再补跑：
+
+```bash
+bunx --no-install vitest run tests/compiler-scene-commands.test.ts
+```
+
+本计划不要求处理当前仓库里与 Scene View 无关的全局 `tsc` 失败。
+
 ## 验收标准
 
 v1 完成时，用户应该能做到：
