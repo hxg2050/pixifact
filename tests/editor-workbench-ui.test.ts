@@ -464,7 +464,7 @@ describe('Editor workbench UI', () => {
             const editorStyles = readFileSync('apps/editor/src/styles.css', 'utf8');
             expect(editorStyles).toContain('.canvasWrap {\n    display: flex;\n    min-height: 0;\n    align-items: stretch;\n    justify-content: stretch;\n    background: #e8edf4;\n    padding: 8px;');
             expect(editorStyles).toContain('.compilerSceneGrid {\n    position: absolute;\n    top: 0;\n    left: 0;\n    z-index: 0;');
-            expect(editorStyles).toContain('.pixifactCanvas {\n    position: relative;\n    z-index: 1;');
+            expect(editorStyles).toContain('.pixifactCanvas {\n    position: relative;\n    z-index: 1;\n    pointer-events: none;');
             expect(editorStyles).toContain('.compilerSceneOverlay {\n    position: absolute;\n    inset: 0;\n    z-index: 2;');
 
             await act(async () => {
