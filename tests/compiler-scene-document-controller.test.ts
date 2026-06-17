@@ -8,6 +8,7 @@ import {
     createCompilerPixiTemplateNode,
     deleteCompilerSceneNode,
     getCompilerSceneDocument,
+    getCompilerSceneNode,
     loadCompilerSceneDocument,
     markCompilerSceneSaved,
     moveCompilerSceneNode,
@@ -15,6 +16,7 @@ import {
     resetCompilerSceneDocument,
     undoCompilerSceneCommand,
     updateCompilerSceneNode,
+    updateCompilerSceneNodePropsInPlace,
     updateCompilerSceneTemplate,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
 
@@ -185,6 +187,58 @@ describe('compiler scene document controller undo redo', () => {
 
         expect(undoCompilerSceneCommand()?.ok).toBe(true);
         expect(getCompilerSceneDocument()?.template.children.map((node) => node.kind !== 'slotOutlet' ? node.id : node.name)).toEqual(['content', 'footer']);
+    });
+
+    it('merges repeated scene view move updates into one undo step', () => {
+        loadTemplate();
+
+        expect(getCompilerSceneNode('0:content/0:title')?.kind).toBe('pixi');
+
+        updateCompilerSceneNode('0:content/0:title', {
+            props: {
+                x: 10,
+                y: 20,
+            },
+        }, { mergeKey: 'scene-view:move:0:content/0:title:1' });
+        updateCompilerSceneNode('0:content/0:title', {
+            props: {
+                x: 30,
+                y: 35,
+            },
+        }, { mergeKey: 'scene-view:move:0:content/0:title:1' });
+
+        expect(contentChildren()[0].props).toMatchObject({
+            x: 30,
+            y: 35,
+        });
+
+        expect(undoCompilerSceneCommand()?.ok).toBe(true);
+        expect(contentChildren()[0].props.x).toBeUndefined();
+        expect(contentChildren()[0].props.y).toBeUndefined();
+        expect(canUndoCompilerSceneCommand()).toBe(false);
+    });
+
+    it('can update scene view movement without replacing the template reference', () => {
+        loadTemplate();
+
+        const initialTemplate = getCompilerSceneDocument()?.template;
+        updateCompilerSceneNodePropsInPlace('0:content/0:title', {
+            x: 18,
+            y: 24,
+        }, { mergeKey: 'scene-view:move:0:content/0:title:1' });
+
+        expect(getCompilerSceneDocument()?.template).toBe(initialTemplate);
+        expect(getCompilerSceneNode('0:content/0:title')).toMatchObject({
+            id: 'title',
+            props: {
+                x: 18,
+                y: 24,
+            },
+        });
+
+        expect(undoCompilerSceneCommand()?.ok).toBe(true);
+        expect(contentChildren()[0].props.x).toBeUndefined();
+        expect(contentChildren()[0].props.y).toBeUndefined();
     });
 
     it('adds compiler nodes using the hierarchy context target rules', () => {

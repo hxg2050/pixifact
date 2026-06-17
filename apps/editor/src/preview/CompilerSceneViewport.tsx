@@ -10,8 +10,10 @@ import { Application as PixiApplication, Container } from 'pixi.js';
 import { defaultPixifactProjectResolution } from 'pixifact';
 import { normalizeSceneAssetId } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import {
+    getCompilerSceneNode,
     selectCompilerSceneNode,
     selectCompilerSceneRoot,
+    updateCompilerSceneNodePropsInPlace,
 } from '../document/compilerSceneDocumentController';
 import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
@@ -60,10 +62,14 @@ export interface CompilerSceneRect {
 }
 
 type SelectionRect = CompilerSceneRect;
-
 export interface CompilerSceneHitTarget {
     bounds?: CompilerSceneRect;
     locator?: string;
+}
+
+export interface CompilerSceneMoveProps {
+    x?: unknown;
+    y?: unknown;
 }
 
 interface ViewportModel {
@@ -74,12 +80,22 @@ interface ViewportModel {
     transform: ViewportTransform;
 }
 
+interface MoveSession {
+    locator: string;
+    mergeKey: string;
+    pointerId: number;
+    started: boolean;
+    startPoint: ViewportPoint;
+    startProps: CompilerSceneMoveProps;
+}
+
 const previewWidth = 960;
 const previewHeight = 540;
 const gridSize = 24;
 const gridPlaneOffset = 12000;
 const minViewportScale = 0.1;
 const maxViewportScale = 8;
+const dragThreshold = 4;
 
 export const compilerScenePreviewEventFeatures = {
     click: false,
@@ -233,6 +249,19 @@ export function selectCompilerSceneViewportHit(targets: readonly CompilerSceneHi
     return { type: 'scene' as const };
 }
 
+export function moveCompilerSceneNodeProps(startProps: CompilerSceneMoveProps, deltaScene: ViewportPoint) {
+    const startX = typeof startProps.x === 'number' ? startProps.x : 0;
+    const startY = typeof startProps.y === 'number' ? startProps.y : 0;
+    return {
+        x: startX + deltaScene.x,
+        y: startY + deltaScene.y,
+    };
+}
+
+export function canBeginCompilerSceneMove(selectedLocator: string | undefined, hitLocator: string | undefined) {
+    return Boolean(selectedLocator && hitLocator && selectedLocator === hitLocator);
+}
+
 function selectedCompilerNode(document: CompilerSceneDocument) {
     return document.selection.type === 'node' && document.selection.node !== '__scene__'
         ? document.selection.node
@@ -284,6 +313,12 @@ function applyTransform(root: Container | undefined, transform: ViewportTransfor
     root.position.set(transform.offset.x, transform.offset.y);
 }
 
+function applyCompilerSceneNodePosition(target: Container, props: CompilerSceneMoveProps) {
+    const x = typeof props.x === 'number' ? props.x : 0;
+    const y = typeof props.y === 'number' ? props.y : 0;
+    target.position.set(x, y);
+}
+
 function gridStyle(model: ViewportModel): React.CSSProperties {
     return {
         ...gridTransformStyle(model.transform),
@@ -309,10 +344,13 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         const nodesRef = useRef<Map<string, Container>>(new Map());
         const previewRef = useRef<Awaited<ReturnType<typeof createCompilerSceneRuntimePreview>> | undefined>(undefined);
         const viewportRef = useRef<ViewportSize>({ width: previewWidth, height: previewHeight });
+        const transformRef = useRef<ViewportTransform>(defaultViewportModel(projectResolution).transform);
         const selectedNodeRef = useRef<string | undefined>(undefined);
         const spacePressedRef = useRef(false);
         const panRef = useRef<{ pointerId: number; last: ViewportPoint } | undefined>(undefined);
         const clickRef = useRef<{ pointerId: number; start: ViewportPoint } | undefined>(undefined);
+        const moveRef = useRef<MoveSession | undefined>(undefined);
+        const moveSessionRef = useRef(0);
         const [viewport, setViewport] = useState<ViewportSize>({ width: previewWidth, height: previewHeight });
         const [model, setModel] = useState<ViewportModel>(() => defaultViewportModel(projectResolution));
         const [outline, setOutline] = useState<SelectionRect | undefined>(undefined);
@@ -324,6 +362,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
             setModel((current) => {
                 const next = updater(current);
                 applyTransform(previewRef.current?.root, next.transform);
+                transformRef.current = next.transform;
                 setOutline(compilerSceneSelectionRect(nodesRef.current.get(selectedNodeRef.current ?? '')));
                 return next;
             });
@@ -378,6 +417,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
             const initialViewport = hostSize(host);
             const initialTransform = fitViewportTransform(initialScene, initialViewport);
             viewportRef.current = initialViewport;
+            transformRef.current = initialTransform;
             setViewport(initialViewport);
             setModel({
                 gridVisible: true,
@@ -412,6 +452,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                         transform,
                     };
                     applyTransform(previewRef.current?.root, transform);
+                    transformRef.current = transform;
                     setOutline(compilerSceneSelectionRect(nodesRef.current.get(selectedNodeRef.current ?? '')));
                     return next;
                 });
@@ -464,6 +505,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                     const scene = { width: preview.width, height: preview.height };
                     const transform = fitViewportTransform(scene, viewportRef.current);
                     applyTransform(preview.root, transform);
+                    transformRef.current = transform;
                     app.stage.addChild(preview.root);
                     nodesRef.current = preview.nodes;
                     setModel((current) => ({
@@ -492,6 +534,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 nodesRef.current = new Map();
                 panRef.current = undefined;
                 clickRef.current = undefined;
+                moveRef.current = undefined;
                 spacePressedRef.current = false;
                 destroyPreview();
                 destroyApp();
@@ -501,6 +544,19 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         useEffect(() => {
             setOutline(compilerSceneSelectionRect(nodesRef.current.get(selectedCompilerNode(document) ?? '')));
         }, [document.selection, model.transform]);
+
+        useEffect(() => {
+            const move = moveRef.current;
+            if (!move) {
+                const selected = selectedCompilerNode(document);
+                const node = selected ? getCompilerSceneNode(selected) : undefined;
+                const target = selected ? nodesRef.current.get(selected) : undefined;
+                if (node && node.kind !== 'slotOutlet' && target) {
+                    applyCompilerSceneNodePosition(target, node.props);
+                    setOutline(compilerSceneSelectionRect(target));
+                }
+            }
+        }, [document]);
 
         const clientPoint = (event: React.PointerEvent | React.WheelEvent): ViewportPoint => {
             const bounds = hostRef.current?.getBoundingClientRect();
@@ -516,9 +572,32 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
             if (!middleButton && !spaceLeftButton) {
                 if (event.button === 0) {
                     hostRef.current?.focus();
+                    const start = clientPoint(event);
+                    const hitLocator = pickTopCompilerSceneHit(compilerSceneHitTargets(nodesRef.current), start);
+                    const selectedLocator = selectedNodeRef.current;
+                    if (canBeginCompilerSceneMove(selectedLocator, hitLocator)) {
+                        const node = getCompilerSceneNode(selectedLocator!);
+                        if (node && node.kind !== 'slotOutlet') {
+                            event.preventDefault();
+                            moveSessionRef.current += 1;
+                            hostRef.current?.setPointerCapture(event.pointerId);
+                            moveRef.current = {
+                                locator: selectedLocator!,
+                                mergeKey: `scene-view:move:${selectedLocator}:${moveSessionRef.current}`,
+                                pointerId: event.pointerId,
+                                started: false,
+                                startPoint: start,
+                                startProps: {
+                                    x: node.props.x,
+                                    y: node.props.y,
+                                },
+                            };
+                            return;
+                        }
+                    }
                     clickRef.current = {
                         pointerId: event.pointerId,
-                        start: clientPoint(event),
+                        start,
                     };
                 }
                 return;
@@ -534,12 +613,40 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         };
 
         const movePan = (event: React.PointerEvent<HTMLDivElement>) => {
+            const move = moveRef.current;
+            if (move?.pointerId === event.pointerId) {
+                event.preventDefault();
+                const nextPoint = clientPoint(event);
+                const deltaViewport = {
+                    x: nextPoint.x - move.startPoint.x,
+                    y: nextPoint.y - move.startPoint.y,
+                };
+                const passedThreshold = move.started || Math.hypot(deltaViewport.x, deltaViewport.y) > dragThreshold;
+                if (!passedThreshold) {
+                    return;
+                }
+                move.started = true;
+                const deltaScene = viewportDeltaToSceneDelta(transformRef.current, deltaViewport);
+                const nextProps = moveCompilerSceneNodeProps(move.startProps, deltaScene);
+                const target = nodesRef.current.get(move.locator);
+                const node = getCompilerSceneNode(move.locator);
+                if (!target || !node || node.kind === 'slotOutlet') {
+                    moveRef.current = undefined;
+                    hostRef.current?.releasePointerCapture(event.pointerId);
+                    return;
+                }
+                updateCompilerSceneNodePropsInPlace(move.locator, nextProps, { mergeKey: move.mergeKey });
+                applyCompilerSceneNodePosition(target, nextProps);
+                setOutline(compilerSceneSelectionRect(target));
+                return;
+            }
+
             const pan = panRef.current;
             if (!pan || pan.pointerId !== event.pointerId) {
                 const click = clickRef.current;
                 if (click?.pointerId === event.pointerId) {
                     const nextPoint = clientPoint(event);
-                    if (Math.hypot(nextPoint.x - click.start.x, nextPoint.y - click.start.y) > 4) {
+                    if (Math.hypot(nextPoint.x - click.start.x, nextPoint.y - click.start.y) > dragThreshold) {
                         clickRef.current = undefined;
                     }
                 }
@@ -563,6 +670,11 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         };
 
         const endPan = (event: React.PointerEvent<HTMLDivElement>) => {
+            if (moveRef.current?.pointerId === event.pointerId) {
+                moveRef.current = undefined;
+                hostRef.current?.releasePointerCapture(event.pointerId);
+                return;
+            }
             if (panRef.current?.pointerId === event.pointerId) {
                 panRef.current = undefined;
                 hostRef.current?.releasePointerCapture(event.pointerId);
@@ -575,6 +687,10 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         };
 
         const cancelPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+            if (moveRef.current?.pointerId === event.pointerId) {
+                moveRef.current = undefined;
+                hostRef.current?.releasePointerCapture(event.pointerId);
+            }
             if (panRef.current?.pointerId === event.pointerId) {
                 panRef.current = undefined;
                 hostRef.current?.releasePointerCapture(event.pointerId);

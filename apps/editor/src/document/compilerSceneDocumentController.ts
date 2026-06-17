@@ -30,6 +30,13 @@ export interface CompilerSceneDocument {
     dirty: boolean;
 }
 
+interface CompilerSceneNodeUpdates {
+    id?: string;
+    slotName?: string;
+    events?: Record<string, string | undefined>;
+    props?: Record<string, SceneTemplateValue | undefined>;
+}
+
 const listeners = new Set<() => void>();
 const commandStack = new CompilerSceneCommandStack();
 let revision = 0;
@@ -44,6 +51,13 @@ function emitCompilerSceneUpdate() {
 
 export function getCompilerSceneDocument() {
     return document;
+}
+
+export function getCompilerSceneNode(locator: string) {
+    if (!document) {
+        return undefined;
+    }
+    return findCompilerSceneNodeLocation(document.template.children, locator)?.node;
 }
 
 export function getCompilerSceneDocumentRevision() {
@@ -105,6 +119,7 @@ function executeCompilerSceneDocumentCommand(
     command: CompilerSceneCommand,
     options: CompilerSceneCommandStackOptions = {},
     updates: Partial<Pick<CompilerSceneDocument, 'sceneInterfaces'>> = {},
+    templateMode: 'clone' | 'current' = 'clone',
 ) {
     if (!document) {
         return {
@@ -114,7 +129,7 @@ function executeCompilerSceneDocumentCommand(
         };
     }
     const current = document;
-    const template = structuredClone(current.template);
+    const template = templateMode === 'clone' ? structuredClone(current.template) : current.template;
     const nextDocument = {
         ...current,
         ...updates,
@@ -131,6 +146,41 @@ function executeCompilerSceneDocumentCommand(
     };
     emitCompilerSceneUpdate();
     return result;
+}
+
+function compilerSceneNodeUpdateCommand(locator: string, updates: CompilerSceneNodeUpdates) {
+    const commands: CompilerSceneCommand[] = [];
+    for (const [key, value] of Object.entries(updates.props ?? {})) {
+        commands.push({
+            op: 'setNodeProp',
+            node: locator,
+            prop: key,
+            value,
+        });
+    }
+    for (const [key, value] of Object.entries(updates.events ?? {})) {
+        commands.push({
+            op: 'setNodeEvent',
+            node: locator,
+            event: key,
+            value,
+        });
+    }
+    if (updates.id !== undefined) {
+        commands.push({
+            op: 'setNodeId',
+            node: locator,
+            value: updates.id,
+        });
+    }
+    if (updates.slotName !== undefined) {
+        commands.push({
+            op: 'renameSlotOutlet',
+            node: locator,
+            name: updates.slotName,
+        });
+    }
+    return compilerSceneCommand(commands);
 }
 
 export function loadCompilerSceneDocument(next: Omit<CompilerSceneDocument, 'selection' | 'dirty'>) {
@@ -243,50 +293,26 @@ export function refreshCompilerSceneBindingSnapshot(updates: {
 
 export function updateCompilerSceneNode(
     locator: string,
-    updates: {
-        id?: string;
-        slotName?: string;
-        events?: Record<string, string | undefined>;
-        props?: Record<string, SceneTemplateValue | undefined>;
-    },
+    updates: CompilerSceneNodeUpdates,
     options: CompilerSceneCommandStackOptions = {},
 ) {
-    const commands: CompilerSceneCommand[] = [];
-    for (const [key, value] of Object.entries(updates.props ?? {})) {
-        commands.push({
-            op: 'setNodeProp',
-            node: locator,
-            prop: key,
-            value,
-        });
-    }
-    for (const [key, value] of Object.entries(updates.events ?? {})) {
-        commands.push({
-            op: 'setNodeEvent',
-            node: locator,
-            event: key,
-            value,
-        });
-    }
-    if (updates.id !== undefined) {
-        commands.push({
-            op: 'setNodeId',
-            node: locator,
-            value: updates.id,
-        });
-    }
-    if (updates.slotName !== undefined) {
-        commands.push({
-            op: 'renameSlotOutlet',
-            node: locator,
-            name: updates.slotName,
-        });
-    }
-    const command = compilerSceneCommand(commands);
+    const command = compilerSceneNodeUpdateCommand(locator, updates);
     if (!command) {
         return;
     }
     executeCompilerSceneDocumentCommand(command, options);
+}
+
+export function updateCompilerSceneNodePropsInPlace(
+    locator: string,
+    props: Record<string, SceneTemplateValue | undefined>,
+    options: CompilerSceneCommandStackOptions = {},
+) {
+    const command = compilerSceneNodeUpdateCommand(locator, { props });
+    if (!command) {
+        return;
+    }
+    executeCompilerSceneDocumentCommand(command, options, {}, 'current');
 }
 
 export function createCompilerPixiTemplateNode(template: SceneTemplate, type: CompilerSceneAddablePixiType): CompilerSceneTemplateNode {

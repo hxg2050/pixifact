@@ -15,6 +15,7 @@ import {
 } from '../apps/editor/src/document/compilerSceneDocumentController';
 import {
     actualSizeViewportTransform,
+    canBeginCompilerSceneMove,
     clampViewportScale,
     compilerScenePreviewEventFeatures,
     compilerScenePointInRect,
@@ -22,6 +23,7 @@ import {
     fitViewportTransform,
     gridTransformStyle,
     isEditableCompilerSceneHitTarget,
+    moveCompilerSceneNodeProps,
     panViewportTransform,
     pickTopCompilerSceneHit,
     resizeManualViewportTransform,
@@ -361,6 +363,24 @@ describe('Editor workbench UI', () => {
             { scale: 2, offset: { x: -100, y: -150 } },
             { x: 20, y: 10 },
         )).toEqual({ x: 10, y: 5 });
+        expect(moveCompilerSceneNodeProps(
+            { x: 10, y: 20 },
+            { x: 5, y: -8 },
+        )).toEqual({
+            x: 15,
+            y: 12,
+        });
+        expect(moveCompilerSceneNodeProps(
+            {},
+            { x: -12, y: 7 },
+        )).toEqual({
+            x: -12,
+            y: 7,
+        });
+        expect(canBeginCompilerSceneMove('0:label', '0:label')).toBe(true);
+        expect(canBeginCompilerSceneMove('0:label', '1:background')).toBe(false);
+        expect(canBeginCompilerSceneMove(undefined, '0:label')).toBe(false);
+        expect(canBeginCompilerSceneMove('0:label', undefined)).toBe(false);
         expect(panViewportTransform(
             { scale: 1.5, offset: { x: 40, y: 60 } },
             { x: 20, y: -10 },
