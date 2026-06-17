@@ -9,6 +9,10 @@ import {
 import { Application as PixiApplication, Container } from 'pixi.js';
 import { defaultPixifactProjectResolution } from 'pixifact';
 import { normalizeSceneAssetId } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
+import {
+    selectCompilerSceneNode,
+    selectCompilerSceneRoot,
+} from '../document/compilerSceneDocumentController';
 import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import { createCompilerSceneRuntimePreview, destroyCompilerSceneRuntimePreview } from './compilerSceneRuntimePreview';
@@ -48,11 +52,18 @@ export interface CompilerSceneViewportHandle {
     toggleGrid: () => void;
 }
 
-interface SelectionRect {
+export interface CompilerSceneRect {
     x: number;
     y: number;
     width: number;
     height: number;
+}
+
+type SelectionRect = CompilerSceneRect;
+
+export interface CompilerSceneHitTarget {
+    bounds?: CompilerSceneRect;
+    locator?: string;
 }
 
 interface ViewportModel {
@@ -172,6 +183,56 @@ export function resizeManualViewportTransform(
     };
 }
 
+function compilerSceneRectIsVisible(rect: CompilerSceneRect) {
+    return Number.isFinite(rect.x)
+        && Number.isFinite(rect.y)
+        && Number.isFinite(rect.width)
+        && Number.isFinite(rect.height)
+        && rect.width > 0
+        && rect.height > 0;
+}
+
+export function compilerScenePointInRect(point: ViewportPoint, rect: CompilerSceneRect) {
+    return point.x >= rect.x
+        && point.x <= rect.x + rect.width
+        && point.y >= rect.y
+        && point.y <= rect.y + rect.height;
+}
+
+export function isEditableCompilerSceneHitTarget(target: CompilerSceneHitTarget) {
+    const finalSegment = target.locator?.split('/').at(-1);
+    return Boolean(
+        target.locator
+        && target.locator !== '__scene__'
+        && !finalSegment?.startsWith('slot:')
+        && target.bounds
+        && compilerSceneRectIsVisible(target.bounds),
+    );
+}
+
+export function pickTopCompilerSceneHit(targets: readonly CompilerSceneHitTarget[], point: ViewportPoint) {
+    for (let index = targets.length - 1; index >= 0; index -= 1) {
+        const target = targets[index];
+        if (!isEditableCompilerSceneHitTarget(target) || !target.bounds) {
+            continue;
+        }
+        if (compilerScenePointInRect(point, target.bounds)) {
+            return target.locator;
+        }
+    }
+    return undefined;
+}
+
+export function selectCompilerSceneViewportHit(targets: readonly CompilerSceneHitTarget[], point: ViewportPoint) {
+    const locator = pickTopCompilerSceneHit(targets, point);
+    if (locator) {
+        selectCompilerSceneNode(locator);
+        return { type: 'node' as const, node: locator };
+    }
+    selectCompilerSceneRoot();
+    return { type: 'scene' as const };
+}
+
 function selectedCompilerNode(document: CompilerSceneDocument) {
     return document.selection.type === 'node' && document.selection.node !== '__scene__'
         ? document.selection.node
@@ -195,7 +256,7 @@ export function compilerSceneSelectionRect(target: Pick<Container, 'getBounds'> 
     }
 
     const bounds = target.getBounds();
-    if (!Number.isFinite(bounds.x) || !Number.isFinite(bounds.y) || bounds.width <= 0 || bounds.height <= 0) {
+    if (!compilerSceneRectIsVisible(bounds)) {
         return undefined;
     }
 
@@ -230,6 +291,13 @@ function gridStyle(model: ViewportModel): React.CSSProperties {
     };
 }
 
+function compilerSceneHitTargets(nodes: Map<string, Pick<Container, 'getBounds'>>): CompilerSceneHitTarget[] {
+    return [...nodes.entries()].map(([locator, target]) => ({
+        locator,
+        bounds: compilerSceneSelectionRect(target),
+    }));
+}
+
 export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, CompilerSceneViewportProps>(
     function CompilerSceneViewport({
         document,
@@ -244,6 +312,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         const selectedNodeRef = useRef<string | undefined>(undefined);
         const spacePressedRef = useRef(false);
         const panRef = useRef<{ pointerId: number; last: ViewportPoint } | undefined>(undefined);
+        const clickRef = useRef<{ pointerId: number; start: ViewportPoint } | undefined>(undefined);
         const [viewport, setViewport] = useState<ViewportSize>({ width: previewWidth, height: previewHeight });
         const [model, setModel] = useState<ViewportModel>(() => defaultViewportModel(projectResolution));
         const [outline, setOutline] = useState<SelectionRect | undefined>(undefined);
@@ -422,6 +491,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 previewRef.current = undefined;
                 nodesRef.current = new Map();
                 panRef.current = undefined;
+                clickRef.current = undefined;
                 spacePressedRef.current = false;
                 destroyPreview();
                 destroyApp();
@@ -444,6 +514,13 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
             const middleButton = event.button === 1;
             const spaceLeftButton = event.button === 0 && spacePressedRef.current;
             if (!middleButton && !spaceLeftButton) {
+                if (event.button === 0) {
+                    hostRef.current?.focus();
+                    clickRef.current = {
+                        pointerId: event.pointerId,
+                        start: clientPoint(event),
+                    };
+                }
                 return;
             }
 
@@ -459,6 +536,13 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         const movePan = (event: React.PointerEvent<HTMLDivElement>) => {
             const pan = panRef.current;
             if (!pan || pan.pointerId !== event.pointerId) {
+                const click = clickRef.current;
+                if (click?.pointerId === event.pointerId) {
+                    const nextPoint = clientPoint(event);
+                    if (Math.hypot(nextPoint.x - click.start.x, nextPoint.y - click.start.y) > 4) {
+                        clickRef.current = undefined;
+                    }
+                }
                 return;
             }
             event.preventDefault();
@@ -482,6 +566,21 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
             if (panRef.current?.pointerId === event.pointerId) {
                 panRef.current = undefined;
                 hostRef.current?.releasePointerCapture(event.pointerId);
+                return;
+            }
+            if (clickRef.current?.pointerId === event.pointerId) {
+                clickRef.current = undefined;
+                selectCompilerSceneViewportHit(compilerSceneHitTargets(nodesRef.current), clientPoint(event));
+            }
+        };
+
+        const cancelPointer = (event: React.PointerEvent<HTMLDivElement>) => {
+            if (panRef.current?.pointerId === event.pointerId) {
+                panRef.current = undefined;
+                hostRef.current?.releasePointerCapture(event.pointerId);
+            }
+            if (clickRef.current?.pointerId === event.pointerId) {
+                clickRef.current = undefined;
             }
         };
 
@@ -514,7 +613,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 className="pixifactViewportHost"
                 onKeyDown={handleKeyDown}
                 onKeyUp={handleKeyUp}
-                onPointerCancel={endPan}
+                onPointerCancel={cancelPointer}
                 onPointerDown={beginPan}
                 onPointerMove={movePan}
                 onPointerUp={endPan}

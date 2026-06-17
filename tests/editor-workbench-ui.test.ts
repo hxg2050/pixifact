@@ -17,11 +17,15 @@ import {
     actualSizeViewportTransform,
     clampViewportScale,
     compilerScenePreviewEventFeatures,
+    compilerScenePointInRect,
     compilerSceneSelectionRect,
     fitViewportTransform,
     gridTransformStyle,
+    isEditableCompilerSceneHitTarget,
     panViewportTransform,
+    pickTopCompilerSceneHit,
     resizeManualViewportTransform,
+    selectCompilerSceneViewportHit,
     viewportDeltaToSceneDelta,
     viewportPointToScenePoint,
     viewportTransformStyle,
@@ -393,6 +397,80 @@ describe('Editor workbench UI', () => {
     });
 
     it('uses transformed Pixi bounds directly for compiler viewport selection overlays', () => {
+        expect(compilerScenePointInRect({ x: 24, y: 36 }, {
+            x: 24,
+            y: 36,
+            width: 120,
+            height: 48,
+        })).toBe(true);
+        expect(compilerScenePointInRect({ x: 145, y: 36 }, {
+            x: 24,
+            y: 36,
+            width: 120,
+            height: 48,
+        })).toBe(false);
+        expect(isEditableCompilerSceneHitTarget({
+            locator: '0:label',
+            bounds: {
+                x: 24,
+                y: 36,
+                width: 120,
+                height: 48,
+            },
+        })).toBe(true);
+        expect(isEditableCompilerSceneHitTarget({
+            locator: '__scene__',
+            bounds: {
+                x: 0,
+                y: 0,
+                width: 960,
+                height: 540,
+            },
+        })).toBe(false);
+        expect(isEditableCompilerSceneHitTarget({
+            locator: '0:panel/slot:default',
+            bounds: {
+                x: 0,
+                y: 0,
+                width: 120,
+                height: 40,
+            },
+        })).toBe(false);
+        expect(isEditableCompilerSceneHitTarget({
+            locator: '0:hidden',
+            bounds: {
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 40,
+            },
+        })).toBe(false);
+        expect(pickTopCompilerSceneHit([{
+            locator: '0:back',
+            bounds: {
+                x: 0,
+                y: 0,
+                width: 120,
+                height: 80,
+            },
+        }, {
+            locator: '1:front',
+            bounds: {
+                x: 20,
+                y: 20,
+                width: 120,
+                height: 80,
+            },
+        }], { x: 40, y: 40 })).toBe('1:front');
+        expect(pickTopCompilerSceneHit([{
+            locator: '0:back',
+            bounds: {
+                x: 0,
+                y: 0,
+                width: 120,
+                height: 80,
+            },
+        }], { x: 200, y: 200 })).toBeUndefined();
         expect(compilerSceneSelectionRect({
             getBounds: () => ({
                 x: 24,
@@ -524,6 +602,38 @@ describe('Editor workbench UI', () => {
         } finally {
             await view.cleanup();
         }
+    });
+
+    it('selects compiler scene nodes from viewport clicks and clears on empty space', async () => {
+        expect(getCompilerSceneDocument()?.selection).toEqual({ type: 'scene' });
+
+        expect(selectCompilerSceneViewportHit([{
+            locator: '0:label',
+            bounds: {
+                x: 0,
+                y: 0,
+                width: 120,
+                height: 40,
+            },
+        }], { x: 24, y: 20 })).toEqual({
+            type: 'node',
+            node: '0:label',
+        });
+        expect(getCompilerSceneDocument()?.selection).toEqual({
+            type: 'node',
+            node: '0:label',
+        });
+
+        expect(selectCompilerSceneViewportHit([{
+            locator: '0:label',
+            bounds: {
+                x: 0,
+                y: 0,
+                width: 120,
+                height: 40,
+            },
+        }], { x: 240, y: 200 })).toEqual({ type: 'scene' });
+        expect(getCompilerSceneDocument()?.selection).toEqual({ type: 'scene' });
     });
 
     it('shows a plain Project Shelf as a single tree with selected item details in a separate panel', async () => {

@@ -164,6 +164,17 @@ export function selectCompilerSceneNode(node: string) {
     emitCompilerSceneUpdate();
 }
 
+export function selectCompilerSceneRoot() {
+    if (!document) {
+        return;
+    }
+    document = {
+        ...document,
+        selection: { type: 'scene' },
+    };
+    emitCompilerSceneUpdate();
+}
+
 export function updateCompilerSceneTemplate(updates: {
     name?: string;
     props?: Record<string, SceneTemplateValue | undefined>;
