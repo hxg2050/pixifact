@@ -16,6 +16,7 @@ import {
 import {
     actualSizeViewportTransform,
     clampViewportScale,
+    compilerScenePreviewEventFeatures,
     compilerSceneSelectionRect,
     fitViewportTransform,
     gridTransformStyle,
@@ -366,6 +367,12 @@ describe('Editor workbench UI', () => {
             scale: 1.5,
             offset: { x: 140, y: 210 },
         });
+        expect(compilerScenePreviewEventFeatures).toEqual({
+            click: false,
+            globalMove: false,
+            move: false,
+            wheel: false,
+        });
     });
 
     it('uses transformed Pixi bounds directly for compiler viewport selection overlays', () => {
@@ -464,7 +471,8 @@ describe('Editor workbench UI', () => {
             const editorStyles = readFileSync('apps/editor/src/styles.css', 'utf8');
             expect(editorStyles).toContain('.canvasWrap {\n    display: flex;\n    min-height: 0;\n    align-items: stretch;\n    justify-content: stretch;\n    background: #e8edf4;\n    padding: 8px;');
             expect(editorStyles).toContain('.compilerSceneGrid {\n    position: absolute;\n    top: 0;\n    left: 0;\n    z-index: 0;');
-            expect(editorStyles).toContain('.pixifactCanvas {\n    position: relative;\n    z-index: 1;\n    pointer-events: none;');
+            expect(editorStyles).toContain('.pixifactCanvas {\n    position: relative;\n    z-index: 1;');
+            expect(editorStyles).toContain('.compilerSceneCanvas {\n    pointer-events: none;\n}');
             expect(editorStyles).toContain('.compilerSceneOverlay {\n    position: absolute;\n    inset: 0;\n    z-index: 2;');
 
             await act(async () => {

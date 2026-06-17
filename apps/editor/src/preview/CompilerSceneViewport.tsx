@@ -67,6 +67,13 @@ const gridPlaneOffset = 12000;
 const minViewportScale = 0.1;
 const maxViewportScale = 8;
 
+export const compilerScenePreviewEventFeatures = {
+    click: false,
+    globalMove: false,
+    move: false,
+    wheel: false,
+};
+
 export function clampViewportScale(scale: number) {
     return Math.min(maxViewportScale, Math.max(minViewportScale, scale));
 }
@@ -340,6 +347,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                         backgroundAlpha: 0,
                         antialias: true,
                         autoDensity: true,
+                        eventFeatures: compilerScenePreviewEventFeatures,
                         resolution: Math.min(window.devicePixelRatio || 1, 2),
                     });
                     initialized = true;
@@ -379,7 +387,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                         transform,
                     }));
                     setOutline(compilerSceneSelectionRect(nodesRef.current.get(selectedNodeRef.current ?? '')));
-                    app.canvas.className = 'pixifactCanvas';
+                    app.canvas.className = 'pixifactCanvas compilerSceneCanvas';
                     host.appendChild(app.canvas);
                     setStatus('');
                 } catch (error) {
