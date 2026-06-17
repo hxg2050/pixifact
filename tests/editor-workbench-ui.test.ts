@@ -13,6 +13,14 @@ import {
     selectCompilerSceneNode,
     updateCompilerSceneTemplate,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
+import {
+    actualSizeViewportTransform,
+    clampViewportScale,
+    compilerSceneSelectionRect,
+    fitViewportTransform,
+    resizeManualViewportTransform,
+    zoomViewportTransform,
+} from '../apps/editor/src/preview/CompilerSceneViewport';
 import { parseSceneTemplate } from '../packages/pixifact/src/compiler/templateParser';
 
 const host = vi.hoisted(() => ({
@@ -286,6 +294,72 @@ afterEach(() => {
 });
 
 describe('Editor workbench UI', () => {
+    it('calculates compiler viewport transforms for fit, actual size, zoom, and resize', () => {
+        expect(fitViewportTransform(
+            { width: 960, height: 540 },
+            { width: 480, height: 270 },
+        )).toEqual({
+            scale: 0.5,
+            offset: { x: 0, y: 0 },
+        });
+        expect(fitViewportTransform(
+            { width: 320, height: 180 },
+            { width: 1600, height: 900 },
+        )).toEqual({
+            scale: 4,
+            offset: { x: 160, y: 90 },
+        });
+        expect(actualSizeViewportTransform(
+            { width: 960, height: 540 },
+            { width: 1200, height: 800 },
+        )).toEqual({
+            scale: 1,
+            offset: { x: 120, y: 130 },
+        });
+        expect(clampViewportScale(0.01)).toBe(0.1);
+        expect(clampViewportScale(20)).toBe(8);
+        expect(zoomViewportTransform(
+            { scale: 1, offset: { x: 100, y: 50 } },
+            { x: 300, y: 250 },
+            2,
+        )).toEqual({
+            scale: 2,
+            offset: { x: -100, y: -150 },
+        });
+        expect(resizeManualViewportTransform(
+            { scale: 1.5, offset: { x: 40, y: 60 } },
+            { width: 800, height: 600 },
+            { width: 1000, height: 900 },
+        )).toEqual({
+            scale: 1.5,
+            offset: { x: 140, y: 210 },
+        });
+    });
+
+    it('uses transformed Pixi bounds directly for compiler viewport selection overlays', () => {
+        expect(compilerSceneSelectionRect({
+            getBounds: () => ({
+                x: 24,
+                y: 36,
+                width: 120,
+                height: 48,
+            }),
+        })).toEqual({
+            x: 24,
+            y: 36,
+            width: 120,
+            height: 48,
+        });
+        expect(compilerSceneSelectionRect({
+            getBounds: () => ({
+                x: 24,
+                y: 36,
+                width: 0,
+                height: 48,
+            }),
+        })).toBeUndefined();
+    });
+
     it('renders the Dockview Scene workbench with Project Shelf as a dock panel', async () => {
         let dockviewApi: DockviewApi | undefined;
         const view = await renderEditorApp({ onDockviewReady: (api) => {
@@ -328,6 +402,49 @@ describe('Editor workbench UI', () => {
             expect(leftColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['hierarchy', 'project']);
             expect(panelIdFromGroup(centerPanel?.data)).toBe('preview');
             expect(rightColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['inspector', 'projectPreview']);
+        } finally {
+            await view.cleanup();
+        }
+    });
+
+    it('wires compiler viewport toolbar controls to visible state', async () => {
+        const view = await renderEditorApp();
+        try {
+            const viewport = view.container.querySelector('[data-testid="viewport-stage"]');
+            const actions = view.container.querySelector('.viewportActions');
+            const fitButton = [...(actions?.querySelectorAll('button') ?? [])]
+                .find((button) => button.textContent === '适配');
+            const gridButton = [...(actions?.querySelectorAll('button') ?? [])]
+                .find((button) => button.textContent === '网格');
+            const actualSizeButton = [...(actions?.querySelectorAll('button') ?? [])]
+                .find((button) => button.textContent === '100%');
+
+            expect(viewport).toBeTruthy();
+            expect(actualSizeButton).toBeTruthy();
+            expect(fitButton).toBeTruthy();
+            expect(gridButton).toBeTruthy();
+            expect(fitButton?.getAttribute('aria-pressed')).toBe('true');
+            expect(gridButton?.getAttribute('aria-pressed')).toBe('false');
+            expect(view.container.querySelector('.compilerSceneGrid')).toBeFalsy();
+
+            await act(async () => {
+                click(gridButton!);
+            });
+
+            expect(gridButton?.getAttribute('aria-pressed')).toBe('true');
+            expect(view.container.querySelector('.compilerSceneGrid')).toBeTruthy();
+
+            await act(async () => {
+                click(actualSizeButton!);
+            });
+
+            expect(fitButton?.getAttribute('aria-pressed')).toBe('false');
+
+            await act(async () => {
+                click(fitButton!);
+            });
+
+            expect(fitButton?.getAttribute('aria-pressed')).toBe('true');
         } finally {
             await view.cleanup();
         }
