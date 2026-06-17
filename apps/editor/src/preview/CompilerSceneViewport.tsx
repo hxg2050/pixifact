@@ -63,6 +63,7 @@ interface ViewportModel {
 const previewWidth = 960;
 const previewHeight = 540;
 const gridSize = 24;
+const gridPlaneOffset = 12000;
 const minViewportScale = 0.1;
 const maxViewportScale = 8;
 
@@ -135,6 +136,18 @@ export function panViewportTransform(current: ViewportTransform, delta: Viewport
     };
 }
 
+export function viewportTransformStyle(transform: ViewportTransform): React.CSSProperties {
+    return {
+        transform: `translate(${transform.offset.x}px, ${transform.offset.y}px) scale(${transform.scale})`,
+    };
+}
+
+export function gridTransformStyle(transform: ViewportTransform): React.CSSProperties {
+    return {
+        transform: `translate(${transform.offset.x - gridPlaneOffset * transform.scale}px, ${transform.offset.y - gridPlaneOffset * transform.scale}px) scale(${transform.scale})`,
+    };
+}
+
 export function resizeManualViewportTransform(
     current: ViewportTransform,
     previousViewport: ViewportSize,
@@ -200,10 +213,9 @@ function applyTransform(root: Container | undefined, transform: ViewportTransfor
 }
 
 function gridStyle(model: ViewportModel): React.CSSProperties {
-    const size = Math.max(1, gridSize * model.transform.scale);
     return {
-        backgroundPosition: `${model.transform.offset.x}px ${model.transform.offset.y}px`,
-        backgroundSize: `${size}px ${size}px`,
+        ...gridTransformStyle(model.transform),
+        backgroundSize: `${gridSize}px ${gridSize}px`,
     };
 }
 
@@ -325,8 +337,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                     await app.init({
                         width: initialViewport.width,
                         height: initialViewport.height,
-                        background: 0x020617,
-                        backgroundAlpha: 1,
+                        backgroundAlpha: 0,
                         antialias: true,
                         autoDensity: true,
                         resolution: Math.min(window.devicePixelRatio || 1, 2),

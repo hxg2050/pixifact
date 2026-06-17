@@ -18,10 +18,12 @@ import {
     clampViewportScale,
     compilerSceneSelectionRect,
     fitViewportTransform,
+    gridTransformStyle,
     panViewportTransform,
     resizeManualViewportTransform,
     viewportDeltaToSceneDelta,
     viewportPointToScenePoint,
+    viewportTransformStyle,
     zoomViewportTransform,
 } from '../apps/editor/src/preview/CompilerSceneViewport';
 import { parseSceneTemplate } from '../packages/pixifact/src/compiler/templateParser';
@@ -344,6 +346,18 @@ describe('Editor workbench UI', () => {
             scale: 1.5,
             offset: { x: 60, y: 50 },
         });
+        expect(viewportTransformStyle({
+            scale: 1.5,
+            offset: { x: 60, y: 50 },
+        })).toEqual({
+            transform: 'translate(60px, 50px) scale(1.5)',
+        });
+        expect(gridTransformStyle({
+            scale: 1.5,
+            offset: { x: 60, y: 50 },
+        })).toEqual({
+            transform: 'translate(-17940px, -17950px) scale(1.5)',
+        });
         expect(resizeManualViewportTransform(
             { scale: 1.5, offset: { x: 40, y: 60 } },
             { width: 800, height: 600 },
@@ -443,8 +457,15 @@ describe('Editor workbench UI', () => {
             expect(gridButton).toBeTruthy();
             expect(fitButton?.getAttribute('aria-pressed')).toBe('true');
             expect(gridButton?.getAttribute('aria-pressed')).toBe('true');
-            expect(view.container.querySelector('.compilerSceneGrid')).toBeTruthy();
-            expect(view.container.querySelector('.compilerSceneBounds')).toBeTruthy();
+            const grid = view.container.querySelector('.compilerSceneGrid');
+            const bounds = view.container.querySelector('.compilerSceneBounds');
+            expect(grid).toBeTruthy();
+            expect(bounds).toBeTruthy();
+            const editorStyles = readFileSync('apps/editor/src/styles.css', 'utf8');
+            expect(editorStyles).toContain('.canvasWrap {\n    display: flex;\n    min-height: 0;\n    align-items: stretch;\n    justify-content: stretch;\n    background: #e8edf4;\n    padding: 8px;');
+            expect(editorStyles).toContain('.compilerSceneGrid {\n    position: absolute;\n    top: 0;\n    left: 0;\n    z-index: 0;');
+            expect(editorStyles).toContain('.pixifactCanvas {\n    position: relative;\n    z-index: 1;');
+            expect(editorStyles).toContain('.compilerSceneOverlay {\n    position: absolute;\n    inset: 0;\n    z-index: 2;');
 
             await act(async () => {
                 click(gridButton!);
