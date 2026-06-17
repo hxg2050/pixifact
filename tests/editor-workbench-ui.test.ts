@@ -141,6 +141,12 @@ function projectTree(): ProjectFileTreeNode {
         systemPath: '/repo/GameProject',
         projectRootPath: '/repo/GameProject',
         children: [{
+            id: 'GameProject/pixifact.project.json',
+            name: 'pixifact.project.json',
+            path: 'GameProject/pixifact.project.json',
+            kind: 'unknown',
+            depth: 1,
+        }, {
             id: 'GameProject/src',
             name: 'src',
             path: 'GameProject/src',
@@ -273,6 +279,17 @@ beforeEach(() => {
     });
     localStorage.clear();
     host.files = new Map([
+        ['GameProject/pixifact.project.json', JSON.stringify({
+            version: 1,
+            name: 'Game Project',
+            resolution: {
+                width: 640,
+                height: 1136,
+            },
+            scenes: {
+                button: 'src/scenes/Button.scene',
+            },
+        })],
         ['GameProject/src/scenes/Button.scene', currentScene()],
         ['GameProject/src/scenes/Child.scene', '<Scene name="Child" />\n'],
         ['GameProject/src/scenes/Button.ts', '@scene()\nexport class Button {}\n'],
@@ -449,6 +466,10 @@ describe('Editor workbench UI', () => {
     it('wires compiler viewport toolbar controls to visible state', async () => {
         const view = await renderEditorApp();
         try {
+            await act(async () => {
+                await Promise.resolve();
+                await Promise.resolve();
+            });
             const viewport = view.container.querySelector('[data-testid="viewport-stage"]');
             const actions = view.container.querySelector('.viewportActions');
             const fitButton = [...(actions?.querySelectorAll('button') ?? [])]
@@ -466,14 +487,21 @@ describe('Editor workbench UI', () => {
             expect(gridButton?.getAttribute('aria-pressed')).toBe('true');
             const grid = view.container.querySelector('.compilerSceneGrid');
             const bounds = view.container.querySelector('.compilerSceneBounds');
+            const resolutionBounds = view.container.querySelector('.compilerSceneResolutionBounds');
             expect(grid).toBeTruthy();
             expect(bounds).toBeTruthy();
+            expect(resolutionBounds).toBeTruthy();
+            expect(resolutionBounds?.getAttribute('x')).toBe(bounds?.getAttribute('x'));
+            expect(resolutionBounds?.getAttribute('y')).toBe(bounds?.getAttribute('y'));
+            expect(Number(resolutionBounds?.getAttribute('width'))).toBe(640);
+            expect(Number(resolutionBounds?.getAttribute('height'))).toBe(1136);
             const editorStyles = readFileSync('apps/editor/src/styles.css', 'utf8');
             expect(editorStyles).toContain('.canvasWrap {\n    display: flex;\n    min-height: 0;\n    align-items: stretch;\n    justify-content: stretch;\n    background: #e8edf4;\n    padding: 8px;');
             expect(editorStyles).toContain('.compilerSceneGrid {\n    position: absolute;\n    top: 0;\n    left: 0;\n    z-index: 0;');
             expect(editorStyles).toContain('.pixifactCanvas {\n    position: relative;\n    z-index: 1;');
             expect(editorStyles).toContain('.compilerSceneCanvas {\n    pointer-events: none;\n}');
             expect(editorStyles).toContain('.compilerSceneOverlay {\n    position: absolute;\n    inset: 0;\n    z-index: 2;');
+            expect(editorStyles).toContain('.compilerSceneResolutionBounds {');
 
             await act(async () => {
                 click(gridButton!);

@@ -1411,6 +1411,12 @@ textarea {
     stroke-width: 1.5;
 }
 
+.compilerSceneResolutionBounds {
+    stroke: rgba(37, 99, 235, 0.58);
+    stroke-dasharray: 8 6;
+    stroke-width: 1.5;
+}
+
 .compilerSceneSelection {
     stroke: #16a34a;
     stroke-width: 2;

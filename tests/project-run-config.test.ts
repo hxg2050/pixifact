@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+    defaultPixifactProjectResolution,
     parsePixifactProjectConfig,
     pixifactProjectConfigFileName,
     summarizePixifactProjectConfig,
@@ -12,6 +13,10 @@ describe('Pixifact project run config', () => {
         const config = parsePixifactProjectConfig({
             version: 1,
             name: 'Space HUD Game',
+            resolution: {
+                width: 720,
+                height: 1280,
+            },
             scenes: {
                 hud: 'scenes/Hud.scene',
                 gameOver: 'scenes/GameOver.scene',
@@ -28,6 +33,10 @@ describe('Pixifact project run config', () => {
         expect(config).toEqual({
             version: 1,
             name: 'Space HUD Game',
+            resolution: {
+                width: 720,
+                height: 1280,
+            },
             scenes: {
                 hud: 'scenes/Hud.scene',
                 gameOver: 'scenes/GameOver.scene',
@@ -41,6 +50,10 @@ describe('Pixifact project run config', () => {
         });
         expect(summarizePixifactProjectConfig(config)).toEqual({
             name: 'Space HUD Game',
+            resolution: {
+                width: 720,
+                height: 1280,
+            },
             scenes: config.scenes,
             run: config.run,
         });
@@ -79,12 +92,36 @@ describe('Pixifact project run config', () => {
         });
 
         expect(config.run).toBeUndefined();
+        expect(config.resolution).toEqual(defaultPixifactProjectResolution);
         expect(summarizePixifactProjectConfig(config)).toEqual({
             name: 'Scene Only Project',
+            resolution: defaultPixifactProjectResolution,
             scenes: {
                 hud: 'scenes/Hud.scene',
             },
         });
+    });
+
+    it('rejects invalid project resolution data', () => {
+        expect(() => parsePixifactProjectConfig({
+            version: 1,
+            name: 'Bad Game',
+            resolution: {
+                width: 0,
+                height: 1334,
+            },
+            scenes: {},
+        })).toThrow('resolution.width must be a positive number');
+
+        expect(() => parsePixifactProjectConfig({
+            version: 1,
+            name: 'Bad Game',
+            resolution: {
+                width: 750,
+                height: '1334',
+            },
+            scenes: {},
+        })).toThrow('resolution.height must be a positive number');
     });
 
     it('rejects project paths outside projectRoot', () => {

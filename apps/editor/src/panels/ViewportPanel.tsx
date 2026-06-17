@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { defaultPixifactProjectResolution } from 'pixifact';
 import { getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
@@ -6,7 +7,9 @@ import {
     CompilerSceneViewport,
     type CompilerSceneViewportHandle,
     type CompilerSceneViewportState,
+    type ViewportSize,
 } from '../preview/CompilerSceneViewport';
+import { readPixifactProjectConfig } from '../services/editorRunService';
 import { useCompilerSceneRevision } from './common';
 
 function viewportStateLabel(state: CompilerSceneViewportState | undefined) {
@@ -23,11 +26,29 @@ export function ViewportPanel() {
     const compilerDocument = getCompilerSceneDocument();
     const viewportRef = useRef<CompilerSceneViewportHandle | null>(null);
     const [viewportState, setViewportState] = useState<CompilerSceneViewportState | undefined>(undefined);
+    const [projectResolution, setProjectResolution] = useState<ViewportSize>(defaultPixifactProjectResolution);
     const t = useI18n();
     const isCompilerScene = openedScenePath && compilerDocument?.scenePath === openedScenePath;
     const handleViewportStateChange = useCallback((state: CompilerSceneViewportState) => {
         setViewportState(state);
     }, []);
+
+    useEffect(() => {
+        if (!projectTree) {
+            setProjectResolution(defaultPixifactProjectResolution);
+            return;
+        }
+        let cancelled = false;
+        void readPixifactProjectConfig(projectTree)
+            .then((config) => {
+                if (!cancelled) {
+                    setProjectResolution(config?.resolution ?? defaultPixifactProjectResolution);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [projectTree]);
 
     return (
         <main className="viewportSurface" aria-label={t('viewportLabel')}>
@@ -71,6 +92,7 @@ export function ViewportPanel() {
                             <CompilerSceneViewport
                                 document={compilerDocument}
                                 onStateChange={handleViewportStateChange}
+                                projectResolution={projectResolution}
                                 projectTree={projectTree}
                                 ref={viewportRef}
                             />

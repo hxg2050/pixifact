@@ -77,7 +77,7 @@ function summarizeStatus(
     };
 }
 
-export async function readProjectRunConfig(projectTree: ProjectFileTreeNode): Promise<PixifactProjectConfig | undefined> {
+export async function readPixifactProjectConfig(projectTree: ProjectFileTreeNode): Promise<PixifactProjectConfig | undefined> {
     const configPath = `${projectTree.path}/${pixifactProjectConfigFileName}`;
     const configFile = findFileByPath(projectTree, configPath);
     if (!configFile) {
@@ -87,8 +87,10 @@ export async function readProjectRunConfig(projectTree: ProjectFileTreeNode): Pr
     return parsePixifactProjectConfig(JSON.parse(content));
 }
 
+export const readProjectRunConfig = readPixifactProjectConfig;
+
 export async function createReadyRunStatus(projectTree: ProjectFileTreeNode): Promise<EditorRunStatus> {
-    const config = await readProjectRunConfig(projectTree);
+    const config = await readPixifactProjectConfig(projectTree);
     if (!config?.run) {
         return emptyStatus('unconfigured');
     }
@@ -103,7 +105,7 @@ export async function startEditorRun(projectTree: ProjectFileTreeNode, dirty: bo
     if (dirty) {
         throw new EditorRunServiceError('当前 Scene 有未保存修改，请先保存后再运行。');
     }
-    const config = await readProjectRunConfig(projectTree);
+    const config = await readPixifactProjectConfig(projectTree);
     if (!config?.run) {
         return emptyStatus('unconfigured');
     }

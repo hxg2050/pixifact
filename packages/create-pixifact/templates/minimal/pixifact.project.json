@@ -1,6 +1,10 @@
 {
   "version": 1,
   "name": "Pixifact Game",
+  "resolution": {
+    "width": 750,
+    "height": 1334
+  },
   "scenes": {
     "mainMenu": "src/scenes/MainMenu.scene"
   },

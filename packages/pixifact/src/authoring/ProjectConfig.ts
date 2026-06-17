@@ -7,18 +7,30 @@ export interface PixifactProjectRunConfig {
     url?: string;
 }
 
+export interface PixifactProjectResolution {
+    width: number;
+    height: number;
+}
+
 export interface PixifactProjectConfig {
     version: 1;
     name: string;
+    resolution: PixifactProjectResolution;
     scenes: Record<string, string>;
     run?: PixifactProjectRunConfig;
 }
 
 export interface PixifactProjectSummary {
     name: string;
+    resolution: PixifactProjectResolution;
     scenes: Record<string, string>;
     run?: PixifactProjectRunConfig;
 }
+
+export const defaultPixifactProjectResolution: PixifactProjectResolution = {
+    width: 750,
+    height: 1334,
+};
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -36,6 +48,13 @@ function assertString(value: unknown, name: string) {
         throw new Error(`${name} must be a non-empty string.`);
     }
     return value.trim();
+}
+
+function assertPositiveNumber(value: unknown, name: string) {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+        throw new Error(`${name} must be a positive number.`);
+    }
+    return value;
 }
 
 function normalizeProjectPath(value: unknown, name: string) {
@@ -69,6 +88,17 @@ function parseScenes(value: unknown) {
     ]));
 }
 
+function parseResolution(value: unknown): PixifactProjectResolution {
+    if (value === undefined) {
+        return defaultPixifactProjectResolution;
+    }
+    const resolution = assertRecord(value, 'resolution');
+    return {
+        width: assertPositiveNumber(resolution.width, 'resolution.width'),
+        height: assertPositiveNumber(resolution.height, 'resolution.height'),
+    };
+}
+
 function parseRun(value: unknown): PixifactProjectRunConfig | undefined {
     if (value === undefined) {
         return undefined;
@@ -93,6 +123,7 @@ export function parsePixifactProjectConfig(value: unknown): PixifactProjectConfi
     return {
         version: 1,
         name: assertString(config.name, 'name'),
+        resolution: parseResolution(config.resolution),
         scenes: parseScenes(config.scenes),
         run: parseRun(config.run),
     };
@@ -101,6 +132,7 @@ export function parsePixifactProjectConfig(value: unknown): PixifactProjectConfi
 export function summarizePixifactProjectConfig(config: PixifactProjectConfig): PixifactProjectSummary {
     return {
         name: config.name,
+        resolution: config.resolution,
         scenes: config.scenes,
         ...(config.run === undefined ? {} : { run: config.run }),
     };

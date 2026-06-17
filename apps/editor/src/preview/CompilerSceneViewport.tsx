@@ -7,6 +7,7 @@ import {
     useState,
 } from 'react';
 import { Application as PixiApplication, Container } from 'pixi.js';
+import { defaultPixifactProjectResolution } from 'pixifact';
 import { normalizeSceneAssetId } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
@@ -14,6 +15,7 @@ import { createCompilerSceneRuntimePreview, destroyCompilerSceneRuntimePreview }
 
 interface CompilerSceneViewportProps {
     document: CompilerSceneDocument;
+    projectResolution?: ViewportSize;
     projectTree: ProjectFileTreeNode;
     onStateChange?: (state: CompilerSceneViewportState) => void;
 }
@@ -56,6 +58,7 @@ interface SelectionRect {
 interface ViewportModel {
     gridVisible: boolean;
     mode: 'fit' | 'manual';
+    projectResolution: ViewportSize;
     scene: ViewportSize;
     transform: ViewportTransform;
 }
@@ -175,11 +178,12 @@ function selectedCompilerNode(document: CompilerSceneDocument) {
         : undefined;
 }
 
-function defaultViewportModel(): ViewportModel {
+function defaultViewportModel(projectResolution: ViewportSize = defaultPixifactProjectResolution): ViewportModel {
     const scene = { width: previewWidth, height: previewHeight };
     return {
         gridVisible: true,
         mode: 'fit',
+        projectResolution,
         scene,
         transform: fitViewportTransform(scene, scene),
     };
@@ -227,7 +231,12 @@ function gridStyle(model: ViewportModel): React.CSSProperties {
 }
 
 export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, CompilerSceneViewportProps>(
-    function CompilerSceneViewport({ document, projectTree, onStateChange }, ref) {
+    function CompilerSceneViewport({
+        document,
+        projectResolution = defaultPixifactProjectResolution,
+        projectTree,
+        onStateChange,
+    }, ref) {
         const hostRef = useRef<HTMLDivElement | null>(null);
         const nodesRef = useRef<Map<string, Container>>(new Map());
         const previewRef = useRef<Awaited<ReturnType<typeof createCompilerSceneRuntimePreview>> | undefined>(undefined);
@@ -236,7 +245,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         const spacePressedRef = useRef(false);
         const panRef = useRef<{ pointerId: number; last: ViewportPoint } | undefined>(undefined);
         const [viewport, setViewport] = useState<ViewportSize>({ width: previewWidth, height: previewHeight });
-        const [model, setModel] = useState<ViewportModel>(() => defaultViewportModel());
+        const [model, setModel] = useState<ViewportModel>(() => defaultViewportModel(projectResolution));
         const [outline, setOutline] = useState<SelectionRect | undefined>(undefined);
         const [status, setStatus] = useState('正在初始化编译器预览');
 
@@ -284,6 +293,13 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         }, [model, onStateChange]);
 
         useEffect(() => {
+            updateModel((current) => ({
+                ...current,
+                projectResolution,
+            }));
+        }, [projectResolution, updateModel]);
+
+        useEffect(() => {
             const hostElement = hostRef.current;
             if (!hostElement) {
                 return;
@@ -297,6 +313,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
             setModel({
                 gridVisible: true,
                 mode: 'fit',
+                projectResolution,
                 scene: initialScene,
                 transform: initialTransform,
             });
@@ -511,6 +528,15 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                     className="compilerSceneOverlay"
                     viewBox={`0 0 ${viewport.width} ${viewport.height}`}
                 >
+                    <rect
+                        className="compilerSceneResolutionBounds"
+                        fill="none"
+                        height={model.projectResolution.height * model.transform.scale}
+                        vectorEffect="non-scaling-stroke"
+                        width={model.projectResolution.width * model.transform.scale}
+                        x={model.transform.offset.x}
+                        y={model.transform.offset.y}
+                    />
                     <rect
                         className="compilerSceneBounds"
                         fill="none"

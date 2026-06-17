@@ -272,6 +272,10 @@ describe('Pixifact CLI', () => {
         expect(result.exitCode).toBe(0);
         expect(result.json.project).toEqual({
             name: 'Space HUD Game',
+            resolution: {
+                width: 750,
+                height: 1334,
+            },
             scenes: {
                 hud: 'button.scene',
             },
