@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import * as Pixi from 'pixi.js';
 import { SceneDocument, buttonScene, container, scene, shape, text } from 'pixifact';
 import { parseSceneTemplate, pixiSceneFieldSchema, pixiSceneNodeDefaults, pixiSceneNodePropGroups, pixiSceneNodePropKeys } from 'pixifact/compiler';
 import {
@@ -57,6 +58,7 @@ import {
 import { isCompilerBindingSourceChange } from '../apps/editor/src/services/compilerSceneBindingSync';
 import { syncOpenedCompilerSceneFromHostChange } from '../apps/editor/src/services/compilerSceneExternalSync';
 import { addDroppedCompilerSceneInstance } from '../apps/editor/src/services/compilerSceneDrop';
+import { createCompilerSceneRuntimePreview } from '../apps/editor/src/preview/compilerSceneRuntimePreview';
 import { createSceneInstanceNode } from '../apps/editor/src/services/sceneInstance';
 import { sceneAssetName, sceneFileName, sceneRootKey } from '../apps/editor/src/services/sceneNaming';
 
@@ -850,6 +852,51 @@ describe('project file tree service', () => {
         expect(button.interface.events.click).toEqual({ type: 'action' });
         expect(button.interface.slots.icon).toEqual({});
         expect(sceneInterfaces['src/scenes/Button.scene']).toBe(button.interface);
+    });
+
+    it('loads compiler preview project textures through an explicit Pixi texture parser', async () => {
+        host.reset({
+            assets: host.directory({
+                'play.png': host.file('fake-png'),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.scene': host.file(`
+                        <Scene name="Button">
+                          <Sprite id="icon" texture="assets/play.png" />
+                        </Scene>
+                    `),
+
+                    'Button.ts': emptySceneScript('Button'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/src/scenes/Button.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+        const document = getCompilerSceneDocument();
+        const createObjectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pixifact-preview-texture');
+        const revokeObjectUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+        const loadAsset = vi.spyOn(Pixi.Assets, 'load').mockResolvedValue(Pixi.Texture.EMPTY);
+
+        try {
+            const preview = await createCompilerSceneRuntimePreview({
+                document: document!,
+                projectTree: tree,
+                scenePath: 'src/scenes/Button.scene',
+            });
+
+            expect(loadAsset).toHaveBeenCalledWith({
+                src: 'blob:pixifact-preview-texture',
+                parser: 'texture',
+            });
+            preview.dispose();
+            expect(revokeObjectUrl).toHaveBeenCalledWith('blob:pixifact-preview-texture');
+        } finally {
+            loadAsset.mockRestore();
+            createObjectUrl.mockRestore();
+            revokeObjectUrl.mockRestore();
+        }
     });
 
     it('detects compiler binding source file changes', () => {

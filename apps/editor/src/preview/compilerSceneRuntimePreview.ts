@@ -71,6 +71,14 @@ const assetMimeTypes: Record<string, string> = {
     '.webp': 'image/webp',
 };
 
+const assetParsers: Record<string, string> = {
+    '.jpg': 'texture',
+    '.jpeg': 'texture',
+    '.png': 'texture',
+    '.svg': 'svg',
+    '.webp': 'texture',
+};
+
 function numericProp(value: unknown, defaultValue: number) {
     return typeof value === 'number' ? value : defaultValue;
 }
@@ -535,7 +543,10 @@ async function loadPreviewAsset(context: PreviewRuntimeContext, source: unknown)
     const bytes = await readProjectFileBytes(context.projectTree, file);
     const objectUrl = URL.createObjectURL(new Blob([bytes as BlobPart], { type: assetMimeType(assetPath) }));
     context.objectUrls.push(objectUrl);
-    return Pixi.Assets.load(objectUrl);
+    return Pixi.Assets.load({
+        src: objectUrl,
+        parser: assetParser(assetPath),
+    });
 }
 
 function isProjectAssetReference(source: string) {
@@ -549,6 +560,10 @@ function isProjectAssetReference(source: string) {
 
 function assetMimeType(projectPath: string) {
     return assetMimeTypes[projectExtension(projectPath)] ?? 'application/octet-stream';
+}
+
+function assetParser(projectPath: string) {
+    return assetParsers[projectExtension(projectPath)];
 }
 
 function directRenderedChildren(parent: Container, expectedCount: number) {
