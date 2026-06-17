@@ -1348,12 +1348,7 @@ textarea {
     min-height: 0;
     align-items: stretch;
     justify-content: stretch;
-    background:
-        linear-gradient(90deg, rgba(100, 116, 139, 0.10) 1px, transparent 1px),
-        linear-gradient(rgba(100, 116, 139, 0.10) 1px, transparent 1px),
-        radial-gradient(circle at center, rgba(255, 255, 255, 0.65), rgba(226, 233, 242, 0.95)),
-        #e8edf4;
-    background-size: 24px 24px, 24px 24px, 100% 100%;
+    background: #e8edf4;
     padding: 28px;
 }
 

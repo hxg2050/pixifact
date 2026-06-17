@@ -101,14 +101,27 @@ export function zoomViewportTransform(
     scaleDelta: number,
 ): ViewportTransform {
     const scale = clampViewportScale(current.scale * scaleDelta);
-    const sceneX = (viewportPoint.x - current.offset.x) / current.scale;
-    const sceneY = (viewportPoint.y - current.offset.y) / current.scale;
+    const scenePoint = viewportPointToScenePoint(current, viewportPoint);
     return {
         scale,
         offset: {
-            x: viewportPoint.x - sceneX * scale,
-            y: viewportPoint.y - sceneY * scale,
+            x: viewportPoint.x - scenePoint.x * scale,
+            y: viewportPoint.y - scenePoint.y * scale,
         },
+    };
+}
+
+export function viewportPointToScenePoint(transform: ViewportTransform, point: ViewportPoint): ViewportPoint {
+    return {
+        x: (point.x - transform.offset.x) / transform.scale,
+        y: (point.y - transform.offset.y) / transform.scale,
+    };
+}
+
+export function viewportDeltaToSceneDelta(transform: Pick<ViewportTransform, 'scale'>, delta: ViewportPoint): ViewportPoint {
+    return {
+        x: delta.x / transform.scale,
+        y: delta.y / transform.scale,
     };
 }
 
@@ -145,7 +158,7 @@ function selectedCompilerNode(document: CompilerSceneDocument) {
 function defaultViewportModel(): ViewportModel {
     const scene = { width: previewWidth, height: previewHeight };
     return {
-        gridVisible: false,
+        gridVisible: true,
         mode: 'fit',
         scene,
         transform: fitViewportTransform(scene, scene),
@@ -263,7 +276,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
             viewportRef.current = initialViewport;
             setViewport(initialViewport);
             setModel({
-                gridVisible: false,
+                gridVisible: true,
                 mode: 'fit',
                 scene: initialScene,
                 transform: initialTransform,

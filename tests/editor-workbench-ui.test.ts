@@ -18,7 +18,10 @@ import {
     clampViewportScale,
     compilerSceneSelectionRect,
     fitViewportTransform,
+    panViewportTransform,
     resizeManualViewportTransform,
+    viewportDeltaToSceneDelta,
+    viewportPointToScenePoint,
     zoomViewportTransform,
 } from '../apps/editor/src/preview/CompilerSceneViewport';
 import { parseSceneTemplate } from '../packages/pixifact/src/compiler/templateParser';
@@ -326,6 +329,21 @@ describe('Editor workbench UI', () => {
             scale: 2,
             offset: { x: -100, y: -150 },
         });
+        expect(viewportPointToScenePoint(
+            { scale: 2, offset: { x: -100, y: -150 } },
+            { x: 300, y: 250 },
+        )).toEqual({ x: 200, y: 200 });
+        expect(viewportDeltaToSceneDelta(
+            { scale: 2, offset: { x: -100, y: -150 } },
+            { x: 20, y: 10 },
+        )).toEqual({ x: 10, y: 5 });
+        expect(panViewportTransform(
+            { scale: 1.5, offset: { x: 40, y: 60 } },
+            { x: 20, y: -10 },
+        )).toEqual({
+            scale: 1.5,
+            offset: { x: 60, y: 50 },
+        });
         expect(resizeManualViewportTransform(
             { scale: 1.5, offset: { x: 40, y: 60 } },
             { width: 800, height: 600 },
@@ -424,15 +442,16 @@ describe('Editor workbench UI', () => {
             expect(fitButton).toBeTruthy();
             expect(gridButton).toBeTruthy();
             expect(fitButton?.getAttribute('aria-pressed')).toBe('true');
-            expect(gridButton?.getAttribute('aria-pressed')).toBe('false');
-            expect(view.container.querySelector('.compilerSceneGrid')).toBeFalsy();
+            expect(gridButton?.getAttribute('aria-pressed')).toBe('true');
+            expect(view.container.querySelector('.compilerSceneGrid')).toBeTruthy();
+            expect(view.container.querySelector('.compilerSceneBounds')).toBeTruthy();
 
             await act(async () => {
                 click(gridButton!);
             });
 
-            expect(gridButton?.getAttribute('aria-pressed')).toBe('true');
-            expect(view.container.querySelector('.compilerSceneGrid')).toBeTruthy();
+            expect(gridButton?.getAttribute('aria-pressed')).toBe('false');
+            expect(view.container.querySelector('.compilerSceneGrid')).toBeFalsy();
 
             await act(async () => {
                 click(actualSizeButton!);
