@@ -11,8 +11,10 @@ import {
     loadCompilerSceneDocument,
     resetCompilerSceneDocument,
     selectCompilerSceneNode,
+    updateCompilerSceneNodePropsInPlace,
     updateCompilerSceneTemplate,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
+import { InspectorPanel } from '../apps/editor/src/panels/InspectorPanel';
 import {
     actualSizeViewportTransform,
     canBeginCompilerSceneMove,
@@ -48,6 +50,7 @@ const host = vi.hoisted(() => ({
     files: new Map<string, string>(),
     directories: new Set<string>(),
     fileChangedHandler: undefined as ((event: { projectRootPath: string; path: string; kind: string }) => void) | undefined,
+    readFileCalls: [] as string[],
 }));
 
 function missingHostCall(name: string) {
@@ -69,6 +72,7 @@ vi.mock('../apps/editor/src/services/hostBridge', () => ({
     pickHostProjectFolder: missingHostCall('pickHostProjectFolder'),
     readHostProjectFileBytes: vi.fn(async () => new Uint8Array()),
     readHostProjectFileText: vi.fn(async (_projectRootPath: string, filePath: string) => {
+        host.readFileCalls.push(filePath);
         const content = host.files.get(filePath);
         if (content === undefined) {
             throw new Error(`Missing test file ${filePath}.`);
@@ -209,6 +213,10 @@ function currentScene() {
     ].join('\n');
 }
 
+function currentScript() {
+    return '@scene()\nexport class Button {}\n';
+}
+
 function setEditorProject() {
     useEditorStore.setState({
         language: 'zh-CN',
@@ -307,10 +315,11 @@ beforeEach(() => {
         })],
         ['GameProject/src/scenes/Button.scene', currentScene()],
         ['GameProject/src/scenes/Child.scene', '<Scene name="Child" />\n'],
-        ['GameProject/src/scenes/Button.ts', '@scene()\nexport class Button {}\n'],
+        ['GameProject/src/scenes/Button.ts', currentScript()],
         ['GameProject/src/scenes/Child.ts', '@scene()\nexport class Child {}\n'],
     ]);
     host.directories = new Set();
+    host.readFileCalls = [];
     resetCompilerSceneDocument();
     setEditorProject();
 });
@@ -669,6 +678,41 @@ describe('Editor workbench UI', () => {
             expect(fitButton?.getAttribute('aria-pressed')).toBe('true');
         } finally {
             await view.cleanup();
+        }
+    });
+
+    it('does not re-read compiler scene binding status for node coordinate updates', async () => {
+        const container = document.createElement('div');
+        document.body.append(container);
+        const root = createRoot(container);
+        try {
+            await act(async () => {
+                root.render(createElement(InspectorPanel));
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+
+            expect(host.readFileCalls).toEqual([
+                'GameProject/src/scenes/Button.scene',
+                'GameProject/src/scenes/Button.ts',
+            ]);
+            host.readFileCalls = [];
+            selectCompilerSceneNode('0:label');
+
+            await act(async () => {
+                updateCompilerSceneNodePropsInPlace('0:label', { x: 24, y: 36 });
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+
+            expect(host.readFileCalls).toEqual([]);
+            expect((container.querySelector('[data-field-key="x"] input') as HTMLInputElement | null)?.value).toBe('24');
+            expect((container.querySelector('[data-field-key="y"] input') as HTMLInputElement | null)?.value).toBe('36');
+        } finally {
+            await act(async () => {
+                root.unmount();
+            });
+            container.remove();
         }
     });
 

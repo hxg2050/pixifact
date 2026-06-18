@@ -731,6 +731,10 @@ export function InspectorPanel() {
     const openedScenePath = useEditorStore((state) => state.openedScenePath);
     const projectTree = useEditorStore((state) => state.projectTree);
     const compilerDocument = getCompilerSceneDocument();
+    const compilerScenePath = compilerDocument?.scenePath;
+    const compilerClassName = compilerDocument?.descriptor?.className;
+    const compilerContractScene = compilerDocument?.descriptor?.scene;
+    const compilerTemplateName = compilerDocument?.template.name;
     const [error, setError] = useState<string>();
     const [compilerBindingStatus, setCompilerBindingStatus] = useState<CompilerSceneBindingStatus>();
 
@@ -739,7 +743,7 @@ export function InspectorPanel() {
     }, [openedScenePath, compilerDocument?.selection]);
 
     useEffect(() => {
-        if (!openedScenePath || !compilerDocument || compilerDocument.scenePath !== openedScenePath) {
+        if (!openedScenePath || !compilerDocument || compilerScenePath !== openedScenePath) {
             setCompilerBindingStatus(undefined);
             return;
         }
@@ -754,13 +758,13 @@ export function InspectorPanel() {
             cancelled = true;
         };
     }, [
-        compilerDocument,
+        compilerClassName,
+        compilerContractScene,
+        compilerScenePath,
+        compilerTemplateName,
         openedScenePath,
         projectTree,
         t,
-        compilerDocument?.scenePath,
-        compilerDocument?.descriptor?.scene,
-        compilerDocument?.descriptor?.className,
     ]);
 
     if (openedScenePath && compilerDocument?.scenePath === openedScenePath) {
