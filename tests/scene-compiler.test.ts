@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Container, Text } from 'pixi.js';
+import { Container, Rectangle, Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -33,6 +33,27 @@ import {
 import { compileScenes, pixifactScenesPlugin } from 'pixifact/compiler-node';
 
 describe('Pixifact scene compiler spike', () => {
+    it('keeps Group width and height as Pixifact box size without scaling', () => {
+        const group = new Group({ width: 100, height: 50 });
+
+        expect(group.width).toBe(100);
+        expect(group.height).toBe(50);
+        expect(group.getSize()).toEqual({ width: 100, height: 50 });
+        expect(group.scale.x).toBe(1);
+        expect(group.scale.y).toBe(1);
+        expect(group.hitArea).toBeInstanceOf(Rectangle);
+        expect(group.hitArea).toMatchObject({ x: 0, y: 0, width: 100, height: 50 });
+
+        group.width = 200;
+        group.height = 80;
+
+        expect(group.width).toBe(200);
+        expect(group.height).toBe(80);
+        expect(group.scale.x).toBe(1);
+        expect(group.scale.y).toBe(1);
+        expect(group.hitArea).toMatchObject({ x: 0, y: 0, width: 200, height: 80 });
+    });
+
     it('creates stable revisions for canonical compiler scene source', () => {
         const first = createSceneRevision('<Scene name="Button"><Text id="label" text="Play" /></Scene>');
         const second = createSceneRevision(`
@@ -396,7 +417,7 @@ import { Group } from 'pixifact/runtime';`);
         expect(code).toContain('slots: Record<string, Container>;');
         expect(code).toContain('export function mountButtonScene(root: Group) {');
         expect(code).toContain('const __pixifactSlots: Record<string, Container> = {};');
-        expect(code).toContain('root.setLogicalSize(180, 52);');
+        expect(code).toContain('root.setSize(180, 52);');
         expect(code).toContain('const background = new Graphics();');
         expect(code).toContain('background.label = "background";');
         expect(code).toContain('background.roundRect(0, 0, 180, 52, 8).fill({ color: 4286945, alpha: 0.8 }).stroke({ width: 2, color: 16777215, alpha: 0.5 });');

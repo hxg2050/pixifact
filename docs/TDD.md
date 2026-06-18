@@ -187,9 +187,9 @@ bun run editor:frontend:build
 
 必须先覆盖：
 
-- `Group` 保持 PixiJS `Container` 语义，不覆盖 Pixi `width` / `height`。
-- `Group.logicalWidth` / `logicalHeight` 表达 Pixifact 逻辑尺寸。
-- compiler root 使用 `Group`，并通过 `setLogicalSize()` 写入 Scene 尺寸。
+- `Container` 保持 PixiJS 原生语义，尤其是 `width` / `height` 的 bounds / scale 行为。
+- `Group.width` / `height` 表达 Pixifact 盒子尺寸，不修改 `scale`。
+- compiler root 使用 `Group`，并通过 `setSize()` 写入 Scene 尺寸。
 - sample project 的 scene scripts 继承 `Group`。
 
 验证命令：

@@ -50,14 +50,14 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 - 资产统一使用 compiler `.scene` 文本格式，文件扩展名为 `.scene`。
 - 每个 `.scene` 与同目录同 basename 的 `.ts` 脚本配对。
 - `.scene` 的根是 `<Scene>`，运行时根节点是 `Group`。
-- Pixi 原生 `Container` 语义保持不变；需要逻辑尺寸和 authoring 容器心智时使用 `Group`。
+- Pixi 原生 `Container` 语义保持不变；需要 Pixifact 盒子尺寸和 authoring 容器心智时使用 `Group`。
 - Scene 脚本类默认继承 `Group`，并通过 `@scene()`、`@part()`、`@prop()`、`@event()`、`@slot()` 暴露契约。
 
 ## Runtime Foundation 规则
 
 - `Container` 保留 PixiJS 原生含义，尤其是 `width` / `height` 的 bounds / scale 语义。
-- `Group extends Container`，作为 Pixifact 的 Scene 根节点和逻辑尺寸容器。
-- `Group.logicalWidth` / `Group.logicalHeight` 表示开发坐标系里的逻辑尺寸，不覆盖 Pixi `width` / `height`。
+- `Group extends Container`，作为 Pixifact 的 Scene 根节点和盒子尺寸容器。
+- `Group.width` / `Group.height` 表示开发坐标系里的 Pixifact 盒子尺寸，不使用 Pixi `Container` 的 bounds / scale 尺寸语义。
 - 新增 runtime 能力时，优先服务 compiler Scene 实例化、editor workflow、Viewport 预览、CLI 和导出。
 
 ## Editor UI 设计原则

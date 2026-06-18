@@ -376,7 +376,7 @@ class CompileContext {
         delete props.width;
         delete props.height;
         if (width !== undefined || height !== undefined) {
-            this.#lines.push(`  root.setLogicalSize(${this.#value(width ?? 0)}, ${this.#value(height ?? 0)});`);
+            this.#lines.push(`  root.setSize(${this.#value(width ?? 0)}, ${this.#value(height ?? 0)});`);
         }
         this.#applyPixiProps('root', props);
     }
