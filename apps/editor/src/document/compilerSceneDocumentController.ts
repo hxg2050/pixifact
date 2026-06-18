@@ -13,6 +13,10 @@ import type {
     CompilerSceneTemplateNode,
 } from '../services/projectFileTree';
 import { pixiNodeTypeFromTemplateKind } from '../services/nodeTemplateLibrary';
+import {
+    countSceneViewProfile,
+    measureSceneViewProfile,
+} from '../services/sceneViewProfiler';
 
 export type CompilerSceneAddablePixiType = PixiSceneNodeType;
 export type CompilerSceneNodeDropPosition = 'before' | 'inside' | 'after';
@@ -44,6 +48,7 @@ let document: CompilerSceneDocument | undefined;
 
 function emitCompilerSceneUpdate() {
     revision += 1;
+    countSceneViewProfile('document.emit');
     for (const listener of listeners) {
         listener();
     }
@@ -135,7 +140,9 @@ function executeCompilerSceneDocumentCommand(
         ...updates,
         template,
     };
-    const result = commandStack.execute(template, command, options, compilerSceneCommandContext(nextDocument));
+    const result = measureSceneViewProfile('document.commandStack.execute', () => (
+        commandStack.execute(template, command, options, compilerSceneCommandContext(nextDocument))
+    ));
     if (!result.ok) {
         return result;
     }

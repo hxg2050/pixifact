@@ -34,6 +34,11 @@ import {
     zoomViewportTransform,
 } from '../apps/editor/src/preview/CompilerSceneViewport';
 import { parseSceneTemplate } from '../packages/pixifact/src/compiler/templateParser';
+import {
+    beginSceneViewProfile,
+    measureSceneViewProfile,
+    sceneViewProfilerEnabled,
+} from '../apps/editor/src/services/sceneViewProfiler';
 
 const host = vi.hoisted(() => ({
     files: new Map<string, string>(),
@@ -323,6 +328,12 @@ afterEach(() => {
 });
 
 describe('Editor workbench UI', () => {
+    it('keeps scene view profiling disabled by default', () => {
+        expect(sceneViewProfilerEnabled()).toBe(false);
+        expect(beginSceneViewProfile('move')).toBeUndefined();
+        expect(measureSceneViewProfile('noop', () => 42)).toBe(42);
+    });
+
     it('calculates compiler viewport transforms for fit, actual size, zoom, and resize', () => {
         expect(fitViewportTransform(
             { width: 960, height: 540 },

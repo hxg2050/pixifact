@@ -16,6 +16,12 @@ import {
     updateCompilerSceneNodePropsInPlace,
 } from '../document/compilerSceneDocumentController';
 import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
+import {
+    beginSceneViewProfile,
+    countSceneViewProfile,
+    endSceneViewProfile,
+    measureSceneViewProfile,
+} from '../services/sceneViewProfiler';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import { createCompilerSceneRuntimePreview, destroyCompilerSceneRuntimePreview } from './compilerSceneRuntimePreview';
 
@@ -84,6 +90,7 @@ interface MoveSession {
     locator: string;
     mergeKey: string;
     pointerId: number;
+    profileId?: number;
     started: boolean;
     startPoint: ViewportPoint;
     startProps: CompilerSceneMoveProps;
@@ -284,7 +291,7 @@ export function compilerSceneSelectionRect(target: Pick<Container, 'getBounds'> 
         return undefined;
     }
 
-    const bounds = target.getBounds();
+    const bounds = measureSceneViewProfile('viewport.getBounds', () => target.getBounds());
     if (!compilerSceneRectIsVisible(bounds)) {
         return undefined;
     }
@@ -585,6 +592,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                                 locator: selectedLocator!,
                                 mergeKey: `scene-view:move:${selectedLocator}:${moveSessionRef.current}`,
                                 pointerId: event.pointerId,
+                                profileId: beginSceneViewProfile('move', { locator: selectedLocator }),
                                 started: false,
                                 startPoint: start,
                                 startProps: {
@@ -615,6 +623,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         const movePan = (event: React.PointerEvent<HTMLDivElement>) => {
             const move = moveRef.current;
             if (move?.pointerId === event.pointerId) {
+                countSceneViewProfile('viewport.pointermove');
                 event.preventDefault();
                 const nextPoint = clientPoint(event);
                 const deltaViewport = {
@@ -626,6 +635,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                     return;
                 }
                 move.started = true;
+                countSceneViewProfile('viewport.moveUpdate');
                 const deltaScene = viewportDeltaToSceneDelta(transformRef.current, deltaViewport);
                 const nextProps = moveCompilerSceneNodeProps(move.startProps, deltaScene);
                 const target = nodesRef.current.get(move.locator);
@@ -671,6 +681,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
 
         const endPan = (event: React.PointerEvent<HTMLDivElement>) => {
             if (moveRef.current?.pointerId === event.pointerId) {
+                endSceneViewProfile(moveRef.current.profileId, { committed: moveRef.current.started });
                 moveRef.current = undefined;
                 hostRef.current?.releasePointerCapture(event.pointerId);
                 return;
@@ -688,6 +699,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
 
         const cancelPointer = (event: React.PointerEvent<HTMLDivElement>) => {
             if (moveRef.current?.pointerId === event.pointerId) {
+                endSceneViewProfile(moveRef.current.profileId, { cancelled: true });
                 moveRef.current = undefined;
                 hostRef.current?.releasePointerCapture(event.pointerId);
             }

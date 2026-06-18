@@ -45,6 +45,7 @@ import { readCompilerSceneBinding } from '../services/sceneBindingIndex';
 import { hostErrorMessage } from '../services/hostBridge';
 import { FieldRow, parseTextValue, useCompilerSceneRevision } from './common';
 import { useEditorStore } from '../editorStore';
+import { measureSceneViewProfileAsync } from '../services/sceneViewProfiler';
 
 const fieldLabelKeys: Record<string, I18nKey> = {
     width: 'width',
@@ -285,7 +286,7 @@ async function readCompilerSceneBindingStatus(
     }
     const scriptPath = pairedSceneScriptPath(projectFileRelativePath(projectTree, sceneFile));
     try {
-        const binding = await readCompilerSceneBinding(projectTree, sceneFile);
+        const binding = await measureSceneViewProfileAsync('inspector.readBindingStatus', () => readCompilerSceneBinding(projectTree, sceneFile));
         return {
             ok: true,
             message: t('compilerBindingOk'),
