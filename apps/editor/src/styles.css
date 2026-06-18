@@ -1434,6 +1434,106 @@ textarea {
     font-weight: 700;
 }
 
+.compilerSceneProfilerPanel {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    z-index: 4;
+    width: min(360px, calc(100% - 20px));
+    max-height: calc(100% - 20px);
+    overflow: hidden;
+    border: 1px solid rgba(15, 23, 42, 0.18);
+    border-radius: 6px;
+    background: rgba(248, 250, 252, 0.94);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+    color: #0f172a;
+    font-size: 11px;
+    pointer-events: none;
+}
+
+.compilerSceneProfilerHeader,
+.compilerSceneProfilerSummaryTitle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.compilerSceneProfilerHeader {
+    border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+    padding: 8px 10px;
+}
+
+.compilerSceneProfilerHeader span {
+    color: #2563eb;
+    font-weight: 700;
+}
+
+.compilerSceneProfilerFacts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    margin: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+}
+
+.compilerSceneProfilerFacts div {
+    min-width: 0;
+    padding: 7px 10px;
+}
+
+.compilerSceneProfilerFacts dt {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.compilerSceneProfilerFacts dd {
+    overflow: hidden;
+    margin: 2px 0 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.compilerSceneProfilerSummary,
+.compilerSceneProfilerPanel p {
+    margin: 0;
+    padding: 8px 10px 10px;
+}
+
+.compilerSceneProfilerSummaryTitle {
+    margin-bottom: 6px;
+    color: #334155;
+    font-weight: 700;
+}
+
+.compilerSceneProfilerPanel table {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+}
+
+.compilerSceneProfilerPanel th,
+.compilerSceneProfilerPanel td {
+    overflow: hidden;
+    max-width: 132px;
+    padding: 3px 4px;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.compilerSceneProfilerPanel th:first-child,
+.compilerSceneProfilerPanel td:first-child {
+    text-align: left;
+}
+
+.compilerSceneProfilerPanel th {
+    color: #64748b;
+    font-size: 10px;
+}
+
 .inspectorSurface {
     container-type: inline-size;
     overflow-x: hidden;

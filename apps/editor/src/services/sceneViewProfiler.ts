@@ -12,17 +12,30 @@ interface SceneViewProfileSession {
     startedAt: number;
 }
 
-interface SceneViewProfileSummary {
+export interface SceneViewProfileRow {
+    averageMs: number;
+    count: number;
+    label: string;
+    maxMs: number;
+    totalMs: number;
+}
+
+export interface SceneViewProfileSummary {
     durationMs: number;
     meta?: Record<string, unknown>;
     name: string;
-    rows: Array<{
-        averageMs: number;
-        count: number;
-        label: string;
-        maxMs: number;
-        totalMs: number;
-    }>;
+    rows: SceneViewProfileRow[];
+}
+
+export interface SceneViewProfileNote {
+    label: string;
+    meta?: Record<string, unknown>;
+}
+
+export interface SceneViewProfilerSnapshot {
+    enabled: boolean;
+    lastNote?: SceneViewProfileNote;
+    lastSummary?: SceneViewProfileSummary;
 }
 
 const profileFlag = '__PIXIFACT_SCENE_VIEW_PROFILE__';
@@ -30,7 +43,10 @@ const profileStorageKey = 'pixifact.sceneViewProfile';
 
 let nextProfileId = 0;
 let activeSession: SceneViewProfileSession | undefined;
+let lastNote: SceneViewProfileNote | undefined;
 let lastSummary: SceneViewProfileSummary | undefined;
+let currentSnapshot: SceneViewProfilerSnapshot | undefined;
+const listeners = new Set<() => void>();
 
 function now() {
     return typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -43,7 +59,7 @@ function profilerGlobal() {
             disable: () => void;
             enable: () => void;
             last: () => SceneViewProfileSummary | undefined;
-            status: () => { enabled: boolean; last?: SceneViewProfileSummary };
+            status: () => SceneViewProfilerSnapshot;
         };
     };
 }
@@ -59,6 +75,41 @@ export function sceneViewProfilerEnabled() {
     }
 }
 
+function emitSceneViewProfilerChange() {
+    currentSnapshot = {
+        enabled: sceneViewProfilerEnabled(),
+        lastNote,
+        lastSummary,
+    };
+    for (const listener of listeners) {
+        listener();
+    }
+}
+
+export function getSceneViewProfilerSnapshot(): SceneViewProfilerSnapshot {
+    const enabled = sceneViewProfilerEnabled();
+    if (
+        !currentSnapshot
+        || currentSnapshot.enabled !== enabled
+        || currentSnapshot.lastNote !== lastNote
+        || currentSnapshot.lastSummary !== lastSummary
+    ) {
+        currentSnapshot = {
+            enabled,
+            lastNote,
+            lastSummary,
+        };
+    }
+    return currentSnapshot;
+}
+
+export function subscribeSceneViewProfiler(listener: () => void) {
+    listeners.add(listener);
+    return () => {
+        listeners.delete(listener);
+    };
+}
+
 export function enableSceneViewProfiler() {
     profilerGlobal()[profileFlag] = true;
     try {
@@ -66,6 +117,7 @@ export function enableSceneViewProfiler() {
     } catch {
         // Ignore storage failures; the global flag still enables profiling for this session.
     }
+    emitSceneViewProfilerChange();
     console.info('[Pixifact SceneView] profiling enabled');
 }
 
@@ -76,6 +128,7 @@ export function disableSceneViewProfiler() {
     } catch {
         // Ignore storage failures; the global flag still disables profiling for this session.
     }
+    emitSceneViewProfilerChange();
     console.info('[Pixifact SceneView] profiling disabled');
 }
 
@@ -85,10 +138,7 @@ function installSceneViewProfilerConsoleApi() {
         disable: disableSceneViewProfiler,
         enable: enableSceneViewProfiler,
         last: () => lastSummary,
-        status: () => ({
-            enabled: sceneViewProfilerEnabled(),
-            last: lastSummary,
-        }),
+        status: getSceneViewProfilerSnapshot,
     };
 }
 
@@ -157,6 +207,7 @@ export function endSceneViewProfile(id: number | undefined, meta?: Record<string
         name: session.name,
         rows,
     };
+    emitSceneViewProfilerChange();
 
     console.info(`[Pixifact SceneView] ${session.name} profile finished ${durationMs.toFixed(2)}ms`, lastSummary.meta ?? {});
     console.table(rows);
@@ -166,6 +217,8 @@ export function noteSceneViewProfile(label: string, meta?: Record<string, unknow
     if (!sceneViewProfilerEnabled()) {
         return;
     }
+    lastNote = { label, meta };
+    emitSceneViewProfilerChange();
     console.info(`[Pixifact SceneView] ${label}`, meta ?? {});
 }
 

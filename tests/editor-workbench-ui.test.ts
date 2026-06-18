@@ -38,7 +38,9 @@ import {
     beginSceneViewProfile,
     disableSceneViewProfiler,
     enableSceneViewProfiler,
+    getSceneViewProfilerSnapshot,
     measureSceneViewProfile,
+    noteSceneViewProfile,
     sceneViewProfilerEnabled,
 } from '../apps/editor/src/services/sceneViewProfiler';
 
@@ -325,6 +327,7 @@ afterEach(() => {
         Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight');
     }
     resetCompilerSceneDocument();
+    disableSceneViewProfiler();
     vi.unstubAllGlobals();
     document.body.innerHTML = '';
 });
@@ -338,6 +341,16 @@ describe('Editor workbench UI', () => {
         enableSceneViewProfiler();
         expect(sceneViewProfilerEnabled()).toBe(true);
         expect(globalThis.pixifactSceneViewProfile?.status().enabled).toBe(true);
+        noteSceneViewProfile('pointerdown', {
+            canMove: true,
+            hitLocator: '0:label',
+            selectedLocator: '0:label',
+        });
+        expect(getSceneViewProfilerSnapshot().lastNote?.meta).toEqual({
+            canMove: true,
+            hitLocator: '0:label',
+            selectedLocator: '0:label',
+        });
 
         disableSceneViewProfiler();
         expect(sceneViewProfilerEnabled()).toBe(false);
@@ -594,6 +607,8 @@ describe('Editor workbench UI', () => {
                 .find((button) => button.textContent === '适配');
             const gridButton = [...(actions?.querySelectorAll('button') ?? [])]
                 .find((button) => button.textContent === '网格');
+            const diagnosticsButton = [...(actions?.querySelectorAll('button') ?? [])]
+                .find((button) => button.textContent === '诊断');
             const actualSizeButton = [...(actions?.querySelectorAll('button') ?? [])]
                 .find((button) => button.textContent === '100%');
 
@@ -601,8 +616,10 @@ describe('Editor workbench UI', () => {
             expect(actualSizeButton).toBeTruthy();
             expect(fitButton).toBeTruthy();
             expect(gridButton).toBeTruthy();
+            expect(diagnosticsButton).toBeTruthy();
             expect(fitButton?.getAttribute('aria-pressed')).toBe('true');
             expect(gridButton?.getAttribute('aria-pressed')).toBe('true');
+            expect(diagnosticsButton?.getAttribute('aria-pressed')).toBe('false');
             const grid = view.container.querySelector('.compilerSceneGrid');
             const bounds = view.container.querySelector('.compilerSceneBounds');
             const resolutionBounds = view.container.querySelector('.compilerSceneResolutionBounds');
@@ -620,6 +637,17 @@ describe('Editor workbench UI', () => {
             expect(editorStyles).toContain('.compilerSceneCanvas {\n    pointer-events: none;\n}');
             expect(editorStyles).toContain('.compilerSceneOverlay {\n    position: absolute;\n    inset: 0;\n    z-index: 2;');
             expect(editorStyles).toContain('.compilerSceneResolutionBounds {');
+            expect(editorStyles).toContain('.compilerSceneProfilerPanel {\n    position: absolute;');
+            expect(editorStyles).toContain('pointer-events: none;');
+
+            await act(async () => {
+                click(diagnosticsButton!);
+            });
+
+            expect(diagnosticsButton?.getAttribute('aria-pressed')).toBe('true');
+            expect(view.container.querySelector('.compilerSceneProfilerPanel')).toBeTruthy();
+            expect(textContent(view.container)).toContain('Scene View 诊断');
+            expect(textContent(view.container)).toContain('拖动已选中节点后显示耗时。');
 
             await act(async () => {
                 click(gridButton!);

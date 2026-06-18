@@ -10,6 +10,10 @@ import {
     type ViewportSize,
 } from '../preview/CompilerSceneViewport';
 import { readPixifactProjectConfig } from '../services/editorRunService';
+import {
+    disableSceneViewProfiler,
+    enableSceneViewProfiler,
+} from '../services/sceneViewProfiler';
 import { useCompilerSceneRevision } from './common';
 
 function viewportStateLabel(state: CompilerSceneViewportState | undefined) {
@@ -25,12 +29,24 @@ export function ViewportPanel() {
     const projectTree = useEditorStore((state) => state.projectTree);
     const compilerDocument = getCompilerSceneDocument();
     const viewportRef = useRef<CompilerSceneViewportHandle | null>(null);
+    const [diagnosticsVisible, setDiagnosticsVisible] = useState(false);
     const [viewportState, setViewportState] = useState<CompilerSceneViewportState | undefined>(undefined);
     const [projectResolution, setProjectResolution] = useState<ViewportSize>(defaultPixifactProjectResolution);
     const t = useI18n();
     const isCompilerScene = openedScenePath && compilerDocument?.scenePath === openedScenePath;
     const handleViewportStateChange = useCallback((state: CompilerSceneViewportState) => {
         setViewportState(state);
+    }, []);
+    const toggleDiagnostics = useCallback(() => {
+        setDiagnosticsVisible((current) => {
+            const next = !current;
+            if (next) {
+                enableSceneViewProfiler();
+            } else {
+                disableSceneViewProfiler();
+            }
+            return next;
+        });
     }, []);
 
     useEffect(() => {
@@ -82,6 +98,14 @@ export function ViewportPanel() {
                         >
                             {t('grid')}
                         </button>
+                        <button
+                            aria-pressed={diagnosticsVisible}
+                            disabled={!projectTree}
+                            onClick={toggleDiagnostics}
+                            type="button"
+                        >
+                            诊断
+                        </button>
                     </div>
                 ) : null}
             </div>
@@ -90,6 +114,7 @@ export function ViewportPanel() {
                     <div className="stageFrame">
                         {projectTree ? (
                             <CompilerSceneViewport
+                                diagnosticsVisible={diagnosticsVisible}
                                 document={compilerDocument}
                                 onStateChange={handleViewportStateChange}
                                 projectResolution={projectResolution}

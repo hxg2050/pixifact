@@ -5,6 +5,7 @@ import {
     useImperativeHandle,
     useRef,
     useState,
+    useSyncExternalStore,
 } from 'react';
 import { Application as PixiApplication, Container } from 'pixi.js';
 import { defaultPixifactProjectResolution } from 'pixifact';
@@ -20,13 +21,17 @@ import {
     beginSceneViewProfile,
     countSceneViewProfile,
     endSceneViewProfile,
+    getSceneViewProfilerSnapshot,
     measureSceneViewProfile,
     noteSceneViewProfile,
+    subscribeSceneViewProfiler,
 } from '../services/sceneViewProfiler';
+import type { SceneViewProfilerSnapshot } from '../services/sceneViewProfiler';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import { createCompilerSceneRuntimePreview, destroyCompilerSceneRuntimePreview } from './compilerSceneRuntimePreview';
 
 interface CompilerSceneViewportProps {
+    diagnosticsVisible?: boolean;
     document: CompilerSceneDocument;
     projectResolution?: ViewportSize;
     projectTree: ProjectFileTreeNode;
@@ -341,8 +346,78 @@ function compilerSceneHitTargets(nodes: Map<string, Pick<Container, 'getBounds'>
     }));
 }
 
+function formatProfileValue(value: unknown) {
+    if (typeof value === 'boolean') {
+        return value ? '是' : '否';
+    }
+    if (value === undefined) {
+        return '无';
+    }
+    return String(value);
+}
+
+function CompilerSceneProfilerPanel({ snapshot }: { snapshot: SceneViewProfilerSnapshot }) {
+    const lastPointerDown = snapshot.lastNote?.label === 'pointerdown' ? snapshot.lastNote : undefined;
+    const moveSummary = snapshot.lastSummary;
+    const topRows = moveSummary?.rows.slice(0, 5) ?? [];
+
+    return (
+        <aside className="compilerSceneProfilerPanel" aria-label="Scene View 诊断">
+            <div className="compilerSceneProfilerHeader">
+                <strong>Scene View 诊断</strong>
+                <span>{snapshot.enabled ? '已开启' : '已关闭'}</span>
+            </div>
+            <dl className="compilerSceneProfilerFacts">
+                <div>
+                    <dt>hit</dt>
+                    <dd>{formatProfileValue(lastPointerDown?.meta?.hitLocator)}</dd>
+                </div>
+                <div>
+                    <dt>selected</dt>
+                    <dd>{formatProfileValue(lastPointerDown?.meta?.selectedLocator)}</dd>
+                </div>
+                <div>
+                    <dt>canMove</dt>
+                    <dd>{formatProfileValue(lastPointerDown?.meta?.canMove)}</dd>
+                </div>
+            </dl>
+            {moveSummary ? (
+                <div className="compilerSceneProfilerSummary">
+                    <div className="compilerSceneProfilerSummaryTitle">
+                        <span>{moveSummary.name}</span>
+                        <span>{moveSummary.durationMs.toFixed(2)}ms</span>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>指标</th>
+                                <th>次数</th>
+                                <th>总计</th>
+                                <th>最大</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {topRows.map((row) => (
+                                <tr key={row.label}>
+                                    <td>{row.label}</td>
+                                    <td>{row.count}</td>
+                                    <td>{row.totalMs.toFixed(2)}</td>
+                                    <td>{row.maxMs.toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <p>拖动已选中节点后显示耗时。</p>
+            )}
+        </aside>
+    );
+}
+
 export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, CompilerSceneViewportProps>(
     function CompilerSceneViewport({
+        diagnosticsVisible = false,
         document,
         projectResolution = defaultPixifactProjectResolution,
         projectTree,
@@ -363,6 +438,11 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         const [model, setModel] = useState<ViewportModel>(() => defaultViewportModel(projectResolution));
         const [outline, setOutline] = useState<SelectionRect | undefined>(undefined);
         const [status, setStatus] = useState('正在初始化编译器预览');
+        const profilerSnapshot = useSyncExternalStore(
+            subscribeSceneViewProfiler,
+            getSceneViewProfilerSnapshot,
+            getSceneViewProfilerSnapshot,
+        );
 
         selectedNodeRef.current = selectedCompilerNode(document);
 
@@ -792,6 +872,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                     ) : null}
                 </svg>
                 {status ? <div className="runtimeStatus">{status}</div> : null}
+                {diagnosticsVisible ? <CompilerSceneProfilerPanel snapshot={profilerSnapshot} /> : null}
             </div>
         );
     },
