@@ -1,11 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Pixi from 'pixi.js';
-import { SceneDocument, buttonScene, container, scene, shape, text } from 'pixifact';
 import { parseSceneTemplate, pixiSceneFieldSchema, pixiSceneNodeDefaults, pixiSceneNodePropGroups, pixiSceneNodePropKeys } from 'pixifact/compiler';
-import {
-    getSceneDocument,
-    resetSceneDocument,
-} from '../apps/editor/src/document/sceneDocumentController';
 import {
     addCompilerSceneNode,
     canUndoCompilerSceneCommand,
@@ -36,7 +31,6 @@ import {
     nearestExistingPath,
     openCompilerSceneFile,
     openCompilerSceneScriptFile,
-    openSceneFile,
     openProjectCodeFile,
     openProjectDefaultFile,
     ProjectFileOperationError,
@@ -44,9 +38,7 @@ import {
     projectFileRelativePath,
     renameProjectEntry,
     refreshProjectFileTree,
-    saveOpenedSceneFile,
     saveCompilerSceneFile,
-    saveSceneFile,
     refreshCompilerSceneBindingSnapshot,
     assetDragPayload,
     resolveProjectAssetReference,
@@ -59,7 +51,6 @@ import { isCompilerBindingSourceChange } from '../apps/editor/src/services/compi
 import { syncOpenedCompilerSceneFromHostChange } from '../apps/editor/src/services/compilerSceneExternalSync';
 import { addDroppedCompilerSceneInstance } from '../apps/editor/src/services/compilerSceneDrop';
 import { createCompilerSceneRuntimePreview } from '../apps/editor/src/preview/compilerSceneRuntimePreview';
-import { createSceneInstanceNode } from '../apps/editor/src/services/sceneInstance';
 import { sceneAssetName, sceneFileName, sceneRootKey } from '../apps/editor/src/services/sceneNaming';
 
 type FsNode = FsDirectory | FsFile;
@@ -316,11 +307,12 @@ async function readHostTree() {
 
 function sceneScriptSource(className: string, members = '') {
     return `
-        import { Container, Text } from 'pixi.js';
+        import { Text } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
         import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
         @scene()
-        export class ${className} extends Container {
+        export class ${className} extends Group {
             ${members}
         }
     `;
@@ -366,7 +358,6 @@ describe('project file tree service', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         localStorage.clear();
-        resetSceneDocument();
         resetCompilerSceneDocument();
         host.reset();
         useEditorStore.setState({
@@ -472,11 +463,11 @@ describe('project file tree service', () => {
         });
         expect(created.content).toBe('<Scene name="MenuPanel" width="960" height="540">\n</Scene>\n');
         expect(script).toBe([
-            "import { Container } from 'pixi.js';",
+            "import { Group } from 'pixifact/runtime';",
             "import { scene } from 'pixifact/compiler';",
             '',
             '@scene()',
-            'export class MenuPanel extends Container {',
+            'export class MenuPanel extends Group {',
             '    onMounted() {}',
             '}',
             '',
@@ -651,73 +642,7 @@ describe('project file tree service', () => {
         expect(host.readProjectFileBytes).not.toHaveBeenCalled();
     });
 
-    it('saves the current editor document back to an opened scene file', async () => {
-        host.reset({
-            scenes: host.directory({
-                'Button.scene': host.file('{}'),
-            }),
-        });
-        const tree = await readHostTree();
-        const document = new SceneDocument(scene('SavedButton', container('SavedButton', {
-            key: 'savedButtonRoot',
-            width: 200,
-            height: 80,
-        })));
-        document.dirty = true;
 
-        const saved = await saveSceneFile(tree, 'GameProject/scenes/Button.scene', document);
-        const content = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene');
-
-        expect(saved).toBe(true);
-        expect(document.dirty).toBe(false);
-        expect(JSON.parse(content)).toMatchObject({
-            name: 'SavedButton',
-            root: {
-                key: 'savedButtonRoot',
-            },
-        });
-    });
-
-    it('opens, edits, previews and saves a Scene file session', async () => {
-        host.reset({
-            scenes: host.directory({
-                'Button.scene': host.file(JSON.stringify(scene('Button', container('Root', {
-                    key: 'buttonRoot',
-                    children: [
-                        text('Label', {
-                            key: 'buttonLabel',
-                            value: 'Start',
-                            color: 0xffffff,
-                            fontSize: 14,
-                        }),
-                    ],
-                })))),
-            }),
-        });
-        const tree = await readHostTree();
-        const sceneFile = findFileByPath(tree, 'GameProject/scenes/Button.scene');
-        const document = new SceneDocument(scene('Empty', container('Empty', { key: 'emptyRoot' })));
-
-        const opened = await openSceneFile(tree, sceneFile!, document);
-        const result = document.apply({
-            op: 'setNodeData',
-            node: 'buttonLabel',
-            field: 'text',
-            prop: 'value',
-            value: 'Continue',
-        });
-        const saved = await saveOpenedSceneFile(tree, opened.openedScenePath, document);
-        const content = await host.readProjectFileText('/tmp/GameProject', 'GameProject/scenes/Button.scene');
-
-        expect(opened.openedScenePath).toBe('GameProject/scenes/Button.scene');
-        expect(opened.selection).toEqual({ type: 'node', node: 'buttonRoot' });
-        expect(result.ok).toBe(true);
-        expect(document.scene.root.children?.[0].text?.value).toBe('Continue');
-        expect((document.preview?.components.get('buttonLabel') as { text?: string } | undefined)?.text).toBe('Continue');
-        expect(saved).toBe(true);
-        expect(document.dirty).toBe(false);
-        expect(JSON.parse(content).root.children[0].text.value).toBe('Continue');
-    });
 
     it('opens compiler Scene templates as editable editor documents', async () => {
         host.reset({
@@ -2268,44 +2193,4 @@ describe('project file tree service', () => {
         expect(parseSceneTemplate(saved).name).toBe('StatusPanel');
     });
 
-    it('creates an embedded scene instance node with isolated locators', () => {
-        const source = scene('InventoryPanel', container('Panel', {
-            id: 'root',
-            key: 'panelRoot',
-            width: 200,
-            height: 100,
-            children: [
-                shape('背景', {
-                    id: 'bg',
-                    key: 'bg',
-                    color: 0x2563eb,
-                }),
-                buttonScene('按钮', {
-                    key: 'button',
-                }),
-                text('Title', {
-                    key: 'title',
-                    value: 'Inventory',
-                }),
-            ],
-        }));
-        const target = scene('MenuPanel', container('Menu', {
-            key: 'menuRoot',
-            children: [
-                container('Existing', { key: 'inventoryPanelInstance1_panelRoot' }),
-            ],
-        }));
-
-        const instance = createSceneInstanceNode(source, target);
-
-        expect(instance).toMatchObject({
-            name: 'InventoryPanel 实例',
-            role: 'scene-instance',
-            id: 'inventoryPanelInstance2_root',
-            key: 'inventoryPanelInstance2_panelRoot',
-        });
-        expect(instance.children?.[1].components?.[0].props?.targetGraphic).toBe('inventoryPanelInstance2_buttonBg');
-        expect(instance.children?.[2].key).toBe('inventoryPanelInstance2_title');
-        expect(instance.children?.[2].kind).toBe('text');
-    });
 });

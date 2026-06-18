@@ -13,13 +13,11 @@ import {
     pixiSceneNodeDefaults,
     pixiSceneNodePropGroups,
     pixiSceneNodePropKeys,
+    type PixiSceneFieldSchema,
     type PixiScenePropGroup,
     pixiSceneTransformProps,
 } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
 import { pairedSceneScriptPath, resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
-import type {
-    InspectorFieldModel,
-} from 'pixifact';
 import {
     Checkbox,
     DropZone,
@@ -123,6 +121,14 @@ const fieldLabelKeys: Record<string, I18nKey> = {
 
 type Translate = (key: I18nKey, values?: Record<string, string | number>) => string;
 
+interface InspectorFieldModel {
+    key: string;
+    label: string;
+    schema?: PixiSceneFieldSchema;
+    type: string;
+    value: unknown;
+}
+
 interface SelectedCompilerSlot {
     kind: 'slot';
     owner: string;
@@ -131,6 +137,7 @@ interface SelectedCompilerSlot {
 }
 
 type SelectedCompilerItem = CompilerSceneTemplateNode | SelectedCompilerSlot | undefined;
+type EditableCompilerNode = Extract<CompilerSceneTemplateNode, { kind: 'pixi' | 'sceneInstance' }>;
 
 const compilerKnownPixiProps = new Set<string>(pixiSceneKnownProps);
 const compilerPixiGroupTitles: Record<PixiScenePropGroup, string> = {
@@ -346,7 +353,7 @@ function compilerField(key: string, value: unknown, type?: string): InspectorFie
     };
 }
 
-function compilerPropValue(node: Exclude<SelectedCompilerItem, SelectedCompilerSlot | undefined>, key: string) {
+function compilerPropValue(node: EditableCompilerNode, key: string) {
     const [root, field, ...rest] = key.split('.');
     if (!field || rest.length > 0) {
         return node.props[key];
@@ -355,7 +362,7 @@ function compilerPropValue(node: Exclude<SelectedCompilerItem, SelectedCompilerS
     return value && typeof value === 'object' ? (value as Record<string, unknown>)[field] : undefined;
 }
 
-function compilerTransformFieldValue(node: Exclude<SelectedCompilerItem, SelectedCompilerSlot | undefined>, key: string) {
+function compilerTransformFieldValue(node: EditableCompilerNode, key: string) {
     const value = node.props[key];
     if (value !== undefined) {
         return value;

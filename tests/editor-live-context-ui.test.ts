@@ -161,10 +161,10 @@ function invalidScene() {
 
 function scriptSource() {
     return [
-        'import { Container } from "pixi.js";',
+        'import { Group } from "pixifact/runtime";',
         'import { scene } from "pixifact/compiler";',
         '@scene()',
-        'export class Button extends Container {}',
+        'export class Button extends Group {}',
     ].join('\n');
 }
 
@@ -177,10 +177,10 @@ function childScene() {
 
 function childScriptSource() {
     return [
-        'import { Container } from "pixi.js";',
+        'import { Group } from "pixifact/runtime";',
         'import { prop, scene } from "pixifact/compiler";',
         '@scene()',
-        'export class Child extends Container {',
+        'export class Child extends Group {',
         '  @prop({ type: String, default: "Child" })',
         '  accessor label = "Child";',
         '}',

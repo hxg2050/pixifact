@@ -190,7 +190,7 @@ Scenario: Game loads compiled scene output
   And gameplay code binds to declared parts, props, events, and slots
 ```
 
-TDD 入口：`tests/core.test.ts`、`tests/ui.test.ts`、sample project build tests。
+TDD 入口：`tests/scene-compiler.test.ts`、`tests/scene-script-interface.test.ts`、sample project build tests。
 
 ## 6. Non-Goals
 

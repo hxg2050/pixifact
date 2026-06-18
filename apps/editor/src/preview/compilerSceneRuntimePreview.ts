@@ -1,6 +1,7 @@
 import ts from 'typescript';
 import * as Pixi from 'pixi.js';
 import { Container } from 'pixi.js';
+import { Group } from '../../../../packages/pixifact/src/runtime';
 import * as compilerRuntime from '../../../../packages/pixifact/src/compiler';
 import {
     compileSceneTemplateToTs,
@@ -29,7 +30,7 @@ interface CreateCompilerSceneRuntimePreviewOptions {
 }
 
 export interface CompilerSceneRuntimePreview {
-    root: Container;
+    root: Group;
     nodes: Map<string, Container>;
     width: number;
     height: number;
@@ -58,6 +59,7 @@ interface PreviewRuntimeContext {
 }
 
 const compilerModuleId = 'pixifact/compiler';
+const runtimeModuleId = 'pixifact/runtime';
 const pixiModuleId = 'pixi.js';
 const projectModulePrefix = 'pixifact-preview:project:';
 const generatedModulePrefix = 'pixifact-preview:generated:';
@@ -175,6 +177,7 @@ function moduleIdFromImport(context: PreviewRuntimeContext, importerId: string, 
     if (
         source === pixiModuleId
         || source === compilerModuleId
+        || source === runtimeModuleId
         || source.startsWith(projectModulePrefix)
         || source.startsWith(generatedModulePrefix)
     ) {
@@ -473,6 +476,9 @@ function createModuleLoader(context: PreviewRuntimeContext, modules: PreviewModu
         if (resolvedId === compilerModuleId) {
             return runtime as unknown as Record<string, unknown>;
         }
+        if (resolvedId === runtimeModuleId) {
+            return { Group };
+        }
 
         const existing = records.get(resolvedId);
         if (existing) {
@@ -642,13 +648,11 @@ export async function createCompilerSceneRuntimePreview(options: CreateCompilerS
     }
 
     const scriptExports = loader.requireModule(sceneScriptModuleId(context.scenePath));
-    const SceneClass = scriptExports[options.document.template.name];
-    if (typeof SceneClass !== 'function') {
+    if (typeof scriptExports[options.document.template.name] !== 'function') {
         throw new Error(`Scene 脚本没有导出 ${options.document.template.name}。`);
     }
 
-    const SceneConstructor = SceneClass as new () => Container;
-    const root = new SceneConstructor();
+    const root = new Group();
     const nodes = new Map<string, Container>();
     mapRenderedNodes(context, context.scenePath, root, options.document.template.children, '', nodes);
     const size = sceneSize(options.document.template);

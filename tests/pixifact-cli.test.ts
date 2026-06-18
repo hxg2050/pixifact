@@ -2,13 +2,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { container, scene, text } from 'pixifact';
 import { createSceneRevision, parseSceneTemplate } from 'pixifact/compiler';
 import { executePixifactCli } from '../packages/pixifact-cli/src/pixifact-cli';
-import {
-    getSceneDocument,
-    resetSceneDocument,
-} from '../apps/editor/src/document/sceneDocumentController';
 import {
     loadCompilerSceneDocument,
     resetCompilerSceneDocument,
@@ -86,34 +81,21 @@ vi.mock('../apps/editor/src/services/hostBridge', () => ({
 function createTempProject() {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-cli-'));
     tempRoots.push(root);
-    const scene = {
-        version: 1,
-        type: 'scene',
-        name: 'CLI Button',
-        root: {
-            kind: 'container',
-            id: 'root',
-            key: 'root',
-            name: 'Root',
-            transform: {
-                width: 320,
-                height: 180,
-            },
-            children: [{
-                kind: 'text',
-                id: 'label-node',
-                key: 'label',
-                name: 'Label',
-                text: {
-                    value: 'Start',
-                    color: 0xffffff,
-                    fontSize: 14,
-                    center: true,
-                },
-            }],
-        },
-    };
-    fs.writeFileSync(path.join(root, 'button.scene'), `${JSON.stringify(scene, null, 2)}\n`, 'utf8');
+    fs.mkdirSync(path.join(root, 'src', 'scenes'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'src', 'scenes', 'Button.scene'), [
+        '<Scene name="Button">',
+        '  <Text id="label" text="Start" />',
+        '</Scene>',
+        '',
+    ].join('\n'), 'utf8');
+    fs.writeFileSync(path.join(root, 'src', 'scenes', 'Button.ts'), [
+        'import { Group } from "pixifact/runtime";',
+        'import { scene } from "pixifact/compiler";',
+        '',
+        '@scene()',
+        'export class Button extends Group {}',
+        '',
+    ].join('\n'), 'utf8');
     return root;
 }
 
@@ -135,11 +117,11 @@ function createCompilerSceneProject() {
         '',
     ].join('\n'), 'utf8');
     fs.writeFileSync(path.join(root, 'src', 'scenes', 'Button.ts'), [
-        'import { Container } from "pixi.js";',
+        'import { Group } from "pixifact/runtime";',
         'import { scene } from "pixifact/compiler";',
         '',
         '@scene()',
-        'export class Button extends Container {}',
+        'export class Button extends Group {}',
         '',
     ].join('\n'), 'utf8');
     return root;
@@ -169,40 +151,7 @@ function liveProjectTree() {
     };
 }
 
-function openLiveMenuScene() {
-    resetCompilerSceneDocument();
-    resetSceneDocument();
-    const document = getSceneDocument();
-    document.load(scene('Menu',
-        container('Root', {
-            id: 'root',
-            key: 'root',
-            children: [
-                text('Label', {
-                    key: 'menuLabel',
-                    value: 'Start',
-                    color: 0xffffff,
-                    fontSize: 14,
-                }),
-            ],
-        }),
-    ));
-    document.setSelection({ type: 'node', node: 'menuLabel' });
-    document.dirty = false;
-    useEditorStore.setState({
-        projectName: 'GameProject',
-        projectTree: liveProjectTree(),
-        selectedProjectFilePath: 'GameProject/scenes/Menu.scene',
-        openedScenePath: 'GameProject/scenes/Menu.scene',
-        expandedProjectFolders: ['GameProject', 'GameProject/scenes'],
-        expandedHierarchyNodesByScene: {},
-        language: 'zh-CN',
-    });
-    return document;
-}
-
 function openLiveCompilerScene() {
-    resetSceneDocument();
     resetCompilerSceneDocument();
     const template = parseSceneTemplate([
         '<Scene name="Menu">',
@@ -248,7 +197,7 @@ describe('Pixifact CLI', () => {
         const result = await runCli(['summary', '--project-root', projectRoot]);
 
         expect(result.exitCode).toBe(0);
-        expect(result.json.scenes).toContain('button.scene');
+        expect(result.json.scenes).toContain('src/scenes/Button.scene');
     });
 
     it('includes pixifact project run config in summary without running it', async () => {
@@ -257,7 +206,7 @@ describe('Pixifact CLI', () => {
             version: 1,
             name: 'Space HUD Game',
             scenes: {
-                hud: 'button.scene',
+                hud: 'src/scenes/Button.scene',
             },
             run: {
                 command: 'bun',
@@ -277,7 +226,7 @@ describe('Pixifact CLI', () => {
                 height: 1334,
             },
             scenes: {
-                hud: 'button.scene',
+                hud: 'src/scenes/Button.scene',
             },
             run: {
                 command: 'bun',
@@ -288,9 +237,8 @@ describe('Pixifact CLI', () => {
         });
     });
 
-    it('creates a new Scene file with a container root', async () => {
-        const projectRoot = createTempProject();
-        fs.mkdirSync(path.join(projectRoot, 'scenes'));
+    it('creates a new compiler Scene file pair', async () => {
+        const projectRoot = createCompilerSceneProject();
 
         const result = await runCli([
             'scene',
@@ -298,34 +246,27 @@ describe('Pixifact CLI', () => {
             '--project-root',
             projectRoot,
             '--scene',
-            'scenes/Login.scene',
+            'src/scenes/Login.scene',
             '--name',
             'Login',
         ]);
-        const saved = JSON.parse(fs.readFileSync(path.join(projectRoot, 'scenes/Login.scene'), 'utf8'));
+        const savedScene = fs.readFileSync(path.join(projectRoot, 'src/scenes/Login.scene'), 'utf8');
+        const savedScript = fs.readFileSync(path.join(projectRoot, 'src/scenes/Login.ts'), 'utf8');
 
         expect(result.exitCode).toBe(0);
         expect(result.json).toMatchObject({
             ok: true,
-            scenePath: 'scenes/Login.scene',
+            scenePath: 'src/scenes/Login.scene',
+            scriptPath: 'src/scenes/Login.ts',
             summary: {
                 name: 'Login',
-                nodeCount: 1,
+                nodeCount: 0,
             },
         });
-        expect(saved).toMatchObject({
-            version: 1,
-            type: 'scene',
-            name: 'Login',
-            root: {
-                kind: 'container',
-                id: 'root',
-                key: 'root',
-                name: 'Root',
-                children: [],
-            },
-        });
+        expect(savedScene).toBe('<Scene name="Login" width="960" height="540">\n</Scene>\n');
+        expect(savedScript).toContain('export class Login extends Group');
     });
+
 
     it('compiles Pixifact scene templates through the CLI', async () => {
         const projectRoot = createEmptyTempProject();
@@ -336,11 +277,12 @@ describe('Pixifact CLI', () => {
             </Scene>
         `);
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), `
-            import { Container, Text } from 'pixi.js';
+            import { Text } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
             import { part, prop, scene } from 'pixifact/compiler';
 
             @scene()
-            export class Button extends Container {
+            export class Button extends Group {
                 @part()
                 protected declare labelText: Text;
 
@@ -357,7 +299,7 @@ describe('Pixifact CLI', () => {
             ok: true,
             projectRoot,
         });
-        expect(generated).toContain('export function mountButtonScene(root: Container)');
+        expect(generated).toContain('export function mountButtonScene(root: Group)');
         expect(generated).toContain('registerSceneClass(SceneClass_src_scenes_Button, "src/scenes/Button.scene");');
     });
 
@@ -418,11 +360,11 @@ describe('Pixifact CLI', () => {
             '',
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'MainMenu.ts'), [
-            'import { Container } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             'import { scene } from "pixifact/compiler";',
             '',
             '@scene()',
-            'export class MainMenu extends Container {}',
+            'export class MainMenu extends Group {}',
             '',
         ].join('\n'), 'utf8');
 
@@ -455,11 +397,11 @@ describe('Pixifact CLI', () => {
             '',
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Broken.ts'), [
-            'import { Container } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             'import { scene } from "pixifact/compiler";',
             '',
             '@scene()',
-            'export class Broken extends Container {}',
+            'export class Broken extends Group {}',
             '',
         ].join('\n'), 'utf8');
 
@@ -559,11 +501,11 @@ describe('Pixifact CLI', () => {
     it('returns repairable diagnostics when compile-scenes rejects a scene', async () => {
         const projectRoot = createCompilerSceneProject();
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
-            'import { Container } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             'import { scene } from "pixifact/compiler";',
             '',
             '@scene()',
-            'export class PrimaryButton extends Container {}',
+            'export class PrimaryButton extends Group {}',
             '',
         ].join('\n'), 'utf8');
 
@@ -626,22 +568,22 @@ describe('Pixifact CLI', () => {
             '',
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
-            'import { Container } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             'import { prop, scene } from "pixifact/compiler";',
             '',
             '@scene()',
-            'export class Button extends Container {',
+            'export class Button extends Group {',
             '  @prop({ type: String, default: "Button" })',
             '  accessor label = "Button";',
             '}',
             '',
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'MainMenu.ts'), [
-            'import { Container } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             'import { scene } from "pixifact/compiler";',
             '',
             '@scene()',
-            'export class MainMenu extends Container {}',
+            'export class MainMenu extends Group {}',
             '',
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'MainMenu.scene'), [
@@ -682,11 +624,11 @@ describe('Pixifact CLI', () => {
             '',
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'scenes', 'Button.ts'), [
-            'import { Container } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             'import { scene } from "pixifact/compiler";',
             '',
             '@scene()',
-            'export class Button extends Container {}',
+            'export class Button extends Group {}',
             '',
         ].join('\n'), 'utf8');
 
@@ -810,11 +752,11 @@ describe('Pixifact CLI', () => {
     it('rejects compiler scene class mismatch during validation', async () => {
         const projectRoot = createCompilerSceneProject();
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
-            'import { Container } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             'import { scene } from "pixifact/compiler";',
             '',
             '@scene()',
-            'export class PrimaryButton extends Container {}',
+            'export class PrimaryButton extends Group {}',
             '',
         ].join('\n'), 'utf8');
 
@@ -845,9 +787,9 @@ describe('Pixifact CLI', () => {
     it('rejects paired script without @scene during compiler scene validation', async () => {
         const projectRoot = createCompilerSceneProject();
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
-            'import { Container } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             '',
-            'export class Button extends Container {}',
+            'export class Button extends Group {}',
             '',
         ].join('\n'), 'utf8');
 
@@ -878,11 +820,12 @@ describe('Pixifact CLI', () => {
     it('rejects missing @part node ids during compiler scene validation', async () => {
         const projectRoot = createCompilerSceneProject();
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
-            'import { Container, Text } from "pixi.js";',
+            'import { Text } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             'import { part, scene } from "pixifact/compiler";',
             '',
             '@scene()',
-            'export class Button extends Container {',
+            'export class Button extends Group {',
             '  @part({ id: "missingLabel" })',
             '  protected declare label: Text;',
             '}',
@@ -945,11 +888,11 @@ describe('Pixifact CLI', () => {
             '',
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
-            'import { Container } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             'import { prop, scene } from "pixifact/compiler";',
             '',
             '@scene()',
-            'export class PrimaryButton extends Container {',
+            'export class PrimaryButton extends Group {',
             '  @prop({ type: String, default: "Button" })',
             '  accessor label = "Button";',
             '}',
@@ -962,11 +905,11 @@ describe('Pixifact CLI', () => {
             '',
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'MainMenu.ts'), [
-            'import { Container } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             'import { scene } from "pixifact/compiler";',
             '',
             '@scene()',
-            'export class MainMenu extends Container {}',
+            'export class MainMenu extends Group {}',
             '',
         ].join('\n'), 'utf8');
 
@@ -996,11 +939,12 @@ describe('Pixifact CLI', () => {
     it('maps compile-scenes missing @part node ids to repairable diagnostics', async () => {
         const projectRoot = createCompilerSceneProject();
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
-            'import { Container, Text } from "pixi.js";',
+            'import { Text } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             'import { part, scene } from "pixifact/compiler";',
             '',
             '@scene()',
-            'export class Button extends Container {',
+            'export class Button extends Group {',
             '  @part({ id: "missingLabel" })',
             '  protected declare label: Text;',
             '}',
@@ -1034,11 +978,11 @@ describe('Pixifact CLI', () => {
             '',
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
-            'import { Container } from "pixi.js";',
+            'import { Group } from "pixifact/runtime";',
             'import { scene } from "pixifact/compiler";',
             '',
             '@scene()',
-            'export class PrimaryButton extends Container {}',
+            'export class PrimaryButton extends Group {}',
             '',
         ].join('\n'), 'utf8');
 
@@ -1069,11 +1013,11 @@ describe('Pixifact CLI', () => {
             '--project-root',
             projectRoot,
             '--scene',
-            'button.scene',
+            'src/scenes/Button.scene',
             '--name',
             'Existing',
         ]);
-        const saved = JSON.parse(fs.readFileSync(path.join(projectRoot, 'button.scene'), 'utf8'));
+        const saved = fs.readFileSync(path.join(projectRoot, 'src/scenes/Button.scene'), 'utf8');
 
         expect(result.exitCode).toBe(1);
         expect(result.stdout).toBe('');
@@ -1082,7 +1026,7 @@ describe('Pixifact CLI', () => {
             error: 'Scene file already exists.',
         });
         expect(result.json.hint).toContain('different scene path');
-        expect(saved.name).toBe('CLI Button');
+        expect(saved).toContain('<Scene name="Button">');
     });
 
     it('rejects Scene creation outside the project root', async () => {
@@ -1154,41 +1098,6 @@ describe('Pixifact CLI', () => {
         });
     });
 
-    it('returns live SceneDocument context without writing files', async () => {
-        const document = openLiveMenuScene();
-        setLastExternalSceneSync('GameProject/scenes/Menu.scene', {
-            status: 'dirtySkipped',
-            message: '当前打开的 Scene 有未保存修改，已跳过外部文件刷新。',
-        });
-        const handlers = createLiveEditorActionHandlers();
-        const sceneResult = await handlers['scene.get']({});
-        const nodeResult = await handlers['node.inspect']({
-            node: 'menuLabel',
-        });
-
-        expect(sceneResult).toMatchObject({
-            connected: true,
-            sourceType: 'live-editor',
-            scenePath: 'GameProject/scenes/Menu.scene',
-            dirty: false,
-            selection: { type: 'node', node: 'menuLabel' },
-            summary: {
-                name: 'Menu',
-                nodeCount: 2,
-            },
-        });
-        expect(sceneResult).not.toHaveProperty('lastExternalSync');
-        expect(nodeResult).toMatchObject({
-            kind: 'text',
-            key: 'menuLabel',
-            locator: 'menuLabel',
-            depth: 1,
-            parent: 'root',
-        });
-        expect(document.scene.root.children?.[0].text?.value).toBe('Start');
-        expect(document.dirty).toBe(false);
-        expect(host.writeHostProjectFileText).not.toHaveBeenCalled();
-    });
 
     it('returns live compiler scene context including the selected node', async () => {
         openLiveCompilerScene();

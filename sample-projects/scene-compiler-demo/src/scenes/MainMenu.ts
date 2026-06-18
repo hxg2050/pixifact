@@ -1,9 +1,10 @@
-import { Container, Text } from 'pixi.js';
+import { Text } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
 import { part, scene } from 'pixifact/compiler';
 import { Button } from './Button';
 
 @scene()
-export class MainMenu extends Container {
+export class MainMenu extends Group {
     @part()
     protected declare bodyText: Text;
 

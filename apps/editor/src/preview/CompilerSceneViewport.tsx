@@ -8,7 +8,7 @@ import {
     useSyncExternalStore,
 } from 'react';
 import { Application as PixiApplication, Container } from 'pixi.js';
-import { defaultPixifactProjectResolution } from 'pixifact';
+import { defaultPixifactProjectResolution } from '../../../../packages/pixifact/src/project';
 import { normalizeSceneAssetId } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import {
     getCompilerSceneNode,

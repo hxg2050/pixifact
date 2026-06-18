@@ -12,11 +12,12 @@ import {
 describe('scene script interface extractor', () => {
     it('extracts scene public contract from narrow TypeScript decorators', () => {
         const contract = extractSceneScriptInterface(`
-            import { Container, Text } from 'pixi.js';
+            import { Text } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
             import { event, part, prop, scene, slot } from 'pixifact/compiler';
 
             @scene()
-            export class Button extends Container {
+            export class Button extends Group {
                 @prop({ type: String, default: 'Button' })
                 accessor label = 'Button';
 

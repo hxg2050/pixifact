@@ -1,8 +1,9 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { Graphics, Text } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
 import { createEvent, event, part, prop, scene } from 'pixifact/compiler';
 
 @scene()
-export class GameOver extends Container {
+export class GameOver extends Group {
     @part()
     protected declare restartButtonBack: Graphics;
 

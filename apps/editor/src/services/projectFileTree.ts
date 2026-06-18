@@ -1,4 +1,3 @@
-import type { SceneDocument } from 'pixifact';
 import { defaultSceneSourceRoots, pairedSceneScriptPath } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
 import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
 import type {
@@ -262,11 +261,11 @@ export function createBlankCompilerScene(name: string): SceneTemplate {
 function createBlankCompilerSceneScript(name: string) {
     const assetName = sceneAssetName(name);
     return [
-        "import { Container } from 'pixi.js';",
+        "import { Group } from 'pixifact/runtime';",
         "import { scene } from 'pixifact/compiler';",
         '',
         '@scene()',
-        `export class ${assetName} extends Container {`,
+        `export class ${assetName} extends Group {`,
         '    onMounted() {}',
         '}',
         '',
@@ -390,17 +389,6 @@ export async function renameProjectEntry(
     };
 }
 
-export async function saveSceneFile(projectTree: ProjectFileTreeNode, path: string, document: SceneDocument) {
-    const file = findFileByPath(projectTree, path);
-    if (!file) {
-        return false;
-    }
-
-    await writeHostProjectFileText(ensureProjectRootPath(projectTree), file.path, document.serialize());
-    document.dirty = false;
-    return true;
-}
-
 export async function saveCompilerSceneFile(projectTree: ProjectFileTreeNode, path: string, document: CompilerSceneDocument) {
     const file = findFileByPath(projectTree, path);
     if (!file) {
@@ -410,26 +398,6 @@ export async function saveCompilerSceneFile(projectTree: ProjectFileTreeNode, pa
     await writeHostProjectFileText(ensureProjectRootPath(projectTree), file.path, serializeSceneTemplate(document.template));
     markCompilerSceneSaved();
     return true;
-}
-
-function documentRootLocator(document: SceneDocument) {
-    const root = document.scene.root;
-    return root.key ?? root.id ?? root.name ?? 'root';
-}
-
-export async function openSceneFile(
-    projectTree: ProjectFileTreeNode,
-    file: ProjectFileTreeNode,
-    document: SceneDocument,
-) {
-    const content = await readProjectFileText(projectTree, file);
-    document.load(content);
-    document.setSelection({ type: 'node', node: documentRootLocator(document) });
-    return {
-        openedScenePath: file.path,
-        scene: document.scene,
-        selection: document.selection,
-    };
 }
 
 export async function openCompilerSceneFile(
@@ -475,17 +443,6 @@ export async function createAndOpenSceneFile(
         refreshedTree,
         ...opened,
     };
-}
-
-export async function saveOpenedSceneFile(
-    projectTree: ProjectFileTreeNode,
-    openedScenePath: string | undefined,
-    document: SceneDocument,
-) {
-    if (!openedScenePath) {
-        return false;
-    }
-    return saveSceneFile(projectTree, openedScenePath, document);
 }
 
 export async function refreshProjectFileTree(projectTree: ProjectFileTreeNode) {

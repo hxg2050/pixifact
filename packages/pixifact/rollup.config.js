@@ -24,8 +24,6 @@ export default defineConfig({
     input: 'src/index.ts',
     external: [
       'pixi.js',
-      '@math.gl/core',
-      'eventemitter3',
     ],
     output: [{
       file: 'dist/index.cjs',

@@ -1,7 +1,7 @@
-import { Container } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
 import { scene } from 'pixifact/compiler';
 
 @scene()
-export class HappyBody extends Container {
+export class HappyBody extends Group {
     onMounted() {}
 }

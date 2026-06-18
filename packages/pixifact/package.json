@@ -42,16 +42,6 @@
       "import": "./dist/runtime/index.js",
       "require": "./dist/runtime/index.js"
     },
-    "./nodes": {
-      "types": "./dist/nodes/index.d.ts",
-      "import": "./dist/nodes/index.js",
-      "require": "./dist/nodes/index.js"
-    },
-    "./scene": {
-      "types": "./dist/scene/index.d.ts",
-      "import": "./dist/scene/index.js",
-      "require": "./dist/scene/index.js"
-    },
     "./compiler": {
       "types": "./dist/compiler/index.d.ts",
       "import": "./dist/compiler/index.js",
@@ -61,24 +51,12 @@
       "types": "./dist/compiler-node/index.d.ts",
       "import": "./dist/compiler-node/index.js",
       "require": "./dist/compiler-node/index.js"
-    },
-    "./authoring": {
-      "types": "./dist/authoring/index.d.ts",
-      "import": "./dist/authoring/index.js",
-      "require": "./dist/authoring/index.js"
-    },
-    "./commands": {
-      "types": "./dist/commands/index.d.ts",
-      "import": "./dist/commands/index.js",
-      "require": "./dist/commands/index.js"
     }
   },
   "peerDependencies": {
     "pixi.js": ">=8.3.0"
   },
   "dependencies": {
-    "@math.gl/core": "^4.0.1",
-    "eventemitter3": "^5.0.1",
     "typescript": "^5.3.3"
   },
   "devDependencies": {

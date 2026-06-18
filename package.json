@@ -36,8 +36,8 @@
     "editor": "bun run desktop",
     "pixifact": "bun packages/pixifact-cli/src/pixifact-cli.ts",
     "editor:frontend:build": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install vite build apps/editor --config vite.config.ts",
-    "example": "bunx --no-install vite examples/basic --config vite.config.ts",
-    "example:build": "bunx --no-install vite build examples/basic --config vite.config.ts",
+    "example": "cd sample-projects/scene-compiler-demo && bun run dev",
+    "example:build": "cd sample-projects/scene-compiler-demo && bun run build",
     "skills:install": "bun scripts/install-skills.mjs --replace",
     "test": "bunx --no-install vitest run",
     "test:watch": "bunx --no-install vitest"
@@ -56,9 +56,7 @@
     "vitest": "^4.1.5"
   },
   "dependencies": {
-    "@math.gl/core": "^4.0.1",
     "dockview-react": "6.6.1",
-    "eventemitter3": "^5.0.1",
     "lucide-react": "^1.14.0",
     "react": "^19.2.5",
     "react-aria-components": "^1.17.0",

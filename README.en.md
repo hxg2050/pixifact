@@ -12,7 +12,7 @@ Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestra
 
 The first Pixifact npm packages have been published:
 
-- `pixifact`: runtime, Scene DSL, compiler, and authoring APIs.
+- `pixifact`: runtime extensions, project config, and compiler APIs.
 - `pixifact-cli`: Bun-first Scene automation CLI.
 - `create-pixifact`: Bun-first project scaffold.
 
@@ -69,16 +69,12 @@ Pixifact's default loop ends at `scene validate`, `compile-scenes`, and optional
 
 ```txt
 packages/pixifact/              core Pixifact package, published as pixifact
-packages/pixifact/src/runtime/  Application, GameObject, Component, layout, PixiJS bridge
-packages/pixifact/src/nodes/    runtime nodes and behavior components
-packages/pixifact/src/scene/    legacy SceneSpec, DSL, Scene instantiation, Scene templates
-packages/pixifact/src/commands/ SceneDocument internal commands, validation, application, undo foundation
+packages/pixifact/src/runtime/  Pixifact runtime extensions such as Group
+packages/pixifact/src/project/  pixifact.project.json parsing and project summaries
 packages/pixifact/src/compiler/ compiler .scene parsing, validation, generation
-packages/pixifact/src/authoring/SceneDocument, selection, diff, locks, actions, logic
 packages/pixifact-cli/          Pixifact CLI; depends on pixifact, not on the desktop editor
 apps/editor/                    Pixifact desktop editor React / Vite frontend
 apps/editor/src-tauri/          Tauri desktop host
-examples/                       runtime examples
 tests/                          unit, editor, and CLI tests
 sample-projects/                sample Pixifact projects
 skills/                         repository-owned Codex skills
@@ -140,13 +136,12 @@ Pixifact Editor provides project asset browsing, lightweight previews, resource 
 ## Package Entry Points
 
 ```ts
-import { Application, GameObject, Group } from 'pixifact/runtime';
-import { SceneDocument } from 'pixifact/authoring';
+import { Group } from 'pixifact/runtime';
 import { createSceneRevision, parseSceneTemplate } from 'pixifact/compiler';
-import { container, scene, shape, text, instantiateScene } from 'pixifact/scene';
+import { parsePixifactProjectConfig } from 'pixifact';
 ```
 
-The root `pixifact` entry also exports the public semantic layer for editor, CLI, and tests.
+The root `pixifact` entry exports project config helpers, runtime extensions, and common CLI error hints. Compiler APIs are exported from `pixifact/compiler`.
 
 ## Verification
 

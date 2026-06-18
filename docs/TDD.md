@@ -7,23 +7,19 @@
 ## 1. 测试原则
 
 - 先写行为，再写实现：新需求先补一个最小失败测试或一个可执行验收场景。
-- 测试公共语义层：优先覆盖 `pixifact` public exports、compiler `.scene` parser / validator、`SceneDocument`、editor services 和 CLI entrypoint。
+- 测试公共语义层：优先覆盖 `pixifact` public exports、compiler `.scene` parser / validator、editor services 和 CLI entrypoint。
 - 不为旧 API 写兼容测试：项目处于开发阶段，不新增 legacy path、alias、fallback 或 deprecation shim。
 - 不测试静默默认值：除非需求明确，测试应让错误自然暴露，并断言真实失败原因。
-- 不让 UI state 成为项目数据源：测试必须确认项目数据来自 `.scene` 文件、compiler scene document 或必要的 `SceneDocument` 内部状态，而不是 Zustand 副本。
-- 行为测试用稳定 locator：compiler scene 节点用 hierarchy locator / `id`，legacy Scene 节点用 `key` / `id`，组件用 `id`，文件用 project-relative path。
+- 不让 UI state 成为项目数据源：测试必须确认项目数据来自 `.scene` 文件或 compiler scene document，而不是 Zustand 副本。
+- 行为测试用稳定 locator：compiler scene 节点用 hierarchy locator / `id`，文件用 project-relative path。
 - 先最小验证，再扩大范围：每次改动优先运行最小相关测试，跨边界改动再运行完整 `bun run test` 和构建。
 
 ## 2. 现有测试地图
 
 | 文件 | 责任边界 | 当前覆盖重点 |
 | --- | --- | --- |
-| `tests/core.test.ts` | runtime foundation | `GameObject`、transform、children、layout、lifecycle、ticker |
-| `tests/ui.test.ts` | DOM-backed runtime nodes | `Input`、`Textarea`、`ScrollRect`、DOM cleanup、viewport transform |
-| `tests/unity-ui.test.ts` | runtime component metadata + template slice | component schema、Button runtime composition、Scene DSL instantiate |
-| `tests/editor.test.ts` | authoring semantic layer | `SceneDocument`、internal commands、undo/redo、locks、memory、logic |
 | `tests/editor-store.test.ts` | editor UI store | Zustand 只持久化轻量偏好，不保存 project data / secrets |
-| `tests/project-file-tree.test.ts` | desktop project file service | `.scene` 创建保存、文件树分类、重命名、删除、scene instance key isolation |
+| `tests/project-file-tree.test.ts` | desktop project file service | compiler `.scene` 创建保存、文件树分类、重命名、删除、绑定刷新 |
 | `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
 | `tests/editor-run-service.test.ts` | editor run service / host bridge | 运行状态、spawn 参数、stdout / stderr 摘要、停止 session、失败状态 |
 | `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、path guard、read-only live context、exit code |
@@ -44,10 +40,9 @@
 
 2. 选测试边界
 
-   - compiler `.scene` parser / validator：`tests/pixifact-cli.test.ts`
-   - SceneDocument 内部命令、undo、memory、logic：`tests/editor.test.ts`
-   - runtime、布局、生命周期：`tests/core.test.ts`
-   - DOM-backed node：`tests/ui.test.ts`
+   - compiler `.scene` parser / validator：`tests/scene-compiler.test.ts`、`tests/pixifact-cli.test.ts`
+   - compiler scene command / undo：`tests/compiler-scene-commands.test.ts`、`tests/compiler-scene-document-controller.test.ts`
+   - runtime `Group` / compiler output：`tests/scene-compiler.test.ts` 和 sample project build
    - editor 文件树 / host service：`tests/project-file-tree.test.ts`
    - project run config：`tests/project-run-config.test.ts`
    - editor run service：`tests/editor-run-service.test.ts`
@@ -127,7 +122,7 @@ bun run editor:frontend:build
 必须先覆盖：
 
 - `live summary` 返回项目、当前文件和 scene 列表。
-- `live scene get` 返回当前 compiler scene 或 legacy SceneDocument 的只读上下文。
+- `live scene get` 返回当前 compiler scene 的只读上下文。
 - `live node inspect` 返回当前选中或指定节点的稳定 locator、类型和 props。
 - live bridge 不暴露 mutation action。
 
@@ -137,43 +132,44 @@ bun run editor:frontend:build
 bunx --no-install vitest run tests/pixifact-cli.test.ts
 ```
 
-### 修改 SceneDocument 内部命令
+### 修改 compiler scene 内部命令
 
 必须先覆盖：
 
-- `validateCommand` 接受合法 payload。
-- `validateCommand` 拒绝错误 node、错误 prop、错误 parent 或错误 component。
-- `applySceneCommand` 修改正确字段。
-- `SceneDocument.apply` 设置 dirty，写入 undo stack。
+- `applyCompilerSceneCommand` 接受合法 payload。
+- `applyCompilerSceneCommand` 拒绝错误 node、错误 prop、错误 parent 或错误 slot。
+- `CompilerSceneCommandStack` 写入 undo stack。
 - undo / redo 恢复状态。
 - 新能力不重新暴露为外部 Agent CLI mutation 协议。
 
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/editor.test.ts tests/pixifact-cli.test.ts
+bunx --no-install vitest run tests/compiler-scene-commands.test.ts tests/compiler-scene-document-controller.test.ts tests/pixifact-cli.test.ts
 ```
 
-### 新增 Scene 模板或 runtime UI 能力
+### 新增 compiler Scene primitive 或 runtime 能力
 
 必须先覆盖：
 
-- 模板返回的根节点结构稳定。
-- 子节点 key / component id 稳定且不冲突。
-- `instantiate` 后 runtime nodes / components 可定位。
-- editor template library 可创建该模板节点。
+- `.scene` parser / serializer 能表达新增节点或字段。
+- validator 能拒绝错误字段和值类型。
+- compiler 生成的 PixiJS / Pixifact runtime 代码正确。
+- editor hierarchy / inspector / viewport 能识别新增节点或字段。
 
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/editor.test.ts tests/unity-ui.test.ts
+bunx --no-install vitest run tests/scene-compiler.test.ts tests/editor-workbench-ui.test.ts
+bun run build
+bun run example:build
 ```
 
 ### 修改 Inspector / Editor 面板
 
 必须先覆盖：
 
-- 数据流写入 compiler scene document 或必要的 `SceneDocument` 内部命令。
+- 数据流写入 compiler scene document。
 - 节点类型专属 display 字段过滤正确。
 - Zustand 只保存 UI 偏好。
 - 纯图标按钮有 `aria-label` 和 `title`。
@@ -182,25 +178,24 @@ bunx --no-install vitest run tests/editor.test.ts tests/unity-ui.test.ts
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/editor-store.test.ts tests/editor.test.ts tests/project-file-tree.test.ts
+bunx --no-install vitest run tests/editor-store.test.ts tests/project-file-tree.test.ts tests/editor-workbench-ui.test.ts
 bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
 bun run editor:frontend:build
 ```
 
-### 修改 Runtime / Layout / Component
+### 修改 Runtime / Group
 
 必须先覆盖：
 
-- runtime API 使用 `GameObject.instantiate(Type, parent, props?)`。
-- 组件 lifecycle：`awake`、`start`、`update`、`onDestroy`。
-- event listener 在 `onDestroy` 清理。
-- layout 使用逻辑 `width` / `height`。
-- leaf render nodes 不获得 child APIs。
+- `Group` 保持 PixiJS `Container` 语义，不覆盖 Pixi `width` / `height`。
+- `Group.logicalWidth` / `logicalHeight` 表达 Pixifact 逻辑尺寸。
+- compiler root 使用 `Group`，并通过 `setLogicalSize()` 写入 Scene 尺寸。
+- sample project 的 scene scripts 继承 `Group`。
 
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/core.test.ts tests/ui.test.ts tests/unity-ui.test.ts
+bunx --no-install vitest run tests/scene-compiler.test.ts tests/scene-script-interface.test.ts
 bun run build
 bun run example:build
 ```
@@ -214,7 +209,7 @@ bun run example:build
 - 关键失败路径有测试，尤其是 invalid scene、path guard、asset/contract validation。
 - 外部 Agent 修改路径是 `.scene` direct edit + validation。
 - Editor live context 是只读增强，不写项目文件。
-- editor UI 没有保存 `SceneSpec` / `SceneDocument` 副本到 Zustand。
+- editor UI 没有保存 `.scene` source 或 compiler scene document 副本到 Zustand。
 - 相关最小验证通过。
 - 涉及 editor 前端时，TypeScript strict check 和 `editor:frontend:build` 通过。
 - 涉及 runtime / public exports 时，`bun run build` 通过。

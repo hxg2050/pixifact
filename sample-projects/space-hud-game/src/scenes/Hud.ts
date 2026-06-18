@@ -1,8 +1,9 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { Graphics, Text } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
 import { part, prop, scene } from 'pixifact/compiler';
 
 @scene()
-export class Hud extends Container {
+export class Hud extends Group {
     @part()
     protected declare hpFill: Graphics;
 

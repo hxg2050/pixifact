@@ -137,8 +137,7 @@ bun run editor:frontend:build
 ## 架构边界
 
 - Compiler `.scene` 源文件是外部 Agent 和 editor 共享的 source of truth。
-- `SceneDocument` 仍服务 legacy SceneSpec 和 editor 内部命令/undo。
-- Zustand 只保存 UI 状态。
+- Zustand 只保存 UI 状态，不保存 `.scene` 模板副本作为项目数据源。
 - React panel 不保存项目树副本。
 - Agent 默认直接编辑 `.scene` 文件，再通过 CLI 验证和编译。
 - Editor live bridge 只提供 summary、scene get、node inspect 等上下文能力。

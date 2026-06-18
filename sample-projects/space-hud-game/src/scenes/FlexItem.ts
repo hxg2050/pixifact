@@ -1,4 +1,5 @@
 import { Container } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
 import { prop, scene, slot } from 'pixifact/compiler';
 
 export type FlexAxis = 'row' | 'column';
@@ -21,7 +22,7 @@ export interface FlexItemLayoutProps {
 }
 
 @scene()
-export class FlexItem extends Container {
+export class FlexItem extends Group {
     @slot()
     readonly default!: Container;
 

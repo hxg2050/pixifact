@@ -26,25 +26,20 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 当前仓库包含：
 
 - `packages/pixifact/`：核心 Pixifact 包，包名为 `pixifact`。
-- `packages/pixifact/src/runtime/`：`Application`、`GameObject`、`Component`、布局、PixiJS bridge。
-- `packages/pixifact/src/nodes/`：runtime 节点和行为组件。
-- `packages/pixifact/src/scene/`：`SceneSpec`、Scene DSL、Scene 实例化、Scene 模板。
-- `packages/pixifact/src/commands/`：`SceneDocument` 内部 `SceneCommand` 校验、应用、撤销基础。
+- `packages/pixifact/src/runtime/`：Pixifact 对 PixiJS 的 runtime 扩展节点，例如 `Group`。
+- `packages/pixifact/src/project/`：`pixifact.project.json` 解析、默认开发分辨率和项目摘要。
 - `packages/pixifact/src/compiler/`：compiler `.scene` 解析、校验、生成。
-- `packages/pixifact/src/authoring/`：`SceneDocument`、selection、diff、locks、actions、logic。
 - `packages/pixifact-cli/`：Pixifact CLI，依赖 `pixifact`，不依赖桌面编辑器。
 - `apps/editor/`：Pixifact 桌面编辑器产品应用。
 - `apps/editor/src-tauri/`：Tauri desktop host。
-- `examples/`：runtime 示例。
 - `tests/`：单元测试、编辑器测试、CLI 测试。
 
 ## 核心架构规则
 
 - Compiler `.scene` 源文件是外部 Agent 和 editor 共享的 source of truth。
-- `SceneDocument` 服务 legacy SceneSpec 和 editor 内部命令/undo，不作为外部 Agent 修改协议。
-- Zustand 只保存 UI 状态，不保存 `SceneSpec` / `SceneDocument` 的副本。
+- Zustand 只保存 UI 状态，不保存 `.scene` 模板副本作为项目数据源。
 - Compiler `.scene` 的默认 Agent 路径是直接编辑 `.scene` 源文件，然后运行 Pixifact CLI 的 `scene validate`、`compile-scenes` 和项目最小相关验证。
-- Editor live bridge 只提供 summary、scene get、node inspect 等上下文能力，不提供旧 `SceneCommand` mutation 入口。
+- Editor live bridge 只提供 summary、scene get、node inspect 等 compiler scene 上下文能力，不提供 mutation 入口。
 - JSON 是资产格式，不作为主要编辑入口。
 - 不引入 Monaco，不做内嵌代码编辑器。
 - Editor 可以做项目资产浏览、轻量预览、资源引用和校验，但不编辑图片、音频、脚本等源资源。
@@ -52,27 +47,18 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 
 ## Scene 规则
 
-- 资产统一使用 `SceneSpec`，文件扩展名为 `.scene`。
-- `SceneSpec.root` 必须是 `container`。
-- 公开节点类型只有 `container`、`image`、`text`、`input`、`shape`。
-- 只有 `container` 可以包含子节点。
-- 所有节点都可以挂行为组件。
-- 显示数据放在节点字段上，例如 `text.value`、`image.src`、`input.value`、`shape.color`。
-- `Button`、`ProgressBar`、`ScrollView` 等是 Scene 模板，不作为基础显示节点。
-- 不向用户或 Agent 暴露 `ui.TextGraphic`、`ui.ImageGraphic`、`ui.RoundedRectGraphic` 作为 authoring 组件。
+- 资产统一使用 compiler `.scene` 文本格式，文件扩展名为 `.scene`。
+- 每个 `.scene` 与同目录同 basename 的 `.ts` 脚本配对。
+- `.scene` 的根是 `<Scene>`，运行时根节点是 `Group`。
+- Pixi 原生 `Container` 语义保持不变；需要逻辑尺寸和 authoring 容器心智时使用 `Group`。
+- Scene 脚本类默认继承 `Group`，并通过 `@scene()`、`@part()`、`@prop()`、`@event()`、`@slot()` 暴露契约。
 
 ## Runtime Foundation 规则
 
-- 使用 `GameObject.instantiate(Type, parent, props?)` 创建 runtime 节点。
-- runtime `Group` 是底层唯一容器节点；公开 authoring 名称使用 `container`。
-- `Graphics`、`Label`、`Image`、`NineSliceImage` 等渲染叶子不应拥有子节点。
-- 挂载到 `Application.root` 后才参与 ticker-driven update。
-- 可复用行为放在 `Component` 子类里。
-- 生命周期使用 `awake`、`start`、`update`、`onDestroy`。
-- 组件清理必须在 `onDestroy` 中释放事件监听。
-- 布局优先使用 `Layout`、`GridLayout`、`FlexGroup` / `Flex`。
-- 尽量使用逻辑 `width` / `height` 做布局判断，不随意依赖 Pixi bounds。
-- 新增 runtime 能力时，优先服务 Scene 实例化、editor workflow、Viewport 预览、Command 应用、CLI 和导出。
+- `Container` 保留 PixiJS 原生含义，尤其是 `width` / `height` 的 bounds / scale 语义。
+- `Group extends Container`，作为 Pixifact 的 Scene 根节点和逻辑尺寸容器。
+- `Group.logicalWidth` / `Group.logicalHeight` 表示开发坐标系里的逻辑尺寸，不覆盖 Pixi `width` / `height`。
+- 新增 runtime 能力时，优先服务 compiler Scene 实例化、editor workflow、Viewport 预览、CLI 和导出。
 
 ## Editor UI 设计原则
 
@@ -92,7 +78,7 @@ Pixifact 主要面向中国用户。默认 Editor 界面、README 主文档、CL
 保留英文或中英混用：
 
 - 产品和行业术语：AI-first、Prompt、Dry Run、Diff、Memory、CLI、Agent。
-- 工程概念：ID、Key、Type、Scene、Command、SceneDocument、ActionRegistry、LogicGraph。
+- 工程概念：ID、Key、Type、Scene、Command、CompilerSceneDocument。
 - 文件和语言名：JSON、TypeScript、TS。
 - 组件 schema 的原始 display name 和 type，例如 `Button`、`ui.Button`。
 
@@ -192,6 +178,6 @@ bun run desktop:build
 - 不要 revert 用户已有改动。
 - 不要把 React state 变成项目数据源。
 - 不要为了 UI 美化破坏 Alpha 核心流程测试。
-- 新增面板或服务时，优先复用现有 `.scene` parser、serializer、validator、compiler scene document 和必要的 `SceneDocument` 内部能力。
+- 新增面板或服务时，优先复用现有 `.scene` parser、serializer、validator 和 compiler scene document。
 - 运行测试或构建后，避免提交 `apps/editor/dist`、`packages/pixifact/dist`、`test-results`、`apps/editor/src-tauri/target` 等临时产物。
 - 每次代码或文档改动完成并通过相关验证后，自动提交 tracked 变动；不要提交未跟踪文件，除非用户明确要求。

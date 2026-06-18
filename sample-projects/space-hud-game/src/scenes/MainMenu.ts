@@ -1,8 +1,9 @@
-import { Container, Graphics } from 'pixi.js';
+import { Graphics } from 'pixi.js';
 import { createEvent, event, part, scene } from 'pixifact/compiler';
+import { Group } from 'pixifact/runtime';
 
 @scene()
-export class MainMenu extends Container {
+export class MainMenu extends Group {
     @part()
     protected declare startButtonBack: Graphics;
 

@@ -220,7 +220,7 @@ async function executeFileCommand(positionals: string[], flags: Record<string, s
     }
 
     if (area === 'scene' && action === 'get') {
-        return automation.getScene({
+        return automation.inspectCompilerScene({
             projectRoot: requireFlag(flags, 'project-root'),
             scenePath: requireFlag(flags, 'scene'),
         });

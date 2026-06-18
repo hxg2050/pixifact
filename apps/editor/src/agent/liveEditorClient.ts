@@ -1,8 +1,6 @@
-import type { NodeSpec, SceneSpec } from 'pixifact';
 import { createSceneRevision, inspectSceneTemplate } from '../../../../packages/pixifact/src/compiler/sceneValidation';
 import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
 import type { SceneTemplateNode } from '../../../../packages/pixifact/src/compiler/spec';
-import { getSceneDocument } from '../document/sceneDocumentController';
 import { compilerSceneNodeLocator, getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import type { CompilerSceneTemplateNode } from '../services/projectFileTree';
@@ -23,31 +21,6 @@ interface ToolInput {
 interface ProjectFileSummary {
     path: string;
     kind: string;
-}
-
-interface NodeSummary {
-    id?: string;
-    key?: string;
-    role?: string;
-    name?: string;
-    kind: NodeSpec['kind'];
-    locator: string;
-    depth: number;
-    transform?: NodeSpec['transform'];
-    components: Array<{
-        id?: string;
-        type: string;
-        propKeys: string[];
-    }>;
-    childCount: number;
-    children: NodeSummary[];
-}
-
-type DetailedNode = NodeSpec & {
-    locator: string;
-    depth: number;
-    parent?: string;
-    childCount: number;
 }
 
 type DetailedCompilerNode = SceneTemplateNode & {
@@ -73,74 +46,6 @@ function assertString(value: unknown, name: string) {
         throw new Error(`${name} must be a non-empty string.`);
     }
     return value;
-}
-
-function getNodeLocator(node: NodeSpec) {
-    return node.id ?? node.key ?? node.name ?? '';
-}
-
-function summarizeNode(node: NodeSpec, depth = 0): NodeSummary {
-    const children = node.kind === 'container' ? node.children ?? [] : [];
-    return {
-        id: node.id,
-        key: node.key,
-        role: node.role,
-        name: node.name,
-        kind: node.kind,
-        locator: getNodeLocator(node),
-        depth,
-        transform: node.transform,
-        components: (node.components ?? []).map((component) => ({
-            id: component.id,
-            type: component.type,
-            propKeys: Object.keys(component.props ?? {}),
-        })),
-        childCount: children.length,
-        children: children.map((child) => summarizeNode(child, depth + 1)),
-    };
-}
-
-function collectNodes(node: NodeSpec, depth = 0, parent?: string): Array<{
-    locator: string;
-    parent?: string;
-    depth: number;
-    componentCount: number;
-    childCount: number;
-}> {
-    return [
-        {
-            locator: getNodeLocator(node),
-            parent,
-            depth,
-            componentCount: node.components?.length ?? 0,
-            childCount: node.kind === 'container' ? node.children?.length ?? 0 : 0,
-        },
-        ...(node.kind === 'container' ? (node.children ?? []).flatMap((child) => collectNodes(child, depth + 1, getNodeLocator(node))) : []),
-    ];
-}
-
-function collectDetailedNodes(node: NodeSpec, depth = 0, parent?: string): DetailedNode[] {
-    return [
-        {
-            ...structuredClone(node),
-            locator: getNodeLocator(node),
-            depth,
-            parent,
-            childCount: node.kind === 'container' ? node.children?.length ?? 0 : 0,
-        },
-        ...(node.kind === 'container' ? (node.children ?? []).flatMap((child) => collectDetailedNodes(child, depth + 1, getNodeLocator(node))) : []),
-    ];
-}
-
-function summarizeScene(scene: SceneSpec) {
-    const nodes = collectNodes(scene.root);
-    return {
-        name: scene.name,
-        version: scene.version,
-        nodeCount: nodes.length,
-        componentCount: nodes.reduce((sum, node) => sum + node.componentCount, 0),
-        root: summarizeNode(scene.root),
-    };
 }
 
 function compilerNodeChildren(node: CompilerSceneTemplateNode): CompilerSceneTemplateNode[] {
@@ -249,16 +154,7 @@ export function createLiveEditorActionHandlers() {
                     ...(lastExternalSync ? { lastExternalSync } : {}),
                 };
             }
-            const document = getSceneDocument();
-            return {
-                connected: true,
-                sourceType: 'live-editor',
-                scenePath: store.openedScenePath,
-                dirty: document.dirty,
-                selection: document.selection,
-                scene: document.scene,
-                summary: summarizeScene(document.scene),
-            };
+            throw new Error('当前没有打开 compiler .scene。');
         },
 
         async 'node.inspect'(input: unknown) {
@@ -276,11 +172,7 @@ export function createLiveEditorActionHandlers() {
                 }
                 return node;
             }
-            const node = collectDetailedNodes(getSceneDocument().scene.root).find((item) => item.locator === nodeId);
-            if (!node) {
-                throw new Error(`Node "${nodeId}" was not found.`);
-            }
-            return node;
+            throw new Error('当前没有打开 compiler .scene。');
         },
     };
 }

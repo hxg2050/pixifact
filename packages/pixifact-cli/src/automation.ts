@@ -12,30 +12,19 @@ import {
     parseSceneTemplate,
     resolveSceneReference,
     sceneLocalName,
+    toPosixPath,
     validateSceneContent,
 } from 'pixifact/compiler';
 import {
-    container,
-    scene,
-    SceneDocument,
     parsePixifactProjectConfig,
     pixifactProjectConfigFileName,
     summarizePixifactProjectConfig,
 } from 'pixifact';
-import type { SceneSpec, NodeSpec } from 'pixifact';
-import type { SceneProjectState } from 'pixifact';
-import type { SceneTemplate, SceneTemplateInterface, SceneValidationDiagnostic } from 'pixifact/compiler';
+import type { SceneTemplate, SceneTemplateInterface, SceneTemplateNode, SceneValidationDiagnostic } from 'pixifact/compiler';
 
 interface ProjectFileSummary {
     path: string;
     kind: 'folder' | 'scene' | 'file';
-}
-
-interface EditableDocument {
-    projectRoot: string;
-    target: string;
-    document: SceneDocument;
-    isProjectFile: boolean;
 }
 
 interface ToolInput {
@@ -48,33 +37,12 @@ interface ToolInput {
 type CompilerSceneValidationSuccess = ReturnType<typeof validateCompilerSceneFile> & { ok: true };
 type CompilerSceneValidationFailure = ReturnType<typeof validateCompilerSceneFile> & { ok: false };
 
-type DetailedNode = NodeSpec & {
+type DetailedCompilerNode = SceneTemplateNode & {
     locator: string;
     depth: number;
     parent?: string;
     childCount: number;
 }
-
-interface NodeSummary {
-    id?: string;
-    key?: string;
-    role?: string;
-    name?: string;
-    kind: NodeSpec['kind'];
-    locator: string;
-    depth: number;
-    transform?: NodeSpec['transform'];
-    components: Array<{
-        id?: string;
-        type: string;
-        propKeys: string[];
-    }>;
-    childCount: number;
-    children: NodeSummary[];
-}
-
-const projectStateType = 'pixifact.aiEditorProject';
-const sceneType = 'scene';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -128,58 +96,24 @@ function writeTextFile(filePath: string, value: string) {
     fs.writeFileSync(filePath, value, 'utf8');
 }
 
-function writeNewJsonFile(filePath: string, value: unknown) {
+function writeNewTextFile(filePath: string, value: string, errorMessage: string) {
     try {
-        fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, {
+        fs.writeFileSync(filePath, value, {
             encoding: 'utf8',
             flag: 'wx',
         });
     } catch (error) {
         if (isRecord(error) && error.code === 'EEXIST') {
-            throw new Error('Scene file already exists.');
+            throw new Error(errorMessage);
         }
         throw error;
     }
 }
 
-function isProjectState(value: unknown): value is SceneProjectState {
-    return isRecord(value)
-        && value.version === 1
-        && value.type === projectStateType
-        && isRecord(value.scene)
-        && (value.scene as { type?: unknown }).type === sceneType;
-}
-
-function isScene(value: unknown): value is SceneSpec {
-    return isRecord(value)
-        && value.version === 1
-        && value.type === sceneType
-        && isRecord(value.root);
-}
-
-function loadEditableDocument(projectRoot: unknown, scenePath: unknown): EditableDocument {
-    const { root, target } = resolveProjectPath(projectRoot, scenePath);
-    const content = readJsonFile(target);
-    if (isProjectState(content)) {
-        const document = new SceneDocument(content.scene);
-        document.loadState(content);
-        return {
-            projectRoot: root,
-            target,
-            document,
-            isProjectFile: true,
-        };
+function assertNewFile(filePath: string, errorMessage: string) {
+    if (fs.existsSync(filePath)) {
+        throw new Error(errorMessage);
     }
-    if (!isScene(content)) {
-        throw new Error('Target file must be a Pixifact Scene or AI editor project JSON.');
-    }
-    const document = new SceneDocument(content);
-    return {
-        projectRoot: root,
-        target,
-        document,
-        isProjectFile: false,
-    };
 }
 
 function loadCompilerScene(projectRoot: unknown, scenePath: unknown) {
@@ -452,71 +386,6 @@ function validateAllCompilerScenes(root: string) {
     };
 }
 
-function nodeLocator(node: NodeSpec) {
-    return node.id ?? node.key ?? node.name ?? '';
-}
-
-function summarizeNode(node: NodeSpec, depth = 0): NodeSummary {
-    const children = node.kind === 'container' ? node.children ?? [] : [];
-    return {
-        id: node.id,
-        key: node.key,
-        role: node.role,
-        name: node.name,
-        kind: node.kind,
-        locator: nodeLocator(node),
-        depth,
-        transform: node.transform,
-        components: (node.components ?? []).map((component) => ({
-            id: component.id,
-            type: component.type,
-            propKeys: Object.keys(component.props ?? {}),
-        })),
-        childCount: children.length,
-        children: children.map((child) => summarizeNode(child, depth + 1)),
-    };
-}
-
-function collectNodes(node: NodeSpec, depth = 0, parent?: string): Array<{
-    id?: string;
-    key?: string;
-    role?: string;
-    name?: string;
-    kind: NodeSpec['kind'];
-    locator: string;
-    depth: number;
-    parent?: string;
-    componentCount: number;
-    childCount: number;
-}> {
-    return [
-        {
-            id: node.id,
-            key: node.key,
-            role: node.role,
-            name: node.name,
-            kind: node.kind,
-            locator: nodeLocator(node),
-            depth,
-            parent,
-            componentCount: node.components?.length ?? 0,
-            childCount: node.kind === 'container' ? node.children?.length ?? 0 : 0,
-        },
-        ...(node.kind === 'container' ? (node.children ?? []).flatMap((child) => collectNodes(child, depth + 1, nodeLocator(node))) : []),
-    ];
-}
-
-function summarizeScene(scene: SceneSpec) {
-    const nodes = collectNodes(scene.root);
-    return {
-        name: scene.name,
-        version: scene.version,
-        nodeCount: nodes.length,
-        componentCount: nodes.reduce((sum, node) => sum + node.componentCount, 0),
-        root: summarizeNode(scene.root),
-    };
-}
-
 function walkFiles(root: string, directory: string, depth: number, maxDepth: number, results: ProjectFileSummary[]) {
     if (depth > maxDepth) {
         return;
@@ -548,6 +417,69 @@ function walkFiles(root: string, directory: string, depth: number, maxDepth: num
     }
 }
 
+function compilerNodeChildren(node: SceneTemplateNode): SceneTemplateNode[] {
+    if (node.kind === 'pixi') {
+        return node.children;
+    }
+    if (node.kind === 'sceneInstance') {
+        return Object.values(node.slots).flat();
+    }
+    return [];
+}
+
+function compilerNodeSegment(index: number, node: SceneTemplateNode) {
+    if (node.kind === 'slotOutlet') {
+        return `${index}:slot:${node.name}`;
+    }
+    return `${index}:${node.id ?? node.kind}`;
+}
+
+function collectDetailedCompilerNodes(
+    nodes: readonly SceneTemplateNode[],
+    depth = 0,
+    parent?: string,
+): DetailedCompilerNode[] {
+    return nodes.flatMap((node, index) => {
+        const locator = parent ? `${parent}/${compilerNodeSegment(index, node)}` : compilerNodeSegment(index, node);
+        const children = node.kind === 'pixi'
+            ? collectDetailedCompilerNodes(node.children, depth + 1, locator)
+            : node.kind === 'sceneInstance'
+                ? Object.entries(node.slots).flatMap(([slot, slotChildren]) => (
+                    collectDetailedCompilerNodes(slotChildren, depth + 1, `${locator}/slot:${slot}`)
+                ))
+                : [];
+        return [
+            {
+                ...structuredClone(node),
+                locator,
+                depth,
+                parent,
+                childCount: compilerNodeChildren(node).length,
+            },
+            ...children,
+        ];
+    });
+}
+
+function createBlankCompilerSceneSource(sceneName: string) {
+    return [
+        `<Scene name="${sceneName}" width="960" height="540">`,
+        '</Scene>',
+        '',
+    ].join('\n');
+}
+
+function createBlankCompilerSceneScript(sceneName: string) {
+    return [
+        "import { Group } from 'pixifact/runtime';",
+        "import { scene } from 'pixifact/compiler';",
+        '',
+        '@scene()',
+        `export class ${sceneName} extends Group {}`,
+        '',
+    ].join('\n');
+}
+
 export function createPixifactAutomation() {
     return {
         getProjectSummary(input: unknown) {
@@ -565,12 +497,15 @@ export function createPixifactAutomation() {
 
         getScene(input: unknown) {
             const args = assertRecord(input, 'input') as ToolInput;
-            const editable = loadEditableDocument(args.projectRoot, args.scenePath);
+            const loaded = loadCompilerScene(args.projectRoot, args.scenePath);
+            const template = parseSceneTemplate(loaded.content);
             return {
-                scenePath: path.relative(editable.projectRoot, editable.target),
-                sourceType: editable.isProjectFile ? 'project' : 'scene',
-                scene: editable.document.scene,
-                summary: summarizeScene(editable.document.scene),
+                ok: true,
+                sourceType: 'compiler-scene',
+                scenePath: loaded.scenePath,
+                revision: createSceneRevision(loaded.content),
+                template,
+                summary: inspectSceneTemplate(template),
             };
         },
 
@@ -578,20 +513,26 @@ export function createPixifactAutomation() {
             const args = assertRecord(input, 'input') as ToolInput;
             const { root, target } = resolveProjectPath(args.projectRoot, args.scenePath);
             const sceneName = assertString(args.name, 'name');
-            const nextScene = scene(sceneName, container('Root', {
-                id: 'root',
-                key: 'root',
-                width: 320,
-                height: 180,
-                children: [],
-            }));
+            const scenePath = normalizeSceneAssetId(path.relative(root, target));
+            const sourceRootFailure = compilerSceneSourceRootFailure(scenePath);
+            if (sourceRootFailure) {
+                return sourceRootFailure;
+            }
+            const scriptPath = path.resolve(root, pairedSceneScriptPath(scenePath));
+            const source = createBlankCompilerSceneSource(sceneName);
+            const template = parseSceneTemplate(source);
 
-            writeNewJsonFile(target, nextScene);
+            assertNewFile(target, 'Scene file already exists.');
+            assertNewFile(scriptPath, 'Scene script already exists.');
+            writeNewTextFile(target, source, 'Scene file already exists.');
+            writeNewTextFile(scriptPath, createBlankCompilerSceneScript(sceneName), 'Scene script already exists.');
             return {
                 ok: true,
-                scenePath: path.relative(root, target),
-                scene: nextScene,
-                summary: summarizeScene(nextScene),
+                scenePath,
+                scriptPath: toPosixPath(path.relative(root, scriptPath)),
+                revision: createSceneRevision(source),
+                template,
+                summary: inspectSceneTemplate(template),
             };
         },
 
@@ -621,26 +562,14 @@ export function createPixifactAutomation() {
 
         inspectNode(input: unknown) {
             const args = assertRecord(input, 'input') as ToolInput;
-            const editable = loadEditableDocument(args.projectRoot, args.scenePath);
+            const loaded = loadCompilerScene(args.projectRoot, args.scenePath);
+            const template = parseSceneTemplate(loaded.content);
             const nodeId = assertString(args.node, 'node');
-            const node = collectDetailedNodes(editable.document.scene.root).find((item) => item.locator === nodeId);
+            const node = collectDetailedCompilerNodes(template.children).find((item) => item.locator === nodeId);
             if (!node) {
                 throw new Error(`Node "${nodeId}" was not found.`);
             }
             return node;
         },
     };
-}
-
-function collectDetailedNodes(node: NodeSpec, depth = 0, parent?: string): DetailedNode[] {
-    return [
-        {
-            ...structuredClone(node),
-            locator: nodeLocator(node),
-            depth,
-            parent,
-            childCount: node.kind === 'container' ? node.children?.length ?? 0 : 0,
-        },
-        ...(node.kind === 'container' ? (node.children ?? []).flatMap((child) => collectDetailedNodes(child, depth + 1, nodeLocator(node))) : []),
-    ];
 }

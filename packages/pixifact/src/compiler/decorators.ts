@@ -1,6 +1,4 @@
-import type {
-    Container,
-} from 'pixi.js';
+import type { Group } from '../runtime';
 import type {
     SceneClassDecorator,
     SceneEventDecoratorOptions,
@@ -27,7 +25,7 @@ export function scene(): SceneClassDecorator {
             constructor(...args: unknown[]) {
                 super(...args);
 
-                const result = mountSceneClass(this as object as Container, SceneClass);
+                const result = mountSceneClass(this as object as Group, SceneClass);
                 const metadata = sceneMetadata(constructor);
                 for (const [property, id] of metadata.parts) {
                     Object.defineProperty(this, property, {

@@ -1,8 +1,8 @@
 import {
     parsePixifactProjectConfig,
     pixifactProjectConfigFileName,
-} from 'pixifact';
-import type { PixifactProjectConfig } from 'pixifact';
+    type PixifactProjectConfig,
+} from '../../../../packages/pixifact/src/project';
 import type { ProjectFileTreeNode } from './projectFileTree';
 import { findFileByPath, projectFileRelativePath, readProjectFileText } from './projectFileTree';
 import {

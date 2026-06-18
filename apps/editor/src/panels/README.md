@@ -8,4 +8,4 @@
 - `InspectorPanel.tsx`：Compiler `.scene` 选中对象属性编辑、Scene 文件信息、脚本绑定和公开契约摘要。
 - `SummaryBar.tsx` / `common.tsx`：共享展示和树遍历辅助。
 
-不再保留旧 Alpha 的独立 Component Palette、Action、Logic、Memory、Project tab。项目数据仍以 `SceneDocument` 或 compiler `.scene` 文件为 source of truth，UI 状态只保存轻量偏好；外部 AI 通过 CLI 调用 Pixifact 的 Scene inspect、validate、compile、preview 和 diagnostics 能力。Git、Agent 编排、任务管理和 CI 由外部工具负责。
+不再保留早期工作台中的独立 Component Palette、Action、Logic、Memory、Project tab。项目数据以 compiler `.scene` 文件为 source of truth，UI 状态只保存轻量偏好；外部 AI 通过 CLI 调用 Pixifact 的 Scene inspect、validate、compile、preview 和 diagnostics 能力。Git、Agent 编排、任务管理和 CI 由外部工具负责。

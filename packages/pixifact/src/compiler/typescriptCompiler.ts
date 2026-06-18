@@ -53,9 +53,9 @@ class CompileContext {
         const partsType = this.#formatPartsType();
         const textureLoads = this.#formatTextureLoads();
 
-        this.#lines.push(`export function ${functionName}(root: Container${this.#hasEvents() ? `, ${actionsParameter}: Record<string, () => void> = {}` : ''}) {`);
+        this.#lines.push(`export function ${functionName}(root: Group${this.#hasEvents() ? `, ${actionsParameter}: Record<string, () => void> = {}` : ''}) {`);
         this.#lines.push('  const __pixifactSlots: Record<string, Container> = {};');
-        this.#applyPixiProps('root', this.template.props);
+        this.#applyRootProps();
         for (const child of this.template.children) {
             this.#compileNode(child, 'root', actionsParameter);
         }
@@ -94,7 +94,7 @@ class CompileContext {
             ...[...this.#imports].filter((item) => item !== 'Container').sort(),
             ...[...this.#pixiImports].sort(),
         ])];
-        const lines = [`import { ${imports.join(', ')} } from 'pixi.js';`];
+        const lines = [`import { ${imports.join(', ')} } from 'pixi.js';`, `import { Group } from 'pixifact/runtime';`];
         for (const [texture, variable] of this.#textureImportEntries()) {
             lines.push(`import ${variable} from ${JSON.stringify(this.options.textureImports?.[texture])};`);
         }
@@ -115,7 +115,7 @@ class CompileContext {
     }
 
     #formatPartsType() {
-        const lines = [`export type ${this.template.name}Parts = {`, '  root: Container;'];
+        const lines = [`export type ${this.template.name}Parts = {`, '  root: Group;'];
         lines.push('  parts: {');
         for (const part of this.#parts) {
             lines.push(`    ${part.id}: ${part.type};`);
@@ -367,6 +367,18 @@ class CompileContext {
                 this.#lines.push(`  ${variable}.${key} = ${this.#value(value)};`);
             }
         }
+    }
+
+    #applyRootProps() {
+        const props = { ...this.template.props };
+        const width = props.width;
+        const height = props.height;
+        delete props.width;
+        delete props.height;
+        if (width !== undefined || height !== undefined) {
+            this.#lines.push(`  root.setLogicalSize(${this.#value(width ?? 0)}, ${this.#value(height ?? 0)});`);
+        }
+        this.#applyPixiProps('root', props);
     }
 
     #applyStructProp(variable: string, key: string, value: Record<string, string | number | boolean>, sceneInstance?: SceneInstanceTemplateNode) {

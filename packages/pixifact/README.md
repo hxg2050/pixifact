@@ -2,7 +2,7 @@
 
 Pixifact is a Bun-first framework for AI-editable 2D game UI, HUDs, menus, and lightweight scenes on top of PixiJS v8.
 
-Use `pixifact` for runtime APIs, Scene instantiation, compiler APIs, and generated Scene runtime support.
+Use `pixifact` for project config helpers, the `Group` runtime node, compiler APIs, and generated Scene runtime support.
 
 ## Install
 
@@ -13,8 +13,8 @@ bun add pixifact pixi.js
 ## Usage
 
 ```ts
-import { Application } from 'pixifact/runtime';
-import { scene, container, text } from 'pixifact/scene';
+import { parseSceneTemplate } from 'pixifact/compiler';
+import { Group } from 'pixifact/runtime';
 ```
 
 Compiler Scene projects usually also install the CLI:

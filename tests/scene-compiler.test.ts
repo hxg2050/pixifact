@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Container, Text } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -385,16 +386,17 @@ describe('Pixifact scene compiler spike', () => {
 
         const code = compileSceneTemplateToTs(template);
 
-        expect(code).toContain(`import { Container, Graphics, Text } from 'pixi.js';`);
+        expect(code).toContain(`import { Container, Graphics, Text } from 'pixi.js';
+import { Group } from 'pixifact/runtime';`);
         expect(code).toContain('export type ButtonParts = {');
         expect(code).toContain('parts: {');
         expect(code).toContain('background: Graphics;');
         expect(code).toContain('label: Text;');
         expect(code).toContain('iconHost: Container;');
         expect(code).toContain('slots: Record<string, Container>;');
-        expect(code).toContain('export function mountButtonScene(root: Container) {');
+        expect(code).toContain('export function mountButtonScene(root: Group) {');
         expect(code).toContain('const __pixifactSlots: Record<string, Container> = {};');
-        expect(code).toContain('root.width = 180;');
+        expect(code).toContain('root.setLogicalSize(180, 52);');
         expect(code).toContain('const background = new Graphics();');
         expect(code).toContain('background.label = "background";');
         expect(code).toContain('background.roundRect(0, 0, 180, 52, 8).fill({ color: 4286945, alpha: 0.8 }).stroke({ width: 2, color: 16777215, alpha: 0.5 });');
@@ -462,7 +464,7 @@ describe('Pixifact scene compiler spike', () => {
 
         const code = compileSceneTemplateToTs(template);
 
-        expect(code).toContain('export function mountMainMenuScene(root: Container, actions: Record<string, () => void> = {}) {');
+        expect(code).toContain('export function mountMainMenuScene(root: Group, actions: Record<string, () => void> = {}) {');
         expect(code).toContain('const startButton = new Button();');
         expect(code).toContain('startButton.position.set(390, 300);');
         expect(code).toContain('startButton.scale.set(1.2, 0.9);');
@@ -661,7 +663,7 @@ describe('Pixifact scene compiler spike', () => {
         let RuntimeButton: typeof Container;
 
         @scene()
-        class RuntimeButtonScene extends Container {
+        class RuntimeButtonScene extends Group {
             @part()
             declare protected labelText: Text;
 
@@ -799,11 +801,12 @@ describe('Pixifact scene compiler spike', () => {
                 </Scene>
             `);
             await writeFile(join(root, 'src', 'ui', 'Button.ts'), `
-                import { Container, Text } from 'pixi.js';
+                import { Text } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
                 import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
                 @scene()
-                export class Button extends Container {
+                export class Button extends Group {
                     @part()
                     protected declare labelText: Text;
 
@@ -819,11 +822,11 @@ describe('Pixifact scene compiler spike', () => {
             `);
             await writeFile(join(root, 'src', 'menu', 'Button.scene'), '<Scene name="Button" />');
             await writeFile(join(root, 'src', 'menu', 'Button.ts'), `
-                import { Container } from 'pixi.js';
+                import { Group } from 'pixifact/runtime';
                 import { scene } from 'pixifact/compiler';
 
                 @scene()
-                export class Button extends Container {}
+                export class Button extends Group {}
             `);
             await writeFile(join(root, 'src', 'screens', 'Main.scene'), `
                 <Scene name="Main">
@@ -832,11 +835,11 @@ describe('Pixifact scene compiler spike', () => {
                 </Scene>
             `);
             await writeFile(join(root, 'src', 'screens', 'Main.ts'), `
-                import { Container } from 'pixi.js';
+                import { Group } from 'pixifact/runtime';
                 import { scene } from 'pixifact/compiler';
 
                 @scene()
-                export class Main extends Container {}
+                export class Main extends Group {}
             `);
             await writeFile(join(root, 'src', 'build', 'BuildOnly.scene'), '<Scene name="BuildOnly" />');
             await writeFile(join(root, 'src', 'generated', 'GeneratedOnly.scene'), '<Scene name="GeneratedOnly" />');
@@ -903,11 +906,11 @@ describe('Pixifact scene compiler spike', () => {
             await mkdir(join(root, 'src', 'scenes'), { recursive: true });
             await writeFile(join(root, 'src', 'scenes', 'Button.scene'), '<Scene name="Button" />');
             await writeFile(join(root, 'src', 'scenes', 'Button.ts'), `
-                import { Container } from 'pixi.js';
+                import { Group } from 'pixifact/runtime';
                 import { scene } from 'pixifact/compiler';
 
                 @scene()
-                export class PrimaryButton extends Container {}
+                export class PrimaryButton extends Group {}
             `);
 
             await expect(compileScenes({ projectRoot: root })).rejects.toThrow('Scene "src/scenes/Button.scene" name "Button" must match @scene class "PrimaryButton".');
@@ -927,11 +930,12 @@ describe('Pixifact scene compiler spike', () => {
                 '',
             ].join('\n'));
             await writeFile(join(root, 'src', 'scenes', 'Button.ts'), `
-                import { Container, Text } from 'pixi.js';
+                import { Text } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
                 import { part, scene } from 'pixifact/compiler';
 
                 @scene()
-                export class Button extends Container {
+                export class Button extends Group {
                     @part({ id: 'missingLabel' })
                     protected declare label: Text;
                 }
