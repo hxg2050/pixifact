@@ -95,7 +95,7 @@ MVP 行为：
 - Editor 展示最近日志摘要，至少区分 stdout / stderr。
 - 配置 `run.url` 时，进程启动后用系统默认浏览器打开。
 - 点击 `停止` 只终止由 Editor 本次启动的进程。
-- 运行进程不成为 `SceneDocument` 数据源。
+- 运行进程不成为 `.scene` 或 compiler scene document 的数据源。
 
 错误状态：
 

@@ -19,7 +19,7 @@ Agent repairs the .scene if validation or compilation fails
 Editor optionally exposes live context and preview state
 ```
 
-This replaces `SceneCommand[]` as the agent-facing edit protocol. `SceneCommand` may remain for `SceneDocument` internals, editor undo, and legacy implementation details, but external agent workflows must not depend on it.
+This replaces `SceneCommand[]` as the agent-facing edit protocol. Editor undo uses compiler-scene commands internally, but external agent workflows must not depend on command payloads.
 
 ## Rationale
 
@@ -94,7 +94,7 @@ export class RectTransform {
 }
 
 @scene()
-export class Button extends Container {
+export class Button extends Group {
     @prop({ type: RectTransform })
     set rectTransform(value: RectTransform) {
         this.position.set(value.x, value.y);
@@ -270,6 +270,6 @@ These costs are acceptable because they keep the final authoring model simple an
 
 ## Migration Notes
 
-Existing legacy agent flows based on `SceneCommand[]` are retired from the CLI and live bridge surface. Compiler scene edits should use direct `.scene` source changes followed by `scene validate --scene <path>` or `scene validate --all`.
+Retired command-payload agent flows based on `SceneCommand[]` are not exposed by the CLI or live bridge surface. Compiler scene edits should use direct `.scene` source changes followed by `scene validate --scene <path>` or `scene validate --all`.
 
 The live editor bridge is read-only context: `live summary`, `live scene get`, and `live node inspect`. It exists to expose the current editor state, selected node, and latest external `.scene` refresh or validation result, not to mutate project files.

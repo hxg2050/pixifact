@@ -104,16 +104,6 @@ Editor 可以浏览项目文件、轻量预览资源、管理 Scene 引用和展
 8. 在 `检查器` 中手动微调必要字段。
 9. 保存 `.scene`，由 runtime 在游戏中加载。
 
-## 导出文件
-
-Editor 会通过桌面应用导出文件：
-
-- `.ai-editor.json`：完整项目资产。
-- `logic-handlers.ts`：LogicGraph 生成的 TypeScript handler 摘要。
-- `pixifact-memory.json`：偏好记忆文件。
-
-这些是用户下载产物，不属于仓库源码。不要把它们提交到 repo。
-
 ## 验证
 
 编辑器相关改动至少运行：

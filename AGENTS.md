@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本文件是给 Codex / coding agents 的项目入口说明。进入本仓库后，先阅读本文件，再按任务需要阅读 `README.md`、`PLAN.md` 和相关源码。
+本文件是给 Codex / coding agents 的项目入口说明。进入本仓库后，先阅读本文件，再按任务需要阅读 `README.md`、`docs/TESTING.md` 和相关源码。
 
 ## 附加行为规范
 
