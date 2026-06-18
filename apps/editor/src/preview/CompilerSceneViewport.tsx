@@ -93,6 +93,10 @@ interface ViewportModel {
 }
 
 interface MoveSession {
+    currentProps?: {
+        x: number;
+        y: number;
+    };
     locator: string;
     mergeKey: string;
     pointerId: number;
@@ -727,11 +731,15 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 const target = nodesRef.current.get(move.locator);
                 const node = getCompilerSceneNode(move.locator);
                 if (!target || !node || node.kind === 'slotOutlet') {
+                    if (target) {
+                        applyCompilerSceneNodePosition(target, move.startProps);
+                        setOutline(compilerSceneSelectionRect(target));
+                    }
                     moveRef.current = undefined;
                     hostRef.current?.releasePointerCapture(event.pointerId);
                     return;
                 }
-                updateCompilerSceneNodePropsInPlace(move.locator, nextProps, { mergeKey: move.mergeKey });
+                move.currentProps = nextProps;
                 applyCompilerSceneNodePosition(target, nextProps);
                 setOutline(compilerSceneSelectionRect(target));
                 return;
@@ -767,7 +775,11 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
 
         const endPan = (event: React.PointerEvent<HTMLDivElement>) => {
             if (moveRef.current?.pointerId === event.pointerId) {
-                endSceneViewProfile(moveRef.current.profileId, { committed: moveRef.current.started });
+                const move = moveRef.current;
+                if (move.started && move.currentProps) {
+                    updateCompilerSceneNodePropsInPlace(move.locator, move.currentProps, { mergeKey: move.mergeKey });
+                }
+                endSceneViewProfile(move.profileId, { committed: move.started });
                 moveRef.current = undefined;
                 hostRef.current?.releasePointerCapture(event.pointerId);
                 return;
@@ -785,7 +797,13 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
 
         const cancelPointer = (event: React.PointerEvent<HTMLDivElement>) => {
             if (moveRef.current?.pointerId === event.pointerId) {
-                endSceneViewProfile(moveRef.current.profileId, { cancelled: true });
+                const move = moveRef.current;
+                const target = nodesRef.current.get(move.locator);
+                if (target) {
+                    applyCompilerSceneNodePosition(target, move.startProps);
+                    setOutline(compilerSceneSelectionRect(target));
+                }
+                endSceneViewProfile(move.profileId, { cancelled: true });
                 moveRef.current = undefined;
                 hostRef.current?.releasePointerCapture(event.pointerId);
             }
