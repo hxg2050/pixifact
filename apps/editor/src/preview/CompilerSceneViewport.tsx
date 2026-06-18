@@ -21,6 +21,7 @@ import {
     countSceneViewProfile,
     endSceneViewProfile,
     measureSceneViewProfile,
+    noteSceneViewProfile,
 } from '../services/sceneViewProfiler';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import { createCompilerSceneRuntimePreview, destroyCompilerSceneRuntimePreview } from './compilerSceneRuntimePreview';
@@ -582,6 +583,11 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                     const start = clientPoint(event);
                     const hitLocator = pickTopCompilerSceneHit(compilerSceneHitTargets(nodesRef.current), start);
                     const selectedLocator = selectedNodeRef.current;
+                    noteSceneViewProfile('pointerdown', {
+                        hitLocator,
+                        selectedLocator,
+                        canMove: canBeginCompilerSceneMove(selectedLocator, hitLocator),
+                    });
                     if (canBeginCompilerSceneMove(selectedLocator, hitLocator)) {
                         const node = getCompilerSceneNode(selectedLocator!);
                         if (node && node.kind !== 'slotOutlet') {

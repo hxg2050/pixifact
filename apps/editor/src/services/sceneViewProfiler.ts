@@ -12,11 +12,25 @@ interface SceneViewProfileSession {
     startedAt: number;
 }
 
+interface SceneViewProfileSummary {
+    durationMs: number;
+    meta?: Record<string, unknown>;
+    name: string;
+    rows: Array<{
+        averageMs: number;
+        count: number;
+        label: string;
+        maxMs: number;
+        totalMs: number;
+    }>;
+}
+
 const profileFlag = '__PIXIFACT_SCENE_VIEW_PROFILE__';
 const profileStorageKey = 'pixifact.sceneViewProfile';
 
 let nextProfileId = 0;
 let activeSession: SceneViewProfileSession | undefined;
+let lastSummary: SceneViewProfileSummary | undefined;
 
 function now() {
     return typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -25,6 +39,12 @@ function now() {
 function profilerGlobal() {
     return globalThis as typeof globalThis & {
         [profileFlag]?: boolean;
+        pixifactSceneViewProfile?: {
+            disable: () => void;
+            enable: () => void;
+            last: () => SceneViewProfileSummary | undefined;
+            status: () => { enabled: boolean; last?: SceneViewProfileSummary };
+        };
     };
 }
 
@@ -37,6 +57,39 @@ export function sceneViewProfilerEnabled() {
     } catch {
         return false;
     }
+}
+
+export function enableSceneViewProfiler() {
+    profilerGlobal()[profileFlag] = true;
+    try {
+        localStorage.setItem(profileStorageKey, '1');
+    } catch {
+        // Ignore storage failures; the global flag still enables profiling for this session.
+    }
+    console.info('[Pixifact SceneView] profiling enabled');
+}
+
+export function disableSceneViewProfiler() {
+    profilerGlobal()[profileFlag] = false;
+    try {
+        localStorage.removeItem(profileStorageKey);
+    } catch {
+        // Ignore storage failures; the global flag still disables profiling for this session.
+    }
+    console.info('[Pixifact SceneView] profiling disabled');
+}
+
+function installSceneViewProfilerConsoleApi() {
+    const target = profilerGlobal();
+    target.pixifactSceneViewProfile = {
+        disable: disableSceneViewProfiler,
+        enable: enableSceneViewProfiler,
+        last: () => lastSummary,
+        status: () => ({
+            enabled: sceneViewProfilerEnabled(),
+            last: lastSummary,
+        }),
+    };
 }
 
 function metricFor(session: SceneViewProfileSession, label: string) {
@@ -75,6 +128,7 @@ export function beginSceneViewProfile(name: string, meta?: Record<string, unknow
         name,
         startedAt: now(),
     };
+    console.info(`[Pixifact SceneView] ${name} profile started`, meta ?? {});
     return activeSession.id;
 }
 
@@ -94,16 +148,25 @@ export function endSceneViewProfile(id: number | undefined, meta?: Record<string
             maxMs: Number(metric.maxMs.toFixed(2)),
         }))
         .sort((left, right) => right.totalMs - left.totalMs || right.count - left.count);
-
-    console.groupCollapsed(`[Pixifact SceneView] ${session.name} ${durationMs.toFixed(2)}ms`);
-    if (session.meta || meta) {
-        console.log({
+    lastSummary = {
+        durationMs: Number(durationMs.toFixed(2)),
+        meta: {
             ...session.meta,
             ...meta,
-        });
-    }
+        },
+        name: session.name,
+        rows,
+    };
+
+    console.info(`[Pixifact SceneView] ${session.name} profile finished ${durationMs.toFixed(2)}ms`, lastSummary.meta ?? {});
     console.table(rows);
-    console.groupEnd();
+}
+
+export function noteSceneViewProfile(label: string, meta?: Record<string, unknown>) {
+    if (!sceneViewProfilerEnabled()) {
+        return;
+    }
+    console.info(`[Pixifact SceneView] ${label}`, meta ?? {});
 }
 
 export function countSceneViewProfile(label: string) {
@@ -125,6 +188,8 @@ export function measureSceneViewProfile<T>(label: string, fn: () => T): T {
         record(session, label, now() - startedAt);
     }
 }
+
+installSceneViewProfilerConsoleApi();
 
 export async function measureSceneViewProfileAsync<T>(label: string, fn: () => Promise<T>): Promise<T> {
     if (!sceneViewProfilerEnabled()) {

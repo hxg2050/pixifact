@@ -36,6 +36,8 @@ import {
 import { parseSceneTemplate } from '../packages/pixifact/src/compiler/templateParser';
 import {
     beginSceneViewProfile,
+    disableSceneViewProfiler,
+    enableSceneViewProfiler,
     measureSceneViewProfile,
     sceneViewProfilerEnabled,
 } from '../apps/editor/src/services/sceneViewProfiler';
@@ -332,6 +334,13 @@ describe('Editor workbench UI', () => {
         expect(sceneViewProfilerEnabled()).toBe(false);
         expect(beginSceneViewProfile('move')).toBeUndefined();
         expect(measureSceneViewProfile('noop', () => 42)).toBe(42);
+
+        enableSceneViewProfiler();
+        expect(sceneViewProfilerEnabled()).toBe(true);
+        expect(globalThis.pixifactSceneViewProfile?.status().enabled).toBe(true);
+
+        disableSceneViewProfiler();
+        expect(sceneViewProfilerEnabled()).toBe(false);
     });
 
     it('calculates compiler viewport transforms for fit, actual size, zoom, and resize', () => {
