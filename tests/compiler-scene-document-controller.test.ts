@@ -218,6 +218,29 @@ describe('compiler scene document controller undo redo', () => {
         expect(canUndoCompilerSceneCommand()).toBe(false);
     });
 
+    it('merges repeated scene view resize updates into one undo step', () => {
+        loadTemplate();
+
+        updateCompilerSceneNodePropsInPlace('0:content/0:title', {
+            width: 120,
+            height: 40,
+        }, { mergeKey: 'scene-view:resize:0:content/0:title:south-east:1' });
+        updateCompilerSceneNodePropsInPlace('0:content/0:title', {
+            width: 150,
+            height: 64,
+        }, { mergeKey: 'scene-view:resize:0:content/0:title:south-east:1' });
+
+        expect(contentChildren()[0].props).toMatchObject({
+            width: 150,
+            height: 64,
+        });
+
+        expect(undoCompilerSceneCommand()?.ok).toBe(true);
+        expect(contentChildren()[0].props.width).toBeUndefined();
+        expect(contentChildren()[0].props.height).toBeUndefined();
+        expect(canUndoCompilerSceneCommand()).toBe(false);
+    });
+
     it('can update scene view movement without replacing the template reference', () => {
         loadTemplate();
 

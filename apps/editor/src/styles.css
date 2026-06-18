@@ -1422,6 +1422,12 @@ textarea {
     stroke-width: 2;
 }
 
+.compilerSceneResizeHandle {
+    fill: #f8fafc;
+    stroke: #16a34a;
+    stroke-width: 1.5;
+}
+
 .runtimeStatus {
     position: absolute;
     inset: 0;

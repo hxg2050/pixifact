@@ -80,9 +80,13 @@ export interface CompilerSceneHitTarget {
 }
 
 export interface CompilerSceneMoveProps {
+    height?: unknown;
+    width?: unknown;
     x?: unknown;
     y?: unknown;
 }
+
+export type CompilerSceneResizeHandle = 'east' | 'south' | 'south-east';
 
 interface ViewportModel {
     gridVisible: boolean;
@@ -106,6 +110,26 @@ interface MoveSession {
     startProps: CompilerSceneMoveProps;
 }
 
+interface ResizeSession {
+    currentProps?: {
+        height?: number;
+        width?: number;
+    };
+    handle: CompilerSceneResizeHandle;
+    locator: string;
+    mergeKey: string;
+    pointerId: number;
+    profileId?: number;
+    started: boolean;
+    startBounds: CompilerSceneRect;
+    startPoint: ViewportPoint;
+    startProps: CompilerSceneMoveProps;
+    startSize: {
+        height: number;
+        width: number;
+    };
+}
+
 const previewWidth = 960;
 const previewHeight = 540;
 const gridSize = 24;
@@ -113,6 +137,8 @@ const gridPlaneOffset = 12000;
 const minViewportScale = 0.1;
 const maxViewportScale = 8;
 const dragThreshold = 4;
+const minSceneNodeSize = 1;
+const resizeHandleSize = 9;
 
 export const compilerScenePreviewEventFeatures = {
     click: false,
@@ -275,6 +301,24 @@ export function moveCompilerSceneNodeProps(startProps: CompilerSceneMoveProps, d
     };
 }
 
+export function resizeCompilerSceneNodeProps(
+    startProps: CompilerSceneMoveProps,
+    startBounds: CompilerSceneRect,
+    handle: CompilerSceneResizeHandle,
+    deltaScene: ViewportPoint,
+) {
+    const startWidth = typeof startProps.width === 'number' ? startProps.width : startBounds.width;
+    const startHeight = typeof startProps.height === 'number' ? startProps.height : startBounds.height;
+    return {
+        ...(handle === 'east' || handle === 'south-east'
+            ? { width: Math.max(minSceneNodeSize, startWidth + deltaScene.x) }
+            : {}),
+        ...(handle === 'south' || handle === 'south-east'
+            ? { height: Math.max(minSceneNodeSize, startHeight + deltaScene.y) }
+            : {}),
+    };
+}
+
 export function canBeginCompilerSceneMove(selectedLocator: string | undefined, hitLocator: string | undefined) {
     return Boolean(selectedLocator && hitLocator && selectedLocator === hitLocator);
 }
@@ -336,6 +380,20 @@ function applyCompilerSceneNodePosition(target: Container, props: CompilerSceneM
     target.position.set(x, y);
 }
 
+function applyCompilerSceneNodeSize(target: Container, props: CompilerSceneMoveProps) {
+    if (typeof props.width === 'number') {
+        target.width = props.width;
+    }
+    if (typeof props.height === 'number') {
+        target.height = props.height;
+    }
+}
+
+function applyCompilerSceneNodeTransform(target: Container, props: CompilerSceneMoveProps) {
+    applyCompilerSceneNodePosition(target, props);
+    applyCompilerSceneNodeSize(target, props);
+}
+
 function gridStyle(model: ViewportModel): React.CSSProperties {
     return {
         ...gridTransformStyle(model.transform),
@@ -348,6 +406,39 @@ function compilerSceneHitTargets(nodes: Map<string, Pick<Container, 'getBounds'>
         locator,
         bounds: compilerSceneSelectionRect(target),
     }));
+}
+
+function resizeHandleRects(outline: SelectionRect): Record<CompilerSceneResizeHandle, CompilerSceneRect> {
+    const half = resizeHandleSize / 2;
+    return {
+        east: {
+            x: outline.x + outline.width - half,
+            y: outline.y + outline.height / 2 - half,
+            width: resizeHandleSize,
+            height: resizeHandleSize,
+        },
+        south: {
+            x: outline.x + outline.width / 2 - half,
+            y: outline.y + outline.height - half,
+            width: resizeHandleSize,
+            height: resizeHandleSize,
+        },
+        'south-east': {
+            x: outline.x + outline.width - half,
+            y: outline.y + outline.height - half,
+            width: resizeHandleSize,
+            height: resizeHandleSize,
+        },
+    };
+}
+
+export function pickCompilerSceneResizeHandle(outline: SelectionRect | undefined, point: ViewportPoint) {
+    if (!outline) {
+        return undefined;
+    }
+    const handles = resizeHandleRects(outline);
+    const order: CompilerSceneResizeHandle[] = ['south-east', 'east', 'south'];
+    return order.find((handle) => compilerScenePointInRect(point, handles[handle]));
 }
 
 function formatProfileValue(value: unknown) {
@@ -437,7 +528,9 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         const panRef = useRef<{ pointerId: number; last: ViewportPoint } | undefined>(undefined);
         const clickRef = useRef<{ pointerId: number; start: ViewportPoint } | undefined>(undefined);
         const moveRef = useRef<MoveSession | undefined>(undefined);
+        const resizeRef = useRef<ResizeSession | undefined>(undefined);
         const moveSessionRef = useRef(0);
+        const resizeSessionRef = useRef(0);
         const [viewport, setViewport] = useState<ViewportSize>({ width: previewWidth, height: previewHeight });
         const [model, setModel] = useState<ViewportModel>(() => defaultViewportModel(projectResolution));
         const [outline, setOutline] = useState<SelectionRect | undefined>(undefined);
@@ -627,6 +720,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 panRef.current = undefined;
                 clickRef.current = undefined;
                 moveRef.current = undefined;
+                resizeRef.current = undefined;
                 spacePressedRef.current = false;
                 destroyPreview();
                 destroyApp();
@@ -644,7 +738,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 const node = selected ? getCompilerSceneNode(selected) : undefined;
                 const target = selected ? nodesRef.current.get(selected) : undefined;
                 if (node && node.kind !== 'slotOutlet' && target) {
-                    applyCompilerSceneNodePosition(target, node.props);
+                    applyCompilerSceneNodeTransform(target, node.props);
                     setOutline(compilerSceneSelectionRect(target));
                 }
             }
@@ -665,8 +759,44 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 if (event.button === 0) {
                     hostRef.current?.focus();
                     const start = clientPoint(event);
-                    const hitLocator = pickTopCompilerSceneHit(compilerSceneHitTargets(nodesRef.current), start);
+                    const resizeHandle = pickCompilerSceneResizeHandle(outline, start);
                     const selectedLocator = selectedNodeRef.current;
+                    if (resizeHandle && selectedLocator) {
+                        const node = getCompilerSceneNode(selectedLocator);
+                        const target = nodesRef.current.get(selectedLocator);
+                        const startOverlayBounds = target ? compilerSceneSelectionRect(target) : undefined;
+                        if (node && node.kind !== 'slotOutlet' && target && startOverlayBounds) {
+                            const startBounds = {
+                                ...startOverlayBounds,
+                                width: startOverlayBounds.width / transformRef.current.scale,
+                                height: startOverlayBounds.height / transformRef.current.scale,
+                            };
+                            const startSize = {
+                                width: typeof node.props.width === 'number' ? node.props.width : startBounds.width,
+                                height: typeof node.props.height === 'number' ? node.props.height : startBounds.height,
+                            };
+                            event.preventDefault();
+                            resizeSessionRef.current += 1;
+                            hostRef.current?.setPointerCapture(event.pointerId);
+                            resizeRef.current = {
+                                handle: resizeHandle,
+                                locator: selectedLocator,
+                                mergeKey: `scene-view:resize:${selectedLocator}:${resizeHandle}:${resizeSessionRef.current}`,
+                                pointerId: event.pointerId,
+                                profileId: beginSceneViewProfile('resize', { locator: selectedLocator, handle: resizeHandle }),
+                                started: false,
+                                startBounds,
+                                startPoint: start,
+                                startProps: {
+                                    height: node.props.height,
+                                    width: node.props.width,
+                                },
+                                startSize,
+                            };
+                            return;
+                        }
+                    }
+                    const hitLocator = pickTopCompilerSceneHit(compilerSceneHitTargets(nodesRef.current), start);
                     noteSceneViewProfile('pointerdown', {
                         hitLocator,
                         selectedLocator,
@@ -711,6 +841,36 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         };
 
         const movePan = (event: React.PointerEvent<HTMLDivElement>) => {
+            const resize = resizeRef.current;
+            if (resize?.pointerId === event.pointerId) {
+                countSceneViewProfile('viewport.pointermove');
+                event.preventDefault();
+                const nextPoint = clientPoint(event);
+                const deltaViewport = {
+                    x: nextPoint.x - resize.startPoint.x,
+                    y: nextPoint.y - resize.startPoint.y,
+                };
+                const passedThreshold = resize.started || Math.hypot(deltaViewport.x, deltaViewport.y) > dragThreshold;
+                if (!passedThreshold) {
+                    return;
+                }
+                resize.started = true;
+                countSceneViewProfile('viewport.resizeUpdate');
+                const target = nodesRef.current.get(resize.locator);
+                const node = getCompilerSceneNode(resize.locator);
+                if (!target || !node || node.kind === 'slotOutlet') {
+                    resizeRef.current = undefined;
+                    hostRef.current?.releasePointerCapture(event.pointerId);
+                    return;
+                }
+                const deltaScene = viewportDeltaToSceneDelta(transformRef.current, deltaViewport);
+                const nextProps = resizeCompilerSceneNodeProps(resize.startProps, resize.startBounds, resize.handle, deltaScene);
+                resize.currentProps = nextProps;
+                applyCompilerSceneNodeSize(target, nextProps);
+                setOutline(compilerSceneSelectionRect(target));
+                return;
+            }
+
             const move = moveRef.current;
             if (move?.pointerId === event.pointerId) {
                 countSceneViewProfile('viewport.pointermove');
@@ -784,6 +944,16 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 hostRef.current?.releasePointerCapture(event.pointerId);
                 return;
             }
+            if (resizeRef.current?.pointerId === event.pointerId) {
+                const resize = resizeRef.current;
+                if (resize.started && resize.currentProps) {
+                    updateCompilerSceneNodePropsInPlace(resize.locator, resize.currentProps, { mergeKey: resize.mergeKey });
+                }
+                endSceneViewProfile(resize.profileId, { committed: resize.started });
+                resizeRef.current = undefined;
+                hostRef.current?.releasePointerCapture(event.pointerId);
+                return;
+            }
             if (panRef.current?.pointerId === event.pointerId) {
                 panRef.current = undefined;
                 hostRef.current?.releasePointerCapture(event.pointerId);
@@ -800,11 +970,22 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 const move = moveRef.current;
                 const target = nodesRef.current.get(move.locator);
                 if (target) {
-                    applyCompilerSceneNodePosition(target, move.startProps);
+                    applyCompilerSceneNodeTransform(target, move.startProps);
                     setOutline(compilerSceneSelectionRect(target));
                 }
                 endSceneViewProfile(move.profileId, { cancelled: true });
                 moveRef.current = undefined;
+                hostRef.current?.releasePointerCapture(event.pointerId);
+            }
+            if (resizeRef.current?.pointerId === event.pointerId) {
+                const resize = resizeRef.current;
+                const target = nodesRef.current.get(resize.locator);
+                if (target) {
+                    applyCompilerSceneNodeSize(target, resize.startSize);
+                    setOutline(compilerSceneSelectionRect(target));
+                }
+                endSceneViewProfile(resize.profileId, { cancelled: true });
+                resizeRef.current = undefined;
                 hostRef.current?.releasePointerCapture(event.pointerId);
             }
             if (panRef.current?.pointerId === event.pointerId) {
@@ -878,15 +1059,28 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                         y={model.transform.offset.y}
                     />
                     {outline ? (
-                        <rect
-                            className="compilerSceneSelection"
-                            fill="none"
-                            height={outline.height}
-                            vectorEffect="non-scaling-stroke"
-                            width={outline.width}
-                            x={outline.x}
-                            y={outline.y}
-                        />
+                        <>
+                            <rect
+                                className="compilerSceneSelection"
+                                fill="none"
+                                height={outline.height}
+                                vectorEffect="non-scaling-stroke"
+                                width={outline.width}
+                                x={outline.x}
+                                y={outline.y}
+                            />
+                            {Object.entries(resizeHandleRects(outline)).map(([handle, rect]) => (
+                                <rect
+                                    className={`compilerSceneResizeHandle compilerSceneResizeHandle--${handle}`}
+                                    height={rect.height}
+                                    key={handle}
+                                    vectorEffect="non-scaling-stroke"
+                                    width={rect.width}
+                                    x={rect.x}
+                                    y={rect.y}
+                                />
+                            ))}
+                        </>
                     ) : null}
                 </svg>
                 {status ? <div className="runtimeStatus">{status}</div> : null}

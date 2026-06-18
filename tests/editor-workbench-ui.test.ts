@@ -28,7 +28,9 @@ import {
     moveCompilerSceneNodeProps,
     panViewportTransform,
     pickTopCompilerSceneHit,
+    pickCompilerSceneResizeHandle,
     resizeManualViewportTransform,
+    resizeCompilerSceneNodeProps,
     selectCompilerSceneViewportHit,
     viewportDeltaToSceneDelta,
     viewportPointToScenePoint,
@@ -423,6 +425,24 @@ describe('Editor workbench UI', () => {
         expect(canBeginCompilerSceneMove('0:label', '1:background')).toBe(false);
         expect(canBeginCompilerSceneMove(undefined, '0:label')).toBe(false);
         expect(canBeginCompilerSceneMove('0:label', undefined)).toBe(false);
+        expect(resizeCompilerSceneNodeProps(
+            { width: 100, height: 40 },
+            { x: 0, y: 0, width: 120, height: 60 },
+            'east',
+            { x: 30, y: 20 },
+        )).toEqual({ width: 130 });
+        expect(resizeCompilerSceneNodeProps(
+            { width: 100, height: 40 },
+            { x: 0, y: 0, width: 120, height: 60 },
+            'south',
+            { x: 30, y: 20 },
+        )).toEqual({ height: 60 });
+        expect(resizeCompilerSceneNodeProps(
+            {},
+            { x: 0, y: 0, width: 120, height: 60 },
+            'south-east',
+            { x: 30, y: -80 },
+        )).toEqual({ width: 150, height: 1 });
         expect(panViewportTransform(
             { scale: 1.5, offset: { x: 40, y: 60 } },
             { x: 20, y: -10 },
@@ -533,6 +553,30 @@ describe('Editor workbench UI', () => {
                 height: 80,
             },
         }], { x: 200, y: 200 })).toBeUndefined();
+        expect(pickCompilerSceneResizeHandle({
+            x: 10,
+            y: 20,
+            width: 100,
+            height: 60,
+        }, { x: 110, y: 80 })).toBe('south-east');
+        expect(pickCompilerSceneResizeHandle({
+            x: 10,
+            y: 20,
+            width: 100,
+            height: 60,
+        }, { x: 110, y: 50 })).toBe('east');
+        expect(pickCompilerSceneResizeHandle({
+            x: 10,
+            y: 20,
+            width: 100,
+            height: 60,
+        }, { x: 60, y: 80 })).toBe('south');
+        expect(pickCompilerSceneResizeHandle({
+            x: 10,
+            y: 20,
+            width: 100,
+            height: 60,
+        }, { x: 20, y: 30 })).toBeUndefined();
         expect(compilerSceneSelectionRect({
             getBounds: () => ({
                 x: 24,
@@ -635,6 +679,7 @@ describe('Editor workbench UI', () => {
             expect(grid).toBeTruthy();
             expect(bounds).toBeTruthy();
             expect(resolutionBounds).toBeTruthy();
+            expect(view.container.querySelectorAll('.compilerSceneResizeHandle')).toHaveLength(0);
             expect(resolutionBounds?.getAttribute('x')).toBe(bounds?.getAttribute('x'));
             expect(resolutionBounds?.getAttribute('y')).toBe(bounds?.getAttribute('y'));
             expect(Number(resolutionBounds?.getAttribute('width'))).toBe(640);
@@ -646,6 +691,7 @@ describe('Editor workbench UI', () => {
             expect(editorStyles).toContain('.compilerSceneCanvas {\n    pointer-events: none;\n}');
             expect(editorStyles).toContain('.compilerSceneOverlay {\n    position: absolute;\n    inset: 0;\n    z-index: 2;');
             expect(editorStyles).toContain('.compilerSceneResolutionBounds {');
+            expect(editorStyles).toContain('.compilerSceneResizeHandle {');
             expect(editorStyles).toContain('.compilerSceneProfilerPanel {\n    position: absolute;');
             expect(editorStyles).toContain('pointer-events: none;');
 
