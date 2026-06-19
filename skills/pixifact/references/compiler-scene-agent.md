@@ -31,6 +31,10 @@ bun run dev
 
 - 编辑项目相对 `.scene` 路径（如 `src/scenes/Hud.scene`）作为 source of truth。
 - Scene 资产按同目录、同 basename 配对，例如 `src/scenes/Hud.scene` 和 `src/scenes/Hud.ts`。
+- `.scene` root 使用 `<Scene name="...">`，运行时 root 是对应 Scene 脚本类实例。
+- Scene 脚本类必须继承 `Group`，并使用 `@scene()` 标记。
+- 使用 `@part()` 访问 `.scene` 中稳定 `id` 节点；使用 `@prop()`、`@event()`、`@slot()` 声明父 Scene 和 Editor Inspector 可见的公开契约。
+- `.scene` 中的事件属性如 `@clicked="handlePause"` 绑定到当前 Scene 脚本实例上的同名方法。
 - 不要在 `.scene` 文件中添加 `script="..."`。
 - 不要给 `@scene()` 添加 template path。
 - 引用其他 Scene 时使用 `.scene` 路径，不要使用裸名称。

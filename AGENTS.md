@@ -34,6 +34,19 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 - `apps/editor/src-tauri/`：Tauri desktop host。
 - `tests/`：单元测试、编辑器测试、CLI 测试。
 
+## Pixifact Skill 职责边界
+
+`/Users/youxia/work/github/pixifact/skills/pixifact` 是给用户在下游 Pixifact 游戏项目中开发游戏时使用的 Codex skill，不是本框架仓库的维护手册。
+
+这个 skill 只应描述游戏项目内的 Agent 工作流和约束，例如：
+
+- 直接编辑项目相对 `.scene` 源文件。
+- `.scene` 与同目录同 basename 的 `.ts` 脚本配对。
+- Scene 脚本继承 `Group`，并用 `@scene()`、`@part()`、`@prop()`、`@event()`、`@slot()` 暴露契约。
+- 运行 `scene validate`、`compile-scenes` 和项目最小相关验证。
+
+不要把 Pixifact 框架仓库维护内容写进该 skill，例如 npm 发布、Changesets、Trusted Publishing、Editor 内部实现细节、内置 Scene 源码维护规则、仓库架构决策或本仓库 Git 工作流。本仓库开发任务应以本 `AGENTS.md`、`CODEX.md`、`README.md`、相关 `docs/` 和源码为准。
+
 ## 核心架构规则
 
 - Compiler `.scene` 源文件是外部 Agent 和 editor 共享的 source of truth。
