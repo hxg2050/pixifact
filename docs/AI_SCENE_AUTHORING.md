@@ -133,6 +133,21 @@ restartButton.rectTransform = restartButtonRectTransform;
 
 It does not pass a plain object or JSON string to the setter. Fields omitted from `.scene` keep the class initializer value.
 
+### Contract Inheritance
+
+Scene script contracts are extracted from decorators and then composed through TypeScript inheritance. A child Scene inherits public `@prop`, `@event`, and `@slot` contracts from its parent class; child decorators override parent contracts with the same public name. `@part` remains local to the Scene script template and is not inherited as a required template shape.
+
+Inheritance resolution is source-based, not a bare class-name guess:
+
+- Same-file parent classes are supported.
+- Relative named imports are supported, for example `import { BasePanel } from './BasePanel'`.
+- Built-in Scenes use the same decorator extraction and import-based inheritance route as project Scenes.
+- Barrel re-exports, path aliases, namespace imports, and default imports are not part of the compiler Scene contract model.
+
+Structured props keep their declaring source when inherited. If `BasePanel.ts` exports `RectTransform` and `Button extends BasePanel`, generated code for `<Button rectTransform.x="12" />` imports `RectTransform` from `BasePanel.ts`, not from `Button.ts`.
+
+Built-in Scene contracts must come from their decorated TypeScript sources. Do not add hand-written built-in prop tables; add or change `@prop`, `@event`, or `@slot` decorators on the built-in Scene class instead.
+
 ## Validation Boundary
 
 Pixifact treats edited `.scene` source as untrusted until it passes validation and compile checks:
@@ -159,6 +174,8 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 - Every editable node must have a stable ID.
 - Scene script props must use `String` / `Number` / `Boolean` or an exported struct class type.
 - Structured scene props must use dot-path `.scene` attributes, not JSON strings.
+- Public Scene contracts are inherited through same-file parents or relative named imports.
+- Built-in Scene contracts come from decorator extraction, not hand-written prop tables.
 - Direct edits must be followed by `scene validate --scene <path>` or `scene validate --all`.
 - Pixifact must use a canonical formatter for generated output and editor refreshes.
 - Pixifact must reject scene sources that fail parse, validation, contract checks, or asset checks.

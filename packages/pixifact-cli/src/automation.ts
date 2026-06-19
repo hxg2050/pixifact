@@ -596,11 +596,16 @@ export function createPixifactAutomation() {
             const args = assertRecord(input, 'input') as ToolInput;
             const loaded = loadCompilerScene(args.projectRoot, args.scenePath);
             const template = parseSceneTemplate(loaded.content);
+            const sceneInterface = collectCompilerSceneInterfaces(loaded.root)[loaded.scenePath];
+            if (!sceneInterface) {
+                throw new Error(`Scene "${loaded.scenePath}" requires a readable paired @scene contract.`);
+            }
             return {
                 ok: true,
                 scenePath: loaded.scenePath,
                 revision: createSceneRevision(loaded.content),
                 summary: inspectSceneTemplate(template),
+                interface: sceneInterface,
             };
         },
 

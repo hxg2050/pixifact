@@ -305,6 +305,32 @@ import { Group } from 'pixifact/runtime';
 
     it('inspects compiler scene files for external agents', async () => {
         const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'BaseControl.scene'), '<Scene name="BaseControl" />\n', 'utf8');
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'BaseControl.ts'), [
+            'import { Group } from "pixifact/runtime";',
+            'import { prop, scene, slot } from "pixifact/compiler";',
+            '',
+            '@scene()',
+            'export class BaseControl extends Group {',
+            '  @prop({ type: Number, default: 8 })',
+            '  accessor padding = 8;',
+            '',
+            '  @slot()',
+            '  default!: unknown;',
+            '}',
+            '',
+        ].join('\n'), 'utf8');
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
+            'import { prop, scene } from "pixifact/compiler";',
+            'import { BaseControl } from "./BaseControl";',
+            '',
+            '@scene()',
+            'export class Button extends BaseControl {',
+            '  @prop({ type: String, default: "Button" })',
+            '  accessor label = "Button";',
+            '}',
+            '',
+        ].join('\n'), 'utf8');
 
         const result = await runCli([
             'scene',
@@ -323,6 +349,21 @@ import { Group } from 'pixifact/runtime';
             summary: {
                 name: 'Button',
                 nodeCount: 1,
+            },
+            interface: {
+                props: {
+                    padding: {
+                        type: 'number',
+                        default: 8,
+                    },
+                    label: {
+                        type: 'string',
+                        default: 'Button',
+                    },
+                },
+                slots: {
+                    default: {},
+                },
             },
         });
     });

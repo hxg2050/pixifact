@@ -92,11 +92,17 @@ bunx --no-install vitest run tests/pixifact-cli.test.ts tests/scene-compiler.tes
 - struct class 必须可无参构造。
 - struct fields 只支持带 primitive initializer 的字段。
 - struct prop default 来自 class field initializer，不接受 `@prop` default。
+- 子 Scene 继承父 Scene 的 `@prop` / `@event` / `@slot` contract。
+- 父类解析优先使用同文件父类或相对 named import，不能只靠 class name 猜测。
+- 同名跨文件父类没有明确 import 时必须报歧义。
+- 继承来的 struct prop 必须从声明它的 Scene script 导入构造类型。
+- 内置 Scene contract 必须从 decorator source extraction 得到，不能新增硬编码 prop 表。
+- CLI `scene inspect` 必须展示合成后的 public interface，包括 inherited props / slots。
 
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/scene-script-interface.test.ts
+bunx --no-install vitest run tests/scene-script-interface.test.ts tests/scene-compiler.test.ts tests/pixifact-cli.test.ts
 ```
 
 ### 修改 structured Scene props
