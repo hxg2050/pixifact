@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { Container, Rectangle, Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
+import { CenterContainer } from 'pixifact/builtin-scenes/CenterContainer';
+import { Control } from 'pixifact/builtin-scenes/Control';
+import { FlexItem } from 'pixifact/builtin-scenes/FlexItem';
+import { FlexLayout } from 'pixifact/builtin-scenes/FlexLayout';
+import { HBoxContainer } from 'pixifact/builtin-scenes/HBoxContainer';
+import { MarginContainer } from 'pixifact/builtin-scenes/MarginContainer';
+import { VBoxContainer } from 'pixifact/builtin-scenes/VBoxContainer';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -54,6 +61,22 @@ describe('Pixifact scene compiler spike', () => {
         expect(group.scale.x).toBe(1);
         expect(group.scale.y).toBe(1);
         expect(group.hitArea).toMatchObject({ x: 0, y: 0, width: 200, height: 80 });
+    });
+
+    it('keeps every built-in Scene on the Group runtime base', () => {
+        const BuiltinScenes = [
+            CenterContainer,
+            Control,
+            FlexItem,
+            FlexLayout,
+            HBoxContainer,
+            MarginContainer,
+            VBoxContainer,
+        ];
+
+        for (const BuiltinScene of BuiltinScenes) {
+            expect(Group.prototype.isPrototypeOf(BuiltinScene.prototype)).toBe(true);
+        }
     });
 
     it('creates stable revisions for canonical compiler scene source', () => {
@@ -779,6 +802,36 @@ import { Group } from 'pixifact/runtime';`);
         expect(clicked).toBe(true);
         expect((button.children[0] as Text).text).toBe('Play');
         expect(button.icon.children[0]).toBe(icon);
+    });
+
+    it('mounts only the leaf scene when a decorated scene extends another decorated scene', () => {
+        const calls: string[] = [];
+
+        @scene()
+        class BaseScene extends Group {}
+
+        @scene()
+        class LeafScene extends BaseScene {}
+
+        registerScene('scenes/Base.scene', {
+            mount(root) {
+                calls.push('base');
+                return { root, parts: {}, slots: {} };
+            },
+        });
+        registerSceneClass(BaseScene, 'scenes/Base.scene');
+        registerScene('scenes/Leaf.scene', {
+            mount(root) {
+                calls.push('leaf');
+                return { root, parts: {}, slots: {} };
+            },
+        });
+        registerSceneClass(LeafScene, 'scenes/Leaf.scene');
+
+        const leaf = new LeafScene();
+
+        expect(leaf).toBeInstanceOf(Group);
+        expect(calls).toEqual(['leaf']);
     });
 
     it('connects scene events to actions or root script methods', () => {

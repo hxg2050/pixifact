@@ -25,6 +25,10 @@ export function scene(): SceneClassDecorator {
             constructor(...args: unknown[]) {
                 super(...args);
 
+                if (new.target !== SceneClass) {
+                    return;
+                }
+
                 const result = mountSceneClass(this as object as Group, SceneClass);
                 const metadata = sceneMetadata(constructor);
                 for (const [property, id] of metadata.parts) {

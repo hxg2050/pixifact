@@ -1,5 +1,6 @@
 import { Container } from 'pixi.js';
 import { prop, scene, slot } from 'pixifact/compiler';
+import { Control } from './Control';
 import {
     alignOffset,
     controlChildProps,
@@ -14,9 +15,9 @@ import {
 } from './controlLayout';
 
 @scene()
-export class CenterContainer extends Container {
+export class CenterContainer extends Control {
     @slot()
-    readonly default!: Container;
+    declare readonly default: Container;
 
     #alignX: ControlAlign = 'center';
     #alignY: ControlAlign = 'center';

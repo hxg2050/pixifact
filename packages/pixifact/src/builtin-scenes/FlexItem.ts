@@ -1,6 +1,6 @@
 import { Container } from 'pixi.js';
-import { Group } from 'pixifact/runtime';
 import { prop, scene, slot } from 'pixifact/compiler';
+import { Control } from './Control';
 
 export type FlexAxis = 'row' | 'column';
 export type FlexAlignSelf = 'auto' | 'start' | 'center' | 'end' | 'stretch';
@@ -22,9 +22,9 @@ export interface FlexItemLayoutProps {
 }
 
 @scene()
-export class FlexItem extends Group {
+export class FlexItem extends Control {
     @slot()
-    readonly default!: Container;
+    declare readonly default: Container;
 
     #boxWidth: number | undefined;
     #boxHeight: number | undefined;
@@ -207,10 +207,6 @@ export class FlexItem extends Group {
         this.#boxHeight = height;
     }
 
-    private requestParentLayout() {
-        const parent = this.parent as (Container & { layout?: () => void }) | null;
-        parent?.layout?.();
-    }
 }
 
 function parseBasis(value: string | number): FlexBasis {

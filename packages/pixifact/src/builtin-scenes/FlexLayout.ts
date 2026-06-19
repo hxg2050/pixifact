@@ -1,6 +1,6 @@
 import { Container, type ContainerChild } from 'pixi.js';
 import { prop, scene, slot } from 'pixifact/compiler';
-import { Group } from 'pixifact/runtime';
+import { Control } from './Control';
 import type { FlexAlignSelf, FlexAxis, FlexBasis, FlexItemLayoutProps } from './FlexItem';
 
 type FlexDirection = 'row' | 'column';
@@ -27,9 +27,9 @@ interface LayoutItem {
 }
 
 @scene()
-export class FlexLayout extends Group {
+export class FlexLayout extends Control {
     @slot()
-    readonly default!: Container;
+    declare readonly default: Container;
 
     #direction: FlexDirection = 'row';
     #align: FlexAlign = 'start';

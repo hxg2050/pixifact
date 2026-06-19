@@ -1,5 +1,6 @@
 import { Container } from 'pixi.js';
 import { prop, scene, slot } from 'pixifact/compiler';
+import { Group } from 'pixifact/runtime';
 import {
     alignOffset,
     defaultControlLayoutProps,
@@ -15,7 +16,7 @@ import {
 } from './controlLayout';
 
 @scene()
-export class Control extends Container {
+export class Control extends Group {
     @slot()
     readonly default!: Container;
 
@@ -35,7 +36,7 @@ export class Control extends Container {
 
     override set width(value: number) {
         this.#boxWidth = Math.max(0, finiteNumber(value, 0));
-        this.layoutContent();
+        this.#layoutContent();
         this.requestParentLayout();
     }
 
@@ -45,7 +46,7 @@ export class Control extends Container {
 
     override set height(value: number) {
         this.#boxHeight = Math.max(0, finiteNumber(value, 0));
-        this.layoutContent();
+        this.#layoutContent();
         this.requestParentLayout();
     }
 
@@ -56,7 +57,7 @@ export class Control extends Container {
     @prop({ type: Number, default: 0 })
     set minWidth(value: number) {
         this.#minWidth = Math.max(0, finiteNumber(value, 0));
-        this.layoutContent();
+        this.#layoutContent();
         this.requestParentLayout();
     }
 
@@ -67,7 +68,7 @@ export class Control extends Container {
     @prop({ type: Number, default: 0 })
     set minHeight(value: number) {
         this.#minHeight = Math.max(0, finiteNumber(value, 0));
-        this.layoutContent();
+        this.#layoutContent();
         this.requestParentLayout();
     }
 
@@ -108,7 +109,7 @@ export class Control extends Container {
     @prop({ type: String, default: 'start' })
     set alignX(value: string) {
         this.#alignX = parseAlign(value);
-        this.layoutContent();
+        this.#layoutContent();
     }
 
     get alignY() {
@@ -118,19 +119,19 @@ export class Control extends Container {
     @prop({ type: String, default: 'start' })
     set alignY(value: string) {
         this.#alignY = parseAlign(value);
-        this.layoutContent();
+        this.#layoutContent();
     }
 
     onMounted() {
-        this.default.on('childAdded', this.layoutContent, this);
-        this.default.on('childRemoved', this.layoutContent, this);
-        this.once('destroyed', this.unmountLayout, this);
-        this.layoutContent();
+        this.default.on('childAdded', this.#layoutContent, this);
+        this.default.on('childRemoved', this.#layoutContent, this);
+        this.once('destroyed', this.#unmountLayout, this);
+        this.#layoutContent();
     }
 
-    private unmountLayout() {
-        this.default.off('childAdded', this.layoutContent, this);
-        this.default.off('childRemoved', this.layoutContent, this);
+    #unmountLayout() {
+        this.default.off('childAdded', this.#layoutContent, this);
+        this.default.off('childRemoved', this.#layoutContent, this);
     }
 
     getControlLayoutProps(): ControlLayoutProps {
@@ -156,10 +157,10 @@ export class Control extends Container {
         this.position.set(x, y);
         this.#boxWidth = Math.max(0, width);
         this.#boxHeight = Math.max(0, height);
-        this.layoutContent();
+        this.#layoutContent();
     }
 
-    private layoutContent() {
+    #layoutContent() {
         if (!this.default) {
             return;
         }
@@ -171,7 +172,7 @@ export class Control extends Container {
         this.default.position.set(offsetX, offsetY);
     }
 
-    private requestParentLayout() {
+    protected requestParentLayout() {
         const parent = this.parent as (Container & { layout?: () => void }) | null;
         parent?.layout?.();
     }

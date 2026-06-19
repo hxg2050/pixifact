@@ -1,5 +1,6 @@
 import { Container } from 'pixi.js';
 import { prop, scene, slot } from 'pixifact/compiler';
+import { Control } from './Control';
 import {
     finiteNumber,
     layoutStack,
@@ -13,9 +14,9 @@ import {
 } from './controlLayout';
 
 @scene()
-export class HBoxContainer extends Container {
+export class HBoxContainer extends Control {
     @slot()
-    readonly default!: Container;
+    declare readonly default: Container;
 
     #gap = 0;
     #alignY: ControlAlign = 'start';
