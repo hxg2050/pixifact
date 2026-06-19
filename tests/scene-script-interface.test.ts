@@ -155,6 +155,93 @@ import { Group } from 'pixifact/runtime';
         });
     });
 
+    it('resolves inherited contracts through explicit relative imports', () => {
+        const contracts = extractSceneScriptInterfaces([
+            {
+                scene: 'src/base/BasePanel.scene',
+                fileName: 'src/base/BasePanel.ts',
+                source: `
+                    @scene()
+                    export class BasePanel {
+                        @prop({ type: Number, default: 8 })
+                        accessor padding = 8;
+                    }
+                `,
+            },
+            {
+                scene: 'src/legacy/BasePanel.scene',
+                fileName: 'src/legacy/BasePanel.ts',
+                source: `
+                    @scene()
+                    export class BasePanel {
+                        @prop({ type: Number, default: 99 })
+                        accessor padding = 99;
+                    }
+                `,
+            },
+            {
+                scene: 'src/ui/Button.scene',
+                fileName: 'src/ui/Button.ts',
+                source: `
+                    import { BasePanel } from '../base/BasePanel';
+
+                    @scene()
+                    export class Button extends BasePanel {
+                        @prop({ type: String, default: 'primary' })
+                        accessor tone = 'primary';
+                    }
+                `,
+            },
+        ]);
+
+        expect(contracts['src/ui/Button.scene'].interface.props).toEqual({
+            padding: {
+                type: 'number',
+                default: 8,
+            },
+            tone: {
+                type: 'string',
+                default: 'primary',
+            },
+        });
+    });
+
+    it('rejects ambiguous cross-file inheritance without an import source', () => {
+        expect(() => extractSceneScriptInterfaces([
+            {
+                scene: 'src/base/BasePanel.scene',
+                fileName: 'src/base/BasePanel.ts',
+                source: `
+                    @scene()
+                    export class BasePanel {
+                        @prop({ type: Number, default: 8 })
+                        accessor padding = 8;
+                    }
+                `,
+            },
+            {
+                scene: 'src/legacy/BasePanel.scene',
+                fileName: 'src/legacy/BasePanel.ts',
+                source: `
+                    @scene()
+                    export class BasePanel {
+                        @prop({ type: Number, default: 99 })
+                        accessor padding = 99;
+                    }
+                `,
+            },
+            {
+                scene: 'src/ui/Button.scene',
+                fileName: 'src/ui/Button.ts',
+                source: `
+                    @scene()
+                    export class Button extends BasePanel {
+                    }
+                `,
+            },
+        ])).toThrow('Scene script parent class "BasePanel" is ambiguous for "Button".');
+    });
+
     it('emits a stable JSON descriptor for editor and AI consumption', () => {
         const descriptor = emitSceneScriptInterfaceDescriptor(`
             @scene()

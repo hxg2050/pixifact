@@ -20,10 +20,12 @@ export interface ExtractSceneScriptInterfaceSource extends ExtractSceneScriptInt
 }
 
 interface ExtractedSceneScriptClass {
+    sourceId: string;
     scriptScene: string;
     scene?: string;
     className: string;
     parentClassName?: string;
+    imports: ReadonlyMap<string, string>;
     interface: SceneTemplateInterface;
     parts: Record<string, string>;
 }
@@ -57,6 +59,8 @@ function extractSceneScriptClasses(
     options: ExtractSceneScriptInterfaceOptions,
 ): ExtractedSceneScriptClass[] {
     const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const sourceId = normalizeScriptSourceId(fileName);
+    const imports = collectNamedImports(sourceFile, sourceId);
     const structClasses = collectStructClasses(sourceFile);
     const classes: ExtractedSceneScriptClass[] = [];
 
@@ -111,10 +115,12 @@ function extractSceneScriptClasses(
         }
 
         classes.push({
+            sourceId,
             scriptScene: options.scene,
             ...(isSceneClass ? { scene: options.scene } : {}),
             className,
             ...(parentClassName ? { parentClassName } : {}),
+            imports,
             interface: {
                 props,
                 events,
@@ -137,10 +143,12 @@ export function emitSceneScriptInterfaceDescriptor(
 
 function composeSceneScriptClasses(classes: readonly ExtractedSceneScriptClass[]): Record<string, SceneScriptInterface> {
     const classesByName = new Map<string, ExtractedSceneScriptClass[]>();
+    const classesBySourceAndName = new Map<string, ExtractedSceneScriptClass>();
     for (const item of classes) {
         const bucket = classesByName.get(item.className) ?? [];
         bucket.push(item);
         classesByName.set(item.className, bucket);
+        classesBySourceAndName.set(sourceClassKey(item.sourceId, item.className), item);
     }
 
     const composed = new Map<ExtractedSceneScriptClass, SceneTemplateInterface>();
@@ -156,7 +164,7 @@ function composeSceneScriptClasses(classes: readonly ExtractedSceneScriptClass[]
         }
 
         visiting.add(item);
-        const parent = item.parentClassName ? resolveParentClass(item, classesByName) : undefined;
+        const parent = item.parentClassName ? resolveParentClass(item, classesByName, classesBySourceAndName) : undefined;
         const parentInterface = parent ? inheritedSceneInterface(compose(parent), parent.scriptScene, item.scriptScene) : emptySceneInterface();
         const sceneInterface = mergeSceneInterfaces(parentInterface, item.interface);
         visiting.delete(item);
@@ -185,8 +193,20 @@ function composeSceneScriptClasses(classes: readonly ExtractedSceneScriptClass[]
 function resolveParentClass(
     item: ExtractedSceneScriptClass,
     classesByName: ReadonlyMap<string, readonly ExtractedSceneScriptClass[]>,
+    classesBySourceAndName: ReadonlyMap<string, ExtractedSceneScriptClass>,
 ) {
-    const candidates = classesByName.get(item.parentClassName ?? '') ?? [];
+    const parentClassName = item.parentClassName ?? '';
+    const sameSourceParent = classesBySourceAndName.get(sourceClassKey(item.sourceId, parentClassName));
+    if (sameSourceParent) {
+        return sameSourceParent;
+    }
+
+    const importedSource = item.imports.get(parentClassName);
+    if (importedSource) {
+        return classesBySourceAndName.get(sourceClassKey(importedSource, parentClassName));
+    }
+
+    const candidates = classesByName.get(parentClassName) ?? [];
     if (candidates.length === 0) {
         return undefined;
     }
@@ -194,6 +214,10 @@ function resolveParentClass(
         throw new Error(`Scene script parent class "${item.parentClassName}" is ambiguous for "${item.className}".`);
     }
     return candidates[0];
+}
+
+function sourceClassKey(sourceId: string, className: string) {
+    return `${sourceId}:${className}`;
 }
 
 function emptySceneInterface(): SceneTemplateInterface {
@@ -254,6 +278,67 @@ function hasPublicContract(
         || Object.keys(events).length > 0
         || Object.keys(slots).length > 0
         || Object.keys(parts).length > 0;
+}
+
+function collectNamedImports(sourceFile: ts.SourceFile, sourceId: string) {
+    const imports = new Map<string, string>();
+    for (const statement of sourceFile.statements) {
+        if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) {
+            continue;
+        }
+        const moduleSpecifier = statement.moduleSpecifier.text;
+        if (!moduleSpecifier.startsWith('.')) {
+            continue;
+        }
+        const namedBindings = statement.importClause?.namedBindings;
+        if (!namedBindings || !ts.isNamedImports(namedBindings)) {
+            continue;
+        }
+        const targetSource = resolveScriptSourceId(sourceId, moduleSpecifier);
+        for (const element of namedBindings.elements) {
+            imports.set(element.name.text, targetSource);
+        }
+    }
+    return imports;
+}
+
+function normalizeScriptSourceId(value: string) {
+    const normalized = normalizePosixPath(value);
+    return hasScriptExtension(normalized) ? normalized : `${normalized}.ts`;
+}
+
+function resolveScriptSourceId(fromSourceId: string, moduleSpecifier: string) {
+    const dirname = posixDirname(fromSourceId);
+    return normalizeScriptSourceId(normalizePosixPath(`${dirname}/${moduleSpecifier}`));
+}
+
+function hasScriptExtension(value: string) {
+    return /\.[cm]?[tj]sx?$/.test(value);
+}
+
+function posixDirname(value: string) {
+    const normalized = normalizePosixPath(value);
+    const index = normalized.lastIndexOf('/');
+    return index >= 0 ? normalized.slice(0, index) : '';
+}
+
+function normalizePosixPath(value: string) {
+    const segments: string[] = [];
+    for (const segment of value.replaceAll('\\', '/').split('/')) {
+        if (!segment || segment === '.') {
+            continue;
+        }
+        if (segment === '..') {
+            if (segments.length && segments[segments.length - 1] !== '..') {
+                segments.pop();
+            } else {
+                segments.push(segment);
+            }
+            continue;
+        }
+        segments.push(segment);
+    }
+    return segments.join('/');
 }
 
 function hasSceneDecorator(node: ts.ClassDeclaration) {
