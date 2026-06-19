@@ -1202,7 +1202,7 @@ textarea {
 .nodeContextSubmenuPanel {
     position: absolute;
     top: -4px;
-    left: calc(100% + 4px);
+    left: 100%;
     display: none;
     min-width: 150px;
     padding: 4px;
