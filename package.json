@@ -31,6 +31,7 @@
   "license": "MIT",
   "scripts": {
     "build": "cd packages/pixifact && bun run build",
+    "changeset": "changeset",
     "desktop": "cd apps/editor && VITE_PIXIFACT_PROJECT_ROOT=$(pwd)/../.. bunx --no-install tauri dev",
     "desktop:build": "cd apps/editor && VITE_PIXIFACT_PROJECT_ROOT=$(pwd)/../.. bunx --no-install tauri build",
     "editor": "bun run desktop",
@@ -38,11 +39,16 @@
     "editor:frontend:build": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install vite build apps/editor --config vite.config.ts",
     "example": "cd sample-projects/scene-compiler-demo && bun run dev",
     "example:build": "cd sample-projects/scene-compiler-demo && bun run build",
+    "release:check": "bun run test && bun run build && bun run editor:frontend:build && cd packages/create-pixifact && bun run build && cd ../.. && bun scripts/check-release-packages.mjs",
+    "release:publish": "bun scripts/publish-release-tag.mjs",
+    "release:status": "changeset status --verbose",
+    "release:version": "changeset version && bun scripts/sync-template-versions.mjs && bun install --lockfile-only",
     "skills:install": "bun scripts/install-skills.mjs --replace",
     "test": "bunx --no-install vitest run",
     "test:watch": "bunx --no-install vitest"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.31.0",
     "@rollup/plugin-typescript": "^11.1.6",
     "@tauri-apps/cli": "2.11.1",
     "@types/react": "^19.2.14",

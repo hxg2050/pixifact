@@ -1,79 +1,97 @@
 # npm Publishing
 
-Pixifact publishes three public npm packages:
+Pixifact 发布三个公开 npm 包：
 
 - `pixifact`
 - `pixifact-cli`
 - `create-pixifact`
 
-Publish order matters:
+发布顺序仍然是 `pixifact` -> `pixifact-cli` -> `create-pixifact`。仓库使用 Changesets 管版本和 changelog，使用 GitHub Actions Trusted Publishing 发布 npm 包。
 
-1. `pixifact`
-2. `pixifact-cli`
-3. `create-pixifact`
+## 当前发布状态
 
-`pixifact-cli` depends on `pixifact`. `create-pixifact` scaffolds projects that depend on both.
-
-## Current Release State
-
-The first npm release has been completed:
+首个 npm 版本已经发布：
 
 - npm packages: `0.1.3`
 - git tag: `v0.1.3`
 - GitHub release: <https://github.com/hxg2050/pixifact/releases/tag/v0.1.3>
 - release notes source: [`docs/releases/v0.1.3.md`](./releases/v0.1.3.md)
 
-The first release was published manually because npm Trusted Publishing requires the package to already exist before trust can be configured.
+Trusted Publishing 已经在 npm 网站为三个包配置完成。正常发布路径不需要本地 npm token。
 
-Trusted Publishing has since been configured from the npm website for all three packages.
+## 日常变更
 
-## Local Auth For Manual Publishing
-
-Use the official npm registry for all publish commands:
+有需要进入 npm 版本的改动时，创建 changeset：
 
 ```bash
-npm whoami --registry https://registry.npmjs.org/
+bun run changeset
 ```
 
-If npm requires two-factor authentication and no authenticator app is available, create a granular publish token on npmjs.com with:
+按提示选择包和 semver 类型。当前三个发布包在 `.changeset/config.json` 中配置为 fixed group，因此会保持同版本发布。
 
-- package publish permission
-- minimal package scope
-- an expiration date
-- 2FA bypass enabled
+## 准备发布
 
-Store the token outside the repository. A local `~/.npmrc` entry is acceptable for manual publishing:
-
-```ini
-//registry.npmjs.org/:_authToken=npm_xxx
-```
-
-Do not paste npm tokens into chat, commit them, or add a long-lived `NPM_TOKEN` secret for the normal release path. Revoke broad temporary tokens after use.
-
-## Preflight Checklist
-
-Run these checks before any manual publish:
+生成版本改动：
 
 ```bash
-npm whoami --registry https://registry.npmjs.org/
-bun run test
-bun run build
-cd packages/create-pixifact && bun run build && cd ../..
+bun run release:version
 ```
 
-Check package contents and publish simulation:
+这个命令会：
+
+- 执行 `changeset version`
+- 更新三个发布包版本
+- 更新 `CHANGELOG.md`
+- 删除已消费的 changeset 文件
+- 同步 `packages/create-pixifact/templates/minimal/package.json` 中的 `pixifact` / `pixifact-cli` 版本
+- 更新 `bun.lock`
+
+检查生成结果：
 
 ```bash
-for dir in packages/pixifact packages/pixifact-cli packages/create-pixifact; do
-  (
-    cd "$dir"
-    npm pack --dry-run --json
-    npm publish --dry-run --registry https://registry.npmjs.org/
-  )
-done
+git diff
 ```
 
-Also verify package names and versions before publishing:
+提交 release commit：
+
+```bash
+git add .
+git commit -m "Release vX.Y.Z"
+```
+
+## 发布前检查
+
+```bash
+bun run release:check
+```
+
+这个命令会运行：
+
+- `bun run test`
+- `bun run build`
+- `bun run editor:frontend:build`
+- `packages/create-pixifact` build
+- 三个发布包的 `npm pack --dry-run --json`
+
+## 触发发布
+
+确保工作区干净后：
+
+```bash
+bun run release:publish
+```
+
+脚本会读取三个发布包版本，确认版本一致，然后：
+
+- 创建 `vX.Y.Z` tag
+- push `main`
+- push tag
+
+`.github/workflows/publish.yml` 会在 tag push 后自动验证、构建并通过 Trusted Publishing 发布 npm 包。如果某个包版本已经发布，workflow 会跳过该包，方便重跑。
+
+## 发布后验证
+
+确认 npm registry 看到新版本：
 
 ```bash
 npm view pixifact version --registry https://registry.npmjs.org/
@@ -81,11 +99,38 @@ npm view pixifact-cli version --registry https://registry.npmjs.org/
 npm view create-pixifact version --registry https://registry.npmjs.org/
 ```
 
-An `E404` before the first release means the package name is not yet published.
+做一次真实安装冒烟：
 
-## Manual Publish
+```bash
+tmp="$(mktemp -d)"
+cd "$tmp"
+bun create pixifact npm-smoke
+cd npm-smoke
+bun install
+bun run build
+```
 
-Publish in dependency order:
+创建 GitHub Release：
+
+```bash
+gh release create vX.Y.Z --title "Pixifact vX.Y.Z" --notes-file packages/pixifact/CHANGELOG.md
+```
+
+如果需要更精简的 notes，可以从 Changesets 生成的 changelog 中复制本次版本段落到 `docs/releases/vX.Y.Z.md`，再用该文件创建 release。
+
+## 手动发布应急
+
+只有 Trusted Publishing 或 GitHub Actions 出故障时才本地手动发布。
+
+先确认 npm 登录：
+
+```bash
+npm whoami --registry https://registry.npmjs.org/
+```
+
+如果 npm 要求 2FA，而没有 authenticator app，可以创建 granular publish token，开启 2FA bypass，并只授予需要的包发布权限。不要把 token 写入仓库或聊天记录。
+
+手动发布顺序：
 
 ```bash
 cd packages/pixifact
@@ -98,119 +143,8 @@ cd ../create-pixifact
 npm publish --registry https://registry.npmjs.org/
 ```
 
-If npm returns a 2FA error, either provide a current 6-digit authenticator OTP with `--otp <code>` or use a granular publish token with 2FA bypass enabled. Recovery codes are not publish OTPs.
-
-## Post-Publish Verification
-
-Confirm that npm registry sees the expected versions:
+如果 npm 返回 2FA 错误，使用当前 6 位 OTP：
 
 ```bash
-npm view pixifact version --registry https://registry.npmjs.org/
-npm view pixifact-cli version --registry https://registry.npmjs.org/
-npm view create-pixifact version --registry https://registry.npmjs.org/
+npm publish --registry https://registry.npmjs.org/ --otp <code>
 ```
-
-Run a real install smoke test from a temporary directory:
-
-```bash
-tmp="$(mktemp -d)"
-cd "$tmp"
-bun create pixifact npm-smoke
-cd npm-smoke
-bun install
-bun run build
-```
-
-The build should compile Scenes and complete a Vite production build. A Vite chunk-size warning is acceptable for the current scaffold.
-
-## Git Tag And GitHub Release
-
-After package versions are committed:
-
-```bash
-git tag v0.1.3
-git push origin main
-git push origin v0.1.3
-```
-
-Create or update the GitHub release:
-
-```bash
-gh release create v0.1.3 --title "Pixifact v0.1.3" --notes-file docs/releases/v0.1.3.md
-```
-
-If the release already exists, update it instead:
-
-```bash
-gh release edit v0.1.3 --title "Pixifact v0.1.3" --notes-file docs/releases/v0.1.3.md
-```
-
-## Configure Trusted Publishing
-
-After the packages exist, configure each package to trust the GitHub Actions workflow:
-
-- repository: `hxg2050/pixifact`
-- workflow filename: `publish.yml`
-- permission: allow publish
-
-Using the npm website:
-
-1. Open each package on npmjs.com.
-2. Go to package settings.
-3. Add a GitHub Actions trusted publisher.
-4. Use repository `hxg2050/pixifact`.
-5. Use workflow filename `publish.yml`.
-6. Allow `npm publish`.
-
-Using npm CLI 11.10.0 or newer:
-
-```bash
-npm install -g npm@^11.10.0
-npm login --registry https://registry.npmjs.org/
-
-npm trust github pixifact --repo hxg2050/pixifact --file publish.yml --allow-publish
-npm trust github pixifact-cli --repo hxg2050/pixifact --file publish.yml --allow-publish
-npm trust github create-pixifact --repo hxg2050/pixifact --file publish.yml --allow-publish
-```
-
-If `npm trust github ...` returns `E403` while the current user is still listed as package owner, configure the trusted publisher from the npm website package settings instead. This can happen even when `--dry-run` succeeds.
-
-After configuration, you can try to list trusted publishers:
-
-```bash
-npm trust list pixifact
-npm trust list pixifact-cli
-npm trust list create-pixifact
-```
-
-If `npm trust list ...` also returns `E403`, confirm the configuration from the npm website. The final end-to-end verification is the next tag release successfully publishing through GitHub Actions OIDC.
-
-Trusted Publishing uses GitHub Actions OIDC. Do not add a long-lived `NPM_TOKEN` secret for the normal release path.
-
-The workflow is `.github/workflows/publish.yml`. It runs when a `v*.*.*` tag is pushed and uses:
-
-- `permissions.id-token: write`
-- Bun 1.3.13
-- Node 24
-- npm 11
-- `actions/setup-node` with `package-manager-cache: false`
-
-The workflow checks that the tag version matches:
-
-- `packages/pixifact/package.json`
-- `packages/pixifact-cli/package.json`
-- `packages/create-pixifact/package.json`
-
-If a package version is already published, the workflow skips it. This makes reruns safe after partial failures.
-
-## Next Release Checklist
-
-1. Update all package versions together.
-2. Update release notes under `docs/releases/`.
-3. Run the preflight checklist.
-4. Commit version and release-note changes.
-5. Tag `vX.Y.Z`.
-6. Push `main` and the tag.
-7. Let Trusted Publishing handle npm once it is configured, or run the manual publish flow.
-8. Run post-publish verification.
-9. Create or update the GitHub release.
