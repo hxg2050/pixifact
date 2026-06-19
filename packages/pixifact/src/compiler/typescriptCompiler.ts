@@ -441,8 +441,9 @@ class CompileContext {
 
     #applyRootProps() {
         const props = { ...this.template.props };
-        const width = props.width;
-        const height = props.height;
+        const hasExplicitSize = props.width !== undefined || props.height !== undefined;
+        const width = hasExplicitSize ? props.width : this.options.defaultRootSize?.width;
+        const height = hasExplicitSize ? props.height : this.options.defaultRootSize?.height;
         delete props.width;
         delete props.height;
         if (width !== undefined || height !== undefined) {

@@ -1,4 +1,4 @@
-<Scene name="Hud" width="720" height="1280">
+<Scene name="Hud">
   <Graphics id="topBand" shape="roundRect" x="32" y="32" width="656" height="158" radius="24" fill="#111827" fillAlpha="0.82" strokeColor="#38bdf8" strokeWidth="2" strokeAlpha="0.65" />
   <FlexLayout id="topStats" x="60" y="58" width="598" height="112" direction="row" align="start" justify="space-between">
     <FlexItem basis="180">

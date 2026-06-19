@@ -519,7 +519,7 @@ function collectDetailedCompilerNodes(
 
 function createBlankCompilerSceneSource(sceneName: string) {
     return [
-        `<Scene name="${sceneName}" width="960" height="540">`,
+        `<Scene name="${sceneName}">`,
         '</Scene>',
         '',
     ].join('\n');

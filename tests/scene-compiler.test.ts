@@ -714,6 +714,22 @@ import { Group } from 'pixifact/runtime';`);
         expect(code).toContain('slots: __pixifactSlots,');
     });
 
+    it('uses a default root size only when the scene has no explicit root size', () => {
+        const screenTemplate = parseSceneTemplate('<Scene name="Hud" />');
+        const componentTemplate = parseSceneTemplate('<Scene name="Panel" width="320" />');
+
+        const screenCode = compileSceneTemplateToTs(screenTemplate, {
+            defaultRootSize: { width: 720, height: 1280 },
+        });
+        const componentCode = compileSceneTemplateToTs(componentTemplate, {
+            defaultRootSize: { width: 720, height: 1280 },
+        });
+
+        expect(screenCode).toContain('root.setSize(720, 1280);');
+        expect(componentCode).toContain('root.setSize(320, 0);');
+        expect(componentCode).not.toContain('root.setSize(320, 1280);');
+    });
+
     it('keeps scene instances opaque and compiles only their public props, events, and slot children', () => {
         const template = parseSceneTemplate(`
             <Scene name="MainMenu">
@@ -1287,6 +1303,17 @@ import { Group } from 'pixifact/runtime';`);
             await mkdir(join(root, 'src', 'assets'), { recursive: true });
             await mkdir(join(root, 'src', 'build'), { recursive: true });
             await mkdir(join(root, 'src', 'generated'), { recursive: true });
+            await writeFile(join(root, 'pixifact.project.json'), JSON.stringify({
+                version: 1,
+                name: 'Scene Compiler Test',
+                resolution: {
+                    width: 720,
+                    height: 1280,
+                },
+                scenes: {
+                    main: 'src/screens/Main.scene',
+                },
+            }, null, 2));
             await writeFile(join(root, 'src', 'assets', 'btn.png'), 'fake-png');
             await writeFile(join(root, 'src', 'ui', 'Button.scene'), `
                 <Scene name="Button" width="120" height="40">
@@ -1356,8 +1383,11 @@ import { Group } from 'pixifact/runtime';
             expect(menuGenerated).not.toContain('from "../../../src/menu/Button";');
             expect(mainGenerated).toContain('import { Button as SceneClass_src_menu_Button } from "../../../../src/menu/Button";');
             expect(mainGenerated).toContain('import { Button as SceneClass_src_ui_Button } from "../../../../src/ui/Button";');
+            expect(mainGenerated).toContain('root.setSize(720, 1280);');
             expect(mainGenerated).toContain('const uiButton = new SceneClass_src_ui_Button();');
             expect(mainGenerated).toContain('const menuButton = new SceneClass_src_menu_Button();');
+            expect(uiGenerated).toContain('root.setSize(120, 40);');
+            expect(menuGenerated).not.toContain('root.setSize(720, 1280);');
             expect(registry).toContain('import "./src/ui/Button.scene.generated";');
             expect(registry).toContain('import "./src/menu/Button.scene.generated";');
             expect(registry).toContain('import "./src/screens/Main.scene.generated";');

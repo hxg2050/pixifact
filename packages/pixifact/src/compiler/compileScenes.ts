@@ -28,6 +28,11 @@ import { extractSceneScriptInterfaces } from './scriptInterfaceExtractor';
 import { findMissingScenePartReferences } from './scenePartValidation';
 import { parseSceneTemplate } from './templateParser';
 import { compileSceneTemplateToTs } from './typescriptCompiler';
+import {
+    parsePixifactProjectConfig,
+    pixifactProjectConfigFileName,
+    type PixifactProjectConfig,
+} from '../project';
 
 export interface CompileScenesOptions {
     projectRoot: string | URL;
@@ -56,6 +61,7 @@ export async function compileScenes(options: CompileScenesOptions) {
         ? options.projectRoot
         : fileURLToPath(options.projectRoot);
     const generatedDir = path.resolve(projectRoot, options.generatedDir ?? '.pixifact/generated');
+    const projectConfig = await readProjectConfig(projectRoot);
     const projectScenePaths = await collectSceneAssetIds(projectRoot, options.sourceRoots);
     const sceneRecords = [
         ...projectScenePaths.map((scenePath): SceneAssetRecord => ({ scenePath, kind: 'project' })),
@@ -110,6 +116,7 @@ export async function compileScenes(options: CompileScenesOptions) {
         const generatedFileDir = path.dirname(generatedFile);
         const code = compileSceneTemplateToTs(template, {
             registrationPath: scenePath,
+            defaultRootSize: rootDefaultSizeForScene(projectConfig, scenePath),
             scriptImport: {
                 exportName: template.name,
                 localName: sceneClassAlias(scenePath),
@@ -134,6 +141,21 @@ export async function compileScenes(options: CompileScenesOptions) {
         ...builtinRegistryImports,
         ...projectRegistryImports,
     ].join('\n')}\n`);
+}
+
+async function readProjectConfig(projectRoot: string): Promise<PixifactProjectConfig | undefined> {
+    const configPath = path.join(projectRoot, pixifactProjectConfigFileName);
+    if (!await exists(configPath)) {
+        return undefined;
+    }
+    return parsePixifactProjectConfig(JSON.parse(await readFile(configPath, 'utf8')));
+}
+
+function rootDefaultSizeForScene(config: PixifactProjectConfig | undefined, scenePath: string) {
+    if (!config || !Object.values(config.scenes).includes(scenePath)) {
+        return undefined;
+    }
+    return config.resolution;
 }
 
 function sceneIsReferencedByProjectScenes(

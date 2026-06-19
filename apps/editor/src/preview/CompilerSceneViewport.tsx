@@ -33,6 +33,7 @@ import { createCompilerSceneRuntimePreview, destroyCompilerSceneRuntimePreview }
 interface CompilerSceneViewportProps {
     diagnosticsVisible?: boolean;
     document: CompilerSceneDocument;
+    fillsProjectResolution?: boolean;
     projectResolution?: ViewportSize;
     projectTree: ProjectFileTreeNode;
     onStateChange?: (state: CompilerSceneViewportState) => void;
@@ -329,8 +330,8 @@ function selectedCompilerNode(document: CompilerSceneDocument) {
         : undefined;
 }
 
-function defaultViewportModel(projectResolution: ViewportSize = defaultPixifactProjectResolution): ViewportModel {
-    const scene = { width: previewWidth, height: previewHeight };
+function defaultViewportModel(projectResolution: ViewportSize = defaultPixifactProjectResolution, fillsProjectResolution = false): ViewportModel {
+    const scene = fillsProjectResolution ? projectResolution : { width: previewWidth, height: previewHeight };
     return {
         gridVisible: true,
         mode: 'fit',
@@ -514,6 +515,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
     function CompilerSceneViewport({
         diagnosticsVisible = false,
         document,
+        fillsProjectResolution = false,
         projectResolution = defaultPixifactProjectResolution,
         projectTree,
         onStateChange,
@@ -522,7 +524,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         const nodesRef = useRef<Map<string, Container>>(new Map());
         const previewRef = useRef<Awaited<ReturnType<typeof createCompilerSceneRuntimePreview>> | undefined>(undefined);
         const viewportRef = useRef<ViewportSize>({ width: previewWidth, height: previewHeight });
-        const transformRef = useRef<ViewportTransform>(defaultViewportModel(projectResolution).transform);
+        const transformRef = useRef<ViewportTransform>(defaultViewportModel(projectResolution, fillsProjectResolution).transform);
         const selectedNodeRef = useRef<string | undefined>(undefined);
         const spacePressedRef = useRef(false);
         const panRef = useRef<{ pointerId: number; last: ViewportPoint } | undefined>(undefined);
@@ -532,7 +534,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         const moveSessionRef = useRef(0);
         const resizeSessionRef = useRef(0);
         const [viewport, setViewport] = useState<ViewportSize>({ width: previewWidth, height: previewHeight });
-        const [model, setModel] = useState<ViewportModel>(() => defaultViewportModel(projectResolution));
+        const [model, setModel] = useState<ViewportModel>(() => defaultViewportModel(projectResolution, fillsProjectResolution));
         const [outline, setOutline] = useState<SelectionRect | undefined>(undefined);
         const [status, setStatus] = useState('正在初始化编译器预览');
         const profilerSnapshot = useSyncExternalStore(
@@ -598,7 +600,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 return;
             }
             const host = hostElement;
-            const initialScene = { width: previewWidth, height: previewHeight };
+            const initialScene = fillsProjectResolution ? projectResolution : { width: previewWidth, height: previewHeight };
             const initialViewport = hostSize(host);
             const initialTransform = fitViewportTransform(initialScene, initialViewport);
             viewportRef.current = initialViewport;
@@ -675,6 +677,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                     const scenePath = normalizeSceneAssetId(document.scenePath.slice(projectTree.path.length + 1));
                     const preview = await createCompilerSceneRuntimePreview({
                         document,
+                        projectResolution: fillsProjectResolution ? projectResolution : undefined,
                         projectTree,
                         scenePath,
                     });
@@ -725,7 +728,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 destroyPreview();
                 destroyApp();
             };
-        }, [document.scenePath, document.template, projectTree]);
+        }, [document.scenePath, document.template, fillsProjectResolution, projectResolution, projectTree]);
 
         useEffect(() => {
             setOutline(compilerSceneSelectionRect(nodesRef.current.get(selectedCompilerNode(document) ?? '')));

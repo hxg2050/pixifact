@@ -248,10 +248,7 @@ export function createBlankCompilerScene(name: string): SceneTemplate {
     return {
         version: 2,
         name: assetName,
-        props: {
-            width: 960,
-            height: 540,
-        },
+        props: {},
         interface: {
             props: {},
             events: {},

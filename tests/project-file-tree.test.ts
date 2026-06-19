@@ -457,10 +457,7 @@ describe('project file tree service', () => {
         expect(parseSceneTemplate(created.content)).toMatchObject({
             version: 2,
             name: 'MenuPanel',
-            props: {
-                width: 960,
-                height: 540,
-            },
+            props: {},
             interface: {
                 props: {},
                 events: {},
@@ -468,7 +465,7 @@ describe('project file tree service', () => {
             },
             children: [],
         });
-        expect(created.content).toBe('<Scene name="MenuPanel" width="960" height="540">\n</Scene>\n');
+        expect(created.content).toBe('<Scene name="MenuPanel">\n</Scene>\n');
         expect(script).toBe([
             "import { Group } from 'pixifact/runtime';",
             "import { scene } from 'pixifact/compiler';",
@@ -2313,10 +2310,7 @@ describe('project file tree service', () => {
         expect(compilerDocument?.template).toMatchObject({
             version: 2,
             name: 'StatusPanel',
-            props: {
-                width: 960,
-                height: 540,
-            },
+            props: {},
             children: [],
         });
         expect(host.writeProjectFileText).not.toHaveBeenCalled();
@@ -2327,7 +2321,7 @@ describe('project file tree service', () => {
         expect(host.writeProjectFileText).toHaveBeenCalledWith(
             '/tmp/GameProject',
             'GameProject/src/scenes/StatusPanel.scene',
-            '<Scene name="StatusPanel" width="960" height="540">\n</Scene>\n',
+            '<Scene name="StatusPanel">\n</Scene>\n',
         );
         expect(parseSceneTemplate(saved).name).toBe('StatusPanel');
     });

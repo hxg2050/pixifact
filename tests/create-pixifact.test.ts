@@ -63,8 +63,8 @@ describe('create-pixifact scaffold', () => {
         expect(JSON.parse(await readProjectFile(projectRoot, 'pixifact.project.json'))).toMatchObject({
             name: 'My Game',
             resolution: {
-                width: 750,
-                height: 1334,
+                width: 960,
+                height: 540,
             },
             scenes: {
                 mainMenu: 'src/scenes/MainMenu.scene',

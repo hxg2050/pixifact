@@ -30,6 +30,10 @@ describe('space HUD game sample project', () => {
 
         expect(config).toMatchObject({
             name: 'Space HUD Game',
+            resolution: {
+                width: DESIGN_WIDTH,
+                height: DESIGN_HEIGHT,
+            },
             scenes: {
                 mainMenu: 'src/scenes/MainMenu.scene',
                 hud: 'src/scenes/Hud.scene',
@@ -45,10 +49,8 @@ describe('space HUD game sample project', () => {
 
         for (const scenePath of Object.values(config.scenes)) {
             const template = parseSceneTemplate(readSampleFile(scenePath));
-            expect(template.props).toMatchObject({
-                width: DESIGN_WIDTH,
-                height: DESIGN_HEIGHT,
-            });
+            expect(template.props.width).toBeUndefined();
+            expect(template.props.height).toBeUndefined();
             expect('script' in template).toBe(false);
         }
     });

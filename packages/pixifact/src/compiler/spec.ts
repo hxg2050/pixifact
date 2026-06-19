@@ -97,6 +97,10 @@ export interface CompileSceneTemplateOptions {
     functionName?: string;
     actionsParameter?: string;
     registrationPath?: string;
+    defaultRootSize?: {
+        width: number;
+        height: number;
+    };
     scriptImport?: SceneTemplateScriptImport;
     sceneImports?: SceneTemplateScriptImport[];
     sceneClassAliases?: Record<string, string>;

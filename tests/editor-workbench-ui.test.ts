@@ -670,6 +670,7 @@ describe('Editor workbench UI', () => {
             expect(fitButton).toBeTruthy();
             expect(gridButton).toBeTruthy();
             expect(diagnosticsButton).toBeTruthy();
+            expect(textContent(view.container)).toContain('640x1136');
             expect(fitButton?.getAttribute('aria-pressed')).toBe('true');
             expect(gridButton?.getAttribute('aria-pressed')).toBe('true');
             expect(diagnosticsButton?.getAttribute('aria-pressed')).toBe('false');
@@ -682,8 +683,8 @@ describe('Editor workbench UI', () => {
             expect(view.container.querySelectorAll('.compilerSceneResizeHandle')).toHaveLength(0);
             expect(resolutionBounds?.getAttribute('x')).toBe(bounds?.getAttribute('x'));
             expect(resolutionBounds?.getAttribute('y')).toBe(bounds?.getAttribute('y'));
-            expect(Number(resolutionBounds?.getAttribute('width'))).toBe(640);
-            expect(Number(resolutionBounds?.getAttribute('height'))).toBe(1136);
+            expect(resolutionBounds?.getAttribute('width')).toBe(bounds?.getAttribute('width'));
+            expect(resolutionBounds?.getAttribute('height')).toBe(bounds?.getAttribute('height'));
             const editorStyles = readFileSync('apps/editor/src/styles.css', 'utf8');
             expect(editorStyles).toContain('.canvasWrap {\n    display: flex;\n    min-height: 0;\n    align-items: stretch;\n    justify-content: stretch;\n    background: #e8edf4;\n    padding: 8px;');
             expect(editorStyles).toContain('.compilerSceneGrid {\n    position: absolute;\n    top: 0;\n    left: 0;\n    z-index: 0;');
@@ -722,6 +723,31 @@ describe('Editor workbench UI', () => {
             });
 
             expect(fitButton?.getAttribute('aria-pressed')).toBe('true');
+        } finally {
+            await view.cleanup();
+        }
+    });
+
+    it('keeps non-entry compiler scenes on their natural preview size', async () => {
+        host.files.set('GameProject/pixifact.project.json', JSON.stringify({
+            version: 1,
+            name: 'Game Project',
+            resolution: {
+                width: 640,
+                height: 1136,
+            },
+            scenes: {
+                mainMenu: 'src/scenes/MainMenu.scene',
+            },
+        }));
+        const view = await renderEditorApp();
+        try {
+            await act(async () => {
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+
+            expect(textContent(view.container)).toContain('960x540');
         } finally {
             await view.cleanup();
         }
@@ -968,7 +994,7 @@ describe('Editor workbench UI', () => {
             expect(confirm).not.toHaveBeenCalled();
             expect(state.openedScenePath).toBe('GameProject/src/scenes/Button.scene');
             expect(state.selectedProjectFilePath).toBe('GameProject/src/scenes/StatusPanel.scene');
-            expect(host.files.get('GameProject/src/scenes/StatusPanel.scene')).toBe('<Scene name="StatusPanel" width="960" height="540">\n</Scene>\n');
+            expect(host.files.get('GameProject/src/scenes/StatusPanel.scene')).toBe('<Scene name="StatusPanel">\n</Scene>\n');
             expect(host.files.get('GameProject/src/scenes/StatusPanel.ts')).toContain('export class StatusPanel');
             expect(view.container.querySelector('[title="GameProject/src/scenes/StatusPanel.scene"]')).toBeTruthy();
             expect(textContent(view.container)).toContain('已创建 StatusPanel.scene。');

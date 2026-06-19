@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { defaultPixifactProjectResolution } from 'pixifact';
+import { defaultPixifactProjectResolution, type PixifactProjectConfig } from 'pixifact';
 import { getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
@@ -31,6 +31,7 @@ export function ViewportPanel() {
     const viewportRef = useRef<CompilerSceneViewportHandle | null>(null);
     const [diagnosticsVisible, setDiagnosticsVisible] = useState(false);
     const [viewportState, setViewportState] = useState<CompilerSceneViewportState | undefined>(undefined);
+    const [projectConfig, setProjectConfig] = useState<PixifactProjectConfig | undefined>(undefined);
     const [projectResolution, setProjectResolution] = useState<ViewportSize>(defaultPixifactProjectResolution);
     const t = useI18n();
     const isCompilerScene = openedScenePath && compilerDocument?.scenePath === openedScenePath;
@@ -51,6 +52,7 @@ export function ViewportPanel() {
 
     useEffect(() => {
         if (!projectTree) {
+            setProjectConfig(undefined);
             setProjectResolution(defaultPixifactProjectResolution);
             return;
         }
@@ -58,6 +60,7 @@ export function ViewportPanel() {
         void readPixifactProjectConfig(projectTree)
             .then((config) => {
                 if (!cancelled) {
+                    setProjectConfig(config);
                     setProjectResolution(config?.resolution ?? defaultPixifactProjectResolution);
                 }
             });
@@ -65,6 +68,15 @@ export function ViewportPanel() {
             cancelled = true;
         };
     }, [projectTree]);
+
+    const openedProjectScenePath = isCompilerScene && projectTree
+        ? compilerDocument.scenePath.slice(projectTree.path.length + 1)
+        : undefined;
+    const fillsProjectResolution = Boolean(
+        openedProjectScenePath
+            && projectConfig
+            && Object.values(projectConfig.scenes).includes(openedProjectScenePath),
+    );
 
     return (
         <main className="viewportSurface" aria-label={t('viewportLabel')}>
@@ -116,6 +128,7 @@ export function ViewportPanel() {
                             <CompilerSceneViewport
                                 diagnosticsVisible={diagnosticsVisible}
                                 document={compilerDocument}
+                                fillsProjectResolution={fillsProjectResolution}
                                 onStateChange={handleViewportStateChange}
                                 projectResolution={projectResolution}
                                 projectTree={projectTree}

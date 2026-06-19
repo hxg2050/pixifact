@@ -26,6 +26,7 @@ import {
     toPosixPath,
     parseSceneTemplate,
 } from 'pixifact/compiler';
+import type { PixifactProjectResolution } from 'pixifact';
 import type { SceneTemplate, SceneTemplateInterface, SceneTemplateNode } from 'pixifact/compiler';
 import { compilerSceneNodeLocator } from '../document/compilerSceneDocumentController';
 import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
@@ -41,6 +42,7 @@ import type { ProjectFileTreeNode } from '../services/projectFileTree';
 
 interface CreateCompilerSceneRuntimePreviewOptions {
     document: CompilerSceneDocument;
+    projectResolution?: PixifactProjectResolution;
     projectTree: ProjectFileTreeNode;
     scenePath: string;
 }
@@ -67,6 +69,7 @@ interface PreviewModuleRecord {
 type PreviewSceneConstructor = new () => unknown;
 
 interface PreviewRuntimeContext {
+    projectResolution?: PixifactProjectResolution;
     projectTree: ProjectFileTreeNode;
     scenePath: string;
     templates: Map<string, SceneTemplate>;
@@ -122,10 +125,11 @@ function numericProp(value: unknown, defaultValue: number) {
     return typeof value === 'number' ? value : defaultValue;
 }
 
-function sceneSize(template: SceneTemplate) {
+function sceneSize(template: SceneTemplate, defaultSize?: PixifactProjectResolution) {
+    const hasExplicitSize = template.props.width !== undefined || template.props.height !== undefined;
     return {
-        width: numericProp(template.props.width, 960),
-        height: numericProp(template.props.height, 540),
+        width: numericProp(template.props.width, hasExplicitSize ? 960 : defaultSize?.width ?? 960),
+        height: numericProp(template.props.height, hasExplicitSize ? 540 : defaultSize?.height ?? 540),
     };
 }
 
@@ -507,12 +511,14 @@ function createGeneratedSceneModule(
     template: SceneTemplate,
     templates: Map<string, SceneTemplate>,
     sceneInterfaces: Record<string, SceneTemplateInterface>,
+    defaultRootSize?: PixifactProjectResolution,
 ): PreviewModule {
     return {
         id: sceneGeneratedModuleId(scenePath),
         kind: 'generated',
         source: compileSceneTemplateToTs(template, {
             registrationPath: scenePath,
+            defaultRootSize,
             scriptImport: {
                 exportName: template.name,
                 localName: sceneClassAlias(scenePath),
@@ -581,6 +587,7 @@ async function collectPreviewModules(
             context.templates.get(scenePath)!,
             context.templates,
             context.sceneInterfaces,
+            scenePath === context.scenePath ? context.projectResolution : undefined,
         );
         modulesById.set(module.id, module);
     }
@@ -778,6 +785,7 @@ function mapRenderedNodes(
 export async function createCompilerSceneRuntimePreview(options: CreateCompilerSceneRuntimePreviewOptions): Promise<CompilerSceneRuntimePreview> {
     const bindingIndex = await readCompilerSceneBindingIndex(options.projectTree);
     const context: PreviewRuntimeContext = {
+        projectResolution: options.projectResolution,
         projectTree: options.projectTree,
         scenePath: normalizeSceneAssetId(options.scenePath),
         templates: new Map([[normalizeSceneAssetId(options.scenePath), options.document.template]]),
@@ -812,7 +820,7 @@ export async function createCompilerSceneRuntimePreview(options: CreateCompilerS
 
     const nodes = new Map<string, Container>();
     mapRenderedNodes(context, context.scenePath, root, options.document.template.children, '', nodes);
-    const size = sceneSize(options.document.template);
+    const size = sceneSize(options.document.template, context.projectResolution);
     return {
         root,
         nodes,

@@ -263,7 +263,7 @@ describe('Pixifact CLI', () => {
                 nodeCount: 0,
             },
         });
-        expect(savedScene).toBe('<Scene name="Login" width="960" height="540">\n</Scene>\n');
+        expect(savedScene).toBe('<Scene name="Login">\n</Scene>\n');
         expect(savedScript).toContain('export class Login extends Group');
     });
 
