@@ -1,11 +1,14 @@
-import { defaultSceneSourceRoots, pairedSceneScriptPath } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
-import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
 import type {
     SceneScriptInterface,
     SceneTemplate,
     SceneTemplateInterface,
     SceneTemplateNode,
-} from '../../../../packages/pixifact/src/compiler/spec';
+} from 'pixifact/compiler';
+import {
+    defaultSceneSourceRoots,
+    pairedSceneScriptPath,
+    serializeSceneTemplate,
+} from 'pixifact/compiler';
 import {
     loadCompilerSceneDocument,
     markCompilerSceneSaved,

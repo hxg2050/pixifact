@@ -179,7 +179,7 @@ bun run example:build
 
 ```bash
 bunx --no-install vitest run tests/editor-store.test.ts tests/project-file-tree.test.ts tests/editor-workbench-ui.test.ts
-bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
+bunx --no-install tsc -p apps/editor/tsconfig.json
 bun run editor:frontend:build
 ```
 
@@ -222,7 +222,7 @@ bun run example:build
 bun run test
 
 # Editor 类型检查
-bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
+bunx --no-install tsc -p apps/editor/tsconfig.json
 
 # Editor 前端构建
 bun run editor:frontend:build

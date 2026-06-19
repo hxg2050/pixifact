@@ -1,15 +1,18 @@
-import { extractSceneScriptInterface } from '../../../../packages/pixifact/src/compiler/scriptInterfaceExtractor';
-import { builtinSceneInterfaces } from '../../../../packages/pixifact/src/compiler/builtinScenes';
 import {
+    builtinSceneInterfaces,
     defaultSceneSourceRoots,
+    extractSceneScriptInterface,
     isIgnoredSceneSourceDirectory,
     normalizeSceneAssetId,
     pairedSceneScriptPath,
+    parseSceneTemplate,
     resolveSceneReference,
     toPosixPath,
-} from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
-import type { SceneScriptInterface, SceneTemplate, SceneTemplateInterface, SceneTemplateNode } from '../../../../packages/pixifact/src/compiler/spec';
-import { parseSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateParser';
+    type SceneScriptInterface,
+    type SceneTemplate,
+    type SceneTemplateInterface,
+    type SceneTemplateNode,
+} from 'pixifact/compiler';
 import { readHostProjectFileText } from './hostBridge';
 import type { ProjectFileTreeNode } from './projectFileTree';
 

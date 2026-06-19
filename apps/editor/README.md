@@ -109,7 +109,7 @@ Editor 可以浏览项目文件、轻量预览资源、管理 Scene 引用和展
 编辑器相关改动至少运行：
 
 ```bash
-bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
+bunx --no-install tsc -p apps/editor/tsconfig.json
 bun run test
 bun run editor:frontend:build
 ```

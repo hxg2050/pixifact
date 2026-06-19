@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { pixiSceneNodeAcceptsChildren } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
-import { defaultSceneSourceRoots, resolveSceneReference, toPosixPath } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
+import {
+    defaultSceneSourceRoots,
+    pixiSceneNodeAcceptsChildren,
+    resolveSceneReference,
+    toPosixPath,
+} from 'pixifact/compiler';
 import { DragSource, DropZone, SystemIcon, TreeView } from '../components/system';
 import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/system';
 import {

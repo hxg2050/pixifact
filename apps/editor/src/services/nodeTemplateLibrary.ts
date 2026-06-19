@@ -1,5 +1,4 @@
-import { pixiSceneAddableNodeTypes } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
-import type { PixiSceneNodeType } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
+import { pixiSceneAddableNodeTypes, type PixiSceneNodeType } from 'pixifact/compiler';
 import type { I18nKey } from '../i18n';
 
 export type PixiNodeTemplateKind = `pixi-${string}`;

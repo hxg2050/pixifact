@@ -3,23 +3,23 @@
 import ts from 'typescript';
 import * as Pixi from 'pixi.js';
 import { Container } from 'pixi.js';
-import { Group } from '../../../../packages/pixifact/src/runtime';
-import * as compilerRuntime from '../../../../packages/pixifact/src/compiler';
-import centerContainerSceneSource from '../../../../packages/pixifact/src/builtin-scenes/CenterContainer.scene?raw';
-import centerContainerTsSource from '../../../../packages/pixifact/src/builtin-scenes/CenterContainer.ts?raw';
-import controlSceneSource from '../../../../packages/pixifact/src/builtin-scenes/Control.scene?raw';
-import controlTsSource from '../../../../packages/pixifact/src/builtin-scenes/Control.ts?raw';
-import flexItemSceneSource from '../../../../packages/pixifact/src/builtin-scenes/FlexItem.scene?raw';
-import flexItemTsSource from '../../../../packages/pixifact/src/builtin-scenes/FlexItem.ts?raw';
-import flexLayoutSceneSource from '../../../../packages/pixifact/src/builtin-scenes/FlexLayout.scene?raw';
-import flexLayoutTsSource from '../../../../packages/pixifact/src/builtin-scenes/FlexLayout.ts?raw';
-import hBoxContainerSceneSource from '../../../../packages/pixifact/src/builtin-scenes/HBoxContainer.scene?raw';
-import hBoxContainerTsSource from '../../../../packages/pixifact/src/builtin-scenes/HBoxContainer.ts?raw';
-import marginContainerSceneSource from '../../../../packages/pixifact/src/builtin-scenes/MarginContainer.scene?raw';
-import marginContainerTsSource from '../../../../packages/pixifact/src/builtin-scenes/MarginContainer.ts?raw';
-import vBoxContainerSceneSource from '../../../../packages/pixifact/src/builtin-scenes/VBoxContainer.scene?raw';
-import vBoxContainerTsSource from '../../../../packages/pixifact/src/builtin-scenes/VBoxContainer.ts?raw';
-import controlLayoutTsSource from '../../../../packages/pixifact/src/builtin-scenes/controlLayout.ts?raw';
+import { Group } from 'pixifact/runtime';
+import * as compilerRuntime from 'pixifact/compiler';
+import centerContainerSceneSource from 'pixifact/builtin-scenes/CenterContainer.scene?raw';
+import centerContainerTsSource from 'pixifact/builtin-scenes/CenterContainer.ts?raw';
+import controlSceneSource from 'pixifact/builtin-scenes/Control.scene?raw';
+import controlTsSource from 'pixifact/builtin-scenes/Control.ts?raw';
+import flexItemSceneSource from 'pixifact/builtin-scenes/FlexItem.scene?raw';
+import flexItemTsSource from 'pixifact/builtin-scenes/FlexItem.ts?raw';
+import flexLayoutSceneSource from 'pixifact/builtin-scenes/FlexLayout.scene?raw';
+import flexLayoutTsSource from 'pixifact/builtin-scenes/FlexLayout.ts?raw';
+import hBoxContainerSceneSource from 'pixifact/builtin-scenes/HBoxContainer.scene?raw';
+import hBoxContainerTsSource from 'pixifact/builtin-scenes/HBoxContainer.ts?raw';
+import marginContainerSceneSource from 'pixifact/builtin-scenes/MarginContainer.scene?raw';
+import marginContainerTsSource from 'pixifact/builtin-scenes/MarginContainer.ts?raw';
+import vBoxContainerSceneSource from 'pixifact/builtin-scenes/VBoxContainer.scene?raw';
+import vBoxContainerTsSource from 'pixifact/builtin-scenes/VBoxContainer.ts?raw';
+import controlLayoutTsSource from 'pixifact/builtin-scenes/controlLayout.ts?raw';
 import {
     compileSceneTemplateToTs,
     builtinSceneInterface,
@@ -32,8 +32,8 @@ import {
     sceneClassAlias,
     toPosixPath,
     parseSceneTemplate,
-} from '../../../../packages/pixifact/src/compiler';
-import type { SceneTemplate, SceneTemplateInterface, SceneTemplateNode } from '../../../../packages/pixifact/src/compiler';
+} from 'pixifact/compiler';
+import type { SceneTemplate, SceneTemplateInterface, SceneTemplateNode } from 'pixifact/compiler';
 import { compilerSceneNodeLocator } from '../document/compilerSceneDocumentController';
 import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import {

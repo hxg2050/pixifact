@@ -1,6 +1,9 @@
-import { createSceneRevision, inspectSceneTemplate } from '../../../../packages/pixifact/src/compiler/sceneValidation';
-import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
-import type { SceneTemplateNode } from '../../../../packages/pixifact/src/compiler/spec';
+import {
+    createSceneRevision,
+    inspectSceneTemplate,
+    serializeSceneTemplate,
+    type SceneTemplateNode,
+} from 'pixifact/compiler';
 import { compilerSceneNodeLocator, getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import type { CompilerSceneTemplateNode } from '../services/projectFileTree';

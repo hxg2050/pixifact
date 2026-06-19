@@ -16,8 +16,9 @@ import {
     type PixiSceneFieldSchema,
     type PixiScenePropGroup,
     pixiSceneTransformProps,
-} from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
-import { pairedSceneScriptPath, resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
+    pairedSceneScriptPath,
+    resolveSceneReference,
+} from 'pixifact/compiler';
 import {
     Checkbox,
     DropZone,

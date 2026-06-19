@@ -1,13 +1,18 @@
-import type { SceneTemplate, SceneTemplateInterface, SceneTemplateValue } from '../../../../packages/pixifact/src/compiler/spec';
-import { resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
-import { pixiSceneNodeAcceptsChildren, pixiSceneNodeDefaults } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
-import type { PixiSceneNodeType } from '../../../../packages/pixifact/src/compiler/pixiNodeSchema';
-import { CompilerSceneCommandStack } from '../../../../packages/pixifact/src/compiler/commands';
 import type {
     CompilerSceneCommand,
     CompilerSceneCommandStackOptions,
     CompilerSceneCommandContext,
-} from '../../../../packages/pixifact/src/compiler/commands';
+    PixiSceneNodeType,
+    SceneTemplate,
+    SceneTemplateInterface,
+    SceneTemplateValue,
+} from 'pixifact/compiler';
+import {
+    CompilerSceneCommandStack,
+    pixiSceneNodeAcceptsChildren,
+    pixiSceneNodeDefaults,
+    resolveSceneReference,
+} from 'pixifact/compiler';
 import type {
     CompilerSceneScriptInterface,
     CompilerSceneTemplateNode,

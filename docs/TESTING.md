@@ -34,7 +34,7 @@ bun run test
 编辑器相关改动：
 
 ```bash
-bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
+bunx --no-install tsc -p apps/editor/tsconfig.json
 bun run editor:frontend:build
 ```
 

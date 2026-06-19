@@ -1,8 +1,10 @@
 import { getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
-import { validateSceneContent } from '../../../../packages/pixifact/src/compiler/sceneValidation';
-import type { SceneContentValidationResult } from '../../../../packages/pixifact/src/compiler/sceneValidation';
-import { resolveSceneReference } from '../../../../packages/pixifact/src/compiler/sceneAssetPair';
-import { serializeSceneTemplate } from '../../../../packages/pixifact/src/compiler/templateSerializer';
+import {
+    resolveSceneReference,
+    serializeSceneTemplate,
+    validateSceneContent,
+    type SceneContentValidationResult,
+} from 'pixifact/compiler';
 import type { HostProjectFileChangedEvent } from './hostBridge';
 import {
     findFileByPath,

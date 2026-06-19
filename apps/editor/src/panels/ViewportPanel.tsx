@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { defaultPixifactProjectResolution } from '../../../../packages/pixifact/src/project';
+import { defaultPixifactProjectResolution } from 'pixifact';
 import { getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
