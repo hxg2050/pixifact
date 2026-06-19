@@ -168,7 +168,13 @@ export class FlexLayout extends Group {
     onMounted() {
         this.default.on('childAdded', this.layout, this);
         this.default.on('childRemoved', this.layout, this);
+        this.once('destroyed', this.unmountLayout, this);
         this.layout();
+    }
+
+    private unmountLayout() {
+        this.default.off('childAdded', this.layout, this);
+        this.default.off('childRemoved', this.layout, this);
     }
 
     layout() {

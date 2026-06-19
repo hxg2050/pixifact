@@ -1,4 +1,5 @@
 export * from './commands';
+export * from './builtinScenes';
 export * from './decorators';
 export * from './eventRuntime';
 export * from './pixiNodeSchema';

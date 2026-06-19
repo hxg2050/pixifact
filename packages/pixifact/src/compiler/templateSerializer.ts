@@ -4,6 +4,7 @@ import type {
     SceneTemplateNode,
     SceneTemplateValue,
 } from './spec';
+import { isBuiltinSceneAssetId } from './builtinScenes';
 
 const colorPropNames = new Set([
     'backgroundColor',
@@ -59,7 +60,7 @@ function serializeTemplateNode(
 
     const attributes: TemplateAttribute[] = [
         ...(node.id ? [['id', node.id] as const] : []),
-        ['scene', node.scene],
+        ...(isBuiltinSceneAssetId(node.scene) ? [] : [['scene', node.scene] as const]),
         ...extraAttributes,
         ...Object.entries(node.props),
         ...Object.entries(node.events).map(([name, value]) => [`@${name}`, value] as const),

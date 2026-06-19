@@ -1,0 +1,3 @@
+<Scene name="HBoxContainer">
+    <slot name="default" />
+</Scene>
