@@ -21,31 +21,7 @@ export class VBoxContainer extends Control {
     #gap = 0;
     #alignX: ControlAlign = 'start';
     #justify: ControlJustify = 'start';
-    #explicitWidth: number | undefined;
-    #explicitHeight: number | undefined;
-    #layoutWidth: number | undefined;
-    #layoutHeight: number | undefined;
     #baseSizes = new WeakMap<object, Size>();
-
-    override get width() {
-        return this.#layoutWidth ?? this.#explicitWidth ?? this.measureControlNaturalSize().width;
-    }
-
-    override set width(value: number) {
-        this.#explicitWidth = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.layout();
-    }
-
-    override get height() {
-        return this.#layoutHeight ?? this.#explicitHeight ?? this.measureControlNaturalSize().height;
-    }
-
-    override set height(value: number) {
-        this.#explicitHeight = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.layout();
-    }
 
     get gap() {
         return this.#gap;
@@ -54,7 +30,7 @@ export class VBoxContainer extends Control {
     @prop({ type: Number, default: 0 })
     set gap(value: number) {
         this.#gap = Math.max(0, finiteNumber(value, 0));
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get alignX() {
@@ -77,20 +53,9 @@ export class VBoxContainer extends Control {
         this.layout();
     }
 
-    onMounted() {
-        this.default.on('childAdded', this.layout, this);
-        this.default.on('childRemoved', this.layout, this);
-        this.once('destroyed', this.unmountLayout, this);
-        this.layout();
-    }
-
-    private unmountLayout() {
-        this.default.off('childAdded', this.layout, this);
-        this.default.off('childRemoved', this.layout, this);
-    }
-
-    layout() {
-        this.#syncBoxSize();
+    override layout() {
+        this.syncControlBoxSize();
+        const assigned = this.getAssignedControlBoxSize();
         layoutStack({
             axis: 'vertical',
             children: this.default?.children as ControlLayoutChild[] | undefined,
@@ -98,29 +63,13 @@ export class VBoxContainer extends Control {
             alignCross: this.#alignX,
             justify: this.#justify,
             baseSizes: this.#baseSizes,
-            width: this.#layoutWidth ?? this.#explicitWidth,
-            height: this.#layoutHeight ?? this.#explicitHeight,
+            width: assigned.width,
+            height: assigned.height,
             naturalSize: () => this.measureControlNaturalSize(),
         });
     }
 
-    measureControlNaturalSize(): Size {
+    override measureControlNaturalSize(): Size {
         return measureStackNaturalSize('vertical', this.default?.children as ControlLayoutChild[] | undefined, this.#gap, this.#baseSizes);
-    }
-
-    setControlLayoutBox(x: number, y: number, width: number, height: number) {
-        this.position.set(x, y);
-        this.#layoutWidth = Math.max(0, width);
-        this.#layoutHeight = Math.max(0, height);
-        this.#syncBoxSize();
-        this.layout();
-    }
-
-    #syncBoxSize() {
-        const natural = this.measureControlNaturalSize();
-        this.syncBoxSize(
-            this.#layoutWidth ?? this.#explicitWidth ?? natural.width,
-            this.#layoutHeight ?? this.#explicitHeight ?? natural.height,
-        );
     }
 }

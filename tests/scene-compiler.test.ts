@@ -41,6 +41,18 @@ import {
 } from 'pixifact/compiler';
 import { compileScenes, pixifactScenesPlugin } from 'pixifact/compiler-node';
 
+function registerSlotScene(SceneClass: new () => Control, scenePath: string) {
+    registerScene(scenePath, {
+        mount(root) {
+            const slotHost = new Container();
+            root.addChild(slotHost);
+            registerSlot(root, 'default', slotHost);
+            return { root, parts: {}, slots: { default: slotHost } };
+        },
+    });
+    registerSceneClass(SceneClass, scenePath);
+}
+
 describe('Pixifact scene compiler spike', () => {
     it('keeps Group width and height as Pixifact box size without scaling', () => {
         const group = new Group({ width: 100, height: 50 });
@@ -92,15 +104,7 @@ describe('Pixifact scene compiler spike', () => {
 
         for (const BuiltinScene of BuiltinScenes) {
             const scenePath = `tests/${BuiltinScene.name}.scene`;
-            registerScene(scenePath, {
-                mount(root) {
-                    const slotHost = new Container();
-                    root.addChild(slotHost);
-                    registerSlot(root, 'default', slotHost);
-                    return { root, parts: {}, slots: { default: slotHost } };
-                },
-            });
-            registerSceneClass(BuiltinScene, scenePath);
+            registerSlotScene(BuiltinScene, scenePath);
 
             const scene = new BuiltinScene();
 
@@ -116,24 +120,8 @@ describe('Pixifact scene compiler spike', () => {
     });
 
     it('syncs natural control sizes into the Group size protocol', () => {
-        registerScene('tests/NaturalControl.scene', {
-            mount(root) {
-                const slotHost = new Container();
-                root.addChild(slotHost);
-                registerSlot(root, 'default', slotHost);
-                return { root, parts: {}, slots: { default: slotHost } };
-            },
-        });
-        registerSceneClass(Control, 'tests/NaturalControl.scene');
-        registerScene('tests/NaturalMargin.scene', {
-            mount(root) {
-                const slotHost = new Container();
-                root.addChild(slotHost);
-                registerSlot(root, 'default', slotHost);
-                return { root, parts: {}, slots: { default: slotHost } };
-            },
-        });
-        registerSceneClass(MarginContainer, 'tests/NaturalMargin.scene');
+        registerSlotScene(Control, 'tests/NaturalControl.scene');
+        registerSlotScene(MarginContainer, 'tests/NaturalMargin.scene');
 
         const control = new Control();
         control.minWidth = 90;
@@ -147,6 +135,75 @@ describe('Pixifact scene compiler spike', () => {
 
         expect(margin.getSize()).toEqual({ width: 24, height: 24 });
         expect(margin.hitArea).toMatchObject({ x: 0, y: 0, width: 24, height: 24 });
+    });
+
+    it('uses the Control layout box protocol for built-in layout scenes', () => {
+        const BuiltinScenes = [
+            CenterContainer,
+            Control,
+            FlexItem,
+            FlexLayout,
+            HBoxContainer,
+            MarginContainer,
+            VBoxContainer,
+        ];
+
+        for (const BuiltinScene of BuiltinScenes) {
+            const scenePath = `tests/LayoutBox${BuiltinScene.name}.scene`;
+            registerSlotScene(BuiltinScene, scenePath);
+
+            const scene = new BuiltinScene();
+            scene.setControlLayoutBox(10, 20, 180, 70);
+
+            expect(scene.x).toBe(10);
+            expect(scene.y).toBe(20);
+            expect(scene.width).toBe(180);
+            expect(scene.height).toBe(70);
+            expect(scene.getSize()).toEqual({ width: 180, height: 70 });
+            expect(scene.hitArea).toMatchObject({ x: 0, y: 0, width: 180, height: 70 });
+            expect(scene.scale.x).toBe(1);
+            expect(scene.scale.y).toBe(1);
+        }
+    });
+
+    it('refreshes parent layout from nested control content changes', () => {
+        registerSlotScene(HBoxContainer, 'tests/RefreshHBox.scene');
+        registerSlotScene(Control, 'tests/RefreshControl.scene');
+
+        const row = new HBoxContainer();
+        const child = new Control();
+        row.default.addChild(child);
+
+        expect(row.getSize()).toEqual({ width: 0, height: 0 });
+
+        child.default.addChild(new Group({ width: 64, height: 24 }));
+
+        expect(child.getSize()).toEqual({ width: 64, height: 24 });
+        expect(row.getSize()).toEqual({ width: 64, height: 24 });
+        expect(row.hitArea).toMatchObject({ x: 0, y: 0, width: 64, height: 24 });
+    });
+
+    it('keeps Flex layout assignment on the shared Control size protocol', () => {
+        registerSlotScene(FlexLayout, 'tests/FlexLayoutProtocol.scene');
+        registerSlotScene(FlexItem, 'tests/FlexItemProtocol.scene');
+
+        const layout = new FlexLayout();
+        const item = new FlexItem();
+        item.grow = 1;
+        item.default.addChild(new Group({ width: 40, height: 20 }));
+        layout.default.addChild(item);
+
+        layout.setSize(180, 60);
+
+        expect(layout.getSize()).toEqual({ width: 180, height: 60 });
+        expect(item.x).toBe(0);
+        expect(item.y).toBe(0);
+        expect(item.width).toBe(180);
+        expect(item.height).toBe(20);
+        expect(item.getSize()).toEqual({ width: 180, height: 20 });
+        expect(item.hitArea).toMatchObject({ x: 0, y: 0, width: 180, height: 20 });
+        expect(item.scale.x).toBe(1);
+        expect(item.scale.y).toBe(1);
     });
 
     it('creates stable revisions for canonical compiler scene source', () => {

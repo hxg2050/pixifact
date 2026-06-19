@@ -1,8 +1,8 @@
 import { Container } from 'pixi.js';
 import { prop, scene, slot } from 'pixifact/compiler';
 import { Control } from './Control';
+import { measureChildren, type Size } from './controlLayout';
 
-export type FlexAxis = 'row' | 'column';
 export type FlexAlignSelf = 'auto' | 'start' | 'center' | 'end' | 'stretch';
 export type FlexBasis = number | 'auto';
 
@@ -26,8 +26,6 @@ export class FlexItem extends Control {
     @slot()
     declare readonly default: Container;
 
-    #boxWidth: number | undefined;
-    #boxHeight: number | undefined;
     #grow = 0;
     #shrink = 1;
     #basis: FlexBasis = 'auto';
@@ -40,26 +38,6 @@ export class FlexItem extends Control {
     #marginTop = 0;
     #marginBottom = 0;
     #alignSelf: FlexAlignSelf = 'auto';
-
-    override get width() {
-        return this.#boxWidth ?? this.measureFlexNaturalSize('row');
-    }
-
-    override set width(value: number) {
-        this.#boxWidth = finiteNumber(value, 0);
-        this.#syncBoxSize();
-        this.requestParentLayout();
-    }
-
-    override get height() {
-        return this.#boxHeight ?? this.measureFlexNaturalSize('column');
-    }
-
-    override set height(value: number) {
-        this.#boxHeight = finiteNumber(value, 0);
-        this.#syncBoxSize();
-        this.requestParentLayout();
-    }
 
     get grow() {
         return this.#grow;
@@ -198,23 +176,8 @@ export class FlexItem extends Control {
         };
     }
 
-    measureFlexNaturalSize(axis: FlexAxis) {
-        const size = measureChildren(this.default ?? this);
-        return axis === 'row' ? size.width : size.height;
-    }
-
-    setFlexLayoutBox(x: number, y: number, width: number, height: number) {
-        this.position.set(x, y);
-        this.#boxWidth = width;
-        this.#boxHeight = height;
-        this.#syncBoxSize();
-    }
-
-    #syncBoxSize() {
-        this.syncBoxSize(
-            this.#boxWidth ?? this.measureFlexNaturalSize('row'),
-            this.#boxHeight ?? this.measureFlexNaturalSize('column'),
-        );
+    override measureControlNaturalSize(): Size {
+        return measureChildren(this.default ?? this);
     }
 }
 
@@ -231,16 +194,6 @@ function parseAlignSelf(value: string): FlexAlignSelf {
         return value;
     }
     return 'auto';
-}
-
-function measureChildren(container: Container) {
-    let maxX = 0;
-    let maxY = 0;
-    for (const child of container.children) {
-        maxX = Math.max(maxX, child.x + child.width);
-        maxY = Math.max(maxY, child.y + child.height);
-    }
-    return { width: maxX, height: maxY };
 }
 
 function finiteNumber(value: number, fallback: number) {

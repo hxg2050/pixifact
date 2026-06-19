@@ -1,21 +1,18 @@
 import { Container, type ContainerChild } from 'pixi.js';
 import { prop, scene, slot } from 'pixifact/compiler';
 import { Control } from './Control';
-import type { FlexAlignSelf, FlexAxis, FlexBasis, FlexItemLayoutProps } from './FlexItem';
+import type { Size } from './controlLayout';
+import type { FlexAlignSelf, FlexBasis, FlexItemLayoutProps } from './FlexItem';
 
+type FlexAxis = 'row' | 'column';
 type FlexDirection = 'row' | 'column';
 type FlexAlign = 'start' | 'center' | 'end' | 'stretch';
 type FlexJustify = 'start' | 'center' | 'end' | 'space-between';
 type LayoutChild = ContainerChild & {
     getFlexItemLayoutProps?: () => FlexItemLayoutProps;
-    measureFlexNaturalSize?: (axis: FlexAxis) => number;
-    setFlexLayoutBox?: (x: number, y: number, width: number, height: number) => void;
+    measureControlNaturalSize?: () => Size;
+    setControlLayoutBox?: (x: number, y: number, width: number, height: number) => void;
 };
-
-interface Size {
-    width: number;
-    height: number;
-}
 
 interface LayoutItem {
     child: LayoutChild;
@@ -41,31 +38,7 @@ export class FlexLayout extends Control {
     #paddingRight: number | undefined;
     #paddingTop: number | undefined;
     #paddingBottom: number | undefined;
-    #explicitWidth: number | undefined;
-    #explicitHeight: number | undefined;
-    #layoutWidth: number | undefined;
-    #layoutHeight: number | undefined;
     #baseSizes = new WeakMap<object, Size>();
-
-    override get width() {
-        return this.#layoutWidth ?? this.#explicitWidth ?? this.measureFlexNaturalSize('row');
-    }
-
-    override set width(value: number) {
-        this.#explicitWidth = finiteNumber(value, 0);
-        this.#syncBoxSize();
-        this.layout();
-    }
-
-    override get height() {
-        return this.#layoutHeight ?? this.#explicitHeight ?? this.measureFlexNaturalSize('column');
-    }
-
-    override set height(value: number) {
-        this.#explicitHeight = finiteNumber(value, 0);
-        this.#syncBoxSize();
-        this.layout();
-    }
 
     get direction() {
         return this.#direction;
@@ -74,7 +47,7 @@ export class FlexLayout extends Control {
     @prop({ type: String, default: 'row' })
     set direction(value: string) {
         this.#direction = value === 'column' ? 'column' : 'row';
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get align() {
@@ -104,7 +77,7 @@ export class FlexLayout extends Control {
     @prop({ type: Number, default: 0 })
     set gap(value: number) {
         this.#gap = Math.max(0, finiteNumber(value, 0));
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get paddingX() {
@@ -114,7 +87,7 @@ export class FlexLayout extends Control {
     @prop({ type: Number, default: 0 })
     set paddingX(value: number) {
         this.#paddingX = Math.max(0, finiteNumber(value, 0));
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get paddingY() {
@@ -124,7 +97,7 @@ export class FlexLayout extends Control {
     @prop({ type: Number, default: 0 })
     set paddingY(value: number) {
         this.#paddingY = Math.max(0, finiteNumber(value, 0));
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get paddingLeft() {
@@ -134,7 +107,7 @@ export class FlexLayout extends Control {
     @prop({ type: Number })
     set paddingLeft(value: number) {
         this.#paddingLeft = Math.max(0, finiteNumber(value, 0));
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get paddingRight() {
@@ -144,7 +117,7 @@ export class FlexLayout extends Control {
     @prop({ type: Number })
     set paddingRight(value: number) {
         this.#paddingRight = Math.max(0, finiteNumber(value, 0));
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get paddingTop() {
@@ -154,7 +127,7 @@ export class FlexLayout extends Control {
     @prop({ type: Number })
     set paddingTop(value: number) {
         this.#paddingTop = Math.max(0, finiteNumber(value, 0));
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get paddingBottom() {
@@ -164,25 +137,13 @@ export class FlexLayout extends Control {
     @prop({ type: Number })
     set paddingBottom(value: number) {
         this.#paddingBottom = Math.max(0, finiteNumber(value, 0));
-        this.layout();
+        this.refreshControlLayout();
     }
 
-    onMounted() {
-        this.default.on('childAdded', this.layout, this);
-        this.default.on('childRemoved', this.layout, this);
-        this.once('destroyed', this.unmountLayout, this);
-        this.layout();
-    }
-
-    private unmountLayout() {
-        this.default.off('childAdded', this.layout, this);
-        this.default.off('childRemoved', this.layout, this);
-    }
-
-    layout() {
+    override layout() {
         const children = this.default?.children as LayoutChild[] | undefined;
         if (!children || children.length === 0) {
-            this.#syncBoxSize();
+            this.syncControlBoxSize();
             return;
         }
 
@@ -201,8 +162,17 @@ export class FlexLayout extends Control {
         const gapTotal = this.#gap * Math.max(0, items.length - 1);
         const naturalMain = items.reduce((sum, item) => sum + item.baseMain + marginMain(item.props, horizontal), 0);
         const naturalCross = items.reduce((max, item) => Math.max(max, item.baseCross + marginCross(item.props, horizontal)), 0);
-        const containerMain = this.#containerSize(mainAxis, naturalMain + gapTotal + paddingMainStart + paddingMainEnd);
-        const containerCross = this.#containerSize(crossAxis, naturalCross + paddingCrossStart + paddingCrossEnd);
+        const naturalWidth = horizontal
+            ? naturalMain + gapTotal + paddingMainStart + paddingMainEnd
+            : naturalCross + paddingCrossStart + paddingCrossEnd;
+        const naturalHeight = horizontal
+            ? naturalCross + paddingCrossStart + paddingCrossEnd
+            : naturalMain + gapTotal + paddingMainStart + paddingMainEnd;
+        const assigned = this.getAssignedControlBoxSize();
+        const containerWidth = assigned.width ?? naturalWidth;
+        const containerHeight = assigned.height ?? naturalHeight;
+        const containerMain = horizontal ? containerWidth : containerHeight;
+        const containerCross = horizontal ? containerHeight : containerWidth;
         const innerMain = Math.max(0, containerMain - paddingMainStart - paddingMainEnd - gapTotal);
         const innerCross = Math.max(0, containerCross - paddingCrossStart - paddingCrossEnd);
         const freeMain = innerMain - naturalMain;
@@ -211,43 +181,26 @@ export class FlexLayout extends Control {
         this.#resolveCrossSizes(items, innerCross, horizontal);
         this.#placeItems(items, containerMain, paddingMainStart, paddingMainEnd, paddingCrossStart, innerCross, horizontal);
 
-        if (horizontal) {
-            this.#layoutWidth = containerMain;
-            this.#layoutHeight = containerCross;
-        } else {
-            this.#layoutWidth = containerCross;
-            this.#layoutHeight = containerMain;
-        }
-        this.#syncBoxSize();
+        this.syncControlBoxSize();
     }
 
-    measureFlexNaturalSize(axis: FlexAxis) {
+    override measureControlNaturalSize(): Size {
         const children = this.default?.children as LayoutChild[] | undefined;
         if (!children || children.length === 0) {
-            return 0;
+            return { width: 0, height: 0 };
         }
-        const horizontal = axis === 'row';
         const gapTotal = this.#gap * Math.max(0, children.length - 1);
         const sizes = children.map((child) => this.#naturalSize(child));
-        if (horizontal) {
-            return this.paddingLeft + this.paddingRight + gapTotal + sizes.reduce((sum, size) => sum + size.width, 0);
+        if (this.#direction === 'row') {
+            return {
+                width: this.paddingLeft + this.paddingRight + gapTotal + sizes.reduce((sum, size) => sum + size.width, 0),
+                height: this.paddingTop + this.paddingBottom + sizes.reduce((max, size) => Math.max(max, size.height), 0),
+            };
         }
-        return this.paddingTop + this.paddingBottom + gapTotal + sizes.reduce((sum, size) => sum + size.height, 0);
-    }
-
-    setFlexLayoutBox(x: number, y: number, width: number, height: number) {
-        this.position.set(x, y);
-        this.#layoutWidth = width;
-        this.#layoutHeight = height;
-        this.#syncBoxSize();
-        this.layout();
-    }
-
-    #syncBoxSize() {
-        this.syncBoxSize(
-            this.#layoutWidth ?? this.#explicitWidth ?? this.measureFlexNaturalSize('row'),
-            this.#layoutHeight ?? this.#explicitHeight ?? this.measureFlexNaturalSize('column'),
-        );
+        return {
+            width: this.paddingLeft + this.paddingRight + sizes.reduce((max, size) => Math.max(max, size.width), 0),
+            height: this.paddingTop + this.paddingBottom + gapTotal + sizes.reduce((sum, size) => sum + size.height, 0),
+        };
     }
 
     #createLayoutItem(child: LayoutChild, mainAxis: FlexAxis, crossAxis: FlexAxis): LayoutItem {
@@ -338,13 +291,6 @@ export class FlexLayout extends Control {
         }
     }
 
-    #containerSize(axis: FlexAxis, naturalSize: number) {
-        if (axis === 'row') {
-            return this.#layoutWidth ?? this.#explicitWidth ?? naturalSize;
-        }
-        return this.#layoutHeight ?? this.#explicitHeight ?? naturalSize;
-    }
-
     #rememberBaseSize(child: LayoutChild) {
         if (!this.#baseSizes.has(child)) {
             this.#baseSizes.set(child, {
@@ -355,11 +301,9 @@ export class FlexLayout extends Control {
     }
 
     #naturalSize(child: LayoutChild): Size {
-        if (child.measureFlexNaturalSize) {
-            return {
-                width: child.measureFlexNaturalSize('row'),
-                height: child.measureFlexNaturalSize('column'),
-            };
+        const measured = child.measureControlNaturalSize?.();
+        if (measured) {
+            return measured;
         }
         return this.#baseSizes.get(child) ?? { width: child.width, height: child.height };
     }
@@ -381,8 +325,8 @@ const defaultItemProps: FlexItemLayoutProps = {
 };
 
 function setChildBox(child: LayoutChild, x: number, y: number, width: number, height: number) {
-    if (child.setFlexLayoutBox) {
-        child.setFlexLayoutBox(x, y, width, height);
+    if (child.setControlLayoutBox) {
+        child.setControlLayoutBox(x, y, width, height);
         return;
     }
     child.position.set(x, y);

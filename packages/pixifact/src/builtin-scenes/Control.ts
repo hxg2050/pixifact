@@ -21,8 +21,10 @@ export class Control extends Group {
     @slot()
     readonly default!: Container;
 
-    #boxWidth: number | undefined;
-    #boxHeight: number | undefined;
+    #explicitWidth: number | undefined;
+    #explicitHeight: number | undefined;
+    #layoutWidth: number | undefined;
+    #layoutHeight: number | undefined;
     #minWidth = 0;
     #minHeight = 0;
     #hSize: ControlSizeMode = 'content';
@@ -32,25 +34,21 @@ export class Control extends Group {
     #alignY: ControlAlign = 'start';
 
     override get width() {
-        return this.#boxWidth ?? this.measureControlNaturalSize().width;
+        return this.getControlBoxSize().width;
     }
 
     override set width(value: number) {
-        this.#boxWidth = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.#layoutContent();
-        this.requestParentLayout();
+        this.#explicitWidth = Math.max(0, finiteNumber(value, 0));
+        this.refreshControlLayout();
     }
 
     override get height() {
-        return this.#boxHeight ?? this.measureControlNaturalSize().height;
+        return this.getControlBoxSize().height;
     }
 
     override set height(value: number) {
-        this.#boxHeight = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.#layoutContent();
-        this.requestParentLayout();
+        this.#explicitHeight = Math.max(0, finiteNumber(value, 0));
+        this.refreshControlLayout();
     }
 
     override getSize(out: Size = { width: 0, height: 0 }) {
@@ -61,8 +59,9 @@ export class Control extends Group {
 
     override setSize(value: number | { width: number; height?: number }, height?: number) {
         const size = boxSize(value, height);
-        this.width = size.width;
-        this.height = size.height;
+        this.#explicitWidth = size.width;
+        this.#explicitHeight = size.height;
+        this.refreshControlLayout();
     }
 
     get minWidth() {
@@ -72,9 +71,7 @@ export class Control extends Group {
     @prop({ type: Number, default: 0 })
     set minWidth(value: number) {
         this.#minWidth = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.#layoutContent();
-        this.requestParentLayout();
+        this.refreshControlLayout();
     }
 
     get minHeight() {
@@ -84,9 +81,7 @@ export class Control extends Group {
     @prop({ type: Number, default: 0 })
     set minHeight(value: number) {
         this.#minHeight = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.#layoutContent();
-        this.requestParentLayout();
+        this.refreshControlLayout();
     }
 
     get hSize() {
@@ -126,7 +121,7 @@ export class Control extends Group {
     @prop({ type: String, default: 'start' })
     set alignX(value: string) {
         this.#alignX = parseAlign(value);
-        this.#layoutContent();
+        this.layout();
     }
 
     get alignY() {
@@ -136,19 +131,23 @@ export class Control extends Group {
     @prop({ type: String, default: 'start' })
     set alignY(value: string) {
         this.#alignY = parseAlign(value);
-        this.#layoutContent();
+        this.layout();
     }
 
     onMounted() {
-        this.default.on('childAdded', this.#layoutContent, this);
-        this.default.on('childRemoved', this.#layoutContent, this);
+        this.default.on('childAdded', this.#refreshFromChildren, this);
+        this.default.on('childRemoved', this.#refreshFromChildren, this);
         this.once('destroyed', this.#unmountLayout, this);
-        this.#layoutContent();
+        this.layout();
     }
 
     #unmountLayout() {
-        this.default.off('childAdded', this.#layoutContent, this);
-        this.default.off('childRemoved', this.#layoutContent, this);
+        this.default.off('childAdded', this.#refreshFromChildren, this);
+        this.default.off('childRemoved', this.#refreshFromChildren, this);
+    }
+
+    #refreshFromChildren() {
+        this.refreshControlLayout();
     }
 
     getControlLayoutProps(): ControlLayoutProps {
@@ -172,47 +171,63 @@ export class Control extends Group {
 
     setControlLayoutBox(x: number, y: number, width: number, height: number) {
         this.position.set(x, y);
-        this.#boxWidth = Math.max(0, width);
-        this.#boxHeight = Math.max(0, height);
-        this.#syncBoxSize();
-        this.#layoutContent();
+        this.#layoutWidth = Math.max(0, finiteNumber(width, 0));
+        this.#layoutHeight = Math.max(0, finiteNumber(height, 0));
+        this.layout();
     }
 
-    #layoutContent() {
+    layout() {
+        const size = this.syncControlBoxSize();
+        this.layoutDefaultSlot(size);
+    }
+
+    protected layoutDefaultSlot(size: Size = this.getControlBoxSize()) {
         if (!this.default) {
             return;
         }
-        this.#syncBoxSize();
         const bounds = measureChildrenBounds(this.default);
-        const boxWidth = this.#boxWidth ?? Math.max(this.#minWidth, bounds.width);
-        const boxHeight = this.#boxHeight ?? Math.max(this.#minHeight, bounds.height);
-        const offsetX = alignOffset(this.#alignX, Math.max(0, boxWidth - bounds.width)) - bounds.x;
-        const offsetY = alignOffset(this.#alignY, Math.max(0, boxHeight - bounds.height)) - bounds.y;
+        const offsetX = alignOffset(this.#alignX, Math.max(0, size.width - bounds.width)) - bounds.x;
+        const offsetY = alignOffset(this.#alignY, Math.max(0, size.height - bounds.height)) - bounds.y;
         this.default.position.set(offsetX, offsetY);
     }
 
-    protected syncBoxSize(width: number, height: number) {
+    protected syncControlBoxSize() {
+        const size = this.getControlBoxSize();
         super.setSize(
-            Math.max(0, finiteNumber(width, 0)),
-            Math.max(0, finiteNumber(height, 0)),
+            Math.max(0, finiteNumber(size.width, 0)),
+            Math.max(0, finiteNumber(size.height, 0)),
         );
+        return size;
+    }
+
+    protected getControlBoxSize(): Size {
+        const natural = this.measureControlNaturalSize();
+        return {
+            width: this.#layoutWidth ?? this.#explicitWidth ?? natural.width,
+            height: this.#layoutHeight ?? this.#explicitHeight ?? natural.height,
+        };
+    }
+
+    protected getAssignedControlBoxSize() {
+        return {
+            width: this.#layoutWidth ?? this.#explicitWidth,
+            height: this.#layoutHeight ?? this.#explicitHeight,
+        };
+    }
+
+    protected refreshControlLayout() {
+        this.layout();
+        this.requestParentLayout();
     }
 
     protected requestParentLayout() {
-        const parent = this.parent as (Container & { layout?: () => void }) | null;
-        parent?.layout?.();
-    }
-
-    #syncBoxSize() {
-        const size = this.#boxSize();
-        this.syncBoxSize(size.width, size.height);
-    }
-
-    #boxSize(): Size {
-        const natural = this.measureControlNaturalSize();
-        return {
-            width: this.#boxWidth ?? natural.width,
-            height: this.#boxHeight ?? natural.height,
-        };
+        let parent = this.parent as (Container & { layout?: () => void }) | null;
+        while (parent) {
+            if (typeof parent.layout === 'function') {
+                parent.layout();
+                return;
+            }
+            parent = parent.parent as (Container & { layout?: () => void }) | null;
+        }
     }
 }

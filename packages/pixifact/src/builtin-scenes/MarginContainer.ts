@@ -26,31 +26,7 @@ export class MarginContainer extends Control {
     #marginBottom: number | undefined;
     #alignX: ControlAlign = 'start';
     #alignY: ControlAlign = 'start';
-    #explicitWidth: number | undefined;
-    #explicitHeight: number | undefined;
-    #layoutWidth: number | undefined;
-    #layoutHeight: number | undefined;
     #baseSizes = new WeakMap<object, Size>();
-
-    override get width() {
-        return this.#layoutWidth ?? this.#explicitWidth ?? this.measureControlNaturalSize().width;
-    }
-
-    override set width(value: number) {
-        this.#explicitWidth = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.layout();
-    }
-
-    override get height() {
-        return this.#layoutHeight ?? this.#explicitHeight ?? this.measureControlNaturalSize().height;
-    }
-
-    override set height(value: number) {
-        this.#explicitHeight = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.layout();
-    }
 
     get margin() {
         return this.#margin;
@@ -59,8 +35,7 @@ export class MarginContainer extends Control {
     @prop({ type: Number, default: 0 })
     set margin(value: number) {
         this.#margin = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get marginLeft() {
@@ -70,8 +45,7 @@ export class MarginContainer extends Control {
     @prop({ type: Number })
     set marginLeft(value: number) {
         this.#marginLeft = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get marginRight() {
@@ -81,8 +55,7 @@ export class MarginContainer extends Control {
     @prop({ type: Number })
     set marginRight(value: number) {
         this.#marginRight = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get marginTop() {
@@ -92,8 +65,7 @@ export class MarginContainer extends Control {
     @prop({ type: Number })
     set marginTop(value: number) {
         this.#marginTop = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get marginBottom() {
@@ -103,8 +75,7 @@ export class MarginContainer extends Control {
     @prop({ type: Number })
     set marginBottom(value: number) {
         this.#marginBottom = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.layout();
+        this.refreshControlLayout();
     }
 
     get alignX() {
@@ -127,31 +98,15 @@ export class MarginContainer extends Control {
         this.layout();
     }
 
-    onMounted() {
-        this.default.on('childAdded', this.layout, this);
-        this.default.on('childRemoved', this.layout, this);
-        this.once('destroyed', this.unmountLayout, this);
-        this.layout();
-    }
-
-    private unmountLayout() {
-        this.default.off('childAdded', this.layout, this);
-        this.default.off('childRemoved', this.layout, this);
-    }
-
-    layout() {
+    override layout() {
+        const size = this.syncControlBoxSize();
         const children = this.default?.children as ControlLayoutChild[] | undefined;
         if (!children || children.length === 0) {
-            this.#syncBoxSize();
             return;
         }
 
-        const natural = this.measureControlNaturalSize();
-        const width = this.#layoutWidth ?? this.#explicitWidth ?? natural.width;
-        const height = this.#layoutHeight ?? this.#explicitHeight ?? natural.height;
-        this.syncBoxSize(width, height);
-        const innerWidth = Math.max(0, width - this.marginLeft - this.marginRight);
-        const innerHeight = Math.max(0, height - this.marginTop - this.marginBottom);
+        const innerWidth = Math.max(0, size.width - this.marginLeft - this.marginRight);
+        const innerHeight = Math.max(0, size.height - this.marginTop - this.marginBottom);
 
         for (const child of children) {
             const props = controlChildProps(child);
@@ -167,7 +122,7 @@ export class MarginContainer extends Control {
         }
     }
 
-    measureControlNaturalSize(): Size {
+    override measureControlNaturalSize(): Size {
         const children = this.default?.children as ControlLayoutChild[] | undefined;
         if (!children || children.length === 0) {
             return {
@@ -180,21 +135,5 @@ export class MarginContainer extends Control {
             width: this.marginLeft + this.marginRight + sizes.reduce((max, size) => Math.max(max, size.width), 0),
             height: this.marginTop + this.marginBottom + sizes.reduce((max, size) => Math.max(max, size.height), 0),
         };
-    }
-
-    setControlLayoutBox(x: number, y: number, width: number, height: number) {
-        this.position.set(x, y);
-        this.#layoutWidth = Math.max(0, width);
-        this.#layoutHeight = Math.max(0, height);
-        this.#syncBoxSize();
-        this.layout();
-    }
-
-    #syncBoxSize() {
-        const natural = this.measureControlNaturalSize();
-        this.syncBoxSize(
-            this.#layoutWidth ?? this.#explicitWidth ?? natural.width,
-            this.#layoutHeight ?? this.#explicitHeight ?? natural.height,
-        );
     }
 }

@@ -6,7 +6,6 @@ import {
     controlChildProps,
     controlMinSize,
     fillOrExpand,
-    finiteNumber,
     parseAlign,
     setControlChildBox,
     type ControlAlign,
@@ -21,31 +20,7 @@ export class CenterContainer extends Control {
 
     #alignX: ControlAlign = 'center';
     #alignY: ControlAlign = 'center';
-    #explicitWidth: number | undefined;
-    #explicitHeight: number | undefined;
-    #layoutWidth: number | undefined;
-    #layoutHeight: number | undefined;
     #baseSizes = new WeakMap<object, Size>();
-
-    override get width() {
-        return this.#layoutWidth ?? this.#explicitWidth ?? this.measureControlNaturalSize().width;
-    }
-
-    override set width(value: number) {
-        this.#explicitWidth = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.layout();
-    }
-
-    override get height() {
-        return this.#layoutHeight ?? this.#explicitHeight ?? this.measureControlNaturalSize().height;
-    }
-
-    override set height(value: number) {
-        this.#explicitHeight = Math.max(0, finiteNumber(value, 0));
-        this.#syncBoxSize();
-        this.layout();
-    }
 
     get alignX() {
         return this.#alignX;
@@ -67,45 +42,28 @@ export class CenterContainer extends Control {
         this.layout();
     }
 
-    onMounted() {
-        this.default.on('childAdded', this.layout, this);
-        this.default.on('childRemoved', this.layout, this);
-        this.once('destroyed', this.unmountLayout, this);
-        this.layout();
-    }
-
-    private unmountLayout() {
-        this.default.off('childAdded', this.layout, this);
-        this.default.off('childRemoved', this.layout, this);
-    }
-
-    layout() {
+    override layout() {
+        const size = this.syncControlBoxSize();
         const children = this.default?.children as ControlLayoutChild[] | undefined;
         if (!children || children.length === 0) {
-            this.#syncBoxSize();
             return;
         }
-
-        const natural = this.measureControlNaturalSize();
-        const width = this.#layoutWidth ?? this.#explicitWidth ?? natural.width;
-        const height = this.#layoutHeight ?? this.#explicitHeight ?? natural.height;
-        this.syncBoxSize(width, height);
 
         for (const child of children) {
             const props = controlChildProps(child);
             const childSize = controlMinSize(child, this.#baseSizes);
-            const childWidth = fillOrExpand(props.hSize) ? width : childSize.width;
-            const childHeight = fillOrExpand(props.vSize) ? height : childSize.height;
+            const childWidth = fillOrExpand(props.hSize) ? size.width : childSize.width;
+            const childHeight = fillOrExpand(props.vSize) ? size.height : childSize.height;
             setControlChildBox(child, {
-                x: alignOffset(this.#alignX, Math.max(0, width - childWidth)),
-                y: alignOffset(this.#alignY, Math.max(0, height - childHeight)),
+                x: alignOffset(this.#alignX, Math.max(0, size.width - childWidth)),
+                y: alignOffset(this.#alignY, Math.max(0, size.height - childHeight)),
                 width: childWidth,
                 height: childHeight,
             });
         }
     }
 
-    measureControlNaturalSize(): Size {
+    override measureControlNaturalSize(): Size {
         const children = this.default?.children as ControlLayoutChild[] | undefined;
         if (!children || children.length === 0) {
             return { width: 0, height: 0 };
@@ -115,21 +73,5 @@ export class CenterContainer extends Control {
             width: sizes.reduce((max, size) => Math.max(max, size.width), 0),
             height: sizes.reduce((max, size) => Math.max(max, size.height), 0),
         };
-    }
-
-    setControlLayoutBox(x: number, y: number, width: number, height: number) {
-        this.position.set(x, y);
-        this.#layoutWidth = Math.max(0, width);
-        this.#layoutHeight = Math.max(0, height);
-        this.#syncBoxSize();
-        this.layout();
-    }
-
-    #syncBoxSize() {
-        const natural = this.measureControlNaturalSize();
-        this.syncBoxSize(
-            this.#layoutWidth ?? this.#explicitWidth ?? natural.width,
-            this.#layoutHeight ?? this.#explicitHeight ?? natural.height,
-        );
     }
 }
