@@ -1,5 +1,11 @@
 # pixifact
 
+## 0.1.5
+
+### Patch Changes
+
+- 修复 Editor 预览使用裸 Group 作为根节点导致 Scene action 找不到脚本方法的问题，并修复层级面板右键添加节点子菜单 hover 空隙。
+
 ## 0.1.4
 
 ### Patch Changes
