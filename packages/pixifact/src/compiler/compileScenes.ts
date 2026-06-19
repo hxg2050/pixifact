@@ -288,7 +288,7 @@ function sceneImportsFor(
     projectRoot: string,
     generatedFileDir: string,
 ) {
-    return [...collectSceneInstancePaths(template.children)]
+    return [...collectSceneImportPaths(template, templates)]
         .sort()
         .map((scenePath) => {
             const sceneTemplate = templates.get(scenePath);
@@ -296,11 +296,44 @@ function sceneImportsFor(
                 throw new Error(`Scene "${template.name}" references unknown Scene "${scenePath}".`);
             }
             return {
+                scene: scenePath,
                 exportName: sceneTemplate.name,
                 localName: sceneClassAlias(scenePath),
                 source: importSourceFor(sceneScriptAbsolutePath(projectRoot, scenePath), generatedFileDir),
             };
         });
+}
+
+function collectSceneImportPaths(template: SceneTemplate, templates: Map<string, SceneTemplate>) {
+    const scenePaths = collectSceneInstancePaths(template.children);
+    collectSceneStructSourcePaths(template.children, templates, scenePaths);
+    return scenePaths;
+}
+
+function collectSceneStructSourcePaths(
+    nodes: readonly SceneTemplateNode[],
+    templates: Map<string, SceneTemplate>,
+    scenePaths: Set<string>,
+) {
+    for (const node of nodes) {
+        if (node.kind === 'slotOutlet') {
+            continue;
+        }
+        if (node.kind === 'pixi') {
+            collectSceneStructSourcePaths(node.children, templates, scenePaths);
+            continue;
+        }
+        const sceneInterface = templates.get(node.scene)?.interface;
+        for (const [key, value] of Object.entries(node.props)) {
+            const contract = value && typeof value === 'object' ? sceneInterface?.props[key] : undefined;
+            if (contract?.type === 'struct' && contract.sourceScene) {
+                scenePaths.add(contract.sourceScene);
+            }
+        }
+        for (const children of Object.values(node.slots)) {
+            collectSceneStructSourcePaths(children, templates, scenePaths);
+        }
+    }
 }
 
 function sceneClassAliasesFor(template: SceneTemplate) {

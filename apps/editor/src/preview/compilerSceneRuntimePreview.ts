@@ -334,7 +334,7 @@ function collectSceneInstancePaths(
 }
 
 function sceneImportsFor(scenePath: string, template: SceneTemplate, templates: Map<string, SceneTemplate>) {
-    return [...collectSceneInstancePaths(scenePath, template.children)]
+    return [...collectSceneImportPaths(scenePath, template, templates)]
         .sort()
         .map((referencedScenePath) => {
             const sceneTemplate = templates.get(referencedScenePath);
@@ -342,11 +342,46 @@ function sceneImportsFor(scenePath: string, template: SceneTemplate, templates: 
                 throw new Error(`Scene "${scenePath}" references unknown Scene "${referencedScenePath}".`);
             }
             return {
+                scene: referencedScenePath,
                 exportName: sceneTemplate.name,
                 localName: sceneClassAlias(referencedScenePath),
                 source: sceneScriptModuleId(referencedScenePath),
             };
         });
+}
+
+function collectSceneImportPaths(scenePath: string, template: SceneTemplate, templates: Map<string, SceneTemplate>) {
+    const scenePaths = collectSceneInstancePaths(scenePath, template.children);
+    collectSceneStructSourcePaths(scenePath, template.children, templates, scenePaths);
+    return scenePaths;
+}
+
+function collectSceneStructSourcePaths(
+    scenePath: string,
+    nodes: readonly SceneTemplateNode[],
+    templates: Map<string, SceneTemplate>,
+    scenePaths: Set<string>,
+) {
+    for (const node of nodes) {
+        if (node.kind === 'slotOutlet') {
+            continue;
+        }
+        if (node.kind === 'pixi') {
+            collectSceneStructSourcePaths(scenePath, node.children, templates, scenePaths);
+            continue;
+        }
+        const resolvedScenePath = resolveSceneReference(scenePath, node.scene);
+        const sceneInterface = templates.get(resolvedScenePath)?.interface;
+        for (const [key, value] of Object.entries(node.props)) {
+            const contract = value && typeof value === 'object' ? sceneInterface?.props[key] : undefined;
+            if (contract?.type === 'struct' && contract.sourceScene) {
+                scenePaths.add(contract.sourceScene);
+            }
+        }
+        for (const children of Object.values(node.slots)) {
+            collectSceneStructSourcePaths(scenePath, children, templates, scenePaths);
+        }
+    }
 }
 
 function sceneClassAliasesFor(scenePath: string, template: SceneTemplate) {

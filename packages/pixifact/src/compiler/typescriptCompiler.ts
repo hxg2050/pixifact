@@ -5,6 +5,7 @@ import type {
     SceneTemplate,
     SceneTemplateNode,
     SceneTemplatePrimitiveType,
+    SceneTemplateStructPropContract,
     SceneTemplateValue,
 } from './spec';
 import {
@@ -102,8 +103,13 @@ class CompileContext {
             const classImport = sceneImport.exportName === sceneImport.localName
                 ? sceneImport.exportName
                 : `${sceneImport.exportName} as ${sceneImport.localName}`;
-            const imports = [classImport, ...this.#sceneStructImports(sceneImport)];
-            lines.push(`import { ${imports.join(', ')} } from ${JSON.stringify(sceneImport.source)};`);
+            const imports = [
+                ...(this.#usesSceneClassImport(sceneImport) ? [classImport] : []),
+                ...this.#sceneStructImports(sceneImport),
+            ];
+            if (imports.length > 0) {
+                lines.push(`import { ${imports.join(', ')} } from ${JSON.stringify(sceneImport.source)};`);
+            }
         }
         if (this.options.scriptImport) {
             lines.push(`import { ${this.options.scriptImport.exportName} as ${this.options.scriptImport.localName} } from ${JSON.stringify(this.options.scriptImport.source)};`);
@@ -302,15 +308,71 @@ class CompileContext {
     }
 
     #sceneStructImports(sceneImport: NonNullable<CompileSceneTemplateOptions['sceneImports']>[number]) {
-        const sceneInterface = this.options.sceneInterfaces?.[Object.entries(this.options.sceneClassAliases ?? {})
-            .find(([, alias]) => alias === sceneImport.localName)?.[0] ?? ''];
-        if (!sceneInterface) {
+        const scene = this.#sceneImportScene(sceneImport);
+        if (!scene) {
             return [];
         }
-        return [...new Set(Object.values(sceneInterface.props)
-            .filter((contract) => contract.type === 'struct')
-            .map((contract) => contract.struct))]
-            .sort();
+        const structs = new Set<string>();
+        this.#collectSceneStructImports(this.template.children, scene, structs);
+        return [...structs].sort();
+    }
+
+    #collectSceneStructImports(nodes: readonly SceneTemplateNode[], sourceScene: string, structs: Set<string>) {
+        for (const node of nodes) {
+            if (node.kind === 'slotOutlet') {
+                continue;
+            }
+            if (node.kind === 'pixi') {
+                this.#collectSceneStructImports(node.children, sourceScene, structs);
+                continue;
+            }
+            const sceneInterface = this.options.sceneInterfaces?.[node.scene];
+            for (const [key, value] of Object.entries(node.props)) {
+                const contract = value && typeof value === 'object' ? sceneInterface?.props[key] : undefined;
+                if (contract?.type === 'struct' && this.#structContractSourceScene(node.scene, contract) === sourceScene) {
+                    structs.add(contract.struct);
+                }
+            }
+            for (const children of Object.values(node.slots)) {
+                this.#collectSceneStructImports(children, sourceScene, structs);
+            }
+        }
+    }
+
+    #usesSceneClassImport(sceneImport: NonNullable<CompileSceneTemplateOptions['sceneImports']>[number]) {
+        const scene = this.#sceneImportScene(sceneImport);
+        return scene ? this.#sceneInstanceScenes().has(scene) : true;
+    }
+
+    #sceneInstanceScenes() {
+        const scenes = new Set<string>();
+        this.#collectSceneInstanceScenes(this.template.children, scenes);
+        return scenes;
+    }
+
+    #collectSceneInstanceScenes(nodes: readonly SceneTemplateNode[], scenes: Set<string>) {
+        for (const node of nodes) {
+            if (node.kind === 'slotOutlet') {
+                continue;
+            }
+            if (node.kind === 'pixi') {
+                this.#collectSceneInstanceScenes(node.children, scenes);
+                continue;
+            }
+            scenes.add(node.scene);
+            for (const children of Object.values(node.slots)) {
+                this.#collectSceneInstanceScenes(children, scenes);
+            }
+        }
+    }
+
+    #sceneImportScene(sceneImport: NonNullable<CompileSceneTemplateOptions['sceneImports']>[number]) {
+        return sceneImport.scene
+            ?? Object.entries(this.options.sceneClassAliases ?? {}).find(([, alias]) => alias === sceneImport.localName)?.[0];
+    }
+
+    #structContractSourceScene(instanceScene: string, contract: SceneTemplateStructPropContract) {
+        return contract.sourceScene ?? instanceScene;
     }
 
     #applyPixiProps(variable: string, props: Record<string, SceneTemplateValue>, instance = false, sceneInstance?: SceneInstanceTemplateNode) {

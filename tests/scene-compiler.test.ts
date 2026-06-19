@@ -889,6 +889,89 @@ import { Group } from 'pixifact/runtime';`);
         expect(anonymousCode).not.toContain('button1.rectTransform = {');
     });
 
+    it('imports inherited structured prop constructors from the declaring scene script', () => {
+        const descriptors = extractSceneScriptInterfaces([
+            {
+                scene: 'src/ui/BasePanel.scene',
+                fileName: 'BasePanel.ts',
+                source: `
+                    export class RectTransform {
+                        x = 0;
+                        y = 0;
+                        width = 188;
+                        height = 48;
+                    }
+
+                    @scene()
+                    export class BasePanel {
+                        @prop({ type: RectTransform })
+                        set rectTransform(value: RectTransform) {}
+                    }
+                `,
+            },
+            {
+                scene: 'src/ui/Button.scene',
+                fileName: 'Button.ts',
+                source: `
+                    @scene()
+                    export class Button extends BasePanel {
+                        @prop({ type: String, default: 'Start' })
+                        accessor label = 'Start';
+                    }
+                `,
+            },
+        ]);
+        const sceneInterfaces = Object.fromEntries(
+            Object.entries(descriptors).map(([scene, descriptor]) => [scene, descriptor.interface]),
+        );
+        expect(descriptors['src/ui/Button.scene'].interface.props.rectTransform).toMatchObject({
+            type: 'struct',
+            struct: 'RectTransform',
+            sourceScene: 'src/ui/BasePanel.scene',
+        });
+        const template = parseSceneTemplate(`
+            <Scene name="Hud">
+              <Button scene="src/ui/Button.scene" rectTransform.x="12" rectTransform.y="24" label="Play" />
+            </Scene>
+        `);
+
+        expect(validateSceneContent({
+            scene: 'src/screens/Hud.scene',
+            content: serializeSceneTemplate(template),
+            sceneInterfaces,
+        })).toMatchObject({
+            ok: true,
+        });
+
+        const code = compileSceneTemplateToTs(template, {
+            sceneImports: [
+                {
+                    scene: 'src/ui/BasePanel.scene',
+                    exportName: 'BasePanel',
+                    localName: 'BasePanel',
+                    source: '../src/ui/BasePanel',
+                },
+                {
+                    scene: 'src/ui/Button.scene',
+                    exportName: 'Button',
+                    localName: 'Button',
+                    source: '../src/ui/Button',
+                },
+            ],
+            sceneClassAliases: {
+                'src/ui/Button.scene': 'Button',
+            },
+            sceneInterfaces,
+        });
+
+        expect(code).toContain('import { RectTransform } from "../src/ui/BasePanel";');
+        expect(code).toContain('import { Button } from "../src/ui/Button";');
+        expect(code).toContain('const button1RectTransform = new RectTransform();');
+        expect(code).toContain('button1.rectTransform = button1RectTransform;');
+        expect(code).not.toContain('import { BasePanel } from "../src/ui/BasePanel";');
+        expect(code).not.toContain('import { Button, RectTransform } from "../src/ui/Button";');
+    });
+
     it('rejects structured Scene instance props with unknown fields or invalid field values', () => {
         const sceneInterfaces = {
             'scenes/Button.scene': {

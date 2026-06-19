@@ -29,6 +29,7 @@ export interface SceneTemplateStructFieldContract {
 export interface SceneTemplateStructPropContract {
     type: 'struct';
     struct: string;
+    sourceScene?: string;
     fields: Record<string, SceneTemplateStructFieldContract>;
 }
 
@@ -86,6 +87,7 @@ export interface SlotOutletTemplateNode {
 }
 
 export interface SceneTemplateScriptImport {
+    scene?: string;
     exportName: string;
     localName: string;
     source: string;

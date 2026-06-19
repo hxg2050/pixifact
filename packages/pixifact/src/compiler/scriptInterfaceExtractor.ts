@@ -20,6 +20,7 @@ export interface ExtractSceneScriptInterfaceSource extends ExtractSceneScriptInt
 }
 
 interface ExtractedSceneScriptClass {
+    scriptScene: string;
     scene?: string;
     className: string;
     parentClassName?: string;
@@ -110,6 +111,7 @@ function extractSceneScriptClasses(
         }
 
         classes.push({
+            scriptScene: options.scene,
             ...(isSceneClass ? { scene: options.scene } : {}),
             className,
             ...(parentClassName ? { parentClassName } : {}),
@@ -155,7 +157,7 @@ function composeSceneScriptClasses(classes: readonly ExtractedSceneScriptClass[]
 
         visiting.add(item);
         const parent = item.parentClassName ? resolveParentClass(item, classesByName) : undefined;
-        const parentInterface = parent ? compose(parent) : emptySceneInterface();
+        const parentInterface = parent ? inheritedSceneInterface(compose(parent), parent.scriptScene, item.scriptScene) : emptySceneInterface();
         const sceneInterface = mergeSceneInterfaces(parentInterface, item.interface);
         visiting.delete(item);
         composed.set(item, sceneInterface);
@@ -216,6 +218,29 @@ function mergeSceneInterfaces(parent: SceneTemplateInterface, own: SceneTemplate
             ...parent.slots,
             ...own.slots,
         },
+    };
+}
+
+function inheritedSceneInterface(
+    parent: SceneTemplateInterface,
+    parentSourceScene: string,
+    childSourceScene: string,
+): SceneTemplateInterface {
+    return {
+        props: Object.fromEntries(Object.entries(parent.props).map(([name, contract]) => {
+            if (contract.type !== 'struct') {
+                return [name, contract];
+            }
+            const sourceScene = contract.sourceScene ?? parentSourceScene;
+            return [
+                name,
+                sourceScene === childSourceScene
+                    ? contract
+                    : { ...contract, sourceScene },
+            ];
+        })),
+        events: parent.events,
+        slots: parent.slots,
     };
 }
 
