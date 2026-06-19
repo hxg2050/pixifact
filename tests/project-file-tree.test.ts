@@ -693,7 +693,11 @@ describe('project file tree service', () => {
         host.reset({
             src: host.directory({
                 scenes: host.directory({
-                    'Button.scene': host.file('<Scene name="Button" />'),
+                    'Button.scene': host.file(`
+                        <Scene name="Button">
+                          <Text id="labelText" text="Button" />
+                        </Scene>
+                    `),
                     'Button.ts': emptySceneScript('Button'),
                 }),
             }),
@@ -829,6 +833,7 @@ describe('project file tree service', () => {
                 src: 'blob:pixifact-preview-texture',
                 parser: 'texture',
             });
+            expect(preview.root.children.length).toBeGreaterThan(0);
             preview.dispose();
             expect(revokeObjectUrl).toHaveBeenCalledWith('blob:pixifact-preview-texture');
         } finally {
@@ -836,6 +841,68 @@ describe('project file tree service', () => {
             createObjectUrl.mockRestore();
             revokeObjectUrl.mockRestore();
         }
+    });
+
+    it('loads compiler preview modules for inherited structured prop sources', async () => {
+        host.reset({
+            src: host.directory({
+                scenes: host.directory({
+                    'Hud.scene': host.file(`
+                        <Scene name="Hud">
+                          <Button scene="./Button.scene" rectTransform.x="12" rectTransform.y="24" label="Play" />
+                        </Scene>
+                    `),
+
+                    'Hud.ts': emptySceneScript('Hud'),
+
+                    'BasePanel.scene': host.file('<Scene name="BasePanel" />'),
+
+                    'BasePanel.ts': host.file(`
+                        import { Group } from 'pixifact/runtime';
+                        import { prop, scene } from 'pixifact/compiler';
+
+                        export class RectTransform {
+                            x = 0;
+                            y = 0;
+                        }
+
+                        @scene()
+                        export class BasePanel extends Group {
+                            @prop({ type: RectTransform })
+                            set rectTransform(value: RectTransform) {
+                                this.position.set(value.x, value.y);
+                            }
+                        }
+                    `),
+
+                    'Button.scene': host.file('<Scene name="Button" />'),
+
+                    'Button.ts': host.file(`
+                        import { prop, scene } from 'pixifact/compiler';
+                        import { BasePanel } from './BasePanel';
+
+                        @scene()
+                        export class Button extends BasePanel {
+                            @prop({ type: String, default: 'Button' })
+                            accessor label = 'Button';
+                        }
+                    `),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/src/scenes/Hud.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+        const document = getCompilerSceneDocument();
+
+        const preview = await createCompilerSceneRuntimePreview({
+            document: document!,
+            projectTree: tree,
+            scenePath: 'src/scenes/Hud.scene',
+        });
+
+        expect(preview.root.children.length).toBeGreaterThan(0);
+        preview.dispose();
     });
 
     it('detects compiler binding source file changes', () => {

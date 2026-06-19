@@ -341,7 +341,15 @@ class CompileContext {
 
     #usesSceneClassImport(sceneImport: NonNullable<CompileSceneTemplateOptions['sceneImports']>[number]) {
         const scene = this.#sceneImportScene(sceneImport);
-        return scene ? this.#sceneInstanceScenes().has(scene) : true;
+        if (!scene) {
+            return true;
+        }
+        const instanceScenes = this.#sceneInstanceScenes();
+        if (instanceScenes.has(scene)) {
+            return true;
+        }
+        return Object.entries(this.options.sceneClassAliases ?? {})
+            .some(([instanceScene, alias]) => alias === sceneImport.localName && instanceScenes.has(instanceScene));
     }
 
     #sceneInstanceScenes() {

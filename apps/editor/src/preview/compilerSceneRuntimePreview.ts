@@ -558,6 +558,9 @@ async function collectPreviewModules(
         for (const referencedScenePath of collectSceneInstancePaths(scenePath, template.children)) {
             includeScene(referencedScenePath);
         }
+        for (const referencedScenePath of collectSceneImportPaths(scenePath, template, context.templates)) {
+            includeScene(referencedScenePath);
+        }
     }
 
     includeScene(context.scenePath);
@@ -801,6 +804,7 @@ export async function createCompilerSceneRuntimePreview(options: CreateCompilerS
     }
 
     const root = new Group();
+    compilerRuntime.mountScene(root, context.scenePath);
     const nodes = new Map<string, Container>();
     mapRenderedNodes(context, context.scenePath, root, options.document.template.children, '', nodes);
     const size = sceneSize(options.document.template);
