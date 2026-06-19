@@ -64,6 +64,8 @@ interface PreviewModuleRecord {
     loaded: boolean;
 }
 
+type PreviewSceneConstructor = new () => unknown;
+
 interface PreviewRuntimeContext {
     projectTree: ProjectFileTreeNode;
     scenePath: string;
@@ -799,12 +801,15 @@ export async function createCompilerSceneRuntimePreview(options: CreateCompilerS
     }
 
     const scriptExports = loader.requireModule(sceneScriptModuleId(context.scenePath));
-    if (typeof scriptExports[options.document.template.name] !== 'function') {
+    const SceneClass = scriptExports[options.document.template.name];
+    if (typeof SceneClass !== 'function') {
         throw new Error(`Scene 脚本没有导出 ${options.document.template.name}。`);
     }
+    const root = new (SceneClass as PreviewSceneConstructor)();
+    if (!(root instanceof Group)) {
+        throw new Error(`Scene 脚本 ${options.document.template.name} 必须继承 Group。`);
+    }
 
-    const root = new Group();
-    compilerRuntime.mountScene(root, context.scenePath);
     const nodes = new Map<string, Container>();
     mapRenderedNodes(context, context.scenePath, root, options.document.template.children, '', nodes);
     const size = sceneSize(options.document.template);

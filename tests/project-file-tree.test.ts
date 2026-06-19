@@ -905,6 +905,64 @@ describe('project file tree service', () => {
         preview.dispose();
     });
 
+    it('binds compiler preview scene events to the opened scene script instance', async () => {
+        host.reset({
+            src: host.directory({
+                scenes: host.directory({
+                    'Hud.scene': host.file(`
+                        <Scene name="Hud">
+                          <Button scene="./Button.scene" @clicked="handlePause" />
+                        </Scene>
+                    `),
+
+                    'Hud.ts': host.file(`
+                        import { Group } from 'pixifact/runtime';
+                        import { scene } from 'pixifact/compiler';
+
+                        @scene()
+                        export class Hud extends Group {
+                            handled = false;
+
+                            handlePause() {
+                                this.handled = true;
+                            }
+                        }
+                    `),
+
+                    'Button.scene': host.file('<Scene name="Button" />'),
+
+                    'Button.ts': host.file(`
+                        import { Group } from 'pixifact/runtime';
+                        import { createEvent, event, scene } from 'pixifact/compiler';
+
+                        @scene()
+                        export class Button extends Group {
+                            @event()
+                            readonly clicked = createEvent();
+                        }
+                    `),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/src/scenes/Hud.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+        const document = getCompilerSceneDocument();
+
+        const preview = await createCompilerSceneRuntimePreview({
+            document: document!,
+            projectTree: tree,
+            scenePath: 'src/scenes/Hud.scene',
+        });
+
+        expect(preview.root.constructor.name).toBe('Hud');
+        expect(preview.root.children.length).toBeGreaterThan(0);
+        expect((preview.root as unknown as { handled: boolean }).handled).toBe(false);
+        (preview.root.children[0] as unknown as { clicked: { emit: () => void } }).clicked.emit();
+        expect((preview.root as unknown as { handled: boolean }).handled).toBe(true);
+        preview.dispose();
+    });
+
     it('detects compiler binding source file changes', () => {
         expect(isCompilerBindingSourceChange({ path: 'src/scenes/Button.scene', kind: 'scene' })).toBe(true);
         expect(isCompilerBindingSourceChange({ path: 'src/scenes/Button.ts', kind: 'script' })).toBe(true);
