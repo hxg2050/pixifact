@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createPixifactProject } from '../packages/create-pixifact/src/createPixifactProject';
+import pixifactPackage from '../packages/pixifact/package.json' with { type: 'json' };
+import pixifactCliPackage from '../packages/pixifact-cli/package.json' with { type: 'json' };
 
 const tempRoots: string[] = [];
 
@@ -45,10 +47,10 @@ describe('create-pixifact scaffold', () => {
             },
             dependencies: {
                 'pixi.js': '8.18.1',
-                pixifact: '^0.1.3',
+                pixifact: `^${pixifactPackage.version}`,
             },
             devDependencies: {
-                'pixifact-cli': '^0.1.3',
+                'pixifact-cli': `^${pixifactCliPackage.version}`,
                 typescript: '^5.3.3',
                 vite: '^8.0.10',
             },
