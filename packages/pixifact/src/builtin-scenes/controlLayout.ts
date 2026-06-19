@@ -255,3 +255,16 @@ export function parseJustify(value: string): ControlJustify {
 export function finiteNumber(value: number, fallback: number) {
     return Number.isFinite(value) ? value : fallback;
 }
+
+export function boxSize(value: number | { width: number; height?: number }, height?: number): Size {
+    if (typeof value === 'number') {
+        return {
+            width: Math.max(0, finiteNumber(value, 0)),
+            height: Math.max(0, finiteNumber(height ?? value, 0)),
+        };
+    }
+    return {
+        width: Math.max(0, finiteNumber(value.width, 0)),
+        height: Math.max(0, finiteNumber(value.height ?? value.width, 0)),
+    };
+}

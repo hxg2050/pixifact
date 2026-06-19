@@ -53,6 +53,7 @@ export class FlexLayout extends Control {
 
     override set width(value: number) {
         this.#explicitWidth = finiteNumber(value, 0);
+        this.#syncBoxSize();
         this.layout();
     }
 
@@ -62,6 +63,7 @@ export class FlexLayout extends Control {
 
     override set height(value: number) {
         this.#explicitHeight = finiteNumber(value, 0);
+        this.#syncBoxSize();
         this.layout();
     }
 
@@ -180,6 +182,7 @@ export class FlexLayout extends Control {
     layout() {
         const children = this.default?.children as LayoutChild[] | undefined;
         if (!children || children.length === 0) {
+            this.#syncBoxSize();
             return;
         }
 
@@ -215,6 +218,7 @@ export class FlexLayout extends Control {
             this.#layoutWidth = containerCross;
             this.#layoutHeight = containerMain;
         }
+        this.#syncBoxSize();
     }
 
     measureFlexNaturalSize(axis: FlexAxis) {
@@ -235,7 +239,15 @@ export class FlexLayout extends Control {
         this.position.set(x, y);
         this.#layoutWidth = width;
         this.#layoutHeight = height;
+        this.#syncBoxSize();
         this.layout();
+    }
+
+    #syncBoxSize() {
+        this.syncBoxSize(
+            this.#layoutWidth ?? this.#explicitWidth ?? this.measureFlexNaturalSize('row'),
+            this.#layoutHeight ?? this.#explicitHeight ?? this.measureFlexNaturalSize('column'),
+        );
     }
 
     #createLayoutItem(child: LayoutChild, mainAxis: FlexAxis, crossAxis: FlexAxis): LayoutItem {

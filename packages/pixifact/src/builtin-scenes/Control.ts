@@ -3,6 +3,7 @@ import { prop, scene, slot } from 'pixifact/compiler';
 import { Group } from 'pixifact/runtime';
 import {
     alignOffset,
+    boxSize,
     defaultControlLayoutProps,
     finiteNumber,
     measureChildren,
@@ -36,6 +37,7 @@ export class Control extends Group {
 
     override set width(value: number) {
         this.#boxWidth = Math.max(0, finiteNumber(value, 0));
+        this.#syncBoxSize();
         this.#layoutContent();
         this.requestParentLayout();
     }
@@ -46,8 +48,21 @@ export class Control extends Group {
 
     override set height(value: number) {
         this.#boxHeight = Math.max(0, finiteNumber(value, 0));
+        this.#syncBoxSize();
         this.#layoutContent();
         this.requestParentLayout();
+    }
+
+    override getSize(out: Size = { width: 0, height: 0 }) {
+        out.width = this.width;
+        out.height = this.height;
+        return out;
+    }
+
+    override setSize(value: number | { width: number; height?: number }, height?: number) {
+        const size = boxSize(value, height);
+        this.width = size.width;
+        this.height = size.height;
     }
 
     get minWidth() {
@@ -57,6 +72,7 @@ export class Control extends Group {
     @prop({ type: Number, default: 0 })
     set minWidth(value: number) {
         this.#minWidth = Math.max(0, finiteNumber(value, 0));
+        this.#syncBoxSize();
         this.#layoutContent();
         this.requestParentLayout();
     }
@@ -68,6 +84,7 @@ export class Control extends Group {
     @prop({ type: Number, default: 0 })
     set minHeight(value: number) {
         this.#minHeight = Math.max(0, finiteNumber(value, 0));
+        this.#syncBoxSize();
         this.#layoutContent();
         this.requestParentLayout();
     }
@@ -157,6 +174,7 @@ export class Control extends Group {
         this.position.set(x, y);
         this.#boxWidth = Math.max(0, width);
         this.#boxHeight = Math.max(0, height);
+        this.#syncBoxSize();
         this.#layoutContent();
     }
 
@@ -164,6 +182,7 @@ export class Control extends Group {
         if (!this.default) {
             return;
         }
+        this.#syncBoxSize();
         const bounds = measureChildrenBounds(this.default);
         const boxWidth = this.#boxWidth ?? Math.max(this.#minWidth, bounds.width);
         const boxHeight = this.#boxHeight ?? Math.max(this.#minHeight, bounds.height);
@@ -172,8 +191,28 @@ export class Control extends Group {
         this.default.position.set(offsetX, offsetY);
     }
 
+    protected syncBoxSize(width: number, height: number) {
+        super.setSize(
+            Math.max(0, finiteNumber(width, 0)),
+            Math.max(0, finiteNumber(height, 0)),
+        );
+    }
+
     protected requestParentLayout() {
         const parent = this.parent as (Container & { layout?: () => void }) | null;
         parent?.layout?.();
+    }
+
+    #syncBoxSize() {
+        const size = this.#boxSize();
+        this.syncBoxSize(size.width, size.height);
+    }
+
+    #boxSize(): Size {
+        const natural = this.measureControlNaturalSize();
+        return {
+            width: this.#boxWidth ?? natural.width,
+            height: this.#boxHeight ?? natural.height,
+        };
     }
 }

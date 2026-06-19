@@ -47,6 +47,7 @@ export class FlexItem extends Control {
 
     override set width(value: number) {
         this.#boxWidth = finiteNumber(value, 0);
+        this.#syncBoxSize();
         this.requestParentLayout();
     }
 
@@ -56,6 +57,7 @@ export class FlexItem extends Control {
 
     override set height(value: number) {
         this.#boxHeight = finiteNumber(value, 0);
+        this.#syncBoxSize();
         this.requestParentLayout();
     }
 
@@ -205,8 +207,15 @@ export class FlexItem extends Control {
         this.position.set(x, y);
         this.#boxWidth = width;
         this.#boxHeight = height;
+        this.#syncBoxSize();
     }
 
+    #syncBoxSize() {
+        this.syncBoxSize(
+            this.#boxWidth ?? this.measureFlexNaturalSize('row'),
+            this.#boxHeight ?? this.measureFlexNaturalSize('column'),
+        );
+    }
 }
 
 function parseBasis(value: string | number): FlexBasis {

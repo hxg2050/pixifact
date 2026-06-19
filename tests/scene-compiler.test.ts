@@ -79,6 +79,76 @@ describe('Pixifact scene compiler spike', () => {
         }
     });
 
+    it('keeps built-in control box sizes in the Group size protocol', () => {
+        const BuiltinScenes = [
+            CenterContainer,
+            Control,
+            FlexItem,
+            FlexLayout,
+            HBoxContainer,
+            MarginContainer,
+            VBoxContainer,
+        ];
+
+        for (const BuiltinScene of BuiltinScenes) {
+            const scenePath = `tests/${BuiltinScene.name}.scene`;
+            registerScene(scenePath, {
+                mount(root) {
+                    const slotHost = new Container();
+                    root.addChild(slotHost);
+                    registerSlot(root, 'default', slotHost);
+                    return { root, parts: {}, slots: { default: slotHost } };
+                },
+            });
+            registerSceneClass(BuiltinScene, scenePath);
+
+            const scene = new BuiltinScene();
+
+            scene.setSize(120, 40);
+
+            expect(scene.width).toBe(120);
+            expect(scene.height).toBe(40);
+            expect(scene.getSize()).toEqual({ width: 120, height: 40 });
+            expect(scene.scale.x).toBe(1);
+            expect(scene.scale.y).toBe(1);
+            expect(scene.hitArea).toMatchObject({ x: 0, y: 0, width: 120, height: 40 });
+        }
+    });
+
+    it('syncs natural control sizes into the Group size protocol', () => {
+        registerScene('tests/NaturalControl.scene', {
+            mount(root) {
+                const slotHost = new Container();
+                root.addChild(slotHost);
+                registerSlot(root, 'default', slotHost);
+                return { root, parts: {}, slots: { default: slotHost } };
+            },
+        });
+        registerSceneClass(Control, 'tests/NaturalControl.scene');
+        registerScene('tests/NaturalMargin.scene', {
+            mount(root) {
+                const slotHost = new Container();
+                root.addChild(slotHost);
+                registerSlot(root, 'default', slotHost);
+                return { root, parts: {}, slots: { default: slotHost } };
+            },
+        });
+        registerSceneClass(MarginContainer, 'tests/NaturalMargin.scene');
+
+        const control = new Control();
+        control.minWidth = 90;
+        control.minHeight = 32;
+
+        expect(control.getSize()).toEqual({ width: 90, height: 32 });
+        expect(control.hitArea).toMatchObject({ x: 0, y: 0, width: 90, height: 32 });
+
+        const margin = new MarginContainer();
+        margin.margin = 12;
+
+        expect(margin.getSize()).toEqual({ width: 24, height: 24 });
+        expect(margin.hitArea).toMatchObject({ x: 0, y: 0, width: 24, height: 24 });
+    });
+
     it('creates stable revisions for canonical compiler scene source', () => {
         const first = createSceneRevision('<Scene name="Button"><Text id="label" text="Play" /></Scene>');
         const second = createSceneRevision(`

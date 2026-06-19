@@ -33,6 +33,7 @@ export class VBoxContainer extends Control {
 
     override set width(value: number) {
         this.#explicitWidth = Math.max(0, finiteNumber(value, 0));
+        this.#syncBoxSize();
         this.layout();
     }
 
@@ -42,6 +43,7 @@ export class VBoxContainer extends Control {
 
     override set height(value: number) {
         this.#explicitHeight = Math.max(0, finiteNumber(value, 0));
+        this.#syncBoxSize();
         this.layout();
     }
 
@@ -88,6 +90,7 @@ export class VBoxContainer extends Control {
     }
 
     layout() {
+        this.#syncBoxSize();
         layoutStack({
             axis: 'vertical',
             children: this.default?.children as ControlLayoutChild[] | undefined,
@@ -109,6 +112,15 @@ export class VBoxContainer extends Control {
         this.position.set(x, y);
         this.#layoutWidth = Math.max(0, width);
         this.#layoutHeight = Math.max(0, height);
+        this.#syncBoxSize();
         this.layout();
+    }
+
+    #syncBoxSize() {
+        const natural = this.measureControlNaturalSize();
+        this.syncBoxSize(
+            this.#layoutWidth ?? this.#explicitWidth ?? natural.width,
+            this.#layoutHeight ?? this.#explicitHeight ?? natural.height,
+        );
     }
 }
