@@ -4,7 +4,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
 import {
+    builtinSceneNames,
     builtinSceneNameFromAssetId,
+    type BuiltinSceneScriptSources,
 } from '../compiler/builtinScenes';
 
 const builtinScenesDir = resolveBuiltinScenesDir(import.meta.url);
@@ -37,6 +39,23 @@ export function builtinSceneScriptPath(assetId: string) {
 
 export async function readBuiltinSceneSource(assetId: string) {
     return readFile(builtinSceneFilePath(assetId), 'utf8');
+}
+
+export async function readBuiltinSceneScriptSource(assetId: string) {
+    return readFile(builtinSceneScriptPath(assetId), 'utf8');
+}
+
+export async function readBuiltinSceneScriptSources(): Promise<BuiltinSceneScriptSources> {
+    const entries = await Promise.all(
+        builtinSceneNames.map(async (name) => [name, await readFile(path.join(builtinScenesDir, `${name}.ts`), 'utf8')] as const),
+    );
+    return Object.fromEntries(entries) as BuiltinSceneScriptSources;
+}
+
+export function readBuiltinSceneScriptSourcesSync(): BuiltinSceneScriptSources {
+    return Object.fromEntries(
+        builtinSceneNames.map((name) => [name, fs.readFileSync(path.join(builtinScenesDir, `${name}.ts`), 'utf8')] as const),
+    ) as BuiltinSceneScriptSources;
 }
 
 export async function assertBuiltinSceneScript(assetId: string) {

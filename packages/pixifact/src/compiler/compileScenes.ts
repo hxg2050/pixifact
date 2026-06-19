@@ -21,6 +21,7 @@ import {
 } from './sceneAssetPair';
 import {
     builtinSceneScriptPath,
+    readBuiltinSceneScriptSources,
     readBuiltinSceneSource,
 } from '../compiler-node/builtinSceneAssets';
 import { extractSceneScriptInterface } from './scriptInterfaceExtractor';
@@ -60,6 +61,7 @@ export async function compileScenes(options: CompileScenesOptions) {
         ...projectScenePaths.map((scenePath): SceneAssetRecord => ({ scenePath, kind: 'project' })),
         ...builtinSceneAssetIds().map((scenePath): SceneAssetRecord => ({ scenePath, kind: 'builtin' })),
     ];
+    const builtinScriptSources = await readBuiltinSceneScriptSources();
 
     await mkdir(generatedDir, { recursive: true });
 
@@ -73,7 +75,7 @@ export async function compileScenes(options: CompileScenesOptions) {
             const template = parseSceneTemplate(source);
             assertSceneLocalName(scenePath, template);
             template.interface = record.kind === 'builtin'
-                ? builtinSceneInterface(scenePath)
+                ? builtinSceneInterface(scenePath, builtinScriptSources)
                 : (await readPairedSceneScript(projectRoot, scenePath, template)).interface;
             templates.set(scenePath, normalizeSceneReferences(scenePath, template));
         } catch (error) {

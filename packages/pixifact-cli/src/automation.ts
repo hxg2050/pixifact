@@ -16,6 +16,7 @@ import {
     toPosixPath,
     validateSceneContent,
 } from 'pixifact/compiler';
+import { readBuiltinSceneScriptSourcesSync } from 'pixifact/compiler-node';
 import {
     parsePixifactProjectConfig,
     pixifactProjectConfigFileName,
@@ -153,7 +154,7 @@ function collectAssetFiles(root: string, directory: string, assets: Set<string>)
 
 function collectCompilerSceneInterfaces(root: string, skippedScene?: string) {
     const interfaces: Record<string, SceneTemplateInterface> = {
-        ...builtinSceneInterfaces(),
+        ...builtinSceneInterfaces(readBuiltinSceneScriptSourcesSync()),
     };
 
     for (const scenePath of collectCompilerScenePaths(root)) {

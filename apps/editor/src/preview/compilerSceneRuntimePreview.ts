@@ -6,19 +6,12 @@ import { Container } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
 import * as compilerRuntime from 'pixifact/compiler';
 import centerContainerSceneSource from 'pixifact/builtin-scenes/CenterContainer.scene?raw';
-import centerContainerTsSource from 'pixifact/builtin-scenes/CenterContainer.ts?raw';
 import controlSceneSource from 'pixifact/builtin-scenes/Control.scene?raw';
-import controlTsSource from 'pixifact/builtin-scenes/Control.ts?raw';
 import flexItemSceneSource from 'pixifact/builtin-scenes/FlexItem.scene?raw';
-import flexItemTsSource from 'pixifact/builtin-scenes/FlexItem.ts?raw';
 import flexLayoutSceneSource from 'pixifact/builtin-scenes/FlexLayout.scene?raw';
-import flexLayoutTsSource from 'pixifact/builtin-scenes/FlexLayout.ts?raw';
 import hBoxContainerSceneSource from 'pixifact/builtin-scenes/HBoxContainer.scene?raw';
-import hBoxContainerTsSource from 'pixifact/builtin-scenes/HBoxContainer.ts?raw';
 import marginContainerSceneSource from 'pixifact/builtin-scenes/MarginContainer.scene?raw';
-import marginContainerTsSource from 'pixifact/builtin-scenes/MarginContainer.ts?raw';
 import vBoxContainerSceneSource from 'pixifact/builtin-scenes/VBoxContainer.scene?raw';
-import vBoxContainerTsSource from 'pixifact/builtin-scenes/VBoxContainer.ts?raw';
 import controlLayoutTsSource from 'pixifact/builtin-scenes/controlLayout.ts?raw';
 import {
     compileSceneTemplateToTs,
@@ -36,6 +29,7 @@ import {
 import type { SceneTemplate, SceneTemplateInterface, SceneTemplateNode } from 'pixifact/compiler';
 import { compilerSceneNodeLocator } from '../document/compilerSceneDocumentController';
 import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
+import { builtinSceneScriptSources } from './builtinSceneScriptSources';
 import {
     findFileByPath,
     readProjectFileBytes,
@@ -106,19 +100,19 @@ const assetParsers: Record<string, string> = {
 
 const builtinPreviewSources: Record<string, string> = {
     'CenterContainer.scene': centerContainerSceneSource,
-    'CenterContainer.ts': centerContainerTsSource,
+    'CenterContainer.ts': builtinSceneScriptSources.CenterContainer,
     'Control.scene': controlSceneSource,
-    'Control.ts': controlTsSource,
+    'Control.ts': builtinSceneScriptSources.Control,
     'FlexItem.scene': flexItemSceneSource,
-    'FlexItem.ts': flexItemTsSource,
+    'FlexItem.ts': builtinSceneScriptSources.FlexItem,
     'FlexLayout.scene': flexLayoutSceneSource,
-    'FlexLayout.ts': flexLayoutTsSource,
+    'FlexLayout.ts': builtinSceneScriptSources.FlexLayout,
     'HBoxContainer.scene': hBoxContainerSceneSource,
-    'HBoxContainer.ts': hBoxContainerTsSource,
+    'HBoxContainer.ts': builtinSceneScriptSources.HBoxContainer,
     'MarginContainer.scene': marginContainerSceneSource,
-    'MarginContainer.ts': marginContainerTsSource,
+    'MarginContainer.ts': builtinSceneScriptSources.MarginContainer,
     'VBoxContainer.scene': vBoxContainerSceneSource,
-    'VBoxContainer.ts': vBoxContainerTsSource,
+    'VBoxContainer.ts': builtinSceneScriptSources.VBoxContainer,
     'controlLayout.ts': controlLayoutTsSource,
 };
 
@@ -514,7 +508,7 @@ async function collectPreviewModules(
                 throw new Error(`找不到内置 Scene：${scenePath}`);
             }
             const template = parseSceneTemplate(source);
-            template.interface = builtinSceneInterface(scenePath);
+            template.interface = builtinSceneInterface(scenePath, builtinSceneScriptSources);
             context.templates.set(scenePath, template);
             context.sceneInterfaces[scenePath] = template.interface;
         } else {
@@ -748,7 +742,7 @@ export async function createCompilerSceneRuntimePreview(options: CreateCompilerS
         scenePath: normalizeSceneAssetId(options.scenePath),
         templates: new Map([[normalizeSceneAssetId(options.scenePath), options.document.template]]),
         sceneInterfaces: {
-            ...builtinSceneInterfaces(),
+            ...builtinSceneInterfaces(builtinSceneScriptSources),
             ...options.document.sceneInterfaces,
             [normalizeSceneAssetId(options.scenePath)]: options.document.template.interface,
         },

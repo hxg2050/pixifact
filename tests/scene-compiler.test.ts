@@ -9,6 +9,7 @@ import { HBoxContainer } from 'pixifact/builtin-scenes/HBoxContainer';
 import { MarginContainer } from 'pixifact/builtin-scenes/MarginContainer';
 import { VBoxContainer } from 'pixifact/builtin-scenes/VBoxContainer';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -38,8 +39,19 @@ import {
     sceneLocalName,
     slot,
     validateSceneContent,
+    type BuiltinSceneScriptSources,
 } from 'pixifact/compiler';
 import { compileScenes, pixifactScenesPlugin } from 'pixifact/compiler-node';
+
+const builtinSceneScriptSources: BuiltinSceneScriptSources = {
+    CenterContainer: readFileSync('packages/pixifact/src/builtin-scenes/CenterContainer.ts', 'utf8'),
+    Control: readFileSync('packages/pixifact/src/builtin-scenes/Control.ts', 'utf8'),
+    FlexItem: readFileSync('packages/pixifact/src/builtin-scenes/FlexItem.ts', 'utf8'),
+    FlexLayout: readFileSync('packages/pixifact/src/builtin-scenes/FlexLayout.ts', 'utf8'),
+    HBoxContainer: readFileSync('packages/pixifact/src/builtin-scenes/HBoxContainer.ts', 'utf8'),
+    MarginContainer: readFileSync('packages/pixifact/src/builtin-scenes/MarginContainer.ts', 'utf8'),
+    VBoxContainer: readFileSync('packages/pixifact/src/builtin-scenes/VBoxContainer.ts', 'utf8'),
+};
 
 function registerSlotScene(SceneClass: new () => Control, scenePath: string) {
     registerScene(scenePath, {
@@ -117,6 +129,27 @@ describe('Pixifact scene compiler spike', () => {
             expect(scene.scale.y).toBe(1);
             expect(scene.hitArea).toMatchObject({ x: 0, y: 0, width: 120, height: 40 });
         }
+    });
+
+    it('extracts built-in Scene interfaces from their decorated scripts', () => {
+        const scriptSources = {
+            ...builtinSceneScriptSources,
+            HBoxContainer: builtinSceneScriptSources.HBoxContainer.replace(
+                "@prop({ type: Number, default: 0 })\n    set gap",
+                "@prop({ type: Number, default: 7 })\n    set gap",
+            ),
+        };
+        const interfaces = builtinSceneInterfaces(scriptSources);
+
+        expect(interfaces[builtinSceneAssetId('Control')].props.minWidth).toEqual({
+            type: 'number',
+            default: 0,
+        });
+        expect(interfaces[builtinSceneAssetId('Control')].slots.default).toEqual({});
+        expect(interfaces[builtinSceneAssetId('HBoxContainer')].props.gap).toEqual({
+            type: 'number',
+            default: 7,
+        });
     });
 
     it('syncs natural control sizes into the Group size protocol', () => {
@@ -551,14 +584,14 @@ describe('Pixifact scene compiler spike', () => {
         expect(() => validateSceneContent({
             scene: 'src/scenes/MainMenu.scene',
             content: '<Scene name="MainMenu"><VBoxContainer scene="" /></Scene>',
-            sceneInterfaces: builtinSceneInterfaces(),
+            sceneInterfaces: builtinSceneInterfaces(builtinSceneScriptSources),
             normalizeSceneReference: (scenePath) => resolveSceneReference('src/scenes/MainMenu.scene', scenePath),
         })).not.toThrow();
 
         expect(validateSceneContent({
             scene: 'src/scenes/MainMenu.scene',
             content: '<Scene name="MainMenu"><VBoxContainer scene="" /></Scene>',
-            sceneInterfaces: builtinSceneInterfaces(),
+            sceneInterfaces: builtinSceneInterfaces(builtinSceneScriptSources),
             normalizeSceneReference: (scenePath) => resolveSceneReference('src/scenes/MainMenu.scene', scenePath),
         })).toMatchObject({
             ok: false,
@@ -1051,7 +1084,7 @@ import { Group } from 'pixifact/runtime';`);
         expect(validateSceneContent({
             scene: 'src/scenes/MainMenu.scene',
             content: source,
-            sceneInterfaces: builtinSceneInterfaces(),
+            sceneInterfaces: builtinSceneInterfaces(builtinSceneScriptSources),
         })).toMatchObject({
             ok: true,
         });
@@ -1089,7 +1122,7 @@ import { Group } from 'pixifact/runtime';`);
         expect(validateSceneContent({
             scene: 'src/scenes/Hud.scene',
             content: source,
-            sceneInterfaces: builtinSceneInterfaces(),
+            sceneInterfaces: builtinSceneInterfaces(builtinSceneScriptSources),
         })).toMatchObject({
             ok: true,
         });

@@ -7,6 +7,6 @@ await cp(
     fileURLToPath(new URL('../dist/builtin-scenes/', import.meta.url)),
     {
         recursive: true,
-        filter: (source) => source.endsWith('.scene') || !path.basename(source).includes('.'),
+        filter: (source) => source.endsWith('.scene') || source.endsWith('.ts') || !path.basename(source).includes('.'),
     },
 );

@@ -13,6 +13,7 @@ import {
     type SceneTemplateInterface,
     type SceneTemplateNode,
 } from 'pixifact/compiler';
+import { builtinSceneScriptSources } from '../preview/builtinSceneScriptSources';
 import { readHostProjectFileText } from './hostBridge';
 import type { ProjectFileTreeNode } from './projectFileTree';
 
@@ -88,7 +89,7 @@ export function sceneInterfacesForCompilerTemplate(
     ownerScenePath?: string,
 ) {
     return {
-        ...builtinSceneInterfaces(),
+        ...builtinSceneInterfaces(builtinSceneScriptSources),
         ...Object.fromEntries([...collectSceneInstancePaths(nodes, new Set(), ownerScenePath)]
             .filter((scenePath) => index[scenePath])
             .map((scenePath) => [scenePath, index[scenePath].interface])),
