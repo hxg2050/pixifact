@@ -741,6 +741,8 @@ describe('Editor workbench UI', () => {
             expect(host.readFileCalls).toEqual([
                 'GameProject/src/scenes/Button.scene',
                 'GameProject/src/scenes/Button.ts',
+                'GameProject/src/scenes/Child.scene',
+                'GameProject/src/scenes/Child.ts',
             ]);
             host.readFileCalls = [];
             selectCompilerSceneNode('0:label');

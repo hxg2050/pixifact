@@ -2,6 +2,7 @@ import ts from 'typescript';
 import type {
     SceneScriptInterface,
     SceneTemplateEventContract,
+    SceneTemplateInterface,
     SceneTemplatePrimitivePropType,
     SceneTemplatePropContract,
     SceneTemplateScalarValue,
@@ -13,24 +14,62 @@ export interface ExtractSceneScriptInterfaceOptions {
     scene: string;
 }
 
+export interface ExtractSceneScriptInterfaceSource extends ExtractSceneScriptInterfaceOptions {
+    source: string;
+    fileName?: string;
+}
+
+interface ExtractedSceneScriptClass {
+    scene?: string;
+    className: string;
+    parentClassName?: string;
+    interface: SceneTemplateInterface;
+    parts: Record<string, string>;
+}
+
 export function extractSceneScriptInterface(
     source: string,
     fileName = 'scene-script.ts',
     options: ExtractSceneScriptInterfaceOptions,
 ): SceneScriptInterface {
+    const descriptors = composeSceneScriptClasses(extractSceneScriptClasses(source, fileName, options));
+    const descriptor = descriptors[options.scene];
+    if (!descriptor) {
+        throw new Error('No @scene decorator found.');
+    }
+    return descriptor;
+}
+
+export function extractSceneScriptInterfaces(
+    sources: readonly ExtractSceneScriptInterfaceSource[],
+): Record<string, SceneScriptInterface> {
+    return composeSceneScriptClasses(sources.flatMap((source) => extractSceneScriptClasses(
+        source.source,
+        source.fileName ?? 'scene-script.ts',
+        { scene: source.scene },
+    )));
+}
+
+function extractSceneScriptClasses(
+    source: string,
+    fileName: string,
+    options: ExtractSceneScriptInterfaceOptions,
+): ExtractedSceneScriptClass[] {
     const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
     const structClasses = collectStructClasses(sourceFile);
+    const classes: ExtractedSceneScriptClass[] = [];
 
     for (const statement of sourceFile.statements) {
         if (!ts.isClassDeclaration(statement)) {
             continue;
         }
-        if (!hasSceneDecorator(statement)) {
-            continue;
-        }
+        const isSceneClass = hasSceneDecorator(statement);
         const className = statement.name?.text;
         if (!className) {
-            throw new Error('Scene script class is missing a name.');
+            if (isSceneClass) {
+                throw new Error('Scene script class is missing a name.');
+            }
+            continue;
         }
 
         const props: Record<string, SceneTemplatePropContract> = {};
@@ -65,19 +104,25 @@ export function extractSceneScriptInterface(
             }
         }
 
-        return {
-            scene: options.scene,
+        const parentClassName = parentClassNameOf(statement);
+        if (!isSceneClass && !parentClassName && !hasPublicContract(props, events, slots, parts)) {
+            continue;
+        }
+
+        classes.push({
+            ...(isSceneClass ? { scene: options.scene } : {}),
             className,
+            ...(parentClassName ? { parentClassName } : {}),
             interface: {
                 props,
                 events,
                 slots,
             },
             parts,
-        };
+        });
     }
 
-    throw new Error('No @scene decorator found.');
+    return classes;
 }
 
 export function emitSceneScriptInterfaceDescriptor(
@@ -86,6 +131,104 @@ export function emitSceneScriptInterfaceDescriptor(
     options: ExtractSceneScriptInterfaceOptions,
 ) {
     return `${JSON.stringify(extractSceneScriptInterface(source, fileName, options), null, 2)}\n`;
+}
+
+function composeSceneScriptClasses(classes: readonly ExtractedSceneScriptClass[]): Record<string, SceneScriptInterface> {
+    const classesByName = new Map<string, ExtractedSceneScriptClass[]>();
+    for (const item of classes) {
+        const bucket = classesByName.get(item.className) ?? [];
+        bucket.push(item);
+        classesByName.set(item.className, bucket);
+    }
+
+    const composed = new Map<ExtractedSceneScriptClass, SceneTemplateInterface>();
+    const visiting = new Set<ExtractedSceneScriptClass>();
+
+    function compose(item: ExtractedSceneScriptClass): SceneTemplateInterface {
+        const cached = composed.get(item);
+        if (cached) {
+            return cached;
+        }
+        if (visiting.has(item)) {
+            throw new Error(`Scene script class "${item.className}" has a circular inheritance chain.`);
+        }
+
+        visiting.add(item);
+        const parent = item.parentClassName ? resolveParentClass(item, classesByName) : undefined;
+        const parentInterface = parent ? compose(parent) : emptySceneInterface();
+        const sceneInterface = mergeSceneInterfaces(parentInterface, item.interface);
+        visiting.delete(item);
+        composed.set(item, sceneInterface);
+        return sceneInterface;
+    }
+
+    const result: Record<string, SceneScriptInterface> = {};
+    for (const item of classes) {
+        if (!item.scene) {
+            continue;
+        }
+        if (result[item.scene]) {
+            throw new Error(`Scene script "${item.scene}" has multiple @scene classes.`);
+        }
+        result[item.scene] = {
+            scene: item.scene,
+            className: item.className,
+            interface: compose(item),
+            parts: item.parts,
+        };
+    }
+    return result;
+}
+
+function resolveParentClass(
+    item: ExtractedSceneScriptClass,
+    classesByName: ReadonlyMap<string, readonly ExtractedSceneScriptClass[]>,
+) {
+    const candidates = classesByName.get(item.parentClassName ?? '') ?? [];
+    if (candidates.length === 0) {
+        return undefined;
+    }
+    if (candidates.length > 1) {
+        throw new Error(`Scene script parent class "${item.parentClassName}" is ambiguous for "${item.className}".`);
+    }
+    return candidates[0];
+}
+
+function emptySceneInterface(): SceneTemplateInterface {
+    return {
+        props: {},
+        events: {},
+        slots: {},
+    };
+}
+
+function mergeSceneInterfaces(parent: SceneTemplateInterface, own: SceneTemplateInterface): SceneTemplateInterface {
+    return {
+        props: {
+            ...parent.props,
+            ...own.props,
+        },
+        events: {
+            ...parent.events,
+            ...own.events,
+        },
+        slots: {
+            ...parent.slots,
+            ...own.slots,
+        },
+    };
+}
+
+function hasPublicContract(
+    props: Record<string, SceneTemplatePropContract>,
+    events: Record<string, SceneTemplateEventContract>,
+    slots: Record<string, SceneTemplateSlotContract>,
+    parts: Record<string, string>,
+) {
+    return Object.keys(props).length > 0
+        || Object.keys(events).length > 0
+        || Object.keys(slots).length > 0
+        || Object.keys(parts).length > 0;
 }
 
 function hasSceneDecorator(node: ts.ClassDeclaration) {
@@ -98,6 +241,21 @@ function hasSceneDecorator(node: ts.ClassDeclaration) {
         throw new Error('@scene does not accept arguments. Pair scripts by colocating a same-basename .ts file next to the .scene file.');
     }
     return true;
+}
+
+function parentClassNameOf(node: ts.ClassDeclaration) {
+    const heritage = node.heritageClauses?.find((item) => item.token === ts.SyntaxKind.ExtendsKeyword);
+    const parent = heritage?.types[0]?.expression;
+    if (!parent) {
+        return undefined;
+    }
+    if (ts.isIdentifier(parent)) {
+        return parent.text;
+    }
+    if (ts.isPropertyAccessExpression(parent)) {
+        return parent.name.text;
+    }
+    return undefined;
 }
 
 function memberDecoratorOptions(member: ts.ClassElement, name: string) {

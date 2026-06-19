@@ -1,10 +1,10 @@
 import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { SceneTemplate, SceneTemplateNode } from './spec';
+import type { SceneScriptInterface, SceneTemplate, SceneTemplateNode } from './spec';
 import {
     builtinSceneAssetIds,
-    builtinSceneInterface,
+    builtinSceneNameFromAssetId,
     isBuiltinSceneAssetId,
 } from './builtinScenes';
 import {
@@ -24,7 +24,7 @@ import {
     readBuiltinSceneScriptSources,
     readBuiltinSceneSource,
 } from '../compiler-node/builtinSceneAssets';
-import { extractSceneScriptInterface } from './scriptInterfaceExtractor';
+import { extractSceneScriptInterfaces } from './scriptInterfaceExtractor';
 import { findMissingScenePartReferences } from './scenePartValidation';
 import { parseSceneTemplate } from './templateParser';
 import { compileSceneTemplateToTs } from './typescriptCompiler';
@@ -65,21 +65,34 @@ export async function compileScenes(options: CompileScenesOptions) {
 
     await mkdir(generatedDir, { recursive: true });
 
+    const sceneSources = new Map<string, string>();
     const templates = new Map<string, SceneTemplate>();
     for (const record of sceneRecords) {
         const { scenePath } = record;
         const source = record.kind === 'builtin'
             ? await readBuiltinSceneSource(scenePath)
             : await readFile(path.resolve(projectRoot, scenePath), 'utf8');
+        sceneSources.set(scenePath, source);
         try {
             const template = parseSceneTemplate(source);
             assertSceneLocalName(scenePath, template);
-            template.interface = record.kind === 'builtin'
-                ? builtinSceneInterface(scenePath, builtinScriptSources)
-                : (await readPairedSceneScript(projectRoot, scenePath, template)).interface;
             templates.set(scenePath, normalizeSceneReferences(scenePath, template));
         } catch (error) {
             throw new CompileSceneError(error instanceof Error ? error.message : String(error), scenePath, source);
+        }
+    }
+
+    const sceneScriptDescriptors = await readSceneScriptDescriptors(projectRoot, projectScenePaths, builtinScriptSources, sceneSources);
+    for (const record of sceneRecords) {
+        const { scenePath } = record;
+        const template = templates.get(scenePath);
+        if (!template) {
+            throw new Error(`Missing parsed template for ${scenePath}.`);
+        }
+        try {
+            template.interface = bindSceneScriptInterface(scenePath, template, sceneScriptDescriptors[scenePath]).interface;
+        } catch (error) {
+            throw new CompileSceneError(error instanceof Error ? error.message : String(error), scenePath, sceneSources.get(scenePath));
         }
     }
 
@@ -190,6 +203,41 @@ async function exists(filePath: string) {
     }
 }
 
+async function readSceneScriptDescriptors(
+    projectRoot: string,
+    projectScenePaths: readonly string[],
+    builtinScriptSources: Awaited<ReturnType<typeof readBuiltinSceneScriptSources>>,
+    sceneSources: ReadonlyMap<string, string>,
+) {
+    const sources = builtinSceneAssetIds().map((scene): { scene: string; fileName: string; source: string } => {
+        const name = builtinSceneNameFromAssetId(scene);
+        return {
+            scene,
+            fileName: builtinSceneScriptPath(scene),
+            source: builtinScriptSources[name],
+        };
+    });
+
+    for (const scenePath of projectScenePaths) {
+        const scriptPath = pairedSceneScriptPath(scenePath);
+        const absoluteScriptPath = path.resolve(projectRoot, scriptPath);
+        if (!await exists(absoluteScriptPath)) {
+            throw new CompileSceneError(
+                `Scene "${scenePath}" requires paired script "${scriptPath}".`,
+                scenePath,
+                sceneSources.get(scenePath),
+            );
+        }
+        sources.push({
+            scene: scenePath,
+            fileName: absoluteScriptPath,
+            source: await readFile(absoluteScriptPath, 'utf8'),
+        });
+    }
+
+    return extractSceneScriptInterfaces(sources);
+}
+
 function assertSceneLocalName(scenePath: string, template: SceneTemplate) {
     const expected = sceneLocalName(scenePath);
     if (template.name !== expected) {
@@ -197,13 +245,10 @@ function assertSceneLocalName(scenePath: string, template: SceneTemplate) {
     }
 }
 
-async function readPairedSceneScript(projectRoot: string, scenePath: string, template: SceneTemplate) {
-    const scriptPath = pairedSceneScriptPath(scenePath);
-    const absoluteScriptPath = path.resolve(projectRoot, scriptPath);
-    if (!await exists(absoluteScriptPath)) {
-        throw new Error(`Scene "${scenePath}" requires paired script "${scriptPath}".`);
+function bindSceneScriptInterface(scenePath: string, template: SceneTemplate, descriptor: SceneScriptInterface | undefined) {
+    if (!descriptor) {
+        throw new Error(`Scene "${scenePath}" requires a @scene script class.`);
     }
-    const descriptor = extractSceneScriptInterface(await readFile(absoluteScriptPath, 'utf8'), absoluteScriptPath, { scene: scenePath });
     if (descriptor.className !== template.name) {
         throw new Error(`Scene "${scenePath}" name "${template.name}" must match @scene class "${descriptor.className}".`);
     }

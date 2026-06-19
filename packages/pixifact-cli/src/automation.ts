@@ -2,9 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
     createSceneRevision,
-    builtinSceneInterfaces,
+    builtinSceneAssetIds,
+    builtinSceneNameFromAssetId,
     defaultSceneSourceRoots,
-    extractSceneScriptInterface,
+    extractSceneScriptInterfaces,
     findMissingScenePartReferences,
     inspectSceneTemplate,
     isIgnoredSceneSourceDirectory,
@@ -22,7 +23,7 @@ import {
     pixifactProjectConfigFileName,
     summarizePixifactProjectConfig,
 } from 'pixifact';
-import type { SceneTemplate, SceneTemplateInterface, SceneTemplateNode, SceneValidationDiagnostic } from 'pixifact/compiler';
+import type { SceneScriptInterface, SceneTemplate, SceneTemplateInterface, SceneTemplateNode, SceneValidationDiagnostic } from 'pixifact/compiler';
 
 interface ProjectFileSummary {
     path: string;
@@ -153,9 +154,12 @@ function collectAssetFiles(root: string, directory: string, assets: Set<string>)
 }
 
 function collectCompilerSceneInterfaces(root: string, skippedScene?: string) {
-    const interfaces: Record<string, SceneTemplateInterface> = {
-        ...builtinSceneInterfaces(readBuiltinSceneScriptSourcesSync()),
-    };
+    const sceneSources: {
+        scenePath: string;
+        template: SceneTemplate;
+        scriptPath: string;
+        scriptSource: string;
+    }[] = [];
 
     for (const scenePath of collectCompilerScenePaths(root)) {
         if (scenePath === skippedScene) {
@@ -163,11 +167,49 @@ function collectCompilerSceneInterfaces(root: string, skippedScene?: string) {
         }
         try {
             const template = parseSceneTemplate(readTextFile(path.join(root, scenePath)));
-            const pair = readCompilerScenePairContract(root, scenePath, template);
+            const scriptPath = pairedSceneScriptPath(scenePath);
+            const absoluteScriptPath = path.join(root, scriptPath);
+            if (!fs.existsSync(absoluteScriptPath)) {
+                continue;
+            }
+            sceneSources.push({
+                scenePath,
+                template,
+                scriptPath,
+                scriptSource: readTextFile(absoluteScriptPath),
+            });
+        } catch {
+            continue;
+        }
+    }
+
+    const builtinSources = readBuiltinSceneScriptSourcesSync();
+    const descriptors = extractSceneScriptInterfaces([
+        ...builtinSceneAssetIds().map((scene) => {
+            const name = builtinSceneNameFromAssetId(scene);
+            return {
+                scene,
+                fileName: `${name}.ts`,
+                source: builtinSources[name],
+            };
+        }),
+        ...sceneSources.map((source) => ({
+            scene: source.scenePath,
+            fileName: source.scriptPath,
+            source: source.scriptSource,
+        })),
+    ]);
+    const interfaces: Record<string, SceneTemplateInterface> = Object.fromEntries(
+        builtinSceneAssetIds().map((scene) => [scene, descriptors[scene].interface]),
+    );
+
+    for (const source of sceneSources) {
+        try {
+            const pair = readCompilerScenePairContract(root, source.scenePath, source.template, descriptors[source.scenePath]);
             if (pair.diagnostics.length > 0 || !pair.sceneInterface) {
                 continue;
             }
-            interfaces[scenePath] = pair.sceneInterface;
+            interfaces[source.scenePath] = pair.sceneInterface;
         } catch {
             continue;
         }
@@ -237,6 +279,7 @@ function readCompilerScenePairContract(
     root: string,
     scenePath: string,
     template: SceneTemplate,
+    descriptor?: SceneScriptInterface,
 ): { diagnostics: SceneValidationDiagnostic[]; sceneInterface?: SceneTemplateInterface } {
     const expectedName = sceneLocalName(scenePath);
     if (template.name !== expectedName) {
@@ -253,20 +296,29 @@ function readCompilerScenePairContract(
         };
     }
 
-    let descriptor: ReturnType<typeof extractSceneScriptInterface>;
+    let sceneDescriptor = descriptor;
     try {
-        descriptor = extractSceneScriptInterface(readTextFile(absoluteScriptPath), absoluteScriptPath, { scene: scenePath });
+        sceneDescriptor ??= extractSceneScriptInterfaces([{
+            scene: scenePath,
+            fileName: absoluteScriptPath,
+            source: readTextFile(absoluteScriptPath),
+        }])[scenePath];
     } catch (error) {
         return {
             diagnostics: [compilerSceneScriptContractDiagnostic(error)],
         };
     }
-    if (descriptor.className !== template.name) {
+    if (!sceneDescriptor) {
         return {
-            diagnostics: [compilerSceneClassDiagnostic(template.name, descriptor.className)],
+            diagnostics: [compilerSceneScriptContractDiagnostic(new Error('No @scene decorator found.'))],
         };
     }
-    const missingParts = findMissingScenePartReferences(template, descriptor.parts);
+    if (sceneDescriptor.className !== template.name) {
+        return {
+            diagnostics: [compilerSceneClassDiagnostic(template.name, sceneDescriptor.className)],
+        };
+    }
+    const missingParts = findMissingScenePartReferences(template, sceneDescriptor.parts);
     if (missingParts.length > 0) {
         return {
             diagnostics: missingParts.map((part) => compilerScenePartDiagnostic(part.property, part.id)),
@@ -275,7 +327,7 @@ function readCompilerScenePairContract(
 
     return {
         diagnostics: [],
-        sceneInterface: descriptor.interface,
+        sceneInterface: sceneDescriptor.interface,
     };
 }
 

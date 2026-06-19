@@ -1,7 +1,9 @@
 import {
+    builtinSceneAssetIds,
     builtinSceneInterfaces,
+    builtinSceneNameFromAssetId,
     defaultSceneSourceRoots,
-    extractSceneScriptInterface,
+    extractSceneScriptInterfaces,
     isIgnoredSceneSourceDirectory,
     normalizeSceneAssetId,
     pairedSceneScriptPath,
@@ -30,12 +32,7 @@ export interface CompilerSceneBinding {
 export type CompilerSceneBindingIndex = Record<string, CompilerSceneBinding>;
 
 export async function readCompilerSceneBindingIndex(projectTree: ProjectFileTreeNode): Promise<CompilerSceneBindingIndex> {
-    const entries: [string, CompilerSceneBinding][] = [];
-    for (const file of collectCompilerSceneFiles(projectTree, projectTree)) {
-        const binding = await readCompilerSceneBinding(projectTree, file);
-        entries.push([binding.scenePath, binding]);
-    }
-    return Object.fromEntries(entries);
+    return readCompilerSceneBindings(projectTree);
 }
 
 export async function readCompilerSceneBinding(
@@ -51,35 +48,94 @@ export async function readCompilerSceneTemplateBinding(
     file: ProjectFileTreeNode,
     template: SceneTemplate,
 ): Promise<CompilerSceneBinding> {
-    const scenePath = projectFileRelativePath(projectTree, file);
+    const bindings = await readCompilerSceneBindings(projectTree, { file, template });
+    const scenePath = normalizeSceneAssetId(projectFileRelativePath(projectTree, file));
+    const binding = bindings[scenePath];
+    if (!binding) {
+        throw new Error(`找不到 Scene 绑定 ${scenePath}。`);
+    }
+    return binding;
+}
+
+interface CompilerSceneBindingSource {
+    scenePath: string;
+    file: ProjectFileTreeNode;
+    scriptFile: ProjectFileTreeNode;
+    template: SceneTemplate;
+    scriptSource: string;
+}
+
+async function readCompilerSceneBindings(
+    projectTree: ProjectFileTreeNode,
+    templateOverride?: { file: ProjectFileTreeNode; template: SceneTemplate },
+): Promise<CompilerSceneBindingIndex> {
+    const sources: CompilerSceneBindingSource[] = [];
+    for (const file of collectCompilerSceneFiles(projectTree, projectTree)) {
+        sources.push(await readCompilerSceneBindingSource(projectTree, file, templateOverride));
+    }
+
+    const descriptors = extractSceneScriptInterfaces([
+        ...builtinSceneAssetIds().map((scene) => {
+            const name = builtinSceneNameFromAssetId(scene);
+            return {
+                scene,
+                fileName: `${name}.ts`,
+                source: builtinSceneScriptSources[name],
+            };
+        }),
+        ...sources.map((source) => ({
+            scene: source.scenePath,
+            fileName: source.scriptFile.path,
+            source: source.scriptSource,
+        })),
+    ]);
+
+    return Object.fromEntries(sources.map((source) => {
+        const descriptor = descriptors[source.scenePath];
+        if (!descriptor) {
+            throw new Error('No @scene decorator found.');
+        }
+        if (descriptor.className !== source.template.name) {
+            throw new Error(`Scene ${source.file.name} 的 name "${source.template.name}" 必须等于脚本 @scene 类名 "${descriptor.className}"。`);
+        }
+
+        const boundTemplate: SceneTemplate = {
+            ...source.template,
+            interface: descriptor.interface,
+        };
+
+        return [source.scenePath, {
+            scenePath: source.scenePath,
+            file: source.file,
+            scriptFile: source.scriptFile,
+            template: boundTemplate,
+            descriptor,
+            className: descriptor.className,
+            interface: descriptor.interface,
+        } satisfies CompilerSceneBinding];
+    }));
+}
+
+async function readCompilerSceneBindingSource(
+    projectTree: ProjectFileTreeNode,
+    file: ProjectFileTreeNode,
+    templateOverride?: { file: ProjectFileTreeNode; template: SceneTemplate },
+): Promise<CompilerSceneBindingSource> {
+    const scenePath = normalizeSceneAssetId(projectFileRelativePath(projectTree, file));
     const scriptPath = pairedSceneScriptPath(scenePath);
     const scriptFile = findFileByPath(projectTree, `${projectTree.path}/${scriptPath}`);
     if (!scriptFile) {
         throw new Error(`找不到 Scene 脚本 ${scriptPath}。`);
     }
 
-    const descriptor = extractSceneScriptInterface(
-        await readProjectFileText(projectTree, scriptFile),
-        scriptFile.path,
-        { scene: scenePath },
-    );
-    if (descriptor.className !== template.name) {
-        throw new Error(`Scene ${file.name} 的 name "${template.name}" 必须等于脚本 @scene 类名 "${descriptor.className}"。`);
-    }
-
-    const boundTemplate: SceneTemplate = {
-        ...template,
-        interface: descriptor.interface,
-    };
-
     return {
         scenePath,
         file,
         scriptFile,
-        template: boundTemplate,
-        descriptor,
-        className: descriptor.className,
-        interface: descriptor.interface,
+        template: templateOverride?.file.path === file.path
+            ? templateOverride.template
+            : parseSceneTemplate(await readProjectFileText(projectTree, file)),
+        scriptSource: await readProjectFileText(projectTree, scriptFile),
     };
 }
 

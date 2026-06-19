@@ -31,6 +31,7 @@ import {
     inspectSceneTemplate,
     createEvent,
     event,
+    extractSceneScriptInterfaces,
     registerScene,
     registerSceneClass,
     registerSlot,
@@ -134,6 +135,10 @@ describe('Pixifact scene compiler spike', () => {
     it('extracts built-in Scene interfaces from their decorated scripts', () => {
         const scriptSources = {
             ...builtinSceneScriptSources,
+            Control: builtinSceneScriptSources.Control.replace(
+                "@prop({ type: Number, default: 0 })\n    set minWidth",
+                "@prop({ type: Number, default: 13 })\n    set minWidth",
+            ),
             HBoxContainer: builtinSceneScriptSources.HBoxContainer.replace(
                 "@prop({ type: Number, default: 0 })\n    set gap",
                 "@prop({ type: Number, default: 7 })\n    set gap",
@@ -143,12 +148,28 @@ describe('Pixifact scene compiler spike', () => {
 
         expect(interfaces[builtinSceneAssetId('Control')].props.minWidth).toEqual({
             type: 'number',
-            default: 0,
+            default: 13,
         });
         expect(interfaces[builtinSceneAssetId('Control')].slots.default).toEqual({});
+        expect(interfaces[builtinSceneAssetId('HBoxContainer')].props.minWidth).toEqual({
+            type: 'number',
+            default: 13,
+        });
+        expect(interfaces[builtinSceneAssetId('HBoxContainer')].props.hSize).toEqual({
+            type: 'string',
+            default: 'content',
+        });
         expect(interfaces[builtinSceneAssetId('HBoxContainer')].props.gap).toEqual({
             type: 'number',
             default: 7,
+        });
+        expect(interfaces[builtinSceneAssetId('FlexItem')].props.minWidth).toEqual({
+            type: 'number',
+            default: 13,
+        });
+        expect(interfaces[builtinSceneAssetId('FlexItem')].props.hSize).toEqual({
+            type: 'string',
+            default: 'content',
         });
     });
 
@@ -518,6 +539,52 @@ describe('Pixifact scene compiler spike', () => {
                     actual: 'unknown slot',
                 },
             ],
+        });
+    });
+
+    it('validates Scene instances against inherited script contracts', () => {
+        const descriptors = extractSceneScriptInterfaces([
+            {
+                scene: 'src/ui/BaseControl.scene',
+                fileName: 'BaseControl.ts',
+                source: `
+                    @scene()
+                    export class BaseControl {
+                        @prop({ type: Number, default: 8 })
+                        accessor padding = 8;
+
+                        @slot()
+                        default!: unknown;
+                    }
+                `,
+            },
+            {
+                scene: 'src/ui/Button.scene',
+                fileName: 'Button.ts',
+                source: `
+                    @scene()
+                    export class Button extends BaseControl {
+                        @prop({ type: String, default: 'primary' })
+                        accessor tone = 'primary';
+                    }
+                `,
+            },
+        ]);
+
+        expect(validateSceneContent({
+            scene: 'src/screens/Hud.scene',
+            content: [
+                '<Scene name="Hud">',
+                '  <Button scene="src/ui/Button.scene" padding="12" tone="secondary">',
+                '    <Text id="label" text="Start" />',
+                '  </Button>',
+                '</Scene>',
+            ].join('\n'),
+            sceneInterfaces: Object.fromEntries(
+                Object.entries(descriptors).map(([scene, descriptor]) => [scene, descriptor.interface]),
+            ),
+        })).toMatchObject({
+            ok: true,
         });
     });
 
@@ -1094,7 +1161,7 @@ import { Group } from 'pixifact/runtime';`);
         const template = parseSceneTemplate(`
             <Scene name="Hud">
               <FlexLayout id="topStats" direction="row" align="center" justify="space-between" gap="16">
-                <FlexItem grow="1" minWidth="240">
+                <FlexItem grow="1" minWidth="240" hSize="fill">
                   <Text id="score" text="000000" />
                 </FlexItem>
               </FlexLayout>
@@ -1116,7 +1183,7 @@ import { Group } from 'pixifact/runtime';`);
 
         const source = serializeSceneTemplate(template);
         expect(source).toContain('<FlexLayout id="topStats" direction="row" align="center" justify="space-between" gap="16">');
-        expect(source).toContain('<FlexItem grow="1" minWidth="240">');
+        expect(source).toContain('<FlexItem grow="1" minWidth="240" hSize="fill">');
         expect(source).not.toContain('scene="pixifact:FlexLayout.scene"');
         expect(source).not.toContain('scene="pixifact:FlexItem.scene"');
         expect(validateSceneContent({

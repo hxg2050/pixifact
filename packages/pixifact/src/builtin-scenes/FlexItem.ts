@@ -29,8 +29,6 @@ export class FlexItem extends Control {
     #grow = 0;
     #shrink = 1;
     #basis: FlexBasis = 'auto';
-    #minWidth = 0;
-    #minHeight = 0;
     #maxWidth = -1;
     #maxHeight = -1;
     #marginLeft = 0;
@@ -66,26 +64,6 @@ export class FlexItem extends Control {
     @prop({ type: Number, default: -1 })
     set basis(value: string | number) {
         this.#basis = parseBasis(value);
-        this.requestParentLayout();
-    }
-
-    get minWidth() {
-        return this.#minWidth;
-    }
-
-    @prop({ type: Number, default: 0 })
-    set minWidth(value: number) {
-        this.#minWidth = Math.max(0, finiteNumber(value, 0));
-        this.requestParentLayout();
-    }
-
-    get minHeight() {
-        return this.#minHeight;
-    }
-
-    @prop({ type: Number, default: 0 })
-    set minHeight(value: number) {
-        this.#minHeight = Math.max(0, finiteNumber(value, 0));
         this.requestParentLayout();
     }
 
@@ -160,12 +138,13 @@ export class FlexItem extends Control {
     }
 
     getFlexItemLayoutProps(): FlexItemLayoutProps {
+        const controlProps = this.getControlLayoutProps();
         return {
             grow: this.#grow,
             shrink: this.#shrink,
             basis: this.#basis,
-            minWidth: this.#minWidth,
-            minHeight: this.#minHeight,
+            minWidth: controlProps.minWidth,
+            minHeight: controlProps.minHeight,
             maxWidth: this.#maxWidth,
             maxHeight: this.#maxHeight,
             marginLeft: this.#marginLeft,

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     emitSceneScriptInterfaceDescriptor,
     event,
+    extractSceneScriptInterfaces,
     extractSceneScriptInterface,
     part,
     prop,
@@ -87,6 +88,70 @@ import { Group } from 'pixifact/runtime';
         });
         expect(contract.interface.slots).toEqual({
             footer: {},
+        });
+    });
+
+    it('composes inherited public contracts across scene scripts', () => {
+        const contracts = extractSceneScriptInterfaces([
+            {
+                scene: 'src/ui/BaseControl.scene',
+                fileName: 'BaseControl.ts',
+                source: `
+                    @scene()
+                    export class BaseControl {
+                        @prop({ type: String, default: 'base' })
+                        accessor tone = 'base';
+
+                        @prop({ type: Number, default: 8 })
+                        accessor padding = 8;
+
+                        @event()
+                        readonly press = createEvent();
+
+                        @slot()
+                        default!: unknown;
+                    }
+                `,
+            },
+            {
+                scene: 'src/ui/Button.scene',
+                fileName: 'Button.ts',
+                source: `
+                    @scene()
+                    export class Button extends BaseControl {
+                        @prop({ type: String, default: 'primary' })
+                        accessor tone = 'primary';
+
+                        @prop({ type: Boolean, default: false })
+                        accessor disabled = false;
+                    }
+                `,
+            },
+        ]);
+
+        expect(contracts['src/ui/Button.scene'].interface).toEqual({
+            props: {
+                tone: {
+                    type: 'string',
+                    default: 'primary',
+                },
+                padding: {
+                    type: 'number',
+                    default: 8,
+                },
+                disabled: {
+                    type: 'boolean',
+                    default: false,
+                },
+            },
+            events: {
+                press: {
+                    type: 'action',
+                },
+            },
+            slots: {
+                default: {},
+            },
         });
     });
 
