@@ -26,7 +26,7 @@ v1 要做到：
 - 选中节点后出现选中框。
 - 可以在视口中点击选中节点。
 - 选中后可以移动节点，实时修改 `x/y`。
-- 选中后可以 resize 节点，实时修改 `width/height`。
+- 选中后可以 resize 节点，按 handle 方向实时修改 `x/y/width/height`。
 - Inspector 和层级面板与视口实时同步。
 - 缩放、平移、网格、Scene、选中框始终对齐。
 
@@ -45,7 +45,7 @@ v1 不做：
 - 右键菜单。
 - 复杂布局编辑。
 - 预览模式下交互模拟。
-- 左边 / 上边 resize。
+- 右上 / 左下角 resize。
 
 ## 视觉结构
 
@@ -178,9 +178,12 @@ pointer up
 
 选中节点后显示 handles。
 
-v1 只支持三个 handle：
+v1 支持六个 handle：
 
 ```txt
+左边 handle：修改 x / width，右边固定
+上边 handle：修改 y / height，下边固定
+左上角 handle：同时修改 x / y / width / height，右下角固定
 右边 handle：修改 width
 下边 handle：修改 height
 右下角 handle：同时修改 width / height
@@ -188,17 +191,17 @@ v1 只支持三个 handle：
 
 暂不支持：
 
-- 左边 handle。
-- 上边 handle。
-- 左上 / 右上 / 左下角 handle。
-
-原因是左边和上边 resize 会同时影响 `x/y`，v1 先保持简单。
+- 右上角 handle。
+- 左下角 handle。
 
 字段规则：
 
 - Resize 写入 `props.width`。
 - Resize 写入 `props.height`。
+- 左边 resize 写入 `props.x`，保持右边不动。
+- 上边 resize 写入 `props.y`，保持下边不动。
 - 如果原本没有 `width/height`，以当前 bounds 尺寸为起点，并写入明确字段。
+- 如果左边 / 上边 resize 时原本没有 `x/y`，以当前 bounds 坐标为起点，并写入明确字段。
 - 最小尺寸为 `1`。
 - Resize 单位使用 Scene 坐标。
 
@@ -249,18 +252,9 @@ v1 目标行为：
 beginEdit()
 updateEdit()
 commitEdit()
-cancelEdit()
 ```
 
 拖动中可以多次 update，但 undo 只记录为一次操作。
-
-Esc 行为：
-
-```txt
-拖动或 resize 中按 Esc
-  -> 恢复到操作开始前
-  -> 取消本次 edit
-```
 
 ## 坐标规则
 
@@ -387,9 +381,12 @@ resize 测试：
 - 右边 handle 只修改 `width`。
 - 下边 handle 只修改 `height`。
 - 右下角 handle 同时修改 `width/height`。
+- 左边 handle 修改 `x/width`，保持右边固定。
+- 上边 handle 修改 `y/height`，保持下边固定。
+- 左上角 handle 同时修改 `x/y/width/height`，保持右下角固定。
 - 原本没有 `width/height` 时，以当前 bounds 尺寸为起点。
+- 左边 / 上边 resize 原本没有 `x/y` 时，以当前 bounds 坐标为起点。
 - 最小尺寸 clamp 到 `1`。
-- resize 不修改 `x/y`。
 
 ### TDD 阶段 4：接入文档控制器和 undo
 
@@ -513,15 +510,15 @@ And 普通左键拖节点不会触发平移
 3. 给 document controller 补 `mergeKey` 驱动的 move / resize undo 测试。
 4. 接入选择：点击节点、空白取消、Overlay 更新。
 5. 接入 move：实时更新 `x/y`、Inspector、dirty、undo。
-6. 接入 resize：三个 handle、实时更新 `width/height`、undo、Esc cancel。
+6. 接入 resize：六个 handle、实时更新 `x/y/width/height`、undo。
 7. 跑 editor 相关验证，再跑 frontend build。
 
 当前阶段记录：
 
 - 阶段 1 已完成：视口坐标、Fit / 100%、缩放、平移、网格和开发分辨率参考框。
 - 阶段 2 已完成：可编辑节点命中、点击选中、空白取消选中、选中框对齐。
-- 阶段 3 当前只接入移动编辑：选中节点后拖动主体实时写入 `props.x / props.y`，一次拖动合并为一个 undo step。
-- Resize 仍保留到下一阶段实现，不混入当前 move 交付。
+- 阶段 3 已完成：移动编辑已接入，选中节点后拖动主体实时写入 `props.x / props.y`，一次拖动合并为一个 undo step。
+- 阶段 4 已完成：Resize 已接入左边 / 上边 / 左上角 / 右边 / 下边 / 右下角 handles，按方向实时写入 `props.x / props.y / props.width / props.height`，一次 resize 合并为一个 undo step，并补充 UI BDD 验收。
 
 ### 验证命令
 
@@ -554,7 +551,7 @@ v1 完成时，用户应该能做到：
 - Scene 在网格上完整显示。
 - 点击节点后看到准确选中框。
 - 拖动节点后，节点移动，Inspector 的 `x/y` 实时变化。
-- 拖动右边 / 下边 / 右下角 handle 后，节点尺寸变化，Inspector 的 `width/height` 实时变化。
+- 拖动 resize handle 后，节点位置或尺寸按方向变化，Inspector 的 `x/y/width/height` 实时变化。
 - 缩放和平移后，网格、Scene、选中框仍然对齐。
 - 保存后 `.scene` 文件包含更新后的坐标或尺寸字段。
 - 撤销一次可以回到拖动或 resize 前。

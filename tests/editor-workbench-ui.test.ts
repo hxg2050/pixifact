@@ -520,6 +520,29 @@ describe('Editor workbench UI', () => {
             'south-east',
             { x: 30, y: -80 },
         )).toEqual({ width: 150, height: 1 });
+        expect(resizeCompilerSceneNodeProps(
+            { x: 10, width: 100 },
+            { x: 10, y: 20, width: 100, height: 40 },
+            'west',
+            { x: 30, y: 20 },
+        )).toEqual({ x: 40, width: 70 });
+        expect(resizeCompilerSceneNodeProps(
+            { y: 20, height: 40 },
+            { x: 10, y: 20, width: 100, height: 40 },
+            'north',
+            { x: 30, y: 12 },
+        )).toEqual({ y: 32, height: 28 });
+        expect(resizeCompilerSceneNodeProps(
+            {},
+            { x: 10, y: 20, width: 100, height: 40 },
+            'north-west',
+            { x: 130, y: 60 },
+        )).toEqual({
+            x: 109,
+            y: 59,
+            width: 1,
+            height: 1,
+        });
         expect(panViewportTransform(
             { scale: 1.5, offset: { x: 40, y: 60 } },
             { x: 20, y: -10 },
@@ -648,6 +671,24 @@ describe('Editor workbench UI', () => {
             width: 100,
             height: 60,
         }, { x: 60, y: 80 })).toBe('south');
+        expect(pickCompilerSceneResizeHandle({
+            x: 10,
+            y: 20,
+            width: 100,
+            height: 60,
+        }, { x: 10, y: 20 })).toBe('north-west');
+        expect(pickCompilerSceneResizeHandle({
+            x: 10,
+            y: 20,
+            width: 100,
+            height: 60,
+        }, { x: 10, y: 50 })).toBe('west');
+        expect(pickCompilerSceneResizeHandle({
+            x: 10,
+            y: 20,
+            width: 100,
+            height: 60,
+        }, { x: 60, y: 20 })).toBe('north');
         expect(pickCompilerSceneResizeHandle({
             x: 10,
             y: 20,
