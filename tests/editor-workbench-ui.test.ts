@@ -4,7 +4,11 @@ import { createRoot } from 'react-dom/client';
 import type { DockviewApi } from 'dockview-react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectFileTreeNode } from '../apps/editor/src/services/projectFileTree';
-import { useEditorStore, writeEditorProjectLayoutState } from '../apps/editor/src/editorStore';
+import {
+    readEditorProjectLayoutState,
+    useEditorStore,
+    writeEditorProjectLayoutState,
+} from '../apps/editor/src/editorStore';
 import { EditorApp } from '../apps/editor/src/EditorApp';
 import {
     getCompilerSceneDocument,
@@ -278,6 +282,34 @@ function panelIdFromGroup(group: unknown) {
 
 function dockviewSashes(container: HTMLElement) {
     return [...container.getElementsByClassName('dv-sash')] as HTMLElement[];
+}
+
+function defaultDockviewPanelIds(api?: DockviewApi) {
+    const root = api?.toJSON().grid.root;
+    const rootData = root?.type === 'branch' && Array.isArray(root.data) ? root.data : [];
+    const leftColumn = rootData[0];
+    const centerColumn = rootData[1];
+    const rightColumn = rootData[2];
+    const leftColumnData = leftColumn?.type === 'branch' && Array.isArray(leftColumn.data) ? leftColumn.data : [];
+    const centerPanel = centerColumn?.type === 'leaf' ? centerColumn : undefined;
+    const rightColumnData = rightColumn?.type === 'branch' && Array.isArray(rightColumn.data) ? rightColumn.data : [];
+    return {
+        center: panelIdFromGroup(centerPanel?.data),
+        left: leftColumnData.map((node) => panelIdFromGroup(node.data)),
+        right: rightColumnData.map((node) => panelIdFromGroup(node.data)),
+        rootCount: rootData.length,
+    };
+}
+
+function expectDefaultDockviewLayout(api?: DockviewApi) {
+    expect(api).toBeTruthy();
+    expect(api?.toJSON().grid.orientation).toBe('HORIZONTAL');
+    expect(defaultDockviewPanelIds(api)).toEqual({
+        rootCount: 3,
+        left: ['hierarchy', 'project'],
+        center: 'preview',
+        right: ['inspector', 'projectPreview'],
+    });
 }
 
 function click(element: Element) {
@@ -671,22 +703,39 @@ describe('Editor workbench UI', () => {
             expect(textContent(view.container)).not.toContain('Dockview');
             expect(textContent(view.container)).toContain('Button.scene');
             expect(textContent(view.container)).toContain('Project');
-            const root = dockviewApi?.toJSON().grid.root;
-            const rootData = root?.type === 'branch' && Array.isArray(root.data) ? root.data : [];
-            const leftColumn = rootData[0];
-            const centerColumn = rootData[1];
-            const rightColumn = rootData[2];
-            const leftColumnData = leftColumn?.type === 'branch' && Array.isArray(leftColumn.data) ? leftColumn.data : [];
-            const centerPanel = centerColumn?.type === 'leaf' ? centerColumn : undefined;
-            const rightColumnData = rightColumn?.type === 'branch' && Array.isArray(rightColumn.data) ? rightColumn.data : [];
-            expect(dockviewApi).toBeTruthy();
-            expect(dockviewApi?.toJSON().grid.orientation).toBe('HORIZONTAL');
-            expect(rootData).toHaveLength(3);
-            expect(leftColumnData).toHaveLength(2);
-            expect(rightColumnData).toHaveLength(2);
-            expect(leftColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['hierarchy', 'project']);
-            expect(panelIdFromGroup(centerPanel?.data)).toBe('preview');
-            expect(rightColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['inspector', 'projectPreview']);
+            expectDefaultDockviewLayout(dockviewApi);
+        } finally {
+            await view.cleanup();
+        }
+    });
+
+    it('resets the current project Dockview layout without closing the opened Scene', async () => {
+        let dockviewApi: DockviewApi | undefined;
+        const view = await renderEditorApp({ onDockviewReady: (api) => {
+            dockviewApi = api;
+        } });
+        try {
+            expectDefaultDockviewLayout(dockviewApi);
+            const openedScenePath = useEditorStore.getState().openedScenePath;
+
+            await act(async () => {
+                dockviewApi?.clear();
+                await Promise.resolve();
+            });
+            expect(dockviewApi?.toJSON().panels.preview).toBeUndefined();
+
+            const resetLayoutButton = [...view.container.querySelectorAll('button')]
+                .find((button) => button.textContent === '重置布局');
+            expect(resetLayoutButton).toBeTruthy();
+            await act(async () => {
+                click(resetLayoutButton!);
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+
+            expectDefaultDockviewLayout(dockviewApi);
+            expect(useEditorStore.getState().openedScenePath).toBe(openedScenePath);
+            expect(readEditorProjectLayoutState(projectTree())?.dockview?.panels.preview).toBeTruthy();
         } finally {
             await view.cleanup();
         }

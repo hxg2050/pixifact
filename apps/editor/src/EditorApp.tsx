@@ -337,6 +337,7 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
     const dockviewLayoutSubscriptionRef = useRef<{ dispose(): void } | undefined>(undefined);
     const dockviewRestoringLayoutRef = useRef(false);
     const restoredDockLayoutRef = useRef<{ api: DockviewApi; projectKey: string } | undefined>(undefined);
+    const defaultDockviewLayoutRef = useRef<SerializedDockview | undefined>(undefined);
     const dockComponents = useMemo(() => createDockComponents(), []);
     const hasProject = Boolean(projectTree);
     const compilerDocument = getCompilerSceneDocument();
@@ -538,6 +539,16 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
         });
     }, []);
 
+    const createDefaultDockviewLayout = useCallback((api: DockviewApi) => {
+        api.clear();
+        addInitialPanels(api, language);
+        setInitialDockLayout(api);
+        setDockPanelTitles(api, language);
+        const layout = api.toJSON();
+        defaultDockviewLayoutRef.current = layout;
+        return layout;
+    }, [language]);
+
     const restoreDockviewLayout = useCallback((api: DockviewApi, nextProjectTree: NonNullable<typeof projectTree>) => {
         const projectLayoutKey = editorProjectLayoutStorageKey(nextProjectTree);
         const restoredDockLayout = restoredDockLayoutRef.current;
@@ -550,9 +561,9 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
             projectKey: projectLayoutKey,
         };
         dockviewRestoringLayoutRef.current = true;
-        api.clear();
 
         let restored = false;
+        const defaultLayout = defaultDockviewLayoutRef.current ?? createDefaultDockviewLayout(api);
         const saved = readEditorProjectLayoutState(nextProjectTree);
         if (isWorkbenchDockviewLayout(saved?.dockview)) {
             try {
@@ -563,8 +574,7 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
             }
         }
         if (!restored) {
-            addInitialPanels(api, language);
-            window.requestAnimationFrame(() => setInitialDockLayout(api));
+            api.fromJSON(defaultLayout);
         }
         setDockPanelTitles(api, language);
 
@@ -572,7 +582,30 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
             dockviewRestoringLayoutRef.current = false;
             saveCurrentDockviewLayout(api);
         });
-    }, [language, saveCurrentDockviewLayout]);
+    }, [createDefaultDockviewLayout, language, saveCurrentDockviewLayout]);
+
+    const resetDockviewLayout = useCallback(() => {
+        const api = dockviewApiRef.current;
+        if (!api || !projectTree) {
+            return;
+        }
+
+        const projectLayoutKey = editorProjectLayoutStorageKey(projectTree);
+        restoredDockLayoutRef.current = {
+            api,
+            projectKey: projectLayoutKey,
+        };
+        dockviewRestoringLayoutRef.current = true;
+        const defaultLayout = defaultDockviewLayoutRef.current ?? createDefaultDockviewLayout(api);
+        api.fromJSON(defaultLayout);
+        setDockPanelTitles(api, language);
+        window.requestAnimationFrame(() => setInitialDockLayout(api));
+
+        queueMicrotask(() => {
+            dockviewRestoringLayoutRef.current = false;
+            saveCurrentDockviewLayout(api);
+        });
+    }, [createDefaultDockviewLayout, language, projectTree, saveCurrentDockviewLayout]);
 
     useEffect(() => {
         const api = dockviewApiRef.current;
@@ -695,6 +728,7 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
                         {hasProject ? (
                             <>
                                 <Button icon="save" onPress={() => void saveScene()}>{t('save')}</Button>
+                                <Button icon="reset" onPress={resetDockviewLayout}>{t('resetLayout')}</Button>
                                 <Button
                                     aria-label="撤销"
                                     disabled={!canUndoCompilerScene}
