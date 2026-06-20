@@ -27,6 +27,7 @@ import {
 import {
     builtinSceneNameFromTemplateKind,
     builtinSceneNodeTemplateLibrary,
+    nodeTemplateLibraryGroups,
 } from '../apps/editor/src/services/nodeTemplateLibrary';
 
 function emptyInterface() {
@@ -315,6 +316,11 @@ describe('compiler scene document controller undo redo', () => {
         const templateItem = builtinSceneNodeTemplateLibrary.find((item) => item.name === 'VBoxContainer');
         expect(templateItem).toBeDefined();
         expect(builtinSceneNameFromTemplateKind(templateItem!.kind)).toBe('VBoxContainer');
+        expect(nodeTemplateLibraryGroups.map((group) => group.titleKey)).toEqual([
+            'addPixiNodeGroup',
+            'addBuiltinSceneGroup',
+        ]);
+        expect(nodeTemplateLibraryGroups[1].items).toContain(templateItem);
 
         const result = addCompilerBuiltinSceneNodeAtTarget('0:content/0:title', 'VBoxContainer');
 

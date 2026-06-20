@@ -22,6 +22,11 @@ export interface BuiltinSceneNodeTemplateItem {
 
 export type NodeTemplateItem = PixiNodeTemplateItem | BuiltinSceneNodeTemplateItem;
 
+export interface NodeTemplateGroup {
+    titleKey: I18nKey;
+    items: NodeTemplateItem[];
+}
+
 export const pixiNodeTemplateLibrary: PixiNodeTemplateItem[] = pixiSceneAddableNodeTypes.map((type) => ({
     kind: pixiNodeTemplateKind(type),
     name: type,
@@ -37,6 +42,14 @@ export const nodeTemplateLibrary: NodeTemplateItem[] = [
     ...pixiNodeTemplateLibrary,
     ...builtinSceneNodeTemplateLibrary,
 ];
+
+export const nodeTemplateLibraryGroups: NodeTemplateGroup[] = [{
+    titleKey: 'addPixiNodeGroup',
+    items: pixiNodeTemplateLibrary,
+}, {
+    titleKey: 'addBuiltinSceneGroup',
+    items: builtinSceneNodeTemplateLibrary,
+}];
 
 const pixiNodeTypesByTemplateKind = new Map<PixiNodeTemplateKind, PixiSceneNodeType>(
     pixiSceneAddableNodeTypes.map((type) => [pixiNodeTemplateKind(type), type]),

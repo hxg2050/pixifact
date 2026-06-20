@@ -21,7 +21,10 @@ import {
 } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
-import { builtinSceneNameFromTemplateKind, nodeTemplateLibrary } from '../services/nodeTemplateLibrary';
+import {
+    builtinSceneNameFromTemplateKind,
+    nodeTemplateLibraryGroups,
+} from '../services/nodeTemplateLibrary';
 import { editorDragDataTypes, hierarchyNodeDragPayload } from '../services/dragPayload';
 import { sceneDragDataType } from '../services/projectFileTree';
 import type { CompilerSceneTemplateNode } from '../services/projectFileTree';
@@ -506,15 +509,20 @@ export function CompilerSceneHierarchyTree() {
                             <span aria-hidden="true">›</span>
                         </button>
                         <div className="nodeContextSubmenuPanel">
-                            {nodeTemplateLibrary.map((item) => (
-                                <button
-                                    data-node-template={item.kind}
-                                    key={item.kind}
-                                    onClick={() => addCompilerNodeTemplateAtTarget(item.kind, contextMenu.locator)}
-                                    type="button"
-                                >
-                                    {'nameKey' in item ? t(item.nameKey) : item.name}
-                                </button>
+                            {nodeTemplateLibraryGroups.map((group) => (
+                                <div className="nodeContextMenuGroup" key={group.titleKey}>
+                                    <span className="nodeContextMenuGroupTitle">{t(group.titleKey)}</span>
+                                    {group.items.map((item) => (
+                                        <button
+                                            data-node-template={item.kind}
+                                            key={item.kind}
+                                            onClick={() => addCompilerNodeTemplateAtTarget(item.kind, contextMenu.locator)}
+                                            type="button"
+                                        >
+                                            {'nameKey' in item ? t(item.nameKey) : item.name}
+                                        </button>
+                                    ))}
+                                </div>
                             ))}
                         </div>
                     </div>
