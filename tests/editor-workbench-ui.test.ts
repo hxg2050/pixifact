@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import type { DockviewApi } from 'dockview-react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ProjectFileTreeNode } from '../apps/editor/src/services/projectFileTree';
-import { useEditorStore } from '../apps/editor/src/editorStore';
+import { useEditorStore, writeEditorProjectLayoutState } from '../apps/editor/src/editorStore';
 import { EditorApp } from '../apps/editor/src/EditorApp';
 import {
     getCompilerSceneDocument,
@@ -642,6 +642,40 @@ describe('Editor workbench UI', () => {
             expect(leftColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['hierarchy', 'project']);
             expect(panelIdFromGroup(centerPanel?.data)).toBe('preview');
             expect(rightColumnData.map((node) => panelIdFromGroup(node.data))).toEqual(['inspector', 'projectPreview']);
+        } finally {
+            await view.cleanup();
+        }
+    });
+
+    it('restores Dockview layout from project-level UI state', async () => {
+        let initialDockviewApi: DockviewApi | undefined;
+        const initialView = await renderEditorApp({ onDockviewReady: (api) => {
+            initialDockviewApi = api;
+        } });
+        const savedDockview = initialDockviewApi?.toJSON();
+        expect(savedDockview).toBeTruthy();
+        await initialView.cleanup();
+        localStorage.clear();
+        writeEditorProjectLayoutState(projectTree(), {
+            dockview: savedDockview!,
+        });
+
+        let fromJSON = vi.fn();
+        let dockviewApi: DockviewApi | undefined;
+        const view = await renderEditorApp({ onDockviewReady: (api) => {
+            dockviewApi = api;
+            fromJSON = vi.spyOn(api, 'fromJSON');
+        } });
+        try {
+            await act(async () => {
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+
+            expect(fromJSON).toHaveBeenCalledTimes(1);
+            expect(fromJSON).toHaveBeenCalledWith(savedDockview);
+            expect(dockviewApi?.toJSON().grid.orientation).toBe(savedDockview?.grid.orientation);
+            expect(dockviewApi?.toJSON().panels.preview).toBeTruthy();
         } finally {
             await view.cleanup();
         }

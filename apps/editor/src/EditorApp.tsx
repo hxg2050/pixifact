@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DockviewReact, themeLight } from 'dockview-react';
-import type { DockviewApi, DockviewReadyEvent, IDockviewPanelProps } from 'dockview-react';
+import type { DockviewApi, DockviewReadyEvent, IDockviewPanelProps, SerializedDockview } from 'dockview-react';
 import {
     canRedoCompilerSceneCommand,
     canUndoCompilerSceneCommand,
@@ -9,7 +9,12 @@ import {
     undoCompilerSceneCommand,
 } from './document/compilerSceneDocumentController';
 import { Button, Select, SystemIcon } from './components/system';
-import { useEditorStore } from './editorStore';
+import {
+    editorProjectLayoutStorageKey,
+    readEditorProjectLayoutState,
+    useEditorStore,
+    writeEditorProjectLayoutState,
+} from './editorStore';
 import type { EditorLanguage } from './i18n';
 import { editorLanguageNames, translate, useI18n } from './i18n';
 import { CompilerSceneHierarchyTree } from './panels/HierarchyPanel';
@@ -18,6 +23,8 @@ import { ViewportPanel } from './panels/ViewportPanel';
 import { useCompilerSceneRevision } from './panels/common';
 import { ProjectPreviewPanel, ProjectShelf } from './panels/ProjectShelf';
 import {
+    findFileByPath,
+    openCompilerSceneFile,
     openProjectFolder,
     saveCompilerSceneFile,
 } from './services/projectFileTree';
@@ -37,6 +44,7 @@ import type { CompilerSceneExternalSyncResult } from './services/compilerSceneEx
 import { setLastExternalSceneSync } from './services/externalSceneSyncState';
 
 type EditorDockPanelParams = Record<string, never>;
+const workbenchDockPanelIds = ['hierarchy', 'preview', 'inspector', 'projectPreview', 'project'];
 type ExternalSceneSyncViewState = {
     message: string;
     tone: 'saved' | 'dirty';
@@ -68,6 +76,13 @@ function setInitialDockLayout(api: DockviewApi) {
     api.getPanel('preview')?.group.api.setSize({ width: 640 });
     api.getPanel('inspector')?.group.api.setSize({ width: 420 });
     api.getPanel('projectPreview')?.group.api.setSize({ height: 220 });
+}
+
+function isWorkbenchDockviewLayout(layout: SerializedDockview | undefined): layout is SerializedDockview {
+    if (!layout || !layout.panels || typeof layout.panels !== 'object') {
+        return false;
+    }
+    return workbenchDockPanelIds.every((id) => Object.prototype.hasOwnProperty.call(layout.panels, id));
 }
 
 function externalSceneSyncStatus(result: CompilerSceneExternalSyncResult): ExternalSceneSyncViewState | undefined {
@@ -256,9 +271,9 @@ function createDockComponents() {
     };
 }
 
-function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
+function addInitialPanels(api: DockviewApi, language: EditorLanguage) {
     const titles = dockPanelTitles(language);
-    event.api.addPanel({
+    api.addPanel({
         id: 'hierarchy',
         component: 'hierarchy',
         title: titles.hierarchy,
@@ -266,7 +281,7 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
         minimumWidth: 240,
         minimumHeight: 180,
     });
-    event.api.addPanel({
+    api.addPanel({
         id: 'preview',
         component: 'preview',
         title: titles.preview,
@@ -274,7 +289,7 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
         minimumHeight: 300,
         position: { direction: 'right', referencePanel: 'hierarchy' },
     });
-    event.api.addPanel({
+    api.addPanel({
         id: 'project',
         component: 'project',
         title: titles.project,
@@ -283,7 +298,7 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
         minimumHeight: 160,
         position: { direction: 'below', referencePanel: 'hierarchy' },
     });
-    event.api.addPanel({
+    api.addPanel({
         id: 'inspector',
         component: 'inspector',
         title: titles.inspector,
@@ -291,7 +306,7 @@ function addInitialPanels(event: DockviewReadyEvent, language: EditorLanguage) {
         minimumWidth: 300,
         position: { direction: 'right', referencePanel: 'preview' },
     });
-    event.api.addPanel({
+    api.addPanel({
         id: 'projectPreview',
         component: 'projectPreview',
         title: titles.projectPreview,
@@ -319,6 +334,9 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
         stderr: [],
     });
     const dockviewApiRef = useRef<DockviewApi | undefined>(undefined);
+    const dockviewLayoutSubscriptionRef = useRef<{ dispose(): void } | undefined>(undefined);
+    const dockviewRestoringLayoutRef = useRef(false);
+    const restoredDockLayoutProjectKeyRef = useRef<string | undefined>(undefined);
     const dockComponents = useMemo(() => createDockComponents(), []);
     const hasProject = Boolean(projectTree);
     const compilerDocument = getCompilerSceneDocument();
@@ -349,6 +367,26 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
     }, [saveStatusKey, savedFileName, saveError, t]);
 
     useEffect(() => startLiveEditorAgentClient(), []);
+
+    useEffect(() => useEditorStore.subscribe((state, previousState) => {
+        if (!state.projectTree) {
+            return;
+        }
+        const projectStateChanged = state.projectTree !== previousState.projectTree
+            || state.selectedProjectFilePath !== previousState.selectedProjectFilePath
+            || state.openedScenePath !== previousState.openedScenePath
+            || state.expandedProjectFolders !== previousState.expandedProjectFolders
+            || state.expandedHierarchyNodesByScene !== previousState.expandedHierarchyNodesByScene;
+        if (!projectStateChanged) {
+            return;
+        }
+        writeEditorProjectLayoutState(state.projectTree, {
+            selectedProjectFilePath: state.selectedProjectFilePath,
+            openedScenePath: state.openedScenePath,
+            expandedProjectFolders: state.expandedProjectFolders,
+            expandedHierarchyNodesByScene: state.expandedHierarchyNodesByScene,
+        });
+    }), []);
 
     useEffect(() => {
         if (!projectTree) {
@@ -436,6 +474,35 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
     }, [language]);
 
     useEffect(() => {
+        if (!projectTree || !openedScenePath) {
+            return;
+        }
+        const compilerDocument = getCompilerSceneDocument();
+        if (compilerDocument?.scenePath === openedScenePath) {
+            return;
+        }
+        const file = findFileByPath(projectTree, openedScenePath);
+        if (file?.kind !== 'scene') {
+            return;
+        }
+
+        let cancelled = false;
+        void openCompilerSceneFile(projectTree, file)
+            .catch((error) => {
+                if (!cancelled) {
+                    setExternalSceneSyncStatusState({
+                        message: error instanceof Error ? error.message : String(error),
+                        tone: 'dirty',
+                    });
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [openedScenePath, projectTree]);
+
+    useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (isEditableKeyboardTarget(event.target)) {
                 return;
@@ -458,12 +525,75 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
+    const saveCurrentDockviewLayout = useCallback((api: DockviewApi) => {
+        if (dockviewRestoringLayoutRef.current) {
+            return;
+        }
+        const currentProjectTree = useEditorStore.getState().projectTree;
+        if (!currentProjectTree) {
+            return;
+        }
+        writeEditorProjectLayoutState(currentProjectTree, {
+            dockview: api.toJSON(),
+        });
+    }, []);
+
+    const restoreDockviewLayout = useCallback((api: DockviewApi, nextProjectTree: NonNullable<typeof projectTree>) => {
+        const projectLayoutKey = editorProjectLayoutStorageKey(nextProjectTree);
+        if (restoredDockLayoutProjectKeyRef.current === projectLayoutKey) {
+            return;
+        }
+
+        restoredDockLayoutProjectKeyRef.current = projectLayoutKey;
+        dockviewRestoringLayoutRef.current = true;
+        api.clear();
+
+        let restored = false;
+        const saved = readEditorProjectLayoutState(nextProjectTree);
+        if (isWorkbenchDockviewLayout(saved?.dockview)) {
+            try {
+                api.fromJSON(saved.dockview);
+                restored = true;
+            } catch {
+                api.clear();
+            }
+        }
+        if (!restored) {
+            addInitialPanels(api, language);
+            window.requestAnimationFrame(() => setInitialDockLayout(api));
+        }
+        setDockPanelTitles(api, language);
+
+        queueMicrotask(() => {
+            dockviewRestoringLayoutRef.current = false;
+            saveCurrentDockviewLayout(api);
+        });
+    }, [language, saveCurrentDockviewLayout]);
+
+    useEffect(() => {
+        const api = dockviewApiRef.current;
+        if (!api || !projectTree) {
+            return;
+        }
+        restoreDockviewLayout(api, projectTree);
+    }, [projectTree, restoreDockviewLayout]);
+
+    useEffect(() => () => {
+        dockviewLayoutSubscriptionRef.current?.dispose();
+    }, []);
+
     const handleDockReady = useCallback((event: DockviewReadyEvent) => {
         dockviewApiRef.current = event.api;
         onDockviewReady?.(event.api);
-        addInitialPanels(event, language);
-        window.requestAnimationFrame(() => setInitialDockLayout(event.api));
-    }, [language, onDockviewReady]);
+        dockviewLayoutSubscriptionRef.current?.dispose();
+        dockviewLayoutSubscriptionRef.current = event.api.onDidLayoutChange(() => {
+            saveCurrentDockviewLayout(event.api);
+        });
+        const currentProjectTree = useEditorStore.getState().projectTree;
+        if (currentProjectTree) {
+            restoreDockviewLayout(event.api, currentProjectTree);
+        }
+    }, [onDockviewReady, restoreDockviewLayout, saveCurrentDockviewLayout]);
 
     const openFolder = useCallback(async () => {
         const tree = await openProjectFolder();
