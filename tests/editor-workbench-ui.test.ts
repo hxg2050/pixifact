@@ -1,4 +1,4 @@
-import { act, createElement } from 'react';
+import { StrictMode, act, createElement } from 'react';
 import { readFileSync } from 'fs';
 import { createRoot } from 'react-dom/client';
 import type { DockviewApi } from 'dockview-react';
@@ -52,6 +52,7 @@ const host = vi.hoisted(() => ({
     files: new Map<string, string>(),
     directories: new Set<string>(),
     fileChangedHandler: undefined as ((event: { projectRootPath: string; path: string; kind: string }) => void) | undefined,
+    pickedProject: undefined as ProjectFileTreeNode | undefined,
     readFileCalls: [] as string[],
 }));
 
@@ -71,7 +72,12 @@ vi.mock('../apps/editor/src/services/hostBridge', () => ({
     deleteHostProjectEntry: missingHostCall('deleteHostProjectEntry'),
     openHostCodeFile: missingHostCall('openHostCodeFile'),
     openHostDefaultFile: missingHostCall('openHostDefaultFile'),
-    pickHostProjectFolder: missingHostCall('pickHostProjectFolder'),
+    pickHostProjectFolder: vi.fn(async () => {
+        if (!host.pickedProject) {
+            throw new Error('Unexpected host call pickHostProjectFolder.');
+        }
+        return host.pickedProject;
+    }),
     readHostProjectFileBytes: vi.fn(async () => new Uint8Array()),
     readHostProjectFileText: vi.fn(async (_projectRootPath: string, filePath: string) => {
         host.readFileCalls.push(filePath);
@@ -236,12 +242,15 @@ function setEditorProject() {
     });
 }
 
-async function renderEditorApp(options?: { onDockviewReady?: (api: DockviewApi) => void }) {
+async function renderEditorApp(options?: { onDockviewReady?: (api: DockviewApi) => void; strict?: boolean }) {
     const container = document.createElement('div');
     document.body.append(container);
     const root = createRoot(container);
     await act(async () => {
-        root.render(createElement(EditorApp, options));
+        const app = createElement(EditorApp, {
+            onDockviewReady: options?.onDockviewReady,
+        });
+        root.render(options?.strict ? createElement(StrictMode, null, app) : app);
         await Promise.resolve();
     });
     return {
@@ -321,6 +330,7 @@ beforeEach(() => {
         ['GameProject/src/scenes/Child.ts', '@scene()\nexport class Child {}\n'],
     ]);
     host.directories = new Set();
+    host.pickedProject = undefined;
     host.readFileCalls = [];
     resetCompilerSceneDocument();
     setEditorProject();
@@ -344,6 +354,41 @@ afterEach(() => {
 });
 
 describe('Editor workbench UI', () => {
+    it('opens a picked folder from the welcome page into the workbench', async () => {
+        useEditorStore.setState({
+            language: 'zh-CN',
+            projectName: '模拟项目',
+            projectTree: undefined,
+            selectedProjectFilePath: undefined,
+            openedScenePath: undefined,
+            expandedProjectFolders: [],
+            expandedHierarchyNodesByScene: {},
+        });
+        resetCompilerSceneDocument();
+        host.pickedProject = projectTree();
+
+        const view = await renderEditorApp({ strict: true });
+        try {
+            expect(view.container.querySelector('[data-testid="welcome-page"]')).toBeTruthy();
+
+            const openButton = [...view.container.querySelectorAll('button')]
+                .find((button) => button.textContent === '打开文件夹');
+            expect(openButton).toBeTruthy();
+            await act(async () => {
+                click(openButton!);
+                await Promise.resolve();
+                await Promise.resolve();
+            });
+
+            expect(view.container.querySelector('[data-testid="editor-workbench"]')).toBeTruthy();
+            expect(view.container.querySelector('[data-testid="project-shelf"]')).toBeTruthy();
+            expect(view.container.querySelector('[data-testid="workbench-preview"]')).toBeTruthy();
+            expect(textContent(view.container)).toContain('GameProject');
+        } finally {
+            await view.cleanup();
+        }
+    });
+
     it('keeps scene view profiling disabled by default', () => {
         expect(sceneViewProfilerEnabled()).toBe(false);
         expect(beginSceneViewProfile('move')).toBeUndefined();

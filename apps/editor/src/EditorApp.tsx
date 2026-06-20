@@ -336,7 +336,7 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
     const dockviewApiRef = useRef<DockviewApi | undefined>(undefined);
     const dockviewLayoutSubscriptionRef = useRef<{ dispose(): void } | undefined>(undefined);
     const dockviewRestoringLayoutRef = useRef(false);
-    const restoredDockLayoutProjectKeyRef = useRef<string | undefined>(undefined);
+    const restoredDockLayoutRef = useRef<{ api: DockviewApi; projectKey: string } | undefined>(undefined);
     const dockComponents = useMemo(() => createDockComponents(), []);
     const hasProject = Boolean(projectTree);
     const compilerDocument = getCompilerSceneDocument();
@@ -540,11 +540,15 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
 
     const restoreDockviewLayout = useCallback((api: DockviewApi, nextProjectTree: NonNullable<typeof projectTree>) => {
         const projectLayoutKey = editorProjectLayoutStorageKey(nextProjectTree);
-        if (restoredDockLayoutProjectKeyRef.current === projectLayoutKey) {
+        const restoredDockLayout = restoredDockLayoutRef.current;
+        if (restoredDockLayout?.api === api && restoredDockLayout.projectKey === projectLayoutKey) {
             return;
         }
 
-        restoredDockLayoutProjectKeyRef.current = projectLayoutKey;
+        restoredDockLayoutRef.current = {
+            api,
+            projectKey: projectLayoutKey,
+        };
         dockviewRestoringLayoutRef.current = true;
         api.clear();
 
