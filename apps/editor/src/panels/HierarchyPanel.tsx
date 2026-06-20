@@ -10,6 +10,7 @@ import type { SystemIconName, TreeViewItem, TreeViewKey } from '../components/sy
 import {
     addCompilerSceneNode,
     addCompilerSceneNodeAtTarget,
+    addCompilerBuiltinSceneNodeAtTarget,
     compilerPixiTypeFromNodeTemplate,
     createCompilerPixiTemplateNode,
     deleteCompilerSceneNode,
@@ -20,7 +21,7 @@ import {
 } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
-import { pixiNodeTemplateLibrary } from '../services/nodeTemplateLibrary';
+import { builtinSceneNameFromTemplateKind, nodeTemplateLibrary } from '../services/nodeTemplateLibrary';
 import { editorDragDataTypes, hierarchyNodeDragPayload } from '../services/dragPayload';
 import { sceneDragDataType } from '../services/projectFileTree';
 import type { CompilerSceneTemplateNode } from '../services/projectFileTree';
@@ -338,15 +339,13 @@ export function CompilerSceneHierarchyTree() {
     };
     const addCompilerNodeTemplateAtTarget = (kind: string, target: string) => {
         const type = compilerPixiTypeFromNodeTemplate(kind);
-        if (!type) {
-            setError('Compiler Scene 暂不支持该节点模板。');
-            return;
-        }
+        const builtinSceneName = builtinSceneNameFromTemplateKind(kind);
         const document = getCompilerSceneDocument();
-        if (!document) {
-            return;
-        }
-        const result = addCompilerSceneNodeAtTarget(target, createCompilerPixiTemplateNode(document.template, type));
+        const result = type && document
+            ? addCompilerSceneNodeAtTarget(target, createCompilerPixiTemplateNode(document.template, type))
+            : builtinSceneName
+                ? addCompilerBuiltinSceneNodeAtTarget(target, builtinSceneName)
+                : { ok: false as const, error: 'Compiler Scene 暂不支持该节点模板。' };
         if (!result.ok) {
             setError(result.error);
             return;
@@ -507,14 +506,14 @@ export function CompilerSceneHierarchyTree() {
                             <span aria-hidden="true">›</span>
                         </button>
                         <div className="nodeContextSubmenuPanel">
-                            {pixiNodeTemplateLibrary.map((item) => (
+                            {nodeTemplateLibrary.map((item) => (
                                 <button
                                     data-node-template={item.kind}
                                     key={item.kind}
                                     onClick={() => addCompilerNodeTemplateAtTarget(item.kind, contextMenu.locator)}
                                     type="button"
                                 >
-                                    {t(item.nameKey)}
+                                    {'nameKey' in item ? t(item.nameKey) : item.name}
                                 </button>
                             ))}
                         </div>

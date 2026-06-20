@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { SceneTemplate, SceneTemplateNode } from '../packages/pixifact/src/compiler/spec';
 import {
+    addCompilerBuiltinSceneNodeAtTarget,
     addCompilerSceneNode,
     addCompilerSceneNodeAtTarget,
     canRedoCompilerSceneCommand,
@@ -19,6 +20,14 @@ import {
     updateCompilerSceneNodePropsInPlace,
     updateCompilerSceneTemplate,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
+import {
+    builtinSceneAssetId,
+    type SceneTemplateInterface,
+} from 'pixifact/compiler';
+import {
+    builtinSceneNameFromTemplateKind,
+    builtinSceneNodeTemplateLibrary,
+} from '../apps/editor/src/services/nodeTemplateLibrary';
 
 function emptyInterface() {
     return {
@@ -55,11 +64,11 @@ function template(): SceneTemplate {
     };
 }
 
-function loadTemplate(nextTemplate = template()) {
+function loadTemplate(nextTemplate = template(), sceneInterfaces: Record<string, SceneTemplateInterface> = {}) {
     loadCompilerSceneDocument({
         scenePath: 'src/scenes/Menu.scene',
         template: nextTemplate,
-        sceneInterfaces: {},
+        sceneInterfaces,
     });
 }
 
@@ -289,6 +298,39 @@ describe('compiler scene document controller undo redo', () => {
         });
         expect(contentChildren().map((node) => node.kind !== 'slotOutlet' ? node.id : node.name)).toEqual(['title', 'sprite1', 'graphics1']);
         expect(getCompilerSceneDocument()?.selection).toEqual({ type: 'node', node: '0:content/1:sprite1' });
+    });
+
+    it('adds built-in Scene nodes using the hierarchy context target rules', () => {
+        const vBoxInterface: SceneTemplateInterface = {
+            props: {},
+            events: {},
+            slots: {
+                default: {},
+            },
+        };
+        loadTemplate(template(), {
+            [builtinSceneAssetId('VBoxContainer')]: vBoxInterface,
+        });
+
+        const templateItem = builtinSceneNodeTemplateLibrary.find((item) => item.name === 'VBoxContainer');
+        expect(templateItem).toBeDefined();
+        expect(builtinSceneNameFromTemplateKind(templateItem!.kind)).toBe('VBoxContainer');
+
+        const result = addCompilerBuiltinSceneNodeAtTarget('0:content/0:title', 'VBoxContainer');
+
+        expect(result).toEqual({
+            ok: true,
+            locator: '0:content/1:vBoxContainer1',
+        });
+        expect(contentChildren()[1]).toMatchObject({
+            kind: 'sceneInstance',
+            type: 'VBoxContainer',
+            id: 'vBoxContainer1',
+            scene: builtinSceneAssetId('VBoxContainer'),
+            slots: {
+                default: [],
+            },
+        });
     });
 
     it('clears command history when a compiler scene is loaded or closed', () => {

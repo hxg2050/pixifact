@@ -6,9 +6,11 @@ import type {
     SceneTemplate,
     SceneTemplateInterface,
     SceneTemplateValue,
+    BuiltinSceneName,
 } from 'pixifact/compiler';
 import {
     CompilerSceneCommandStack,
+    builtinSceneAssetId,
     pixiSceneNodeAcceptsChildren,
     pixiSceneNodeDefaults,
     resolveSceneReference,
@@ -360,6 +362,23 @@ export function createCompilerSceneInstanceTemplateNode(
     };
 }
 
+export function createCompilerBuiltinSceneTemplateNode(
+    template: SceneTemplate,
+    name: BuiltinSceneName,
+    sceneInterface: SceneTemplateInterface,
+): CompilerSceneTemplateNode {
+    const scenePath = builtinSceneAssetId(name);
+    return {
+        kind: 'sceneInstance',
+        type: name,
+        id: nextCompilerSceneNodeId(template.children, name),
+        scene: scenePath,
+        props: {},
+        events: {},
+        slots: Object.fromEntries(Object.keys(sceneInterface.slots).map((slot) => [slot, []])),
+    };
+}
+
 export function createCompilerSlotOutletTemplateNode(template: SceneTemplate): CompilerSceneTemplateNode {
     return {
         kind: 'slotOutlet',
@@ -477,6 +496,29 @@ export function addCompilerSceneNodeAtTarget(targetLocator: string, node: Compil
         ok: true as const,
         locator: result.selection?.type === 'node' ? result.selection.node : targetLocator,
     };
+}
+
+export function addCompilerBuiltinSceneNodeAtTarget(targetLocator: string, name: BuiltinSceneName) {
+    if (!document) {
+        return {
+            ok: false as const,
+            error: '未打开 Compiler Scene。',
+        };
+    }
+
+    const scenePath = builtinSceneAssetId(name);
+    const sceneInterface = document.sceneInterfaces[scenePath];
+    if (!sceneInterface) {
+        return {
+            ok: false as const,
+            error: `找不到内置 Scene ${name} 绑定。`,
+        };
+    }
+
+    return addCompilerSceneNodeAtTarget(
+        targetLocator,
+        createCompilerBuiltinSceneTemplateNode(document.template, name, sceneInterface),
+    );
 }
 
 export function deleteCompilerSceneNode(locator: string) {
