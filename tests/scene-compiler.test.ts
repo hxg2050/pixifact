@@ -77,6 +77,7 @@ describe('Pixifact scene compiler spike', () => {
         expect(group.scale.y).toBe(1);
         expect(group.hitArea).toBeInstanceOf(Rectangle);
         expect(group.hitArea).toMatchObject({ x: 0, y: 0, width: 100, height: 50 });
+        expect(group.getBounds().rectangle).toMatchObject({ x: 0, y: 0, width: 100, height: 50 });
 
         group.width = 200;
         group.height = 80;
@@ -86,6 +87,7 @@ describe('Pixifact scene compiler spike', () => {
         expect(group.scale.x).toBe(1);
         expect(group.scale.y).toBe(1);
         expect(group.hitArea).toMatchObject({ x: 0, y: 0, width: 200, height: 80 });
+        expect(group.getBounds().rectangle).toMatchObject({ x: 0, y: 0, width: 200, height: 80 });
     });
 
     it('keeps every built-in Scene on the Group runtime base', () => {

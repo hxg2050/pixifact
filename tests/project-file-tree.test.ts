@@ -902,6 +902,46 @@ describe('project file tree service', () => {
         preview.dispose();
     });
 
+    it('reflects scene instance width and height in compiler preview bounds', async () => {
+        host.reset({
+            src: host.directory({
+                scenes: host.directory({
+                    'Hud.scene': host.file(`
+                        <Scene name="Hud">
+                          <Button id="primaryButton" scene="./Button.scene" x="10" y="20" width="220" height="72" />
+                        </Scene>
+                    `),
+
+                    'Hud.ts': emptySceneScript('Hud'),
+
+                    'Button.scene': host.file(`
+                        <Scene name="Button" width="120" height="40" />
+                    `),
+
+                    'Button.ts': emptySceneScript('Button'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/src/scenes/Hud.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+        const document = getCompilerSceneDocument();
+
+        const preview = await createCompilerSceneRuntimePreview({
+            document: document!,
+            projectTree: tree,
+            scenePath: 'src/scenes/Hud.scene',
+        });
+
+        expect(preview.nodes.get('0:primaryButton')?.getBounds().rectangle).toMatchObject({
+            x: 10,
+            y: 20,
+            width: 220,
+            height: 72,
+        });
+        preview.dispose();
+    });
+
     it('binds compiler preview scene events to the opened scene script instance', async () => {
         host.reset({
             src: host.directory({

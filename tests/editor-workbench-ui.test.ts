@@ -860,8 +860,13 @@ describe('Editor workbench UI', () => {
             expect(editorStyles).toContain('.pixifactCanvas {\n    position: relative;\n    z-index: 1;');
             expect(editorStyles).toContain('.compilerSceneCanvas {\n    pointer-events: none;\n}');
             expect(editorStyles).toContain('.compilerSceneOverlay {\n    position: absolute;\n    inset: 0;\n    z-index: 2;');
+            expect(editorStyles).toContain('.compilerSceneBounds,\n.compilerSceneResolutionBounds,\n.compilerSceneSelection {\n    pointer-events: none;\n}');
             expect(editorStyles).toContain('.compilerSceneResolutionBounds {');
             expect(editorStyles).toContain('.compilerSceneResizeHandle {');
+            expect(editorStyles).toContain('    pointer-events: all;');
+            expect(editorStyles).toContain('cursor: ew-resize;');
+            expect(editorStyles).toContain('cursor: ns-resize;');
+            expect(editorStyles).toContain('cursor: nwse-resize;');
             expect(editorStyles).toContain('.compilerSceneProfilerPanel {\n    position: absolute;');
             expect(editorStyles).toContain('pointer-events: none;');
 
@@ -1356,8 +1361,6 @@ describe('Editor workbench UI', () => {
         expect(styles).toContain('margin-top: -2px');
         expect(styles).toContain('cursor: col-resize');
         expect(styles).toContain('cursor: row-resize');
-        expect(styles).not.toContain('cursor: ew-resize');
-        expect(styles).not.toContain('cursor: ns-resize');
         expect(styles).not.toContain('cursor: inherit');
         expect(styles).not.toContain('.dv-sash:not(.dv-disabled)::before');
         expect(styles).not.toContain('.dv-resize-container');

@@ -255,7 +255,7 @@ describe('Scene View resize UI', () => {
             const startX = Number(handle!.getAttribute('x')) + Number(handle!.getAttribute('width')) / 2;
             const startY = Number(handle!.getAttribute('y')) + Number(handle!.getAttribute('height')) / 2;
             await act(async () => {
-                host!.dispatchEvent(pointerEvent('pointerdown', {
+                handle!.dispatchEvent(pointerEvent('pointerdown', {
                     clientX: startX,
                     clientY: startY,
                     pointerId: 9,
@@ -324,7 +324,7 @@ describe('Scene View resize UI', () => {
             const startX = Number(handle!.getAttribute('x')) + Number(handle!.getAttribute('width')) / 2;
             const startY = Number(handle!.getAttribute('y')) + Number(handle!.getAttribute('height')) / 2;
             await act(async () => {
-                host!.dispatchEvent(pointerEvent('pointerdown', {
+                handle!.dispatchEvent(pointerEvent('pointerdown', {
                     clientX: startX,
                     clientY: startY,
                     pointerId: 10,

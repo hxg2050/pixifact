@@ -54,6 +54,8 @@ export class Group extends Container {
     }
 
     #syncHitArea() {
-        this.hitArea = new Rectangle(0, 0, this.#width, this.#height);
+        const bounds = new Rectangle(0, 0, this.#width, this.#height);
+        this.hitArea = bounds;
+        this.boundsArea = bounds;
     }
 }
