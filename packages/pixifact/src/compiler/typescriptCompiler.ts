@@ -12,6 +12,7 @@ import {
     pixiSceneDisplayProps,
     pixiSceneGraphicsProps,
     pixiSceneLayoutProps,
+    pixiSceneRectProps,
     pixiSceneSpriteLikeProps,
     pixiSceneTextStyleProps,
     pixiSceneTransformProps,
@@ -22,8 +23,9 @@ const layoutProps = new Set<string>(pixiSceneLayoutProps);
 const pixiProps = new Set<string>(pixiSceneDisplayProps);
 const spriteProps = new Set<string>(pixiSceneSpriteLikeProps);
 const graphicsProps = new Set<string>(pixiSceneGraphicsProps);
+const rectProps = new Set<string>(pixiSceneRectProps);
 const textStyleProps = new Set<string>(pixiSceneTextStyleProps);
-const runtimeNodeTypes = new Set<SceneTemplatePrimitiveType>(['HBoxContainer', 'VBoxContainer']);
+const runtimeNodeTypes = new Set<SceneTemplatePrimitiveType>(['HBoxContainer', 'VBoxContainer', 'Rect']);
 const runtimeNodeProps = new Set<string>(['gap', 'alignX', 'alignY', 'justify']);
 
 export function compileSceneTemplateToTs(template: SceneTemplate, options: CompileSceneTemplateOptions = {}) {
@@ -229,7 +231,7 @@ class CompileContext {
         const variable = node.id || this.#anonymousName(node.type);
         this.#lines.push(`  const ${variable} = ${this.#constructPixiNode(node)};`);
         this.#applyNodeId(variable, node.id);
-        this.#applyPixiProps(variable, node.props);
+        this.#applyPixiProps(variable, node.props, false, undefined, node.type);
         this.#applyParentSorting(parent, node.props);
         this.#lines.push(`  ${parent}.addChild(${variable});`);
         for (const child of node.children) {
@@ -283,7 +285,7 @@ class CompileContext {
         const variable = node.id || this.#anonymousName(node.type);
         this.#lines.push(`  const ${variable} = ${this.#constructPixiNode(node)};`);
         this.#applyNodeId(variable, node.id);
-        this.#applyPixiProps(variable, node.props);
+        this.#applyPixiProps(variable, node.props, false, undefined, node.type);
         for (const child of node.children) {
             this.#compileNode(child, variable, actionsParameter);
         }
@@ -393,7 +395,13 @@ class CompileContext {
         return contract.sourceScene ?? instanceScene;
     }
 
-    #applyPixiProps(variable: string, props: Record<string, SceneTemplateValue>, instance = false, sceneInstance?: SceneInstanceTemplateNode) {
+    #applyPixiProps(
+        variable: string,
+        props: Record<string, SceneTemplateValue>,
+        instance = false,
+        sceneInstance?: SceneInstanceTemplateNode,
+        pixiType?: SceneTemplatePrimitiveType,
+    ) {
         const x = props.x;
         const y = props.y;
         if (x !== undefined || y !== undefined) {
@@ -430,6 +438,10 @@ class CompileContext {
         }
         for (const [key, value] of Object.entries(props)) {
             if (!instance && runtimeNodeProps.has(key)) {
+                this.#lines.push(`  ${variable}.${key} = ${this.#value(value)};`);
+                continue;
+            }
+            if (!instance && pixiType === 'Rect' && this.#isRectProp(key)) {
                 this.#lines.push(`  ${variable}.${key} = ${this.#value(value)};`);
                 continue;
             }
@@ -606,6 +618,10 @@ class CompileContext {
 
     #isTextStyleProp(key: string) {
         return textStyleProps.has(key);
+    }
+
+    #isRectProp(key: string) {
+        return rectProps.has(key);
     }
 
     #anonymousName(type: string) {

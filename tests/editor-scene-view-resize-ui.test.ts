@@ -56,6 +56,32 @@ const mockPixi = vi.hoisted(() => {
         }
     }
 
+    class MockGraphics extends MockContainer {
+        clear() {
+            return this;
+        }
+
+        rect(_x: number, _y: number, width: number, height: number) {
+            this.box.width = width;
+            this.box.height = height;
+            return this;
+        }
+
+        roundRect(_x: number, _y: number, width: number, height: number, _radius: number) {
+            this.box.width = width;
+            this.box.height = height;
+            return this;
+        }
+
+        fill() {
+            return this;
+        }
+
+        stroke() {
+            return this;
+        }
+    }
+
     class MockApplication {
         canvas = document.createElement('canvas');
         renderer = {
@@ -73,6 +99,7 @@ const mockPixi = vi.hoisted(() => {
     return {
         Application: MockApplication,
         Container: MockContainer,
+        Graphics: MockGraphics,
         label,
         root,
     };
@@ -81,6 +108,7 @@ const mockPixi = vi.hoisted(() => {
 vi.mock('pixi.js', () => ({
     Application: mockPixi.Application,
     Container: mockPixi.Container,
+    Graphics: mockPixi.Graphics,
 }));
 
 vi.mock('../apps/editor/src/preview/compilerSceneRuntimePreview', () => ({

@@ -936,6 +936,49 @@ describe('project file tree service', () => {
         preview.dispose();
     });
 
+    it('renders Rect nodes through the compiler runtime preview', async () => {
+        host.reset({
+            src: host.directory({
+                scenes: host.directory({
+                    'Hud.scene': host.file(`
+                        <Scene name="Hud" width="400" height="240">
+                          <Rect id="panel" left="20" right="30" top="10" bottom="15" fillColor="#111827" strokeWidth="2" radius="12" />
+                        </Scene>
+                    `),
+
+                    'Hud.ts': emptySceneScript('Hud'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/src/scenes/Hud.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+        const document = getCompilerSceneDocument();
+
+        const preview = await createCompilerSceneRuntimePreview({
+            document: document!,
+            projectTree: tree,
+            scenePath: 'src/scenes/Hud.scene',
+        });
+
+        const panel = preview.nodes.get('0:panel');
+        expect(panel?.constructor.name).toBe('Rect');
+        expect(panel).toMatchObject({
+            x: 20,
+            y: 10,
+            width: 350,
+            height: 215,
+        });
+        expect(panel?.scale.x).toBe(1);
+        expect(panel?.scale.y).toBe(1);
+        expect(panel).toMatchObject({
+            fillColor: 0x111827,
+            strokeWidth: 2,
+            radius: 12,
+        });
+        preview.dispose();
+    });
+
     it('binds compiler preview scene events to the opened scene script instance', async () => {
         host.reset({
             src: host.directory({
@@ -1551,6 +1594,21 @@ describe('project file tree service', () => {
     it('creates compiler Pixi basic nodes with type defaults', () => {
         const template = parseSceneTemplate('<Scene name="Library" />');
 
+        expect(createCompilerPixiTemplateNode(template, 'Rect')).toMatchObject({
+            kind: 'pixi',
+            type: 'Rect',
+            props: {
+                width: 100,
+                height: 60,
+                fillColor: 0xffffff,
+                fillAlpha: 1,
+                strokeColor: 0x000000,
+                strokeAlpha: 1,
+                strokeWidth: 0,
+                radius: 0,
+            },
+            children: [],
+        });
         expect(createCompilerPixiTemplateNode(template, 'NineSliceSprite')).toMatchObject({
             kind: 'pixi',
             type: 'NineSliceSprite',
@@ -1584,6 +1642,16 @@ describe('project file tree service', () => {
     });
 
     it('describes compiler Pixi basic node fields through schema', () => {
+        expect(pixiSceneNodeDefaults('Rect')).toEqual({
+            width: 100,
+            height: 60,
+            fillColor: 0xffffff,
+            fillAlpha: 1,
+            strokeColor: 0x000000,
+            strokeAlpha: 1,
+            strokeWidth: 0,
+            radius: 0,
+        });
         expect(pixiSceneNodeDefaults('Graphics')).toEqual({
             shape: 'roundRect',
             width: 100,
@@ -1609,9 +1677,18 @@ describe('project file tree service', () => {
         expect(pixiSceneFieldSchema('fill')).toMatchObject({
             type: 'color',
         });
+        expect(pixiSceneFieldSchema('fillColor')).toMatchObject({
+            type: 'color',
+        });
     });
 
     it('groups compiler Pixi basic node props by node capability', () => {
+        expect(pixiSceneNodePropGroups('Rect')).toEqual([
+            {
+                group: 'props',
+                fields: ['fillColor', 'fillAlpha', 'strokeColor', 'strokeAlpha', 'strokeWidth', 'radius'],
+            },
+        ]);
         expect(pixiSceneNodePropGroups('NineSliceSprite')).toEqual([
             {
                 group: 'sprite',

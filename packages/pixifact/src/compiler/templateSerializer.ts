@@ -11,6 +11,7 @@ const colorPropNames = new Set([
     'borderColor',
     'disabledColor',
     'fill',
+    'fillColor',
     'highlightedColor',
     'normalColor',
     'pressedColor',

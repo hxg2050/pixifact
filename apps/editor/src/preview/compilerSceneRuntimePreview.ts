@@ -3,7 +3,7 @@
 import ts from 'typescript';
 import * as Pixi from 'pixi.js';
 import { Container } from 'pixi.js';
-import { Control, Group, HBoxContainer, VBoxContainer, getFrameLayout, layoutFrameChildren, requestFrameLayout, setFrameLayout } from 'pixifact/runtime';
+import { Control, Group, HBoxContainer, Rect, VBoxContainer, getFrameLayout, layoutFrameChildren, requestFrameLayout, setFrameLayout } from 'pixifact/runtime';
 import * as compilerRuntime from 'pixifact/compiler';
 import {
     compileSceneTemplateToTs,
@@ -616,6 +616,7 @@ function createModuleLoader(context: PreviewRuntimeContext, modules: PreviewModu
                 Control,
                 Group,
                 HBoxContainer,
+                Rect,
                 VBoxContainer,
                 getFrameLayout,
                 layoutFrameChildren,

@@ -328,6 +328,43 @@ describe('compiler scene document controller undo redo', () => {
         });
     });
 
+    it('adds Rect as a Pixifact drawing leaf from the node template library', () => {
+        loadTemplate();
+
+        const templateItem = pixiNodeTemplateLibrary.find((item) => item.name === 'Rect');
+        expect(templateItem).toBeDefined();
+        expect(nodeTemplateLibraryGroups.map((group) => group.titleKey)).toEqual([
+            'addPixiNodeGroup',
+        ]);
+        expect(nodeTemplateLibraryGroups[0].items).toContain(templateItem);
+
+        const result = addCompilerSceneNodeAtTarget(
+            '0:content/0:title',
+            createCompilerPixiTemplateNode(getCompilerSceneDocument()!.template, 'Rect'),
+        );
+
+        expect(result).toEqual({
+            ok: true,
+            locator: '0:content/1:rect1',
+        });
+        expect(contentChildren()[1]).toMatchObject({
+            kind: 'pixi',
+            type: 'Rect',
+            id: 'rect1',
+            props: {
+                width: 100,
+                height: 60,
+                fillColor: 0xffffff,
+                fillAlpha: 1,
+                strokeColor: 0x000000,
+                strokeAlpha: 1,
+                strokeWidth: 0,
+                radius: 0,
+            },
+            children: [],
+        });
+    });
+
     it('clears command history when a compiler scene is loaded or closed', () => {
         loadTemplate();
         updateCompilerSceneTemplate({ name: 'MainMenu' });

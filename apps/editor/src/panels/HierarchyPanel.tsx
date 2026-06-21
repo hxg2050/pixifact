@@ -80,6 +80,7 @@ function compilerNodeIcon(node: CompilerSceneTemplateNode | 'scene' | CompilerSl
         case 'HTMLText':
             return 'letter-text';
         case 'Graphics':
+        case 'Rect':
             return 'square';
         default:
             return 'folder-open';

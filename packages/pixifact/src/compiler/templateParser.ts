@@ -21,6 +21,7 @@ const pixiTypes = new Set<string>([
     'Sprite',
     'Text',
     'Graphics',
+    'Rect',
     'BitmapText',
     'HTMLText',
     'Mesh',

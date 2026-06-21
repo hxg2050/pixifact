@@ -2,11 +2,11 @@ import type { SceneTemplatePrimitiveType, SceneTemplateValue } from './spec';
 
 export type PixiSceneNodeType = Extract<
     SceneTemplatePrimitiveType,
-    'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'HBoxContainer' | 'VBoxContainer'
+    'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'HBoxContainer' | 'VBoxContainer'
 >;
 
 export type PixiSceneFieldType = 'string' | 'number' | 'boolean' | 'color' | 'enum';
-export type PixiScenePropGroup = 'transform' | 'display' | 'sprite' | 'nineSlice' | 'tiling' | 'text' | 'graphics' | 'stack';
+export type PixiScenePropGroup = 'transform' | 'display' | 'sprite' | 'nineSlice' | 'tiling' | 'text' | 'graphics' | 'stack' | 'props';
 
 export interface PixiSceneFieldSchema {
     key: string;
@@ -93,6 +93,15 @@ export const pixiSceneGraphicsProps = [
     'strokeAlpha',
 ] as const;
 
+export const pixiSceneRectProps = [
+    'fillColor',
+    'fillAlpha',
+    'strokeColor',
+    'strokeAlpha',
+    'strokeWidth',
+    'radius',
+] as const;
+
 export const pixiSceneStackHBoxProps = [
     'gap',
     'alignY',
@@ -132,6 +141,7 @@ export const pixiSceneKnownProps = [
     ...pixiSceneSpriteLikeProps,
     ...pixiSceneTextProps,
     ...pixiSceneGraphicsProps,
+    ...pixiSceneRectProps,
     ...pixiSceneStackProps,
 ] as const;
 
@@ -146,6 +156,7 @@ export const pixiSceneAddableNodeTypes = [
     'BitmapText',
     'HTMLText',
     'Graphics',
+    'Rect',
 ] as const satisfies readonly PixiSceneNodeType[];
 
 export const pixiSceneNodePropGroupOrder = [
@@ -155,6 +166,7 @@ export const pixiSceneNodePropGroupOrder = [
     'tiling',
     'text',
     'graphics',
+    'props',
 ] as const satisfies readonly PixiScenePropGroup[];
 
 const pixiSceneFieldSchemas: Partial<Record<string, PixiSceneFieldSchema>> = {
@@ -199,6 +211,7 @@ const pixiSceneFieldSchemas: Partial<Record<string, PixiSceneFieldSchema>> = {
     fontFamily: { key: 'fontFamily', type: 'string' },
     fontWeight: { key: 'fontWeight', type: 'enum', options: [400, 500, 600, 700, '400', '500', '600', '700', 'bold'] },
     fill: { key: 'fill', type: 'color' },
+    fillColor: { key: 'fillColor', type: 'color' },
     shape: { key: 'shape', type: 'enum', options: ['roundRect', 'rect'] },
     radius: { key: 'radius', type: 'number' },
     fillAlpha: { key: 'fillAlpha', type: 'number' },
@@ -316,6 +329,23 @@ const pixiSceneNodeSchemas: Record<PixiSceneNodeType, PixiSceneNodeSchema> = {
         },
         groups: {
             graphics: pixiSceneGraphicsProps,
+        },
+    },
+    Rect: {
+        type: 'Rect',
+        acceptsChildren: false,
+        defaults: {
+            width: 100,
+            height: 60,
+            fillColor: 0xffffff,
+            fillAlpha: 1,
+            strokeColor: 0x000000,
+            strokeAlpha: 1,
+            strokeWidth: 0,
+            radius: 0,
+        },
+        groups: {
+            props: pixiSceneRectProps,
         },
     },
     HBoxContainer: {

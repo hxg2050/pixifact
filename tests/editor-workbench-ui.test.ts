@@ -1083,6 +1083,35 @@ describe('Editor workbench UI', () => {
         }
     });
 
+    it('shows Rect drawing fields in the Inspector Props section', async () => {
+        loadCompilerSceneDocument({
+            scenePath: 'GameProject/src/scenes/Button.scene',
+            template: parseSceneTemplate(`
+                <Scene name="Button">
+                  <Rect id="panel" fillColor="#111827" fillAlpha="0.9" strokeColor="#ffffff" strokeAlpha="0.5" strokeWidth="2" radius="12" />
+                </Scene>
+            `),
+            sceneInterfaces: {},
+        });
+        selectCompilerSceneNode('0:panel');
+        const view = await renderEditorApp();
+        try {
+            const inspector = view.container.querySelector('[data-testid="compiler-scene-inspector"]');
+            const sectionTitles = [...inspector?.querySelectorAll('.inspectorSection h3') ?? []].map((title) => title.textContent);
+
+            expect(sectionTitles).toEqual(['标识', 'Transform', 'Layout', 'Display', '公开属性']);
+            expect(sectionTitles).not.toContain('Rect');
+            expect((inspector?.querySelector('[data-field-key="fillColor"] input') as HTMLInputElement | null)?.value).toBe('#111827');
+            expect((inspector?.querySelector('[data-field-key="fillAlpha"] input') as HTMLInputElement | null)?.value).toBe('0.9');
+            expect((inspector?.querySelector('[data-field-key="strokeColor"] input') as HTMLInputElement | null)?.value).toBe('#ffffff');
+            expect((inspector?.querySelector('[data-field-key="strokeAlpha"] input') as HTMLInputElement | null)?.value).toBe('0.5');
+            expect((inspector?.querySelector('[data-field-key="strokeWidth"] input') as HTMLInputElement | null)?.value).toBe('2');
+            expect((inspector?.querySelector('[data-field-key="radius"] input') as HTMLInputElement | null)?.value).toBe('12');
+        } finally {
+            await view.cleanup();
+        }
+    });
+
     it('auto commits Inspector text edits without pressing Enter', async () => {
         selectCompilerSceneNode('0:label');
         const view = await renderEditorApp();

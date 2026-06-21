@@ -3,6 +3,7 @@ import {
     isPixiSceneNodeType,
     pixiSceneFieldSchema,
     pixiSceneLayoutProps,
+    pixiSceneNodeAcceptsChildren,
     pixiSceneNodePropKeys,
     pixiSceneTransformProps,
     pixiSceneDisplayProps,
@@ -240,11 +241,20 @@ function validatePixiNode(
             prop: 'type',
             expected: 'supported compiler Pixi node type',
             actual: node.type,
-            hint: 'Use HBoxContainer, VBoxContainer, Container, Sprite, NineSliceSprite, TilingSprite, Text, BitmapText, HTMLText, or Graphics.',
+            hint: 'Use HBoxContainer, VBoxContainer, Container, Sprite, NineSliceSprite, TilingSprite, Text, BitmapText, HTMLText, Graphics, or Rect.',
         }];
     }
 
     const diagnostics: SceneValidationDiagnostic[] = [];
+    if (!pixiSceneNodeAcceptsChildren(node.type) && node.children.length > 0) {
+        diagnostics.push({
+            path,
+            prop: 'children',
+            expected: 'no child nodes',
+            actual: `${node.children.length} ${node.children.length === 1 ? 'child node' : 'child nodes'}`,
+            hint: `${node.type} is a leaf drawing node. Wrap it and sibling content in a Container or Group Scene.`,
+        });
+    }
     const knownProps = new Set<string>([
         ...pixiSceneTransformProps,
         ...pixiSceneLayoutProps,

@@ -1,5 +1,6 @@
 export * from './Group'
 export * from './Control'
+export * from './Rect'
 export * from './frameLayout'
 export * from './HBoxContainer'
 export * from './VBoxContainer'

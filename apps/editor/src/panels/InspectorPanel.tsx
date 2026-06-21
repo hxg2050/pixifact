@@ -85,6 +85,7 @@ const fieldLabelKeys: Record<string, I18nKey> = {
     rotation: 'rotation',
     raycastTarget: 'raycastTarget',
     color: 'color',
+    fillColor: 'fillColor',
     fillAlpha: 'fillAlpha',
     radius: 'radius',
     strokeColor: 'strokeColor',
@@ -157,6 +158,7 @@ const compilerPixiGroupTitles: Record<PixiScenePropGroup, string> = {
     tiling: 'Tiling',
     text: 'Text',
     graphics: 'Graphics',
+    props: 'Props',
 };
 
 function compilerSlotChildCount(nodes: readonly CompilerSceneTemplateNode[], locator: string, path = ''): number {

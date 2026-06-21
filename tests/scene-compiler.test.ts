@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { Container, Rectangle, Text } from 'pixi.js';
-import { Control, Group, HBoxContainer, VBoxContainer, getFrameLayout } from 'pixifact/runtime';
+import { Container, Graphics, Rectangle, Text } from 'pixi.js';
+import { Control, Group, HBoxContainer, Rect, VBoxContainer, getFrameLayout } from 'pixifact/runtime';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -104,6 +104,62 @@ describe('Pixifact scene compiler spike', () => {
         expect(control.hitArea).toMatchObject({ x: 0, y: 0, width: 90, height: 32 });
         expect(control.scale.x).toBe(1);
         expect(control.scale.y).toBe(1);
+    });
+
+    it('exports Rect as a Graphics leaf with Pixifact box size', () => {
+        const rect = new Rect();
+
+        expect(rect).toBeInstanceOf(Graphics);
+        expect(rect.children).toHaveLength(0);
+        expect(rect).toMatchObject({
+            width: 100,
+            height: 60,
+            fillColor: 0xffffff,
+            fillAlpha: 1,
+            strokeColor: 0x000000,
+            strokeAlpha: 1,
+            strokeWidth: 0,
+            radius: 0,
+        });
+        expect(rect.getSize()).toEqual({ width: 100, height: 60 });
+        expect(rect.scale.x).toBe(1);
+        expect(rect.scale.y).toBe(1);
+
+        rect.width = 240;
+        rect.height = 72;
+
+        expect(rect.getSize()).toEqual({ width: 240, height: 72 });
+        expect(rect.scale.x).toBe(1);
+        expect(rect.scale.y).toBe(1);
+        expect(rect.getBounds().rectangle).toMatchObject({ x: 0, y: 0, width: 240, height: 72 });
+    });
+
+    it('applies runtime frame constraints to Rect leaves', () => {
+        const root = new Group({ width: 400, height: 240 });
+        const topLeft = new Rect({ width: 80, height: 30 });
+        topLeft.left = 16;
+        topLeft.top = 20;
+        const topRight = new Rect({ width: 70, height: 24 });
+        topRight.right = 12;
+        topRight.top = 18;
+        const fill = new Rect({ width: 10, height: 10 });
+        fill.left = 40;
+        fill.right = 60;
+        fill.top = 50;
+        fill.bottom = 70;
+        const center = new Rect({ width: 100, height: 40 });
+        center.horizontal = 8;
+        center.vertical = -6;
+
+        root.addChild(topLeft, topRight, fill, center);
+
+        expect(getFrameLayout(fill)).toMatchObject({ left: 40, right: 60, top: 50, bottom: 70 });
+        expect(topLeft).toMatchObject({ x: 16, y: 20, width: 80, height: 30 });
+        expect(topRight).toMatchObject({ x: 318, y: 18, width: 70, height: 24 });
+        expect(fill).toMatchObject({ x: 40, y: 50, width: 300, height: 120 });
+        expect(center).toMatchObject({ x: 158, y: 94, width: 100, height: 40 });
+        expect(fill.scale.x).toBe(1);
+        expect(fill.scale.y).toBe(1);
     });
 
     it('applies runtime Control frame constraints from the parent Group', () => {
@@ -1126,6 +1182,82 @@ import { Group } from 'pixifact/runtime';`);
             sceneInterfaces: builtinSceneInterfaces(builtinSceneScriptSources),
         })).toMatchObject({
             ok: true,
+        });
+    });
+
+    it('parses, serializes, validates, and compiles Rect primitive nodes', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="Hud" width="400" height="240">
+              <Rect id="panel" left="24" right="24" top="16" bottom="16" fillColor="#111827" fillAlpha="0.92" strokeColor="#ffffff" strokeAlpha="0.5" strokeWidth="2" radius="12" />
+            </Scene>
+        `);
+
+        expect(template.children[0]).toMatchObject({
+            kind: 'pixi',
+            type: 'Rect',
+            id: 'panel',
+            props: {
+                left: 24,
+                right: 24,
+                top: 16,
+                bottom: 16,
+                fillColor: 0x111827,
+                fillAlpha: 0.92,
+                strokeColor: 0xffffff,
+                strokeAlpha: 0.5,
+                strokeWidth: 2,
+                radius: 12,
+            },
+            children: [],
+        });
+
+        const source = serializeSceneTemplate(template);
+        expect(source).toContain('<Rect id="panel" left="24" right="24" top="16" bottom="16" fillColor="#111827" fillAlpha="0.92" strokeColor="#ffffff" strokeAlpha="0.5" strokeWidth="2" radius="12" />');
+        expect(parseSceneTemplate(source)).toEqual(template);
+        expect(validateSceneContent({
+            scene: 'src/scenes/Hud.scene',
+            content: source,
+        })).toMatchObject({
+            ok: true,
+        });
+
+        const code = compileSceneTemplateToTs(template);
+        expect(code).toContain(`import { Container } from 'pixi.js';
+import { Group, Rect, setFrameLayout } from 'pixifact/runtime';`);
+        expect(code).toContain('panel: Rect;');
+        expect(code).toContain('const panel = new Rect();');
+        expect(code).toContain('setFrameLayout(panel, { left: 24, right: 24, top: 16, bottom: 16 });');
+        expect(code).toContain('panel.fillColor = 1120295;');
+        expect(code).toContain('panel.fillAlpha = 0.92;');
+        expect(code).toContain('panel.strokeColor = 16777215;');
+        expect(code).toContain('panel.strokeAlpha = 0.5;');
+        expect(code).toContain('panel.strokeWidth = 2;');
+        expect(code).toContain('panel.radius = 12;');
+    });
+
+    it('rejects Rect children because Rect is a leaf node', () => {
+        const result = validateSceneContent({
+            scene: 'src/scenes/Hud.scene',
+            content: `
+                <Scene name="Hud">
+                  <Rect id="panel">
+                    <Text id="label" text="Nope" />
+                  </Rect>
+                </Scene>
+            `,
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/Hud.scene',
+            error: 'Scene validation failed.',
+            diagnostics: [{
+                path: '0:panel',
+                prop: 'children',
+                expected: 'no child nodes',
+                actual: '1 child node',
+                hint: 'Rect is a leaf drawing node. Wrap it and sibling content in a Container or Group Scene.',
+            }],
         });
     });
 
