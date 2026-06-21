@@ -4,7 +4,8 @@
   "scenes": {
     "mainMenu": "src/scenes/MainMenu.scene",
     "button": "src/scenes/Button.scene",
-    "panel": "src/scenes/Panel.scene"
+    "panel": "src/scenes/Panel.scene",
+    "fillContainer": "src/scenes/FillContainer.scene"
   },
   "run": {
     "command": "bun",

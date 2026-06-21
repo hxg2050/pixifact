@@ -1,8 +1,8 @@
 <Scene name="Button" width="188" height="48">
-  <Graphics id="background" shape="roundRect" width="188" height="48" radius="10" fill="#2f6fed" />
-  <Container id="iconHost" x="18" y="14">
-    <slot name="icon" />
-  </Container>
-  <Text id="labelText" text="Button" x="54" y="13" fontSize="17" fontWeight="700" fill="#ffffff" />
-  <Sprite id="sprite1" texture="assets/btn.png" />
+  <FillContainer id="fillContainer1" scene="src/scenes/FillContainer.scene">
+    <Graphics id="background" shape="roundRect" width="188" height="48" radius="10" fill="#2f6fed" />
+  </FillContainer>
+  <CenterContainer id="centerContainer1">
+    <Text id="labelText" text="Button" x="54" y="13" fontSize="17" fontWeight="700" fill="#ffffff" />
+  </CenterContainer>
 </Scene>

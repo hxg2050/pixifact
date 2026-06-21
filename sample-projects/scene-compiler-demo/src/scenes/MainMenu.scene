@@ -1,8 +1,6 @@
 <Scene name="MainMenu" width="960" height="540">
   <Panel id="settingsPanel" scene="./Panel.scene" x="220" y="118" title="Scene Compiler Demo">
     <Text id="bodyText" slot="content" text="Panel and Button are independent Scene scripts. Slots accept external children; props and events stay public." x="0" y="0" fontSize="18" fill="#c8d7f2" />
-    <Button id="startButton" scene="./Button.scene" slot="footer" label="Start" @click="startGame">
-      <Graphics id="playIcon" slot="icon" shape="roundRect" width="18" height="18" radius="4" fill="#ffffff" />
-    </Button>
+    <Button id="startButton" scene="src/scenes/Button.scene" slot="footer" width="212.5593415007657" height="51.63284839203675" x="-121.46439509954058" y="-37.53445635528331" />
   </Panel>
 </Scene>

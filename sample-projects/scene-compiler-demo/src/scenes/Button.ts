@@ -1,4 +1,4 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { Graphics, Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
 import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
@@ -37,9 +37,6 @@ export class Button extends Group {
         this.alpha = value ? 0.48 : 1;
         this.eventMode = value ? 'none' : 'static';
     }
-
-    @slot()
-    declare readonly icon: Container;
 
     setIconGraphic(graphic: Graphics) {
         graphic.rotation = Math.PI / 4;

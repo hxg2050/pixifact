@@ -1,0 +1,3 @@
+<Scene name="FillContainer">
+  <slot name="default" />
+</Scene>
