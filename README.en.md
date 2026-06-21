@@ -76,7 +76,6 @@ packages/pixifact-cli/          Pixifact CLI; depends on pixifact, not on the de
 apps/editor/                    Pixifact desktop editor React / Vite frontend
 apps/editor/src-tauri/          Tauri desktop host
 tests/                          unit, editor, and CLI tests
-sample-projects/                sample Pixifact projects
 skills/                         repository-owned Codex skills
 ```
 
@@ -162,7 +161,6 @@ Runtime or export API changes:
 
 ```bash
 bun run build
-bun run example:build
 ```
 
 ## Codex Skills

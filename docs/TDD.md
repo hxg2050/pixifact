@@ -168,7 +168,6 @@ bunx --no-install vitest run tests/compiler-scene-commands.test.ts tests/compile
 ```bash
 bunx --no-install vitest run tests/scene-compiler.test.ts tests/editor-workbench-ui.test.ts
 bun run build
-bun run example:build
 ```
 
 ### 修改 Inspector / Editor 面板
@@ -203,7 +202,6 @@ bun run editor:frontend:build
 ```bash
 bunx --no-install vitest run tests/scene-compiler.test.ts tests/scene-script-interface.test.ts
 bun run build
-bun run example:build
 ```
 
 ## 5. Definition of Done

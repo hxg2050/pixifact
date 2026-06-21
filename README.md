@@ -76,7 +76,6 @@ packages/pixifact-cli/          Pixifact CLI，依赖 pixifact，不依赖桌面
 apps/editor/                    Pixifact 桌面编辑器 React / Vite 前端
 apps/editor/src-tauri/          Tauri desktop host
 tests/                          单元测试、编辑器测试、CLI 测试
-sample-projects/                样例 Pixifact 项目
 skills/                         本仓库维护的 Codex skills
 ```
 
@@ -164,7 +163,6 @@ runtime 或导出 API 改动：
 
 ```bash
 bun run build
-bun run example:build
 ```
 
 项目级测试策略见：

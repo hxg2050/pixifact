@@ -53,15 +53,7 @@ Agents should follow this loop:
 6. Run the smallest relevant project build or test.
 7. If Editor is running, optionally read `live scene get` for current selection, preview context, and the latest external refresh or validation result.
 
-Example:
-
-```bash
-bun run pixifact -- scene inspect --project-root sample-projects/scene-compiler-demo --scene src/scenes/Button.scene
-bun run pixifact -- scene validate --project-root sample-projects/scene-compiler-demo --scene src/scenes/Button.scene
-bun run pixifact -- scene validate --project-root sample-projects/scene-compiler-demo --all
-bun run pixifact -- compile-scenes --project-root sample-projects/scene-compiler-demo
-cd sample-projects/scene-compiler-demo && bun run build
-```
+Example commands should be run in the downstream Pixifact game project, using that project's root and scene paths.
 
 `scene validate` checks parse errors, prop names, prop value types, asset references, and public Scene instance contracts. Use `--scene` for a known target and `--all` when multiple scenes may have changed. It is the required safety check after direct `.scene` edits. Git state, commits, rollback, branch isolation, and merge strategy are intentionally outside Pixifact; external agents and developer tools should manage them directly.
 

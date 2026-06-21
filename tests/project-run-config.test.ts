@@ -1,5 +1,3 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
     defaultPixifactProjectResolution,
@@ -148,27 +146,5 @@ describe('Pixifact project run config', () => {
                 cwd: '../outside',
             },
         })).toThrow('run.cwd must stay inside projectRoot');
-    });
-
-    it('parses the scene compiler demo project config', () => {
-        const config = parsePixifactProjectConfig(JSON.parse(fs.readFileSync(
-            path.resolve('sample-projects/scene-compiler-demo/pixifact.project.json'),
-            'utf8',
-        )));
-
-        expect(config).toMatchObject({
-            name: 'Scene Compiler Demo',
-            scenes: {
-                mainMenu: 'src/scenes/MainMenu.scene',
-                button: 'src/scenes/Button.scene',
-                panel: 'src/scenes/Panel.scene',
-            },
-            run: {
-                command: 'bun',
-                args: ['run', 'dev'],
-                cwd: '.',
-                url: 'http://localhost:5175',
-            },
-        });
     });
 });

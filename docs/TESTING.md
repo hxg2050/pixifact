@@ -42,5 +42,4 @@ runtime 或导出 API 改动：
 
 ```bash
 bun run build
-bun run example:build
 ```

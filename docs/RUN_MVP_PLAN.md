@@ -43,7 +43,7 @@ MVP 使用项目根目录的 `pixifact.project.json` 描述运行入口。
 ```json
 {
   "version": 1,
-  "name": "Space HUD Game",
+  "name": "Game Project",
   "scenes": {
     "mainMenu": "src/scenes/MainMenu.scene",
     "hud": "src/scenes/Hud.scene",
@@ -106,76 +106,23 @@ MVP 行为：
 - 命令启动失败：展示 host 错误。
 - 进程非 0 退出：展示 exit code 和 stderr 摘要。
 
-## 5. 完整示例游戏
+## 5. 示例项目
 
-MVP 必须新增一个完整示例项目：
+仓库不再维护内置示例项目。Pixifact 框架仓库只保留 runtime、compiler、CLI、Editor 和测试；下游游戏项目由用户或独立仓库维护。
 
-```txt
-sample-projects/space-hud-game/
-  pixifact.project.json
-  package.json
-  tsconfig.json
-  vite.config.ts
-  index.html
-  assets/
-    images/
-    audio/
-  src/
-    scenes/
-      MainMenu.scene
-      Hud.scene
-      GameOver.scene
-    main.ts
-    game/
-      state.ts
-      input.ts
-      player.ts
-      enemies.ts
-      collision.ts
-    ui/
-      loadPixifactScene.ts
-      hudBindings.ts
-      menuBindings.ts
-```
+需要验证项目级工作流时，使用临时测试 fixture 或外部 Pixifact 项目，不再依赖仓库内示例目录。
 
-示例游戏选择：太空射击 / 生存小游戏。
+## 6. 项目验收
 
-功能范围：
+当前验收标准：
 
-- 玩家飞船移动。
-- 敌人或陨石生成。
-- 碰撞扣血。
-- 击中或存活加分。
-- 波次或计时。
-- Game Over。
-- Main Menu Scene：Start / Restart。
-- Hud Scene：HP、Score、Wave / Time、Energy 或 Cooldown。
-- GameOver Scene：Final Score、Restart。
-
-示例项目必须使用 Pixifact runtime 加载 `.scene`，不能只把 Scene 当普通 JSON 展示。
-
-## 6. 示例游戏验收
-
-MVP 成功标准：
-
-1. 打开 `sample-projects/space-hud-game`。
-2. Editor 文件树显示 `src`、`assets` 和 `pixifact.project.json`。
-3. 双击 `src/scenes/Hud.scene` 后，Editor 预览 HUD。
-4. 点击 `运行` 后，Editor 启动示例项目 run command。
-5. 系统默认浏览器打开配置的 URL。
-6. 游戏能操作玩家飞船。
-7. 游戏加载 `Hud.scene`。
-8. 血量、分数、波次或时间在 HUD 中随 gameplay state 更新。
-9. 修改 `Hud.scene` 并保存后，重新运行能看到修改后的 HUD。
-10. 运行失败时 Editor 显示错误日志。
-11. 点击停止能终止 Editor 启动的 dev server。
-
-当前验收状态：
-
-- [x] `sample-projects/space-hud-game` 已新增并提交。
-- [x] 示例项目使用 Pixifact compiler runtime 加载 `.scene`。
-- [x] `bun run build`、相关 run config / run service 测试和样例项目测试已通过。
-- [x] 已由人工通过 Pixifact Editor 完整手动验收：打开项目、预览 HUD、运行真实游戏、浏览器操作、HUD 随 gameplay 更新、保存后重新运行、停止进程。
+1. Editor 能打开任意合法 Pixifact 项目目录。
+2. Editor 文件树显示项目资源和 `pixifact.project.json`。
+3. 双击 `.scene` 文件后，Editor 可以预览 Scene。
+4. 点击 `运行` 后，Editor 按项目 run config 启动项目。
+5. 修改 `.scene` 并保存后，重新运行能看到更新结果。
+6. 运行失败时 Editor 显示错误日志。
+7. 点击停止能终止 Editor 启动的 dev server。
 
 ## 7. Agent 参与方式
 
@@ -197,10 +144,10 @@ Scene 修改直接编辑 .scene 源文件，之后运行 scene validate 和 comp
 2. [x] 为 Tauri host 增加受控进程启动、日志、停止能力。
 3. [x] 将 Editor toolbar 的 `运行` 按钮接入 run service。
 4. [x] 展示运行状态和日志摘要。
-5. [x] 新增 `sample-projects/space-hud-game`。
-6. [x] 示例游戏接入 Pixifact runtime 并加载 `.scene`。
+5. [x] 移除仓库内置示例项目，项目级验证改用测试 fixture 或外部项目。
+6. [x] Editor run service 支持按 Pixifact 项目配置启动真实项目。
 7. [x] 补 service / host / CLI-adjacent 测试。
-8. [x] 手动验收完整运行闭环。
+8. [x] 手动验收运行闭环。
 
 不在 MVP 中实现：
 

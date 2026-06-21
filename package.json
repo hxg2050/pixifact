@@ -37,8 +37,6 @@
     "editor": "bun run desktop",
     "pixifact": "bun packages/pixifact-cli/src/pixifact-cli.ts",
     "editor:frontend:build": "VITE_PIXIFACT_PROJECT_ROOT=$PWD bunx --no-install vite build apps/editor --config vite.config.ts",
-    "example": "cd sample-projects/scene-compiler-demo && bun run dev",
-    "example:build": "cd sample-projects/scene-compiler-demo && bun run build",
     "release:check": "bun run test && bun run build && bun run editor:frontend:build && cd packages/create-pixifact && bun run build && cd ../.. && bun scripts/check-release-packages.mjs",
     "release:publish": "bun scripts/publish-release-tag.mjs",
     "release:status": "changeset status --verbose",
