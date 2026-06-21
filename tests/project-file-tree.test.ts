@@ -979,6 +979,69 @@ describe('project file tree service', () => {
         preview.dispose();
     });
 
+    it('renders Pixifact image nodes through the compiler runtime preview', async () => {
+        host.reset({
+            src: host.directory({
+                scenes: host.directory({
+                    'Hud.scene': host.file(`
+                        <Scene name="Hud" width="400" height="240">
+                          <Image id="hero" left="20" top="10" width="160" height="90" fit="contain" tint="#ffffff" />
+                          <NineImage id="panel" right="30" top="20" width="180" height="72" leftWidth="12" rightWidth="14" topHeight="8" bottomHeight="10" />
+                          <TileImage id="ground" left="0" right="0" bottom="0" height="64" tilePositionX="4" tilePositionY="8" tileScaleX="2" tileScaleY="3" tileRotation="0.25" />
+                        </Scene>
+                    `),
+
+                    'Hud.ts': emptySceneScript('Hud'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/src/scenes/Hud.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+        const document = getCompilerSceneDocument();
+
+        const preview = await createCompilerSceneRuntimePreview({
+            document: document!,
+            projectTree: tree,
+            scenePath: 'src/scenes/Hud.scene',
+        });
+
+        const hero = preview.nodes.get('0:hero');
+        const panel = preview.nodes.get('1:panel');
+        const ground = preview.nodes.get('2:ground');
+        expect(hero?.constructor.name).toBe('Image');
+        expect(panel?.constructor.name).toBe('NineImage');
+        expect(ground?.constructor.name).toBe('TileImage');
+        expect(hero).toMatchObject({
+            x: 20,
+            y: 10,
+            width: 160,
+            height: 90,
+            fit: 'contain',
+            tint: 0xffffff,
+        });
+        expect(panel).toMatchObject({
+            x: 190,
+            y: 20,
+            width: 180,
+            height: 72,
+            leftWidth: 12,
+            rightWidth: 14,
+            topHeight: 8,
+            bottomHeight: 10,
+        });
+        expect(ground).toMatchObject({
+            x: 0,
+            y: 176,
+            width: 400,
+            height: 64,
+            tileRotation: 0.25,
+        });
+        expect(ground?.tilePosition).toMatchObject({ x: 4, y: 8 });
+        expect(ground?.tileScale).toMatchObject({ x: 2, y: 3 });
+        preview.dispose();
+    });
+
     it('binds compiler preview scene events to the opened scene script instance', async () => {
         host.reset({
             src: host.directory({
@@ -1609,6 +1672,40 @@ describe('project file tree service', () => {
             },
             children: [],
         });
+        expect(createCompilerPixiTemplateNode(template, 'Image')).toMatchObject({
+            kind: 'pixi',
+            type: 'Image',
+            props: {
+                width: 96,
+                height: 96,
+                fit: 'stretch',
+            },
+            children: [],
+        });
+        expect(createCompilerPixiTemplateNode(template, 'NineImage')).toMatchObject({
+            kind: 'pixi',
+            type: 'NineImage',
+            props: {
+                width: 160,
+                height: 80,
+                leftWidth: 10,
+                rightWidth: 10,
+                topHeight: 10,
+                bottomHeight: 10,
+            },
+            children: [],
+        });
+        expect(createCompilerPixiTemplateNode(template, 'TileImage')).toMatchObject({
+            kind: 'pixi',
+            type: 'TileImage',
+            props: {
+                width: 160,
+                height: 96,
+                tileScaleX: 1,
+                tileScaleY: 1,
+            },
+            children: [],
+        });
         expect(createCompilerPixiTemplateNode(template, 'NineSliceSprite')).toMatchObject({
             kind: 'pixi',
             type: 'NineSliceSprite',
@@ -1652,6 +1749,25 @@ describe('project file tree service', () => {
             strokeWidth: 0,
             radius: 0,
         });
+        expect(pixiSceneNodeDefaults('Image')).toEqual({
+            width: 96,
+            height: 96,
+            fit: 'stretch',
+        });
+        expect(pixiSceneNodeDefaults('NineImage')).toEqual({
+            width: 160,
+            height: 80,
+            leftWidth: 10,
+            rightWidth: 10,
+            topHeight: 10,
+            bottomHeight: 10,
+        });
+        expect(pixiSceneNodeDefaults('TileImage')).toEqual({
+            width: 160,
+            height: 96,
+            tileScaleX: 1,
+            tileScaleY: 1,
+        });
         expect(pixiSceneNodeDefaults('Graphics')).toEqual({
             shape: 'roundRect',
             width: 100,
@@ -1680,6 +1796,10 @@ describe('project file tree service', () => {
         expect(pixiSceneFieldSchema('fillColor')).toMatchObject({
             type: 'color',
         });
+        expect(pixiSceneFieldSchema('fit')).toMatchObject({
+            type: 'enum',
+            options: ['stretch', 'contain', 'cover', 'none'],
+        });
     });
 
     it('groups compiler Pixi basic node props by node capability', () => {
@@ -1687,6 +1807,24 @@ describe('project file tree service', () => {
             {
                 group: 'props',
                 fields: ['fillColor', 'fillAlpha', 'strokeColor', 'strokeAlpha', 'strokeWidth', 'radius'],
+            },
+        ]);
+        expect(pixiSceneNodePropGroups('Image')).toEqual([
+            {
+                group: 'props',
+                fields: ['texture', 'fit', 'anchorX', 'anchorY', 'tint'],
+            },
+        ]);
+        expect(pixiSceneNodePropGroups('NineImage')).toEqual([
+            {
+                group: 'props',
+                fields: ['texture', 'leftWidth', 'rightWidth', 'topHeight', 'bottomHeight', 'anchorX', 'anchorY', 'tint'],
+            },
+        ]);
+        expect(pixiSceneNodePropGroups('TileImage')).toEqual([
+            {
+                group: 'props',
+                fields: ['texture', 'tilePositionX', 'tilePositionY', 'tileScaleX', 'tileScaleY', 'tileRotation', 'anchorX', 'anchorY', 'tint'],
             },
         ]);
         expect(pixiSceneNodePropGroups('NineSliceSprite')).toEqual([

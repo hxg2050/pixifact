@@ -365,6 +365,80 @@ describe('compiler scene document controller undo redo', () => {
         });
     });
 
+    it('adds Pixifact image leaves from the node template library', () => {
+        loadTemplate();
+
+        for (const type of ['Image', 'NineImage', 'TileImage'] as const) {
+            const templateItem = pixiNodeTemplateLibrary.find((item) => item.name === type);
+            expect(templateItem).toBeDefined();
+            expect(nodeTemplateLibraryGroups[0].items).toContain(templateItem);
+        }
+
+        const imageResult = addCompilerSceneNodeAtTarget(
+            '0:content/0:title',
+            createCompilerPixiTemplateNode(getCompilerSceneDocument()!.template, 'Image'),
+        );
+        expect(imageResult).toEqual({
+            ok: true,
+            locator: '0:content/1:image1',
+        });
+        expect(contentChildren()[1]).toMatchObject({
+            kind: 'pixi',
+            type: 'Image',
+            id: 'image1',
+            props: {
+                width: 96,
+                height: 96,
+                fit: 'stretch',
+            },
+            children: [],
+        });
+
+        const nineImageResult = addCompilerSceneNodeAtTarget(
+            '0:content/1:image1',
+            createCompilerPixiTemplateNode(getCompilerSceneDocument()!.template, 'NineImage'),
+        );
+        expect(nineImageResult).toEqual({
+            ok: true,
+            locator: '0:content/2:nineImage1',
+        });
+        expect(contentChildren()[2]).toMatchObject({
+            kind: 'pixi',
+            type: 'NineImage',
+            id: 'nineImage1',
+            props: {
+                width: 160,
+                height: 80,
+                leftWidth: 10,
+                rightWidth: 10,
+                topHeight: 10,
+                bottomHeight: 10,
+            },
+            children: [],
+        });
+
+        const tileImageResult = addCompilerSceneNodeAtTarget(
+            '0:content/2:nineImage1',
+            createCompilerPixiTemplateNode(getCompilerSceneDocument()!.template, 'TileImage'),
+        );
+        expect(tileImageResult).toEqual({
+            ok: true,
+            locator: '0:content/3:tileImage1',
+        });
+        expect(contentChildren()[3]).toMatchObject({
+            kind: 'pixi',
+            type: 'TileImage',
+            id: 'tileImage1',
+            props: {
+                width: 160,
+                height: 96,
+                tileScaleX: 1,
+                tileScaleY: 1,
+            },
+            children: [],
+        });
+    });
+
     it('clears command history when a compiler scene is loaded or closed', () => {
         loadTemplate();
         updateCompilerSceneTemplate({ name: 'MainMenu' });

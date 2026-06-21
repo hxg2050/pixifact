@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { Container, Graphics, Rectangle, Text } from 'pixi.js';
-import { Control, Group, HBoxContainer, Rect, VBoxContainer, getFrameLayout } from 'pixifact/runtime';
+import { Container, Graphics, Mesh, NineSliceSprite, Rectangle, Text, Texture, TextureSource, TilingSprite } from 'pixi.js';
+import { Control, Group, HBoxContainer, Image, NineImage, Rect, TileImage, VBoxContainer, getFrameLayout } from 'pixifact/runtime';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -36,6 +36,15 @@ import {
 import { compileScenes, pixifactScenesPlugin } from 'pixifact/compiler-node';
 
 const builtinSceneScriptSources: BuiltinSceneScriptSources = {};
+
+function texture(width: number, height: number) {
+    return new Texture({
+        source: new TextureSource({
+            width,
+            height,
+        }),
+    });
+}
 
 describe('Pixifact scene compiler spike', () => {
     it('keeps Group width and height as Pixifact box size without scaling', () => {
@@ -132,6 +141,140 @@ describe('Pixifact scene compiler spike', () => {
         expect(rect.scale.x).toBe(1);
         expect(rect.scale.y).toBe(1);
         expect(rect.getBounds().rectangle).toMatchObject({ x: 0, y: 0, width: 240, height: 72 });
+    });
+
+    it('exports Image as a Mesh leaf with Pixifact box size and fit modes', () => {
+        const image = new Image({
+            texture: texture(200, 100),
+            width: 100,
+            height: 100,
+            fit: 'cover',
+            anchorX: 0.5,
+            anchorY: 0.5,
+            tint: 0xff00ff,
+        });
+
+        expect(image).toBeInstanceOf(Mesh);
+        expect(image.children).toHaveLength(0);
+        expect(image).toMatchObject({
+            width: 100,
+            height: 100,
+            fit: 'cover',
+            tint: 0xff00ff,
+        });
+        expect(image.anchor).toMatchObject({ x: 0.5, y: 0.5 });
+        expect(image.getSize()).toEqual({ width: 100, height: 100 });
+        expect(image.scale.x).toBe(1);
+        expect(image.scale.y).toBe(1);
+        expect([...image.geometry.positions]).toEqual([-50, -50, 50, -50, 50, 50, -50, 50]);
+        expect([...image.geometry.uvs]).toEqual([0.25, 0, 0.75, 0, 0.75, 1, 0.25, 1]);
+
+        image.fit = 'contain';
+
+        expect([...image.geometry.positions]).toEqual([-50, -25, 50, -25, 50, 25, -50, 25]);
+        expect([...image.geometry.uvs]).toEqual([0, 0, 1, 0, 1, 1, 0, 1]);
+
+        image.fit = 'stretch';
+        image.width = 240;
+        image.height = 120;
+
+        expect(image.getSize()).toEqual({ width: 240, height: 120 });
+        expect(image.scale.x).toBe(1);
+        expect(image.scale.y).toBe(1);
+        expect(image.getBounds().rectangle).toMatchObject({ x: -120, y: -60, width: 240, height: 120 });
+
+        image.fit = 'none';
+
+        expect([...image.geometry.positions]).toEqual([-120, -60, 80, -60, 80, 40, -120, 40]);
+        expect([...image.geometry.uvs]).toEqual([0, 0, 1, 0, 1, 1, 0, 1]);
+    });
+
+    it('exports NineImage and TileImage as Pixi image leaves with Pixifact box size', () => {
+        const nine = new NineImage({
+            texture: texture(64, 64),
+            width: 180,
+            height: 72,
+            leftWidth: 12,
+            rightWidth: 14,
+            topHeight: 8,
+            bottomHeight: 10,
+            anchorX: 0.5,
+            anchorY: 0.5,
+            tint: 0x00ff00,
+        });
+        const tile = new TileImage({
+            texture: texture(32, 32),
+            width: 240,
+            height: 120,
+            tilePositionX: 4,
+            tilePositionY: 8,
+            tileScaleX: 2,
+            tileScaleY: 3,
+            tileRotation: 0.25,
+            anchorX: 0.5,
+            anchorY: 1,
+            tint: 0xffaa00,
+        });
+
+        expect(nine).toBeInstanceOf(NineSliceSprite);
+        expect(tile).toBeInstanceOf(TilingSprite);
+        expect(nine.children).toHaveLength(0);
+        expect(tile.children).toHaveLength(0);
+        expect(nine).toMatchObject({
+            width: 180,
+            height: 72,
+            leftWidth: 12,
+            rightWidth: 14,
+            topHeight: 8,
+            bottomHeight: 10,
+            tint: 0x00ff00,
+        });
+        expect(nine.anchor).toMatchObject({ x: 0.5, y: 0.5 });
+        expect(nine.scale.x).toBe(1);
+        expect(nine.scale.y).toBe(1);
+        expect(tile).toMatchObject({
+            width: 240,
+            height: 120,
+            tileRotation: 0.25,
+            tint: 0xffaa00,
+        });
+        expect(tile.tilePosition).toMatchObject({ x: 4, y: 8 });
+        expect(tile.tileScale).toMatchObject({ x: 2, y: 3 });
+        expect(tile.anchor).toMatchObject({ x: 0.5, y: 1 });
+        expect(tile.scale.x).toBe(1);
+        expect(tile.scale.y).toBe(1);
+
+        nine.setSize(220, 90);
+        tile.setSize(300, 160);
+
+        expect(nine.getSize()).toEqual({ width: 220, height: 90 });
+        expect(tile.getSize()).toEqual({ width: 300, height: 160 });
+        expect(nine.scale.x).toBe(1);
+        expect(tile.scale.x).toBe(1);
+    });
+
+    it('applies runtime frame constraints to Pixifact image leaves', () => {
+        const root = new Group({ width: 400, height: 240 });
+        const image = new Image({ width: 80, height: 30 });
+        image.left = 16;
+        image.top = 20;
+        const nine = new NineImage({ width: 70, height: 24 });
+        nine.right = 12;
+        nine.top = 18;
+        const tile = new TileImage({ width: 10, height: 10 });
+        tile.left = 40;
+        tile.right = 60;
+        tile.top = 50;
+        tile.bottom = 70;
+
+        root.addChild(image, nine, tile);
+
+        expect(image).toMatchObject({ x: 16, y: 20, width: 80, height: 30 });
+        expect(nine).toMatchObject({ x: 318, y: 18, width: 70, height: 24 });
+        expect(tile).toMatchObject({ x: 40, y: 50, width: 300, height: 120 });
+        expect(tile.scale.x).toBe(1);
+        expect(tile.scale.y).toBe(1);
+        expect(getFrameLayout(tile)).toMatchObject({ left: 40, right: 60, top: 50, bottom: 70 });
     });
 
     it('applies runtime frame constraints to Rect leaves', () => {
@@ -1233,6 +1376,151 @@ import { Group, Rect, setFrameLayout } from 'pixifact/runtime';`);
         expect(code).toContain('panel.strokeAlpha = 0.5;');
         expect(code).toContain('panel.strokeWidth = 2;');
         expect(code).toContain('panel.radius = 12;');
+    });
+
+    it('parses, serializes, validates, and compiles Pixifact image primitive nodes', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="Hud" width="400" height="240">
+              <Image id="hero" texture="assets/hero.png" width="320" height="180" fit="cover" anchorX="0.5" anchorY="0.5" tint="#ffffff" />
+              <NineImage id="panel" texture="assets/panel.png" left="20" right="20" top="12" height="96" leftWidth="16" rightWidth="16" topHeight="12" bottomHeight="12" />
+              <TileImage id="ground" texture="assets/grass.png" width="400" height="80" tilePositionX="4" tilePositionY="8" tileScaleX="2" tileScaleY="2" tileRotation="0.1" />
+            </Scene>
+        `);
+
+        expect(template.children).toMatchObject([
+            {
+                kind: 'pixi',
+                type: 'Image',
+                id: 'hero',
+                props: {
+                    texture: 'assets/hero.png',
+                    width: 320,
+                    height: 180,
+                    fit: 'cover',
+                    anchorX: 0.5,
+                    anchorY: 0.5,
+                    tint: 0xffffff,
+                },
+                children: [],
+            },
+            {
+                kind: 'pixi',
+                type: 'NineImage',
+                id: 'panel',
+                props: {
+                    texture: 'assets/panel.png',
+                    left: 20,
+                    right: 20,
+                    top: 12,
+                    height: 96,
+                    leftWidth: 16,
+                    rightWidth: 16,
+                    topHeight: 12,
+                    bottomHeight: 12,
+                },
+                children: [],
+            },
+            {
+                kind: 'pixi',
+                type: 'TileImage',
+                id: 'ground',
+                props: {
+                    texture: 'assets/grass.png',
+                    width: 400,
+                    height: 80,
+                    tilePositionX: 4,
+                    tilePositionY: 8,
+                    tileScaleX: 2,
+                    tileScaleY: 2,
+                    tileRotation: 0.1,
+                },
+                children: [],
+            },
+        ]);
+
+        const source = serializeSceneTemplate(template);
+        expect(source).toContain('<Image id="hero" texture="assets/hero.png" width="320" height="180" fit="cover" anchorX="0.5" anchorY="0.5" tint="#ffffff" />');
+        expect(source).toContain('<NineImage id="panel" texture="assets/panel.png" left="20" right="20" top="12" height="96" leftWidth="16" rightWidth="16" topHeight="12" bottomHeight="12" />');
+        expect(source).toContain('<TileImage id="ground" texture="assets/grass.png" width="400" height="80" tilePositionX="4" tilePositionY="8" tileScaleX="2" tileScaleY="2" tileRotation="0.1" />');
+        expect(parseSceneTemplate(source)).toEqual(template);
+        expect(validateSceneContent({
+            scene: 'src/scenes/Hud.scene',
+            content: source,
+        })).toMatchObject({
+            ok: true,
+        });
+
+        const code = compileSceneTemplateToTs(template);
+        expect(code).toContain(`import { Container, Assets } from 'pixi.js';
+import { Group, Image, NineImage, TileImage, setFrameLayout } from 'pixifact/runtime';`);
+        expect(code).toContain('hero: Image;');
+        expect(code).toContain('panel: NineImage;');
+        expect(code).toContain('ground: TileImage;');
+        expect(code).toContain('const __pixifactTexture1 = await Assets.load("assets/hero.png");');
+        expect(code).toContain('const __pixifactTexture2 = await Assets.load("assets/panel.png");');
+        expect(code).toContain('const __pixifactTexture3 = await Assets.load("assets/grass.png");');
+        expect(code).toContain('const hero = new Image({ texture: __pixifactTexture1 });');
+        expect(code).toContain('hero.width = 320;');
+        expect(code).toContain('hero.height = 180;');
+        expect(code).toContain('hero.anchor.set(0.5, 0.5);');
+        expect(code).toContain('hero.tint = 16777215;');
+        expect(code).toContain('hero.fit = "cover";');
+        expect(code).toContain('const panel = new NineImage({ texture: __pixifactTexture2 });');
+        expect(code).toContain('setFrameLayout(panel, { left: 20, right: 20, top: 12 });');
+        expect(code).toContain('panel.leftWidth = 16;');
+        expect(code).toContain('panel.bottomHeight = 12;');
+        expect(code).toContain('const ground = new TileImage({ texture: __pixifactTexture3 });');
+        expect(code).toContain('ground.tilePosition.set(4, 8);');
+        expect(code).toContain('ground.tileScale.set(2, 2);');
+        expect(code).toContain('ground.tileRotation = 0.1;');
+    });
+
+    it('rejects Pixifact image primitive children because image nodes are leaves', () => {
+        const result = validateSceneContent({
+            scene: 'src/scenes/Hud.scene',
+            content: `
+                <Scene name="Hud">
+                  <Image id="hero">
+                    <Text id="label" text="Nope" />
+                  </Image>
+                  <NineImage id="panel">
+                    <Text id="panelLabel" text="Nope" />
+                  </NineImage>
+                  <TileImage id="ground">
+                    <Text id="groundLabel" text="Nope" />
+                  </TileImage>
+                </Scene>
+            `,
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/Hud.scene',
+            error: 'Scene validation failed.',
+            diagnostics: [
+                {
+                    path: '0:hero',
+                    prop: 'children',
+                    expected: 'no child nodes',
+                    actual: '1 child node',
+                    hint: 'Image is a leaf drawing node. Wrap it and sibling content in a Container or Group Scene.',
+                },
+                {
+                    path: '1:panel',
+                    prop: 'children',
+                    expected: 'no child nodes',
+                    actual: '1 child node',
+                    hint: 'NineImage is a leaf drawing node. Wrap it and sibling content in a Container or Group Scene.',
+                },
+                {
+                    path: '2:ground',
+                    prop: 'children',
+                    expected: 'no child nodes',
+                    actual: '1 child node',
+                    hint: 'TileImage is a leaf drawing node. Wrap it and sibling content in a Container or Group Scene.',
+                },
+            ],
+        });
     });
 
     it('rejects Rect children because Rect is a leaf node', () => {

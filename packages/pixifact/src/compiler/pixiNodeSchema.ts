@@ -2,7 +2,7 @@ import type { SceneTemplatePrimitiveType, SceneTemplateValue } from './spec';
 
 export type PixiSceneNodeType = Extract<
     SceneTemplatePrimitiveType,
-    'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'HBoxContainer' | 'VBoxContainer'
+    'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'Image' | 'NineImage' | 'TileImage' | 'HBoxContainer' | 'VBoxContainer'
 >;
 
 export type PixiSceneFieldType = 'string' | 'number' | 'boolean' | 'color' | 'enum';
@@ -55,6 +55,37 @@ export const pixiSceneDisplayProps = [
 
 export const pixiSceneSpriteProps = [
     'texture',
+    'anchorX',
+    'anchorY',
+    'tint',
+] as const;
+
+export const pixiSceneImageProps = [
+    'texture',
+    'fit',
+    'anchorX',
+    'anchorY',
+    'tint',
+] as const;
+
+export const pixiSceneNineImageProps = [
+    'texture',
+    'leftWidth',
+    'rightWidth',
+    'topHeight',
+    'bottomHeight',
+    'anchorX',
+    'anchorY',
+    'tint',
+] as const;
+
+export const pixiSceneTileImageProps = [
+    'texture',
+    'tilePositionX',
+    'tilePositionY',
+    'tileScaleX',
+    'tileScaleY',
+    'tileRotation',
     'anchorX',
     'anchorY',
     'tint',
@@ -130,6 +161,9 @@ export const pixiSceneTextStyleProps = [
 
 export const pixiSceneSpriteLikeProps = [
     ...pixiSceneSpriteProps,
+    ...pixiSceneImageProps,
+    ...pixiSceneNineImageProps,
+    ...pixiSceneTileImageProps,
     ...pixiSceneNineSliceProps,
     ...pixiSceneTilingProps,
 ] as const;
@@ -157,6 +191,9 @@ export const pixiSceneAddableNodeTypes = [
     'HTMLText',
     'Graphics',
     'Rect',
+    'Image',
+    'NineImage',
+    'TileImage',
 ] as const satisfies readonly PixiSceneNodeType[];
 
 export const pixiSceneNodePropGroupOrder = [
@@ -194,6 +231,7 @@ const pixiSceneFieldSchemas: Partial<Record<string, PixiSceneFieldSchema>> = {
     cursor: { key: 'cursor', type: 'enum', options: ['default', 'pointer', 'text', 'grab', 'grabbing'] },
     label: { key: 'label', type: 'string' },
     texture: { key: 'texture', type: 'string' },
+    fit: { key: 'fit', type: 'enum', options: ['stretch', 'contain', 'cover', 'none'] },
     anchorX: { key: 'anchorX', type: 'number' },
     anchorY: { key: 'anchorY', type: 'number' },
     tint: { key: 'tint', type: 'color' },
@@ -346,6 +384,46 @@ const pixiSceneNodeSchemas: Record<PixiSceneNodeType, PixiSceneNodeSchema> = {
         },
         groups: {
             props: pixiSceneRectProps,
+        },
+    },
+    Image: {
+        type: 'Image',
+        acceptsChildren: false,
+        defaults: {
+            width: 96,
+            height: 96,
+            fit: 'stretch',
+        },
+        groups: {
+            props: pixiSceneImageProps,
+        },
+    },
+    NineImage: {
+        type: 'NineImage',
+        acceptsChildren: false,
+        defaults: {
+            width: 160,
+            height: 80,
+            leftWidth: 10,
+            rightWidth: 10,
+            topHeight: 10,
+            bottomHeight: 10,
+        },
+        groups: {
+            props: pixiSceneNineImageProps,
+        },
+    },
+    TileImage: {
+        type: 'TileImage',
+        acceptsChildren: false,
+        defaults: {
+            width: 160,
+            height: 96,
+            tileScaleX: 1,
+            tileScaleY: 1,
+        },
+        groups: {
+            props: pixiSceneTileImageProps,
         },
     },
     HBoxContainer: {

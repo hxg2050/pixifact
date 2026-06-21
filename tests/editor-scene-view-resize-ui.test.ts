@@ -82,6 +82,132 @@ const mockPixi = vi.hoisted(() => {
         }
     }
 
+    class MockTextureSource {
+        width = 0;
+        height = 0;
+
+        constructor(options: { width?: number; height?: number } = {}) {
+            this.width = options.width ?? 0;
+            this.height = options.height ?? 0;
+        }
+    }
+
+    class MockTexture {
+        static EMPTY = new MockTexture();
+        static WHITE = new MockTexture();
+        width = 0;
+        height = 0;
+
+        constructor(options: { source?: MockTextureSource } = {}) {
+            this.width = options.source?.width ?? 0;
+            this.height = options.source?.height ?? 0;
+        }
+
+        on() {
+            return this;
+        }
+
+        off() {
+            return this;
+        }
+    }
+
+    class MockMeshGeometry {
+        positions: Float32Array;
+        uvs: Float32Array;
+        indices: Uint32Array;
+
+        constructor(options: { positions?: Float32Array; uvs?: Float32Array; indices?: Uint32Array } = {}) {
+            this.positions = options.positions ?? new Float32Array(8);
+            this.uvs = options.uvs ?? new Float32Array(8);
+            this.indices = options.indices ?? new Uint32Array(6);
+        }
+    }
+
+    class MockMesh extends MockContainer {
+        allowChildren = false;
+        geometry: MockMeshGeometry;
+        texture: MockTexture;
+
+        constructor(options: { geometry?: MockMeshGeometry; texture?: MockTexture } = {}) {
+            super();
+            this.geometry = options.geometry ?? new MockMeshGeometry();
+            this.texture = options.texture ?? MockTexture.EMPTY;
+        }
+    }
+
+    class MockObservablePoint {
+        x = 0;
+        y = 0;
+
+        constructor(private readonly observer: { _onUpdate?: () => void } = {}, x = 0, y = 0) {
+            this.x = x;
+            this.y = y;
+        }
+
+        set(x = 0, y = x) {
+            this.x = x;
+            this.y = y;
+            this.observer._onUpdate?.();
+            return this;
+        }
+    }
+
+    class MockNineSliceSprite extends MockContainer {
+        allowChildren = false;
+        anchor = new MockObservablePoint();
+        texture: MockTexture;
+        leftWidth = 10;
+        rightWidth = 10;
+        topHeight = 10;
+        bottomHeight = 10;
+
+        constructor(options: { texture?: MockTexture; width?: number; height?: number; leftWidth?: number; rightWidth?: number; topHeight?: number; bottomHeight?: number } = {}) {
+            super();
+            this.texture = options.texture ?? MockTexture.EMPTY;
+            this.width = options.width ?? 100;
+            this.height = options.height ?? 100;
+            this.leftWidth = options.leftWidth ?? this.leftWidth;
+            this.rightWidth = options.rightWidth ?? this.rightWidth;
+            this.topHeight = options.topHeight ?? this.topHeight;
+            this.bottomHeight = options.bottomHeight ?? this.bottomHeight;
+        }
+
+        setSize(width: number, height = width) {
+            this.width = width;
+            this.height = height;
+        }
+
+        getSize() {
+            return { width: this.width, height: this.height };
+        }
+    }
+
+    class MockTilingSprite extends MockContainer {
+        allowChildren = false;
+        anchor = new MockObservablePoint();
+        tilePosition = new MockObservablePoint();
+        tileScale = new MockObservablePoint({}, 1, 1);
+        tileRotation = 0;
+        texture: MockTexture;
+
+        constructor(options: { texture?: MockTexture; width?: number; height?: number } = {}) {
+            super();
+            this.texture = options.texture ?? MockTexture.EMPTY;
+            this.width = options.width ?? 256;
+            this.height = options.height ?? 256;
+        }
+
+        setSize(width: number, height = width) {
+            this.width = width;
+            this.height = height;
+        }
+
+        getSize() {
+            return { width: this.width, height: this.height };
+        }
+    }
+
     class MockApplication {
         canvas = document.createElement('canvas');
         renderer = {
@@ -100,6 +226,13 @@ const mockPixi = vi.hoisted(() => {
         Application: MockApplication,
         Container: MockContainer,
         Graphics: MockGraphics,
+        Mesh: MockMesh,
+        MeshGeometry: MockMeshGeometry,
+        NineSliceSprite: MockNineSliceSprite,
+        ObservablePoint: MockObservablePoint,
+        Texture: MockTexture,
+        TextureSource: MockTextureSource,
+        TilingSprite: MockTilingSprite,
         label,
         root,
     };
@@ -109,6 +242,13 @@ vi.mock('pixi.js', () => ({
     Application: mockPixi.Application,
     Container: mockPixi.Container,
     Graphics: mockPixi.Graphics,
+    Mesh: mockPixi.Mesh,
+    MeshGeometry: mockPixi.MeshGeometry,
+    NineSliceSprite: mockPixi.NineSliceSprite,
+    ObservablePoint: mockPixi.ObservablePoint,
+    Texture: mockPixi.Texture,
+    TextureSource: mockPixi.TextureSource,
+    TilingSprite: mockPixi.TilingSprite,
 }));
 
 vi.mock('../apps/editor/src/preview/compilerSceneRuntimePreview', () => ({

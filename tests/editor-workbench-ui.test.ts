@@ -1093,6 +1093,10 @@ describe('Editor workbench UI', () => {
             `),
             sceneInterfaces: {},
         });
+        useEditorStore.setState({
+            selectedProjectFilePath: 'GameProject/src/scenes/Button.scene',
+            openedScenePath: 'GameProject/src/scenes/Button.scene',
+        });
         selectCompilerSceneNode('0:panel');
         const view = await renderEditorApp();
         try {
@@ -1107,6 +1111,38 @@ describe('Editor workbench UI', () => {
             expect((inspector?.querySelector('[data-field-key="strokeAlpha"] input') as HTMLInputElement | null)?.value).toBe('0.5');
             expect((inspector?.querySelector('[data-field-key="strokeWidth"] input') as HTMLInputElement | null)?.value).toBe('2');
             expect((inspector?.querySelector('[data-field-key="radius"] input') as HTMLInputElement | null)?.value).toBe('12');
+        } finally {
+            await view.cleanup();
+        }
+    });
+
+    it('shows Image drawing fields in the Inspector Props section', async () => {
+        loadCompilerSceneDocument({
+            scenePath: 'GameProject/src/scenes/Hud.scene',
+            template: parseSceneTemplate(`
+                <Scene name="Hud">
+                  <Image id="hero" texture="assets/hero.png" fit="cover" anchorX="0.5" anchorY="0.5" tint="#ffffff" />
+                </Scene>
+            `),
+            sceneInterfaces: {},
+        });
+        useEditorStore.setState({
+            selectedProjectFilePath: 'GameProject/src/scenes/Hud.scene',
+            openedScenePath: 'GameProject/src/scenes/Hud.scene',
+        });
+        selectCompilerSceneNode('0:hero');
+        const view = await renderEditorApp();
+        try {
+            const inspector = view.container.querySelector('[data-testid="compiler-scene-inspector"]');
+            const sectionTitles = [...inspector?.querySelectorAll('.inspectorSection h3') ?? []].map((title) => title.textContent);
+
+            expect(sectionTitles).toEqual(['标识', 'Transform', 'Layout', 'Display', '公开属性']);
+            expect(sectionTitles).not.toContain('Image');
+            expect((inspector?.querySelector('[data-field-key="texture"] input') as HTMLInputElement | null)?.value).toBe('assets/hero.png');
+            expect((inspector?.querySelector('[data-field-key="fit"] select') as HTMLSelectElement | null)?.value).toBe('cover');
+            expect((inspector?.querySelector('[data-field-key="anchorX"] input') as HTMLInputElement | null)?.value).toBe('0.5');
+            expect((inspector?.querySelector('[data-field-key="anchorY"] input') as HTMLInputElement | null)?.value).toBe('0.5');
+            expect((inspector?.querySelector('[data-field-key="tint"] input') as HTMLInputElement | null)?.value).toBe('#ffffff');
         } finally {
             await view.cleanup();
         }

@@ -74,6 +74,9 @@ function compilerNodeIcon(node: CompilerSceneTemplateNode | 'scene' | CompilerSl
         case 'Sprite':
         case 'NineSliceSprite':
         case 'TilingSprite':
+        case 'Image':
+        case 'NineImage':
+        case 'TileImage':
             return 'image';
         case 'Text':
         case 'BitmapText':

@@ -56,6 +56,7 @@ const fieldLabelKeys: Record<string, I18nKey> = {
     bottom: 'bottom',
     horizontal: 'horizontal',
     vertical: 'vertical',
+    fit: 'fit',
     mode: 'mode',
     src: 'src',
     tint: 'tint',

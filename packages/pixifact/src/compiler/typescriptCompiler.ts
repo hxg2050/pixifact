@@ -25,7 +25,7 @@ const spriteProps = new Set<string>(pixiSceneSpriteLikeProps);
 const graphicsProps = new Set<string>(pixiSceneGraphicsProps);
 const rectProps = new Set<string>(pixiSceneRectProps);
 const textStyleProps = new Set<string>(pixiSceneTextStyleProps);
-const runtimeNodeTypes = new Set<SceneTemplatePrimitiveType>(['HBoxContainer', 'VBoxContainer', 'Rect']);
+const runtimeNodeTypes = new Set<SceneTemplatePrimitiveType>(['HBoxContainer', 'VBoxContainer', 'Rect', 'Image', 'NineImage', 'TileImage']);
 const runtimeNodeProps = new Set<string>(['gap', 'alignX', 'alignY', 'justify']);
 
 export function compileSceneTemplateToTs(template: SceneTemplate, options: CompileSceneTemplateOptions = {}) {
@@ -309,6 +309,9 @@ class CompileContext {
         if (node.type === 'TilingSprite') {
             return `new TilingSprite(${this.#spriteTextureOptions(node.props)})`;
         }
+        if (node.type === 'Image' || node.type === 'NineImage' || node.type === 'TileImage') {
+            return `new ${node.type}(${this.#spriteTextureOptions(node.props)})`;
+        }
         if (node.type === 'Graphics') {
             return 'new Graphics()';
         }
@@ -522,6 +525,9 @@ class CompileContext {
         }
         if (props.tint !== undefined) {
             this.#lines.push(`  ${variable}.tint = ${this.#value(props.tint)};`);
+        }
+        if (props.fit !== undefined) {
+            this.#lines.push(`  ${variable}.fit = ${this.#value(props.fit)};`);
         }
         for (const key of ['leftWidth', 'rightWidth', 'topHeight', 'bottomHeight', 'tileRotation']) {
             const value = props[key];
