@@ -38,7 +38,7 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 
 `/Users/youxia/work/github/pixifact/skills/pixifact` 是给用户在下游 Pixifact 游戏项目中开发游戏时使用的 Codex skill，不是本框架仓库的维护手册。
 
-`skills/change-workflow` 是仓库内通用变更流程 skill，可在本仓库或复制到其他项目后用于规划、测试优先、验证、续作记录和提交纪律；它不包含 Pixifact 专属实现细节。
+`.agents/skills/change-workflow` 是仓库内通用变更流程 skill，可在本仓库或复制到其他项目后用于规划、测试优先、验证、续作记录和提交纪律；它不包含 Pixifact 专属实现细节。
 
 这个 skill 只应描述游戏项目内的 Agent 工作流和约束，例如：
 
