@@ -3,16 +3,8 @@
 import ts from 'typescript';
 import * as Pixi from 'pixi.js';
 import { Container } from 'pixi.js';
-import { Group } from 'pixifact/runtime';
+import { Control, Group, HBoxContainer, VBoxContainer, getFrameLayout, layoutFrameChildren, requestFrameLayout, setFrameLayout } from 'pixifact/runtime';
 import * as compilerRuntime from 'pixifact/compiler';
-import centerContainerSceneSource from 'pixifact/builtin-scenes/CenterContainer.scene?raw';
-import controlSceneSource from 'pixifact/builtin-scenes/Control.scene?raw';
-import flexItemSceneSource from 'pixifact/builtin-scenes/FlexItem.scene?raw';
-import flexLayoutSceneSource from 'pixifact/builtin-scenes/FlexLayout.scene?raw';
-import hBoxContainerSceneSource from 'pixifact/builtin-scenes/HBoxContainer.scene?raw';
-import marginContainerSceneSource from 'pixifact/builtin-scenes/MarginContainer.scene?raw';
-import vBoxContainerSceneSource from 'pixifact/builtin-scenes/VBoxContainer.scene?raw';
-import controlLayoutTsSource from 'pixifact/builtin-scenes/controlLayout.ts?raw';
 import {
     compileSceneTemplateToTs,
     builtinSceneInterface,
@@ -103,23 +95,7 @@ const assetParsers: Record<string, string> = {
     '.webp': 'texture',
 };
 
-const builtinPreviewSources: Record<string, string> = {
-    'CenterContainer.scene': centerContainerSceneSource,
-    'CenterContainer.ts': builtinSceneScriptSources.CenterContainer,
-    'Control.scene': controlSceneSource,
-    'Control.ts': builtinSceneScriptSources.Control,
-    'FlexItem.scene': flexItemSceneSource,
-    'FlexItem.ts': builtinSceneScriptSources.FlexItem,
-    'FlexLayout.scene': flexLayoutSceneSource,
-    'FlexLayout.ts': builtinSceneScriptSources.FlexLayout,
-    'HBoxContainer.scene': hBoxContainerSceneSource,
-    'HBoxContainer.ts': builtinSceneScriptSources.HBoxContainer,
-    'MarginContainer.scene': marginContainerSceneSource,
-    'MarginContainer.ts': builtinSceneScriptSources.MarginContainer,
-    'VBoxContainer.scene': vBoxContainerSceneSource,
-    'VBoxContainer.ts': builtinSceneScriptSources.VBoxContainer,
-    'controlLayout.ts': controlLayoutTsSource,
-};
+const builtinPreviewSources: Record<string, string> = {};
 
 function numericProp(value: unknown, defaultValue: number) {
     return typeof value === 'number' ? value : defaultValue;
@@ -636,7 +612,16 @@ function createModuleLoader(context: PreviewRuntimeContext, modules: PreviewModu
             return runtime as unknown as Record<string, unknown>;
         }
         if (resolvedId === runtimeModuleId) {
-            return { Group };
+            return {
+                Control,
+                Group,
+                HBoxContainer,
+                VBoxContainer,
+                getFrameLayout,
+                layoutFrameChildren,
+                requestFrameLayout,
+                setFrameLayout,
+            };
         }
 
         const existing = records.get(resolvedId);

@@ -1,3 +1,0 @@
-<Scene name="CenterContainer">
-    <slot name="default" />
-</Scene>

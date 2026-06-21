@@ -1,3 +1,0 @@
-<Scene name="MarginContainer">
-    <slot name="default" />
-</Scene>

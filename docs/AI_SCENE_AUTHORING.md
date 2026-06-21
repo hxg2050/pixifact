@@ -37,7 +37,7 @@ A compiler Scene asset is a pair of colocated files with the same basename. For 
 
 Agents should not edit `.pixifact/generated` or generated TypeScript, because generated code contains renderer details, resource loading details, temporary variables, and compiler structure that are not the user's intent.
 
-Final UI adaptation and responsive layout direction is official Flex Scene composition, not `rectTransform`. Use built-in `FlexLayout` / `FlexItem` Scene components when laying out HUDs, menus, lists, rows, columns, and adaptive UI groups. See [Flex Scene Layout](./FLEX_SCENE_LAYOUT.md).
+Final UI adaptation uses runtime `Control` frame layout plus runtime `HBoxContainer` / `VBoxContainer` stack nodes. Do not use `FlexLayout` / `FlexItem`; they are no longer official built-ins. See [Control Frame Layout](./FLEX_SCENE_LAYOUT.md).
 
 ## Default Direct Editing
 

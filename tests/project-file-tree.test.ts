@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as Pixi from 'pixi.js';
 import {
-    builtinSceneAssetId,
     parseSceneTemplate,
     pixiSceneFieldSchema,
     pixiSceneNodeDefaults,
@@ -676,14 +675,9 @@ describe('project file tree service', () => {
         expect(compilerDocument?.template.children.map((node) => node.kind === 'slotOutlet' ? node.name : node.id)).toEqual(['background', 'labelText']);
         expect(compilerDocument?.descriptor?.interface.props.label.default).toBe('Button');
         expect(compilerDocument?.selection).toEqual({ type: 'scene' });
-        expect(compilerDocument?.sceneInterfaces[builtinSceneAssetId('Control')]).toMatchObject({
-            props: {
-                minWidth: { type: 'number', default: 0 },
-            },
-            slots: {
-                default: {},
-            },
-        });
+        expect(compilerDocument?.sceneInterfaces).not.toHaveProperty('pixifact:HBoxContainer.scene');
+        expect(compilerDocument?.sceneInterfaces).not.toHaveProperty('pixifact:VBoxContainer.scene');
+        expect(compilerDocument?.sceneInterfaces).not.toHaveProperty('pixifact:Control.scene');
     });
 
     it('opens compiler Scene files without a root script attribute', async () => {

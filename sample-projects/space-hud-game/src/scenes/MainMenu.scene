@@ -5,14 +5,10 @@
     <Text id="titleText" text="SPACE HUD" fontSize="72" fontWeight="700" fill="#f8fafc" />
     <Text id="subtitleText" text="Portrait runtime demo" fontSize="28" fontWeight="700" fill="#c4b5fd" />
     <Text id="bodyText" text="Dodge asteroids. Keep the HUD alive." fontSize="24" fontWeight="500" fill="#cbd5e1" />
-    <MarginContainer id="startButtonOffset" marginTop="38">
-      <Control id="startButton">
-        <Graphics id="startButtonBack" shape="roundRect" width="424" height="96" radius="28" fill="#2563eb" />
-        <CenterContainer id="startButtonLabelBox" width="424" height="96">
-          <Text id="startLabel" text="START" fontSize="34" fontWeight="700" fill="#ffffff" />
-        </CenterContainer>
-      </Control>
-    </MarginContainer>
+    <Container id="startButton">
+      <Graphics id="startButtonBack" shape="roundRect" width="424" height="96" radius="28" fill="#2563eb" />
+      <Text id="startLabel" text="START" x="154" y="27" fontSize="34" fontWeight="700" fill="#ffffff" />
+    </Container>
     <Text id="footerText" text="WASD / arrows to move" fontSize="22" fontWeight="700" fill="#94a3b8" />
   </VBoxContainer>
 </Scene>

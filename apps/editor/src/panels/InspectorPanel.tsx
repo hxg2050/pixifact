@@ -10,6 +10,7 @@ import {
     pixiSceneDisplayProps,
     pixiSceneFieldSchema,
     pixiSceneKnownProps,
+    pixiSceneLayoutProps,
     pixiSceneNodeDefaults,
     pixiSceneNodePropGroups,
     pixiSceneNodePropKeys,
@@ -49,6 +50,12 @@ import { measureSceneViewProfileAsync } from '../services/sceneViewProfiler';
 const fieldLabelKeys: Record<string, I18nKey> = {
     width: 'width',
     height: 'height',
+    left: 'left',
+    right: 'right',
+    top: 'top',
+    bottom: 'bottom',
+    horizontal: 'horizontal',
+    vertical: 'vertical',
     mode: 'mode',
     src: 'src',
     tint: 'tint',
@@ -144,6 +151,7 @@ const compilerKnownPixiProps = new Set<string>(pixiSceneKnownProps);
 const compilerPixiGroupTitles: Record<PixiScenePropGroup, string> = {
     transform: 'Transform',
     display: 'Display',
+    stack: 'Stack',
     sprite: 'Sprite',
     nineSlice: 'Nine Slice',
     tiling: 'Tiling',
@@ -385,6 +393,13 @@ function compilerTransformFields(node: SelectedCompilerItem): InspectorFieldMode
         return [];
     }
     return pixiSceneTransformProps.map((key) => compilerField(key, compilerTransformFieldValue(node, key)));
+}
+
+function compilerLayoutFields(node: SelectedCompilerItem): InspectorFieldModel[] {
+    if (!node || node.kind === 'slot' || node.kind === 'slotOutlet') {
+        return [];
+    }
+    return pixiSceneLayoutProps.map((key) => compilerField(key, node.props[key]));
 }
 
 function compilerDisplayFieldValue(key: string, value: unknown) {
@@ -783,6 +798,7 @@ export function InspectorPanel() {
         const selectedSceneInterface = compilerSceneInterfaceForInstance(compilerDocument, selectedCompiler);
         const selectedSlotRows = compilerSceneInstanceSlotRows(selectedCompiler, selectedSceneInterface);
         const compilerTransformEditorFields = compilerTransformFields(selectedCompiler);
+        const compilerLayoutEditorFields = compilerLayoutFields(selectedCompiler);
         const compilerDisplayEditorFields = compilerDisplayFields(selectedCompiler);
         const compilerPropEditorSections = compilerPropSections(selectedCompiler, selectedSceneInterface);
         const compilerEventEditorFields = compilerEventFields(selectedCompiler, selectedSceneInterface);
@@ -941,6 +957,21 @@ export function InspectorPanel() {
                                 <h3>{t('compilerTransformSection')}</h3>
                                 <div className="fieldGrid inspectorTransformGrid">
                                     {compilerTransformEditorFields.map((field) => (
+                                        <EditableFieldRow
+                                            field={field}
+                                            key={field.key}
+                                            label={field.label}
+                                            onCommit={(value, options) => commitCompilerProp(field.key, value, options)}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                        ) : null}
+                        {compilerLayoutEditorFields.length ? (
+                            <section className="inspectorSection inspectorSection--layout">
+                                <h3>Layout</h3>
+                                <div className="fieldGrid inspectorCompactGrid">
+                                    {compilerLayoutEditorFields.map((field) => (
                                         <EditableFieldRow
                                             field={field}
                                             key={field.key}

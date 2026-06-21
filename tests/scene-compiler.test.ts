@@ -1,22 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { Container, Rectangle, Text } from 'pixi.js';
-import { Group } from 'pixifact/runtime';
-import { CenterContainer } from 'pixifact/builtin-scenes/CenterContainer';
-import { Control } from 'pixifact/builtin-scenes/Control';
-import { FlexItem } from 'pixifact/builtin-scenes/FlexItem';
-import { FlexLayout } from 'pixifact/builtin-scenes/FlexLayout';
-import { HBoxContainer } from 'pixifact/builtin-scenes/HBoxContainer';
-import { MarginContainer } from 'pixifact/builtin-scenes/MarginContainer';
-import { VBoxContainer } from 'pixifact/builtin-scenes/VBoxContainer';
+import { Control, Group, HBoxContainer, VBoxContainer, getFrameLayout } from 'pixifact/runtime';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
     connectSceneEvent,
     compileSceneTemplateToTs,
     createSceneRevision,
-    builtinSceneAssetId,
     builtinSceneInterfaces,
     generatedSceneModuleImport,
     generatedSceneModulePath,
@@ -44,27 +35,7 @@ import {
 } from 'pixifact/compiler';
 import { compileScenes, pixifactScenesPlugin } from 'pixifact/compiler-node';
 
-const builtinSceneScriptSources: BuiltinSceneScriptSources = {
-    CenterContainer: readFileSync('packages/pixifact/src/builtin-scenes/CenterContainer.ts', 'utf8'),
-    Control: readFileSync('packages/pixifact/src/builtin-scenes/Control.ts', 'utf8'),
-    FlexItem: readFileSync('packages/pixifact/src/builtin-scenes/FlexItem.ts', 'utf8'),
-    FlexLayout: readFileSync('packages/pixifact/src/builtin-scenes/FlexLayout.ts', 'utf8'),
-    HBoxContainer: readFileSync('packages/pixifact/src/builtin-scenes/HBoxContainer.ts', 'utf8'),
-    MarginContainer: readFileSync('packages/pixifact/src/builtin-scenes/MarginContainer.ts', 'utf8'),
-    VBoxContainer: readFileSync('packages/pixifact/src/builtin-scenes/VBoxContainer.ts', 'utf8'),
-};
-
-function registerSlotScene(SceneClass: new () => Control, scenePath: string) {
-    registerScene(scenePath, {
-        mount(root) {
-            const slotHost = new Container();
-            root.addChild(slotHost);
-            registerSlot(root, 'default', slotHost);
-            return { root, parts: {}, slots: { default: slotHost } };
-        },
-    });
-    registerSceneClass(SceneClass, scenePath);
-}
+const builtinSceneScriptSources: BuiltinSceneScriptSources = {};
 
 describe('Pixifact scene compiler spike', () => {
     it('keeps Group width and height as Pixifact box size without scaling', () => {
@@ -90,38 +61,25 @@ describe('Pixifact scene compiler spike', () => {
         expect(group.getBounds().rectangle).toMatchObject({ x: 0, y: 0, width: 200, height: 80 });
     });
 
-    it('keeps every built-in Scene on the Group runtime base', () => {
-        const BuiltinScenes = [
-            CenterContainer,
-            Control,
-            FlexItem,
-            FlexLayout,
+    it('keeps runtime layout containers on the Control base', () => {
+        const RuntimeScenes = [
             HBoxContainer,
-            MarginContainer,
             VBoxContainer,
         ];
 
-        for (const BuiltinScene of BuiltinScenes) {
-            expect(Group.prototype.isPrototypeOf(BuiltinScene.prototype)).toBe(true);
+        for (const RuntimeScene of RuntimeScenes) {
+            expect(Control.prototype.isPrototypeOf(RuntimeScene.prototype)).toBe(true);
         }
     });
 
-    it('keeps built-in control box sizes in the Group size protocol', () => {
-        const BuiltinScenes = [
-            CenterContainer,
-            Control,
-            FlexItem,
-            FlexLayout,
+    it('keeps runtime layout container box sizes in the Group size protocol', () => {
+        const RuntimeScenes = [
             HBoxContainer,
-            MarginContainer,
             VBoxContainer,
         ];
 
-        for (const BuiltinScene of BuiltinScenes) {
-            const scenePath = `tests/${BuiltinScene.name}.scene`;
-            registerSlotScene(BuiltinScene, scenePath);
-
-            const scene = new BuiltinScene();
+        for (const RuntimeScene of RuntimeScenes) {
+            const scene = new RuntimeScene();
 
             scene.setSize(120, 40);
 
@@ -134,132 +92,53 @@ describe('Pixifact scene compiler spike', () => {
         }
     });
 
-    it('extracts built-in Scene interfaces from their decorated scripts', () => {
-        const scriptSources = {
-            ...builtinSceneScriptSources,
-            Control: builtinSceneScriptSources.Control.replace(
-                "@prop({ type: Number, default: 0 })\n    set minWidth",
-                "@prop({ type: Number, default: 13 })\n    set minWidth",
-            ),
-            HBoxContainer: builtinSceneScriptSources.HBoxContainer.replace(
-                "@prop({ type: Number, default: 0 })\n    set gap",
-                "@prop({ type: Number, default: 7 })\n    set gap",
-            ),
-        };
-        const interfaces = builtinSceneInterfaces(scriptSources);
-
-        expect(interfaces[builtinSceneAssetId('Control')].props.minWidth).toEqual({
-            type: 'number',
-            default: 13,
-        });
-        expect(interfaces[builtinSceneAssetId('Control')].slots.default).toEqual({});
-        expect(interfaces[builtinSceneAssetId('HBoxContainer')].props.minWidth).toEqual({
-            type: 'number',
-            default: 13,
-        });
-        expect(interfaces[builtinSceneAssetId('HBoxContainer')].props.hSize).toEqual({
-            type: 'string',
-            default: 'content',
-        });
-        expect(interfaces[builtinSceneAssetId('HBoxContainer')].props.gap).toEqual({
-            type: 'number',
-            default: 7,
-        });
-        expect(interfaces[builtinSceneAssetId('FlexItem')].props.minWidth).toEqual({
-            type: 'number',
-            default: 13,
-        });
-        expect(interfaces[builtinSceneAssetId('FlexItem')].props.hSize).toEqual({
-            type: 'string',
-            default: 'content',
-        });
+    it('does not expose runtime layout containers as built-in Scene interfaces', () => {
+        expect(builtinSceneInterfaces(builtinSceneScriptSources)).toEqual({});
     });
 
-    it('syncs natural control sizes into the Group size protocol', () => {
-        registerSlotScene(Control, 'tests/NaturalControl.scene');
-        registerSlotScene(MarginContainer, 'tests/NaturalMargin.scene');
+    it('keeps runtime Control on the Group size protocol', () => {
+        const control = new Control({ width: 90, height: 32 });
 
-        const control = new Control();
-        control.minWidth = 90;
-        control.minHeight = 32;
-
+        expect(Group.prototype.isPrototypeOf(Control.prototype)).toBe(true);
         expect(control.getSize()).toEqual({ width: 90, height: 32 });
         expect(control.hitArea).toMatchObject({ x: 0, y: 0, width: 90, height: 32 });
-
-        const margin = new MarginContainer();
-        margin.margin = 12;
-
-        expect(margin.getSize()).toEqual({ width: 24, height: 24 });
-        expect(margin.hitArea).toMatchObject({ x: 0, y: 0, width: 24, height: 24 });
+        expect(control.scale.x).toBe(1);
+        expect(control.scale.y).toBe(1);
     });
 
-    it('uses the Control layout box protocol for built-in layout scenes', () => {
-        const BuiltinScenes = [
-            CenterContainer,
-            Control,
-            FlexItem,
-            FlexLayout,
-            HBoxContainer,
-            MarginContainer,
-            VBoxContainer,
-        ];
+    it('applies runtime Control frame constraints from the parent Group', () => {
+        const root = new Group({ width: 400, height: 240 });
+        const topLeft = new Control({ width: 80, height: 30 });
+        topLeft.left = 16;
+        topLeft.top = 20;
+        const topRight = new Control({ width: 70, height: 24 });
+        topRight.right = 12;
+        topRight.top = 18;
+        const fill = new Control({ width: 10, height: 10 });
+        fill.left = 40;
+        fill.right = 60;
+        fill.top = 50;
+        fill.bottom = 70;
+        const center = new Control({ width: 100, height: 40 });
+        center.horizontal = 8;
+        center.vertical = -6;
 
-        for (const BuiltinScene of BuiltinScenes) {
-            const scenePath = `tests/LayoutBox${BuiltinScene.name}.scene`;
-            registerSlotScene(BuiltinScene, scenePath);
+        root.addChild(topLeft, topRight, fill, center);
 
-            const scene = new BuiltinScene();
-            scene.setControlLayoutBox(10, 20, 180, 70);
-
-            expect(scene.x).toBe(10);
-            expect(scene.y).toBe(20);
-            expect(scene.width).toBe(180);
-            expect(scene.height).toBe(70);
-            expect(scene.getSize()).toEqual({ width: 180, height: 70 });
-            expect(scene.hitArea).toMatchObject({ x: 0, y: 0, width: 180, height: 70 });
-            expect(scene.scale.x).toBe(1);
-            expect(scene.scale.y).toBe(1);
-        }
+        expect(getFrameLayout(fill)).toMatchObject({ left: 40, right: 60, top: 50, bottom: 70 });
+        expect(topLeft).toMatchObject({ x: 16, y: 20, width: 80, height: 30 });
+        expect(topRight).toMatchObject({ x: 318, y: 18, width: 70, height: 24 });
+        expect(fill).toMatchObject({ x: 40, y: 50, width: 300, height: 120 });
+        expect(center).toMatchObject({ x: 158, y: 94, width: 100, height: 40 });
     });
 
     it('refreshes parent layout from nested control content changes', () => {
-        registerSlotScene(HBoxContainer, 'tests/RefreshHBox.scene');
-        registerSlotScene(Control, 'tests/RefreshControl.scene');
-
         const row = new HBoxContainer();
-        const child = new Control();
-        row.default.addChild(child);
+        const child = new Control({ width: 64, height: 24 });
+        row.addChild(child);
 
-        expect(row.getSize()).toEqual({ width: 0, height: 0 });
-
-        child.default.addChild(new Group({ width: 64, height: 24 }));
-
-        expect(child.getSize()).toEqual({ width: 64, height: 24 });
         expect(row.getSize()).toEqual({ width: 64, height: 24 });
         expect(row.hitArea).toMatchObject({ x: 0, y: 0, width: 64, height: 24 });
-    });
-
-    it('keeps Flex layout assignment on the shared Control size protocol', () => {
-        registerSlotScene(FlexLayout, 'tests/FlexLayoutProtocol.scene');
-        registerSlotScene(FlexItem, 'tests/FlexItemProtocol.scene');
-
-        const layout = new FlexLayout();
-        const item = new FlexItem();
-        item.grow = 1;
-        item.default.addChild(new Group({ width: 40, height: 20 }));
-        layout.default.addChild(item);
-
-        layout.setSize(180, 60);
-
-        expect(layout.getSize()).toEqual({ width: 180, height: 60 });
-        expect(item.x).toBe(0);
-        expect(item.y).toBe(0);
-        expect(item.width).toBe(180);
-        expect(item.height).toBe(20);
-        expect(item.getSize()).toEqual({ width: 180, height: 20 });
-        expect(item.hitArea).toMatchObject({ x: 0, y: 0, width: 180, height: 20 });
-        expect(item.scale.x).toBe(1);
-        expect(item.scale.y).toBe(1);
     });
 
     it('creates stable revisions for canonical compiler scene source', () => {
@@ -276,16 +155,11 @@ describe('Pixifact scene compiler spike', () => {
 
     it('normalizes compiler Scene asset paths and paired script paths', () => {
         expect(normalizeSceneAssetId('src\\ui\\Button.scene')).toBe('src/ui/Button.scene');
-        expect(normalizeSceneAssetId('pixifact:VBoxContainer.scene')).toBe('pixifact:VBoxContainer.scene');
         expect(pairedSceneScriptPath('src/ui/Button.scene')).toBe('src/ui/Button.ts');
-        expect(pairedSceneScriptPath('pixifact:VBoxContainer.scene')).toBe('VBoxContainer.ts');
         expect(sceneLocalName('src/features/shop/Button.scene')).toBe('Button');
-        expect(sceneLocalName('pixifact:VBoxContainer.scene')).toBe('VBoxContainer');
         expect(generatedSceneModulePath('src/features/shop/Button.scene')).toBe('src/features/shop/Button.scene.generated.ts');
-        expect(generatedSceneModulePath('pixifact:VBoxContainer.scene')).toBe('pixifact-builtin/VBoxContainer.scene.generated.ts');
         expect(generatedSceneModuleImport('src/features/shop/Button.scene')).toBe('./src/features/shop/Button.scene.generated');
         expect(sceneClassAlias('src/features/shop/Button.scene')).toBe('SceneClass_src_features_shop_Button');
-        expect(sceneClassAlias('pixifact:VBoxContainer.scene')).toBe('BuiltinSceneClass_VBoxContainer');
     });
 
     it('keeps Scene asset paths browser-safe', async () => {
@@ -333,7 +207,7 @@ describe('Pixifact scene compiler spike', () => {
         expect(resolveSceneReference('src/menu/MainMenu.scene', '../ui/Button.scene')).toBe('src/ui/Button.scene');
         expect(resolveSceneReference('src/menu/MainMenu.scene', '..\\ui\\Button.scene')).toBe('src/ui/Button.scene');
         expect(resolveSceneReference('src/menu/MainMenu.scene', 'src/shared/Panel.scene')).toBe('src/shared/Panel.scene');
-        expect(resolveSceneReference('src/menu/MainMenu.scene', 'pixifact:VBoxContainer.scene')).toBe('pixifact:VBoxContainer.scene');
+        expect(() => resolveSceneReference('src/menu/MainMenu.scene', 'pixifact:VBoxContainer.scene')).toThrow('Unknown built-in Scene "VBoxContainer".');
         expect(() => resolveSceneReference('src/menu/MainMenu.scene', 'Button')).toThrow('Scene references must use .scene paths.');
         expect(() => resolveSceneReference('src/menu/MainMenu.scene', '../../../Button.scene')).toThrow('must stay inside projectRoot');
     });
@@ -1218,7 +1092,7 @@ import { Group } from 'pixifact/runtime';`);
         expect(next).toEqual(template);
     });
 
-    it('resolves built-in Scene tags without serializing internal scene ids', () => {
+    it('parses runtime layout container tags as primitive nodes', () => {
         const template = parseSceneTemplate(`
             <Scene name="MainMenu">
               <VBoxContainer id="menuStack" gap="12" alignX="center">
@@ -1228,21 +1102,18 @@ import { Group } from 'pixifact/runtime';`);
         `);
 
         expect(template.children[0]).toMatchObject({
-            kind: 'sceneInstance',
+            kind: 'pixi',
             type: 'VBoxContainer',
             id: 'menuStack',
-            scene: builtinSceneAssetId('VBoxContainer'),
             props: {
                 gap: 12,
                 alignX: 'center',
             },
-            slots: {
-                default: [{
-                    kind: 'pixi',
-                    type: 'Text',
-                    id: 'title',
-                }],
-            },
+            children: [{
+                kind: 'pixi',
+                type: 'Text',
+                id: 'title',
+            }],
         });
 
         const source = serializeSceneTemplate(template);
@@ -1258,35 +1129,46 @@ import { Group } from 'pixifact/runtime';`);
         });
     });
 
-    it('resolves built-in Flex tags with their public props', () => {
+    it('rejects bare Control tags because Control is a runtime base type', () => {
+        expect(() => parseSceneTemplate(`
+            <Scene name="Hud">
+              <Control id="panel" />
+            </Scene>
+        `)).toThrow('Unsupported template tag <Control>');
+    });
+
+    it('parses and validates frame layout props on compiler nodes', () => {
         const template = parseSceneTemplate(`
             <Scene name="Hud">
-              <FlexLayout id="topStats" direction="row" align="center" justify="space-between" gap="16">
-                <FlexItem grow="1" minWidth="240" hSize="fill">
-                  <Text id="score" text="000000" />
-                </FlexItem>
-              </FlexLayout>
+              <Graphics id="panel" shape="roundRect" left="24" right="24" top="16" bottom="16" radius="12" fill="#111827" />
+              <Text id="title" text="HUD" horizontal="0" top="32" />
             </Scene>
         `);
 
         expect(template.children[0]).toMatchObject({
-            kind: 'sceneInstance',
-            type: 'FlexLayout',
-            id: 'topStats',
-            scene: builtinSceneAssetId('FlexLayout'),
+            kind: 'pixi',
+            type: 'Graphics',
+            id: 'panel',
             props: {
-                direction: 'row',
-                align: 'center',
-                justify: 'space-between',
-                gap: 16,
+                left: 24,
+                right: 24,
+                top: 16,
+                bottom: 16,
+            },
+        });
+        expect(template.children[1]).toMatchObject({
+            kind: 'pixi',
+            type: 'Text',
+            id: 'title',
+            props: {
+                horizontal: 0,
+                top: 32,
             },
         });
 
         const source = serializeSceneTemplate(template);
-        expect(source).toContain('<FlexLayout id="topStats" direction="row" align="center" justify="space-between" gap="16">');
-        expect(source).toContain('<FlexItem grow="1" minWidth="240" hSize="fill">');
-        expect(source).not.toContain('scene="pixifact:FlexLayout.scene"');
-        expect(source).not.toContain('scene="pixifact:FlexItem.scene"');
+        expect(source).toContain('<Graphics id="panel" shape="roundRect" left="24" right="24" top="16" bottom="16"');
+        expect(source).toContain('<Text id="title" text="HUD" horizontal="0" top="32"');
         expect(validateSceneContent({
             scene: 'src/scenes/Hud.scene',
             content: source,
@@ -1294,6 +1176,11 @@ import { Group } from 'pixifact/runtime';`);
         })).toMatchObject({
             ok: true,
         });
+
+        const code = compileSceneTemplateToTs(template);
+        expect(code).toContain("import { Group, setFrameLayout } from 'pixifact/runtime';");
+        expect(code).toContain('setFrameLayout(panel, { left: 24, right: 24, top: 16, bottom: 16 });');
+        expect(code).toContain('setFrameLayout(title, { top: 32, horizontal: 0 });');
     });
 
     it('generates scene registry files from colocated Scene asset pairs', async () => {
@@ -1400,7 +1287,7 @@ import { Group } from 'pixifact/runtime';
         }
     });
 
-    it('generates built-in Scene modules when project scenes use built-in tags', async () => {
+    it('generates runtime layout container nodes without built-in Scene modules', async () => {
         const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
         try {
             await mkdir(join(root, 'src', 'scenes'), { recursive: true });
@@ -1422,18 +1309,15 @@ import { Group } from 'pixifact/runtime';
             await compileScenes({ projectRoot: root });
 
             const mainGenerated = await readFile(join(root, '.pixifact', 'generated', 'src', 'scenes', 'Main.scene.generated.ts'), 'utf8');
-            const builtinGenerated = await readFile(join(root, '.pixifact', 'generated', 'pixifact-builtin', 'VBoxContainer.scene.generated.ts'), 'utf8');
             const registry = await readFile(join(root, '.pixifact', 'generated', 'scenes.generated.ts'), 'utf8');
 
-            expect(mainGenerated).toContain('import { VBoxContainer as BuiltinSceneClass_VBoxContainer }');
-            expect(mainGenerated).toContain('const menuStack = new BuiltinSceneClass_VBoxContainer();');
+            expect(mainGenerated).toContain("import { Group, VBoxContainer } from 'pixifact/runtime';");
+            expect(mainGenerated).toContain('const menuStack = new VBoxContainer();');
             expect(mainGenerated).toContain('menuStack.gap = 10;');
-            expect(mainGenerated).toContain('mount(menuStack, label, "default");');
-            expect(builtinGenerated).toContain('registerScene("pixifact:VBoxContainer.scene"');
-            expect(builtinGenerated).toContain('registerSceneClass(BuiltinSceneClass_VBoxContainer, "pixifact:VBoxContainer.scene");');
-            expect(registry).toContain('import "./pixifact-builtin/VBoxContainer.scene.generated";');
+            expect(mainGenerated).toContain('menuStack.addChild(label);');
+            expect(mainGenerated).not.toContain('BuiltinSceneClass_VBoxContainer');
+            expect(registry).not.toContain('pixifact-builtin');
             expect(registry).toContain('import "./src/scenes/Main.scene.generated";');
-            expect(registry.indexOf('pixifact-builtin/VBoxContainer')).toBeLessThan(registry.indexOf('src/scenes/Main'));
         } finally {
             await rm(root, { recursive: true, force: true });
         }

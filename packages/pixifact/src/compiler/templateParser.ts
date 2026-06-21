@@ -27,6 +27,8 @@ const pixiTypes = new Set<string>([
     'NineSliceSprite',
     'TilingSprite',
     'DOMContainer',
+    'HBoxContainer',
+    'VBoxContainer',
 ]);
 
 export function parseSceneTemplate(source: string): SceneTemplate {
@@ -77,17 +79,6 @@ function parseTemplateNode(element: XmlElement): SceneTemplateNode {
         return node;
     }
 
-    if (pixiTypes.has(element.name)) {
-        const node: PixiTemplateNode = {
-            kind: 'pixi',
-            type: element.name as SceneTemplatePrimitiveType,
-            props: parseProps(element, ['id', 'slot']),
-            children: element.children.map(parseTemplateNode),
-            ...(element.attributes.id ? { id: element.attributes.id } : {}),
-        };
-        return node;
-    }
-
     if (element.attributes.scene !== undefined || isBuiltinSceneName(element.name)) {
         const slots: Record<string, SceneTemplateNode[]> = {};
         for (const child of element.children) {
@@ -103,6 +94,17 @@ function parseTemplateNode(element: XmlElement): SceneTemplateNode {
             props: parseProps(element, ['id', 'scene', 'slot'], isEventAttribute),
             events: parseEvents(element),
             slots,
+            ...(element.attributes.id ? { id: element.attributes.id } : {}),
+        };
+        return node;
+    }
+
+    if (pixiTypes.has(element.name)) {
+        const node: PixiTemplateNode = {
+            kind: 'pixi',
+            type: element.name as SceneTemplatePrimitiveType,
+            props: parseProps(element, ['id', 'slot']),
+            children: element.children.map(parseTemplateNode),
             ...(element.attributes.id ? { id: element.attributes.id } : {}),
         };
         return node;

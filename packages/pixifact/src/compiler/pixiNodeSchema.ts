@@ -2,11 +2,11 @@ import type { SceneTemplatePrimitiveType, SceneTemplateValue } from './spec';
 
 export type PixiSceneNodeType = Extract<
     SceneTemplatePrimitiveType,
-    'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics'
+    'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'HBoxContainer' | 'VBoxContainer'
 >;
 
 export type PixiSceneFieldType = 'string' | 'number' | 'boolean' | 'color' | 'enum';
-export type PixiScenePropGroup = 'transform' | 'display' | 'sprite' | 'nineSlice' | 'tiling' | 'text' | 'graphics';
+export type PixiScenePropGroup = 'transform' | 'display' | 'sprite' | 'nineSlice' | 'tiling' | 'text' | 'graphics' | 'stack';
 
 export interface PixiSceneFieldSchema {
     key: string;
@@ -33,6 +33,15 @@ export const pixiSceneTransformProps = [
     'pivotY',
     'skewX',
     'skewY',
+] as const;
+
+export const pixiSceneLayoutProps = [
+    'left',
+    'right',
+    'top',
+    'bottom',
+    'horizontal',
+    'vertical',
 ] as const;
 
 export const pixiSceneDisplayProps = [
@@ -84,6 +93,25 @@ export const pixiSceneGraphicsProps = [
     'strokeAlpha',
 ] as const;
 
+export const pixiSceneStackHBoxProps = [
+    'gap',
+    'alignY',
+    'justify',
+] as const;
+
+export const pixiSceneStackVBoxProps = [
+    'gap',
+    'alignX',
+    'justify',
+] as const;
+
+export const pixiSceneStackProps = [
+    'gap',
+    'alignX',
+    'alignY',
+    'justify',
+] as const;
+
 export const pixiSceneTextStyleProps = [
     'fontSize',
     'fontFamily',
@@ -99,13 +127,17 @@ export const pixiSceneSpriteLikeProps = [
 
 export const pixiSceneKnownProps = [
     ...pixiSceneTransformProps,
+    ...pixiSceneLayoutProps,
     ...pixiSceneDisplayProps,
     ...pixiSceneSpriteLikeProps,
     ...pixiSceneTextProps,
     ...pixiSceneGraphicsProps,
+    ...pixiSceneStackProps,
 ] as const;
 
 export const pixiSceneAddableNodeTypes = [
+    'HBoxContainer',
+    'VBoxContainer',
     'Container',
     'Sprite',
     'NineSliceSprite',
@@ -117,6 +149,7 @@ export const pixiSceneAddableNodeTypes = [
 ] as const satisfies readonly PixiSceneNodeType[];
 
 export const pixiSceneNodePropGroupOrder = [
+    'stack',
     'sprite',
     'nineSlice',
     'tiling',
@@ -136,6 +169,12 @@ const pixiSceneFieldSchemas: Partial<Record<string, PixiSceneFieldSchema>> = {
     pivotY: { key: 'pivotY', type: 'number' },
     skewX: { key: 'skewX', type: 'number' },
     skewY: { key: 'skewY', type: 'number' },
+    left: { key: 'left', type: 'number' },
+    right: { key: 'right', type: 'number' },
+    top: { key: 'top', type: 'number' },
+    bottom: { key: 'bottom', type: 'number' },
+    horizontal: { key: 'horizontal', type: 'number' },
+    vertical: { key: 'vertical', type: 'number' },
     alpha: { key: 'alpha', type: 'number' },
     visible: { key: 'visible', type: 'boolean' },
     zIndex: { key: 'zIndex', type: 'number' },
@@ -166,6 +205,10 @@ const pixiSceneFieldSchemas: Partial<Record<string, PixiSceneFieldSchema>> = {
     strokeColor: { key: 'strokeColor', type: 'color' },
     strokeWidth: { key: 'strokeWidth', type: 'number' },
     strokeAlpha: { key: 'strokeAlpha', type: 'number' },
+    gap: { key: 'gap', type: 'number' },
+    alignX: { key: 'alignX', type: 'enum', options: ['start', 'center', 'end'] },
+    alignY: { key: 'alignY', type: 'enum', options: ['start', 'center', 'end'] },
+    justify: { key: 'justify', type: 'enum', options: ['start', 'center', 'end', 'space-between'] },
 };
 
 const pixiSceneNodeSchemas: Record<PixiSceneNodeType, PixiSceneNodeSchema> = {
@@ -273,6 +316,30 @@ const pixiSceneNodeSchemas: Record<PixiSceneNodeType, PixiSceneNodeSchema> = {
         },
         groups: {
             graphics: pixiSceneGraphicsProps,
+        },
+    },
+    HBoxContainer: {
+        type: 'HBoxContainer',
+        acceptsChildren: true,
+        defaults: {
+            width: 240,
+            height: 64,
+            gap: 8,
+        },
+        groups: {
+            stack: pixiSceneStackHBoxProps,
+        },
+    },
+    VBoxContainer: {
+        type: 'VBoxContainer',
+        acceptsChildren: true,
+        defaults: {
+            width: 160,
+            height: 240,
+            gap: 8,
+        },
+        groups: {
+            stack: pixiSceneStackVBoxProps,
         },
     },
 };

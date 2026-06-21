@@ -1065,7 +1065,7 @@ describe('Editor workbench UI', () => {
             const zIndexInput = inspector?.querySelector('input[aria-label="zIndex"]') as HTMLInputElement | null;
 
             expect(inspector).toBeTruthy();
-            expect(sectionTitles).toEqual(['标识', 'Transform', 'Display', 'Text']);
+            expect(sectionTitles).toEqual(['标识', 'Transform', 'Layout', 'Display', 'Text']);
             expect(sectionTitles).not.toContain('Scene');
             expect(sectionTitles).not.toContain('脚本绑定');
             expect(sectionTitles).not.toContain('公开契约');

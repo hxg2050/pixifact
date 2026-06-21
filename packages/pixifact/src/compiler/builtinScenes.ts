@@ -2,15 +2,7 @@ import type { SceneTemplateInterface } from './spec';
 import { extractSceneScriptInterfaces } from './scriptInterfaceExtractor';
 
 export const builtinScenePrefix = 'pixifact:';
-export const builtinSceneNames = [
-    'CenterContainer',
-    'Control',
-    'FlexItem',
-    'FlexLayout',
-    'HBoxContainer',
-    'MarginContainer',
-    'VBoxContainer',
-] as const;
+export const builtinSceneNames = [] as const;
 
 export type BuiltinSceneName = typeof builtinSceneNames[number];
 export type BuiltinSceneScriptSources = Record<BuiltinSceneName, string>;

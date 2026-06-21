@@ -43,13 +43,16 @@ export const nodeTemplateLibrary: NodeTemplateItem[] = [
     ...builtinSceneNodeTemplateLibrary,
 ];
 
-export const nodeTemplateLibraryGroups: NodeTemplateGroup[] = [{
+const allNodeTemplateLibraryGroups = [{
     titleKey: 'addPixiNodeGroup',
     items: pixiNodeTemplateLibrary,
 }, {
     titleKey: 'addBuiltinSceneGroup',
     items: builtinSceneNodeTemplateLibrary,
-}];
+}] satisfies NodeTemplateGroup[];
+
+export const nodeTemplateLibraryGroups: NodeTemplateGroup[] = allNodeTemplateLibraryGroups
+    .filter((group) => group.items.length > 0);
 
 const pixiNodeTypesByTemplateKind = new Map<PixiNodeTemplateKind, PixiSceneNodeType>(
     pixiSceneAddableNodeTypes.map((type) => [pixiNodeTemplateKind(type), type]),

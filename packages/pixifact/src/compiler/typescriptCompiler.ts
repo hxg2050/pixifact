@@ -11,16 +11,20 @@ import type {
 import {
     pixiSceneDisplayProps,
     pixiSceneGraphicsProps,
+    pixiSceneLayoutProps,
     pixiSceneSpriteLikeProps,
     pixiSceneTextStyleProps,
     pixiSceneTransformProps,
 } from './pixiNodeSchema';
 
 const transformProps = new Set<string>(pixiSceneTransformProps);
+const layoutProps = new Set<string>(pixiSceneLayoutProps);
 const pixiProps = new Set<string>(pixiSceneDisplayProps);
 const spriteProps = new Set<string>(pixiSceneSpriteLikeProps);
 const graphicsProps = new Set<string>(pixiSceneGraphicsProps);
 const textStyleProps = new Set<string>(pixiSceneTextStyleProps);
+const runtimeNodeTypes = new Set<SceneTemplatePrimitiveType>(['HBoxContainer', 'VBoxContainer']);
+const runtimeNodeProps = new Set<string>(['gap', 'alignX', 'alignY', 'justify']);
 
 export function compileSceneTemplateToTs(template: SceneTemplate, options: CompileSceneTemplateOptions = {}) {
     const context = new CompileContext(template, options);
@@ -30,6 +34,7 @@ export function compileSceneTemplateToTs(template: SceneTemplate, options: Compi
 class CompileContext {
     readonly #imports = new Set<SceneTemplatePrimitiveType>();
     readonly #pixiImports = new Set<string>();
+    readonly #pixiRuntimeImports = new Set<string>();
     readonly #runtimeImports = new Set<string>();
     readonly #lines: string[] = [];
     readonly #parts: { id: string; type: string }[] = [];
@@ -95,7 +100,8 @@ class CompileContext {
             ...[...this.#imports].filter((item) => item !== 'Container').sort(),
             ...[...this.#pixiImports].sort(),
         ])];
-        const lines = [`import { ${imports.join(', ')} } from 'pixi.js';`, `import { Group } from 'pixifact/runtime';`];
+        const runtimeImports = ['Group', ...[...this.#pixiRuntimeImports].sort()];
+        const lines = [`import { ${imports.join(', ')} } from 'pixi.js';`, `import { ${runtimeImports.join(', ')} } from 'pixifact/runtime';`];
         for (const [texture, variable] of this.#textureImportEntries()) {
             lines.push(`import ${variable} from ${JSON.stringify(this.options.textureImports?.[texture])};`);
         }
@@ -134,7 +140,11 @@ class CompileContext {
 
     #collectImports(node: SceneTemplateNode) {
         if (node.kind === 'pixi') {
-            this.#imports.add(node.type);
+            if (runtimeNodeTypes.has(node.type)) {
+                this.#pixiRuntimeImports.add(node.type);
+            } else {
+                this.#imports.add(node.type);
+            }
             for (const child of node.children) {
                 this.#collectImports(child);
             }
@@ -395,6 +405,7 @@ class CompileContext {
         if (props.height !== undefined && props.shape === undefined) {
             this.#lines.push(`  ${variable}.height = ${this.#value(props.height)};`);
         }
+        this.#applyLayoutProps(variable, props);
         const scaleX = props.scaleX;
         const scaleY = props.scaleY;
         if (scaleX !== undefined || scaleY !== undefined) {
@@ -418,7 +429,12 @@ class CompileContext {
             this.#drawGraphics(variable, props);
         }
         for (const [key, value] of Object.entries(props)) {
+            if (!instance && runtimeNodeProps.has(key)) {
+                this.#lines.push(`  ${variable}.${key} = ${this.#value(value)};`);
+                continue;
+            }
             const nativePixiNodeProp = transformProps.has(key)
+                || layoutProps.has(key)
                 || spriteProps.has(key)
                 || graphicsProps.has(key)
                 || key === 'text'
@@ -427,6 +443,9 @@ class CompileContext {
                 continue;
             }
             if (instance && transformProps.has(key)) {
+                continue;
+            }
+            if (instance && layoutProps.has(key)) {
                 continue;
             }
             if (instance && value && typeof value === 'object') {
@@ -450,6 +469,18 @@ class CompileContext {
             this.#lines.push(`  root.setSize(${this.#value(width ?? 0)}, ${this.#value(height ?? 0)});`);
         }
         this.#applyPixiProps('root', props);
+    }
+
+    #applyLayoutProps(variable: string, props: Record<string, SceneTemplateValue>) {
+        const entries = pixiSceneLayoutProps.flatMap((key) => {
+            const value = props[key];
+            return value === undefined ? [] : [`${key}: ${this.#value(value)}`];
+        });
+        if (entries.length === 0) {
+            return;
+        }
+        this.#pixiRuntimeImports.add('setFrameLayout');
+        this.#lines.push(`  setFrameLayout(${variable}, { ${entries.join(', ')} });`);
     }
 
     #applyStructProp(variable: string, key: string, value: Record<string, string | number | boolean>, sceneInstance?: SceneInstanceTemplateNode) {

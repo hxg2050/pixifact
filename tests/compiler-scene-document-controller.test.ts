@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { SceneTemplate, SceneTemplateNode } from '../packages/pixifact/src/compiler/spec';
 import {
-    addCompilerBuiltinSceneNodeAtTarget,
     addCompilerSceneNode,
     addCompilerSceneNodeAtTarget,
     canRedoCompilerSceneCommand,
@@ -20,14 +19,10 @@ import {
     updateCompilerSceneNodePropsInPlace,
     updateCompilerSceneTemplate,
 } from '../apps/editor/src/document/compilerSceneDocumentController';
+import type { SceneTemplateInterface } from 'pixifact/compiler';
 import {
-    builtinSceneAssetId,
-    type SceneTemplateInterface,
-} from 'pixifact/compiler';
-import {
-    builtinSceneNameFromTemplateKind,
-    builtinSceneNodeTemplateLibrary,
     nodeTemplateLibraryGroups,
+    pixiNodeTemplateLibrary,
 } from '../apps/editor/src/services/nodeTemplateLibrary';
 
 function emptyInterface() {
@@ -301,41 +296,35 @@ describe('compiler scene document controller undo redo', () => {
         expect(getCompilerSceneDocument()?.selection).toEqual({ type: 'node', node: '0:content/1:sprite1' });
     });
 
-    it('adds built-in Scene nodes using the hierarchy context target rules', () => {
-        const vBoxInterface: SceneTemplateInterface = {
-            props: {},
-            events: {},
-            slots: {
-                default: {},
-            },
-        };
-        loadTemplate(template(), {
-            [builtinSceneAssetId('VBoxContainer')]: vBoxInterface,
-        });
+    it('adds runtime layout container nodes using the hierarchy context target rules', () => {
+        loadTemplate();
 
-        const templateItem = builtinSceneNodeTemplateLibrary.find((item) => item.name === 'VBoxContainer');
+        const templateItem = pixiNodeTemplateLibrary.find((item) => item.name === 'VBoxContainer');
         expect(templateItem).toBeDefined();
-        expect(builtinSceneNameFromTemplateKind(templateItem!.kind)).toBe('VBoxContainer');
         expect(nodeTemplateLibraryGroups.map((group) => group.titleKey)).toEqual([
             'addPixiNodeGroup',
-            'addBuiltinSceneGroup',
         ]);
-        expect(nodeTemplateLibraryGroups[1].items).toContain(templateItem);
+        expect(nodeTemplateLibraryGroups[0].items).toContain(templateItem);
 
-        const result = addCompilerBuiltinSceneNodeAtTarget('0:content/0:title', 'VBoxContainer');
+        const result = addCompilerSceneNodeAtTarget(
+            '0:content/0:title',
+            createCompilerPixiTemplateNode(getCompilerSceneDocument()!.template, 'VBoxContainer'),
+        );
 
         expect(result).toEqual({
             ok: true,
             locator: '0:content/1:vBoxContainer1',
         });
         expect(contentChildren()[1]).toMatchObject({
-            kind: 'sceneInstance',
+            kind: 'pixi',
             type: 'VBoxContainer',
             id: 'vBoxContainer1',
-            scene: builtinSceneAssetId('VBoxContainer'),
-            slots: {
-                default: [],
+            props: {
+                width: 160,
+                height: 240,
+                gap: 8,
             },
+            children: [],
         });
     });
 

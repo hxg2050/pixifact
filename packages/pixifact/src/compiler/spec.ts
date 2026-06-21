@@ -8,7 +8,9 @@ export type SceneTemplatePrimitiveType =
     | 'Mesh'
     | 'NineSliceSprite'
     | 'TilingSprite'
-    | 'DOMContainer';
+    | 'DOMContainer'
+    | 'HBoxContainer'
+    | 'VBoxContainer';
 
 export type SceneTemplateScalarValue = string | number | boolean;
 export type SceneTemplateStructValue = Record<string, SceneTemplateScalarValue>;

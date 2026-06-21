@@ -2,6 +2,7 @@ import type { SceneInstanceTemplateNode, SceneTemplate, SceneTemplateInterface, 
 import {
     isPixiSceneNodeType,
     pixiSceneFieldSchema,
+    pixiSceneLayoutProps,
     pixiSceneNodePropKeys,
     pixiSceneTransformProps,
     pixiSceneDisplayProps,
@@ -239,13 +240,14 @@ function validatePixiNode(
             prop: 'type',
             expected: 'supported compiler Pixi node type',
             actual: node.type,
-            hint: 'Use Container, Sprite, NineSliceSprite, TilingSprite, Text, BitmapText, HTMLText, or Graphics.',
+            hint: 'Use HBoxContainer, VBoxContainer, Container, Sprite, NineSliceSprite, TilingSprite, Text, BitmapText, HTMLText, or Graphics.',
         }];
     }
 
     const diagnostics: SceneValidationDiagnostic[] = [];
     const knownProps = new Set<string>([
         ...pixiSceneTransformProps,
+        ...pixiSceneLayoutProps,
         ...pixiSceneDisplayProps,
         ...pixiSceneNodePropKeys(node.type),
     ]);
@@ -318,6 +320,7 @@ function validateSceneInstanceNode(
     const diagnostics: SceneValidationDiagnostic[] = [];
     const allowedProps = new Set<string>([
         ...pixiSceneTransformProps,
+        ...pixiSceneLayoutProps,
         ...pixiSceneDisplayProps,
         ...Object.keys(sceneInterface.props),
     ]);
