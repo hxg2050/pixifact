@@ -1,55 +1,55 @@
 ---
 name: change-workflow
-description: Use when implementing code changes, new features, bug fixes, refactors, docs updates tied to code, or multi-turn work that needs planning, tests, verification, resumability, and clean commits across any repository.
+description: 用于执行任何仓库代码变更、新功能、缺陷修复、重构、与代码相关的文档更新，或需要计划、测试、验证、续作记录和干净提交的跨轮任务。
 ---
 
-# Change Workflow
+# 变更工作流
 
-Use this skill for repository changes. Combine it with the current project's own instructions; project rules override this workflow when they are more specific.
+处理仓库变更时使用本 skill。必须与当前项目自己的规则合并执行；当项目规则更具体时，以项目规则为准。
 
-## Required Flow
+## 必执行流程
 
-1. **Read Context**
-   - Read project instructions such as `AGENTS.md`, `CODEX.md`, `README`, testing docs, and relevant source.
-   - Check current worktree state before editing.
-   - If a matching plan exists, read it before reasoning from scratch.
+1. **读取上下文**
+   - 阅读项目说明，例如 `AGENTS.md`、`CODEX.md`、`README`、测试文档和相关源码。
+   - 编辑前检查当前 worktree 状态。
+   - 如果已有匹配计划文档，先读计划，不要从聊天记忆重新推理。
 
-2. **Classify Change**
-   - **Small**: local fix, docs tweak, or one narrow behavior with low risk.
-   - **Medium**: one subsystem or several files, needs coordinated tests or docs.
-   - **Large**: cross-subsystem change, public API change, migration, or likely multi-session work.
+2. **判断变更规模**
+   - **Small**：局部修复、文档微调，或低风险的单点行为。
+   - **Medium**：影响一个子系统或多个文件，需要配套测试或文档。
+   - **Large**：跨子系统、公共 API 变更、迁移，或可能跨会话完成。
 
-3. **Plan**
-   - Small: state a short plan in the conversation.
-   - Medium or Large: create or update a plan file in the project, normally `docs/plans/<feature>.md`.
-   - Treat plan `Decisions` as the source of truth unless the user explicitly asks to redesign.
+3. **制定计划**
+   - Small：在对话中简述计划即可。
+   - Medium 或 Large：在项目中创建或更新计划文件，通常为 `docs/plans/<feature>.md`。
+   - 计划文档中的 `Decisions` 是该任务的事实来源，除非用户明确要求重新设计。
 
-4. **Tests First**
-   - New feature: write failing tests for the intended behavior before implementation when practical.
-   - Bug fix: write a reproducing test before fixing when practical.
-   - If automated tests are not practical, write concrete validation steps in the plan or final response.
+4. **测试优先**
+   - 新功能：可行时先为目标行为写失败测试。
+   - Bug 修复：可行时先写复现测试。
+   - 如果不适合自动化测试，在计划或最终回复中写清具体验证步骤。
 
-5. **Implement**
-   - Keep changes scoped to the goal.
-   - Avoid unrelated refactors, compatibility shims, aliases, fallbacks, or speculative abstractions unless the project asks for them.
-   - Work with existing user changes; do not overwrite unrelated work.
+5. **实现**
+   - 改动范围紧扣目标。
+   - 除非项目明确要求，不做无关重构、兼容层、别名、fallback 或臆测性抽象。
+   - 与已有用户改动协作，不覆盖无关工作。
 
-6. **Verify**
-   - Run the smallest relevant test or check first.
-   - Then run broader checks according to risk and project guidance.
-   - If checks fail, continue fixing until they pass or record a real blocker.
+6. **验证**
+   - 先运行最小相关测试或检查。
+   - 再根据风险和项目规则运行更广的测试或构建。
+   - 如果验证失败，继续修复直到通过，或记录真实阻塞。
 
-7. **Resume Notes**
-   - If the task is unfinished, update the plan with `Progress` and `Resume Notes`.
-   - Resume notes must include `Done`, `Currently Failing` or `Current State`, and `Next`.
+7. **续作记录**
+   - 如果任务未完成，必须更新计划文档中的 `Progress` 和 `Resume Notes`。
+   - 续作记录必须包含 `Done`、`Currently Failing` 或 `Current State`，以及 `Next`。
 
-8. **Commit**
-   - When project rules require commits, commit only the relevant tracked changes after verification.
-   - Do not include unrelated untracked files or user work.
+8. **提交**
+   - 当项目规则要求提交时，验证通过后只提交相关 tracked 改动。
+   - 不提交无关未跟踪文件或用户工作。
 
-## Plan File Requirements
+## 计划文档要求
 
-For Medium and Large changes, the plan should include:
+Medium 和 Large 变更的计划文档应包含：
 
 - `Goal`
 - `Decisions`
@@ -61,21 +61,19 @@ For Medium and Large changes, the plan should include:
 - `Resume Protocol`
 - `Resume Notes`
 
-Use `references/plan-template.md` as a starting point when the project has no local template.
+当项目没有本地模板时，可使用 `references/plan-template.md` 作为起点。
 
-## Resume Protocol
+## 续作协议
 
-When continuing an existing task:
+继续已有任务时：
 
-1. Read project instructions and the plan file.
-2. Run worktree status.
-3. Run the smallest relevant failing or targeted test from `Resume Notes`.
-4. Continue from `Next`; do not re-open settled design decisions.
-5. Before stopping unfinished work, update `Progress` and `Resume Notes`.
+1. 阅读项目说明和计划文档。
+2. 查看 worktree 状态。
+3. 运行 `Resume Notes` 中最小相关失败测试或目标测试。
+4. 从 `Next` 继续，不重新打开已经确定的设计决策。
+5. 如果停止时任务仍未完成，更新 `Progress` 和 `Resume Notes`。
 
-## Good Handoff Notes
-
-Use this shape:
+## 推荐交接格式
 
 ```md
 ## Resume Notes
