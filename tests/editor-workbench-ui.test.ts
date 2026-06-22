@@ -21,6 +21,7 @@ import {
 import { InspectorPanel } from '../apps/editor/src/panels/InspectorPanel';
 import {
     actualSizeViewportTransform,
+    applyCompilerSceneNodeTransform,
     canBeginCompilerSceneMove,
     clampViewportScale,
     compilerScenePreviewEventFeatures,
@@ -495,6 +496,26 @@ describe('Editor workbench UI', () => {
             { scale: 2, offset: { x: -100, y: -150 } },
             { x: 20, y: 10 },
         )).toEqual({ x: 10, y: 5 });
+        const layoutPositionedTarget = {
+            height: 650,
+            position: {
+                x: 30,
+                y: 252,
+                set(x: number, y: number) {
+                    this.x = x;
+                    this.y = y;
+                },
+            },
+            width: 690,
+        };
+        applyCompilerSceneNodeTransform(layoutPositionedTarget as unknown as Pixi.Container, {
+            height: 650,
+            width: 690,
+        });
+        expect(layoutPositionedTarget.position).toMatchObject({
+            x: 30,
+            y: 252,
+        });
         expect(moveCompilerSceneNodeProps(
             { x: 10, y: 20 },
             { x: 5, y: -8 },

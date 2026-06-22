@@ -440,9 +440,8 @@ function applyCompilerSceneNodePartialTransform(target: Container, props: Compil
     applyCompilerSceneNodeSize(target, props);
 }
 
-function applyCompilerSceneNodeTransform(target: Container, props: CompilerSceneMoveProps) {
-    applyCompilerSceneNodePosition(target, props);
-    applyCompilerSceneNodeSize(target, props);
+export function applyCompilerSceneNodeTransform(target: Container, props: CompilerSceneMoveProps) {
+    applyCompilerSceneNodePartialTransform(target, props);
 }
 
 function gridStyle(model: ViewportModel): React.CSSProperties {
