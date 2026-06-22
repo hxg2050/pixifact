@@ -610,6 +610,36 @@ describe('Editor workbench UI', () => {
             width: 1,
             height: 1,
         });
+        expect(resizeCompilerSceneNodeProps(
+            { horizontal: 0, top: 252, width: 690, height: 650 },
+            { x: 30, y: 252, width: 690, height: 650 },
+            'north-east',
+            { x: 20, y: -10 },
+        )).toEqual({
+            height: 660,
+            horizontal: 10,
+            top: 242,
+            width: 710,
+        });
+        expect(resizeCompilerSceneNodeProps(
+            { right: 10, bottom: 20, width: 100, height: 40 },
+            { x: 0, y: 0, width: 100, height: 40 },
+            'south-west',
+            { x: -15, y: 20 },
+        )).toEqual({
+            bottom: 0,
+            height: 60,
+            width: 115,
+        });
+        expect(resizeCompilerSceneNodeProps(
+            { left: 0, right: 0, top: 0, bottom: 0 },
+            { x: 0, y: 0, width: 100, height: 40 },
+            'north-east',
+            { x: 12, y: 6 },
+        )).toEqual({
+            right: -12,
+            top: 6,
+        });
         expect(panViewportTransform(
             { scale: 1.5, offset: { x: 40, y: 60 } },
             { x: 20, y: -10 },
@@ -756,6 +786,18 @@ describe('Editor workbench UI', () => {
             width: 100,
             height: 60,
         }, { x: 60, y: 20 })).toBe('north');
+        expect(pickCompilerSceneResizeHandle({
+            x: 10,
+            y: 20,
+            width: 100,
+            height: 60,
+        }, { x: 110, y: 20 })).toBe('north-east');
+        expect(pickCompilerSceneResizeHandle({
+            x: 10,
+            y: 20,
+            width: 100,
+            height: 60,
+        }, { x: 10, y: 80 })).toBe('south-west');
         expect(pickCompilerSceneResizeHandle({
             x: 10,
             y: 20,
@@ -934,6 +976,7 @@ describe('Editor workbench UI', () => {
             expect(editorStyles).toContain('cursor: ew-resize;');
             expect(editorStyles).toContain('cursor: ns-resize;');
             expect(editorStyles).toContain('cursor: nwse-resize;');
+            expect(editorStyles).toContain('cursor: nesw-resize;');
             expect(editorStyles).toContain('.compilerSceneProfilerPanel {\n    position: absolute;');
             expect(editorStyles).toContain('pointer-events: none;');
 

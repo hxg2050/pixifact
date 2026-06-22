@@ -95,11 +95,21 @@ export interface CompilerSceneMoveProps {
     y?: unknown;
 }
 
-export type CompilerSceneResizeHandle = 'north' | 'west' | 'north-west' | 'east' | 'south' | 'south-east';
+export type CompilerSceneResizeHandle =
+    | 'north'
+    | 'north-east'
+    | 'north-west'
+    | 'west'
+    | 'south-west'
+    | 'east'
+    | 'south'
+    | 'south-east';
 export type CompilerSceneHorizontalLayoutMode = 'free' | 'left' | 'right' | 'center' | 'stretch';
 export type CompilerSceneVerticalLayoutMode = 'free' | 'top' | 'bottom' | 'center' | 'stretch';
 type CompilerSceneMovePropKey = 'bottom' | 'horizontal' | 'left' | 'right' | 'top' | 'vertical' | 'x' | 'y';
 type CompilerSceneMoveUpdateProps = Partial<Record<CompilerSceneMovePropKey, number>>;
+type CompilerSceneResizePropKey = CompilerSceneMovePropKey | 'height' | 'width';
+type CompilerSceneResizeUpdateProps = Partial<Record<CompilerSceneResizePropKey, number>>;
 
 interface ViewportModel {
     gridVisible: boolean;
@@ -123,12 +133,7 @@ interface MoveSession {
 }
 
 interface ResizeSession {
-    currentProps?: {
-        height?: number;
-        width?: number;
-        x?: number;
-        y?: number;
-    };
+    currentProps?: CompilerSceneResizeUpdateProps;
     handle: CompilerSceneResizeHandle;
     locator: string;
     mergeKey: string;
@@ -412,32 +417,171 @@ export function resizeCompilerSceneNodeProps(
     handle: CompilerSceneResizeHandle,
     deltaScene: ViewportPoint,
 ) {
-    const startX = typeof startProps.x === 'number' ? startProps.x : startBounds.x;
-    const startY = typeof startProps.y === 'number' ? startProps.y : startBounds.y;
-    const startWidth = typeof startProps.width === 'number' ? startProps.width : startBounds.width;
-    const startHeight = typeof startProps.height === 'number' ? startProps.height : startBounds.height;
-    const westWidth = Math.max(minSceneNodeSize, startWidth - deltaScene.x);
-    const northHeight = Math.max(minSceneNodeSize, startHeight - deltaScene.y);
     return {
-        ...(handle === 'west' || handle === 'north-west'
+        ...resizeCompilerSceneNodeHorizontalProps(startProps, startBounds, handle, deltaScene.x),
+        ...resizeCompilerSceneNodeVerticalProps(startProps, startBounds, handle, deltaScene.y),
+    };
+}
+
+function resizeCompilerSceneNodePreviewProps(
+    startProps: CompilerSceneMoveProps,
+    handle: CompilerSceneResizeHandle,
+    deltaScene: ViewportPoint,
+) {
+    const startX = numberSceneProp(startProps.x);
+    const startY = numberSceneProp(startProps.y);
+    const startWidth = numberSceneProp(startProps.width);
+    const startHeight = numberSceneProp(startProps.height);
+    const westWidth = resizedWestSize(startWidth, deltaScene.x);
+    const northHeight = resizedNorthSize(startHeight, deltaScene.y);
+    return {
+        ...(resizeHandleMovesWest(handle)
             ? {
                 x: startX + startWidth - westWidth,
                 width: westWidth,
             }
             : {}),
-        ...(handle === 'north' || handle === 'north-west'
+        ...(resizeHandleMovesNorth(handle)
             ? {
                 y: startY + startHeight - northHeight,
                 height: northHeight,
             }
             : {}),
-        ...(handle === 'east' || handle === 'south-east'
-            ? { width: Math.max(minSceneNodeSize, startWidth + deltaScene.x) }
+        ...(resizeHandleMovesEast(handle)
+            ? { width: resizedEastSize(startWidth, deltaScene.x) }
             : {}),
-        ...(handle === 'south' || handle === 'south-east'
-            ? { height: Math.max(minSceneNodeSize, startHeight + deltaScene.y) }
+        ...(resizeHandleMovesSouth(handle)
+            ? { height: resizedSouthSize(startHeight, deltaScene.y) }
             : {}),
     };
+}
+
+function resizeCompilerSceneNodeHorizontalProps(
+    startProps: CompilerSceneMoveProps,
+    startBounds: CompilerSceneRect,
+    handle: CompilerSceneResizeHandle,
+    deltaX: number,
+) {
+    const horizontalMode = resolveCompilerSceneHorizontalLayoutMode(startProps);
+    const startWidth = scenePropIsNumber(startProps.width) ? startProps.width : startBounds.width;
+    const nextProps: CompilerSceneResizeUpdateProps = {};
+
+    if (resizeHandleMovesEast(handle)) {
+        const width = resizedEastSize(startWidth, deltaX);
+        const edgeDelta = width - startWidth;
+        if (horizontalMode === 'stretch') {
+            nextProps.right = numberSceneProp(startProps.right) - edgeDelta;
+        } else if (horizontalMode === 'right') {
+            nextProps.right = numberSceneProp(startProps.right) - edgeDelta;
+            nextProps.width = width;
+        } else if (horizontalMode === 'center') {
+            nextProps.horizontal = numberSceneProp(startProps.horizontal) + edgeDelta / 2;
+            nextProps.width = width;
+        } else {
+            nextProps.width = width;
+        }
+    }
+
+    if (resizeHandleMovesWest(handle)) {
+        const width = resizedWestSize(startWidth, deltaX);
+        const edgeDelta = startWidth - width;
+        if (horizontalMode === 'stretch') {
+            nextProps.left = numberSceneProp(startProps.left) + edgeDelta;
+        } else if (horizontalMode === 'left') {
+            nextProps.left = numberSceneProp(startProps.left) + edgeDelta;
+            nextProps.width = width;
+        } else if (horizontalMode === 'center') {
+            nextProps.horizontal = numberSceneProp(startProps.horizontal) + edgeDelta / 2;
+            nextProps.width = width;
+        } else if (horizontalMode === 'free') {
+            nextProps.x = (scenePropIsNumber(startProps.x) ? startProps.x : startBounds.x) + edgeDelta;
+            nextProps.width = width;
+        } else {
+            nextProps.width = width;
+        }
+    }
+
+    return nextProps;
+}
+
+function resizeCompilerSceneNodeVerticalProps(
+    startProps: CompilerSceneMoveProps,
+    startBounds: CompilerSceneRect,
+    handle: CompilerSceneResizeHandle,
+    deltaY: number,
+) {
+    const verticalMode = resolveCompilerSceneVerticalLayoutMode(startProps);
+    const startHeight = scenePropIsNumber(startProps.height) ? startProps.height : startBounds.height;
+    const nextProps: CompilerSceneResizeUpdateProps = {};
+
+    if (resizeHandleMovesSouth(handle)) {
+        const height = resizedSouthSize(startHeight, deltaY);
+        const edgeDelta = height - startHeight;
+        if (verticalMode === 'stretch') {
+            nextProps.bottom = numberSceneProp(startProps.bottom) - edgeDelta;
+        } else if (verticalMode === 'bottom') {
+            nextProps.bottom = numberSceneProp(startProps.bottom) - edgeDelta;
+            nextProps.height = height;
+        } else if (verticalMode === 'center') {
+            nextProps.vertical = numberSceneProp(startProps.vertical) + edgeDelta / 2;
+            nextProps.height = height;
+        } else {
+            nextProps.height = height;
+        }
+    }
+
+    if (resizeHandleMovesNorth(handle)) {
+        const height = resizedNorthSize(startHeight, deltaY);
+        const edgeDelta = startHeight - height;
+        if (verticalMode === 'stretch') {
+            nextProps.top = numberSceneProp(startProps.top) + edgeDelta;
+        } else if (verticalMode === 'top') {
+            nextProps.top = numberSceneProp(startProps.top) + edgeDelta;
+            nextProps.height = height;
+        } else if (verticalMode === 'center') {
+            nextProps.vertical = numberSceneProp(startProps.vertical) + edgeDelta / 2;
+            nextProps.height = height;
+        } else if (verticalMode === 'free') {
+            nextProps.y = (scenePropIsNumber(startProps.y) ? startProps.y : startBounds.y) + edgeDelta;
+            nextProps.height = height;
+        } else {
+            nextProps.height = height;
+        }
+    }
+
+    return nextProps;
+}
+
+function resizedEastSize(startWidth: number, deltaX: number) {
+    return Math.max(minSceneNodeSize, startWidth + deltaX);
+}
+
+function resizedWestSize(startWidth: number, deltaX: number) {
+    return Math.max(minSceneNodeSize, startWidth - deltaX);
+}
+
+function resizedSouthSize(startHeight: number, deltaY: number) {
+    return Math.max(minSceneNodeSize, startHeight + deltaY);
+}
+
+function resizedNorthSize(startHeight: number, deltaY: number) {
+    return Math.max(minSceneNodeSize, startHeight - deltaY);
+}
+
+function resizeHandleMovesEast(handle: CompilerSceneResizeHandle) {
+    return handle === 'east' || handle === 'north-east' || handle === 'south-east';
+}
+
+function resizeHandleMovesWest(handle: CompilerSceneResizeHandle) {
+    return handle === 'west' || handle === 'north-west' || handle === 'south-west';
+}
+
+function resizeHandleMovesSouth(handle: CompilerSceneResizeHandle) {
+    return handle === 'south' || handle === 'south-east' || handle === 'south-west';
+}
+
+function resizeHandleMovesNorth(handle: CompilerSceneResizeHandle) {
+    return handle === 'north' || handle === 'north-east' || handle === 'north-west';
 }
 
 export function canBeginCompilerSceneMove(selectedLocator: string | undefined, hitLocator: string | undefined) {
@@ -552,6 +696,12 @@ function resizeHandleRects(outline: SelectionRect): Record<CompilerSceneResizeHa
             width: resizeHandleSize,
             height: resizeHandleSize,
         },
+        'north-east': {
+            x: outline.x + outline.width - half,
+            y: outline.y - half,
+            width: resizeHandleSize,
+            height: resizeHandleSize,
+        },
         west: {
             x: outline.x - half,
             y: outline.y + outline.height / 2 - half,
@@ -576,6 +726,12 @@ function resizeHandleRects(outline: SelectionRect): Record<CompilerSceneResizeHa
             width: resizeHandleSize,
             height: resizeHandleSize,
         },
+        'south-west': {
+            x: outline.x - half,
+            y: outline.y + outline.height - half,
+            width: resizeHandleSize,
+            height: resizeHandleSize,
+        },
         'south-east': {
             x: outline.x + outline.width - half,
             y: outline.y + outline.height - half,
@@ -590,7 +746,16 @@ export function pickCompilerSceneResizeHandle(outline: SelectionRect | undefined
         return undefined;
     }
     const handles = resizeHandleRects(outline);
-    const order: CompilerSceneResizeHandle[] = ['north-west', 'south-east', 'west', 'north', 'east', 'south'];
+    const order: CompilerSceneResizeHandle[] = [
+        'north-west',
+        'north-east',
+        'south-west',
+        'south-east',
+        'west',
+        'north',
+        'east',
+        'south',
+    ];
     return order.find((handle) => compilerScenePointInRect(point, handles[handle]));
 }
 
@@ -961,7 +1126,13 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                                 startBounds,
                                 startPoint: start,
                                 startProps: {
+                                    bottom: node.props.bottom,
                                     height: node.props.height,
+                                    horizontal: node.props.horizontal,
+                                    left: node.props.left,
+                                    right: node.props.right,
+                                    top: node.props.top,
+                                    vertical: node.props.vertical,
                                     width: node.props.width,
                                     x: node.props.x,
                                     y: node.props.y,
@@ -1055,8 +1226,9 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 }
                 const deltaScene = viewportDeltaToSceneDelta(transformRef.current, deltaViewport);
                 const nextProps = resizeCompilerSceneNodeProps(resize.startProps, resize.startBounds, resize.handle, deltaScene);
+                const nextPreviewProps = resizeCompilerSceneNodePreviewProps(resize.startSize, resize.handle, deltaScene);
                 resize.currentProps = nextProps;
-                applyCompilerSceneNodePartialTransform(target, nextProps);
+                applyCompilerSceneNodePartialTransform(target, nextPreviewProps);
                 setOutline(compilerSceneSelectionRect(target));
                 return;
             }

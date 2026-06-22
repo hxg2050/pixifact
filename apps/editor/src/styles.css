@@ -1467,6 +1467,11 @@ textarea {
     cursor: nwse-resize;
 }
 
+.compilerSceneResizeHandle--north-east,
+.compilerSceneResizeHandle--south-west {
+    cursor: nesw-resize;
+}
+
 .runtimeStatus {
     position: absolute;
     inset: 0;
