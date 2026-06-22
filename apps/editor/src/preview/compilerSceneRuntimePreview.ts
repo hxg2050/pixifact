@@ -3,7 +3,7 @@
 import ts from 'typescript';
 import * as Pixi from 'pixi.js';
 import { Container } from 'pixi.js';
-import { Control, Group, HBoxContainer, Image, NineImage, Rect, TileImage, VBoxContainer, applyPixifactViewportLayout, calculatePixifactViewportLayout, getFrameLayout, layoutFrameChildren, requestFrameLayout, setFrameLayout } from 'pixifact/runtime';
+import { Control, Group, HBoxContainer, Image, NineImage, Rect, ScrollContainer, TileImage, VBoxContainer, applyPixifactViewportLayout, calculatePixifactViewportLayout, getFrameLayout, layoutFrameChildren, requestFrameLayout, setFrameLayout } from 'pixifact/runtime';
 import * as compilerRuntime from 'pixifact/compiler';
 import {
     compileSceneTemplateToTs,
@@ -619,6 +619,7 @@ function createModuleLoader(context: PreviewRuntimeContext, modules: PreviewModu
                 Image,
                 NineImage,
                 Rect,
+                ScrollContainer,
                 TileImage,
                 VBoxContainer,
                 applyPixifactViewportLayout,
@@ -726,6 +727,12 @@ function directRenderedChildren(parent: Container, expectedCount: number) {
     return parent.children.slice(0, expectedCount).filter((child): child is Container => child instanceof Container);
 }
 
+function authoredRenderedChildren(parent: Container, expectedCount: number) {
+    return parent instanceof ScrollContainer
+        ? directRenderedChildren(parent.contentLayer, expectedCount)
+        : directRenderedChildren(parent, expectedCount);
+}
+
 function mapRenderedNodes(
     context: PreviewRuntimeContext,
     scenePath: string,
@@ -736,7 +743,7 @@ function mapRenderedNodes(
     providedChildren?: readonly Container[],
 ) {
     const visibleNodes = nodes.filter((node) => node.kind !== 'slotOutlet');
-    const renderedChildren = providedChildren ?? directRenderedChildren(parent, visibleNodes.length);
+    const renderedChildren = providedChildren ?? authoredRenderedChildren(parent, visibleNodes.length);
     let renderedIndex = 0;
 
     for (const [index, node] of nodes.entries()) {

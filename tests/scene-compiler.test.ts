@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Container, Graphics, Mesh, NineSliceSprite, Rectangle, Text, Texture, TextureSource, TilingSprite } from 'pixi.js';
-import { Control, Group, HBoxContainer, Image, NineImage, Rect, TileImage, VBoxContainer, calculatePixifactViewportLayout, getFrameLayout } from 'pixifact/runtime';
+import { Control, Group, HBoxContainer, Image, NineImage, Rect, ScrollContainer, TileImage, VBoxContainer, calculatePixifactViewportLayout, getFrameLayout } from 'pixifact/runtime';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -73,6 +73,7 @@ describe('Pixifact scene compiler spike', () => {
     it('keeps runtime layout containers on the Control base', () => {
         const RuntimeScenes = [
             HBoxContainer,
+            ScrollContainer,
             VBoxContainer,
         ];
 
@@ -84,6 +85,7 @@ describe('Pixifact scene compiler spike', () => {
     it('keeps runtime layout container box sizes in the Group size protocol', () => {
         const RuntimeScenes = [
             HBoxContainer,
+            ScrollContainer,
             VBoxContainer,
         ];
 
@@ -113,6 +115,72 @@ describe('Pixifact scene compiler spike', () => {
         expect(control.hitArea).toMatchObject({ x: 0, y: 0, width: 90, height: 32 });
         expect(control.scale.x).toBe(1);
         expect(control.scale.y).toBe(1);
+    });
+
+    it('routes ScrollContainer author children into a clipped content layer', () => {
+        const scroll = new ScrollContainer({ width: 100, height: 60 });
+        const child = new Rect({ width: 100, height: 180 });
+
+        scroll.addChild(child);
+
+        expect(scroll.getSize()).toEqual({ width: 100, height: 60 });
+        expect(scroll.scale.x).toBe(1);
+        expect(scroll.scale.y).toBe(1);
+        expect(scroll.hitArea).toMatchObject({ x: 0, y: 0, width: 100, height: 60 });
+        expect(scroll.contentLayer.children).toEqual([child]);
+        expect(scroll.children).not.toContain(child);
+        expect(child.parent).toBe(scroll.contentLayer);
+        expect(scroll.contentLayer.mask).toBeInstanceOf(Graphics);
+
+        scroll.scrollY = 72;
+
+        expect(scroll.scrollY).toBe(72);
+        expect(scroll.scrollX).toBe(0);
+        expect(scroll.contentLayer.x).toBeCloseTo(0);
+        expect(scroll.contentLayer.y).toBe(-72);
+
+        scroll.scrollY = 200;
+
+        expect(scroll.scrollY).toBe(120);
+        expect(scroll.contentLayer.position.y).toBe(-120);
+
+        scroll.direction = 'horizontal';
+        scroll.scrollY = 48;
+        scroll.scrollX = 24;
+
+        expect(scroll.scrollY).toBe(0);
+        expect(scroll.scrollX).toBe(0);
+        expect(scroll.contentLayer.x).toBeCloseTo(0);
+        expect(scroll.contentLayer.y).toBeCloseTo(0);
+    });
+
+    it('scrolls ScrollContainer content from wheel and pointer drag events', () => {
+        const scroll = new ScrollContainer({ width: 100, height: 60, direction: 'both' });
+        scroll.addChild(new Rect({ width: 200, height: 180 }));
+        const wheelEvent = {
+            deltaX: 12,
+            deltaY: 24,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        };
+
+        scroll.emit('wheel', wheelEvent);
+
+        expect(scroll.scrollX).toBe(12);
+        expect(scroll.scrollY).toBe(24);
+        expect(scroll.contentLayer.x).toBe(-12);
+        expect(scroll.contentLayer.y).toBe(-24);
+        expect(wheelEvent.preventDefault).toHaveBeenCalledTimes(1);
+        expect(wheelEvent.stopPropagation).toHaveBeenCalledTimes(1);
+
+        scroll.emit('pointerdown', { pointerId: 1, global: { x: 40, y: 60 } });
+        scroll.emit('globalpointermove', { pointerId: 1, global: { x: 10, y: 20 } });
+        scroll.emit('pointerup', { pointerId: 1 });
+
+        expect(scroll.scrollX).toBe(42);
+        expect(scroll.scrollY).toBe(64);
+        expect(scroll.contentLayer.x).toBe(-42);
+        expect(scroll.contentLayer.y).toBe(-64);
     });
 
     it('calculates Pixifact viewport layout modes from design resolution and screen size', () => {
@@ -1363,6 +1431,81 @@ import { Group } from 'pixifact/runtime';`);
             sceneInterfaces: builtinSceneInterfaces(builtinSceneScriptSources),
         })).toMatchObject({
             ok: true,
+        });
+    });
+
+    it('parses, serializes, validates, and compiles ScrollContainer primitive nodes', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="Inventory" width="690" height="650">
+              <ScrollContainer id="bagScroll" width="606" height="280" direction="vertical" scrollY="32">
+                <VBoxContainer id="slotRows" width="606" gap="18">
+                  <Text id="itemLabel" text="Potion" />
+                </VBoxContainer>
+              </ScrollContainer>
+            </Scene>
+        `);
+
+        expect(template.children[0]).toMatchObject({
+            kind: 'pixi',
+            type: 'ScrollContainer',
+            id: 'bagScroll',
+            props: {
+                width: 606,
+                height: 280,
+                direction: 'vertical',
+                scrollY: 32,
+            },
+            children: [{
+                kind: 'pixi',
+                type: 'VBoxContainer',
+                id: 'slotRows',
+            }],
+        });
+
+        const source = serializeSceneTemplate(template);
+        expect(source).toContain('<ScrollContainer id="bagScroll" width="606" height="280" direction="vertical" scrollY="32">');
+        expect(parseSceneTemplate(source)).toEqual(template);
+        expect(validateSceneContent({
+            scene: 'src/scenes/Inventory.scene',
+            content: source,
+        })).toMatchObject({
+            ok: true,
+        });
+
+        const code = compileSceneTemplateToTs(template);
+        expect(code).toContain(`import { Container, Text } from 'pixi.js';
+import { Group, ScrollContainer, VBoxContainer } from 'pixifact/runtime';`);
+        expect(code).toContain('bagScroll: ScrollContainer;');
+        expect(code).toContain('slotRows: VBoxContainer;');
+        expect(code).toContain('const bagScroll = new ScrollContainer();');
+        expect(code).toContain('bagScroll.width = 606;');
+        expect(code).toContain('bagScroll.height = 280;');
+        expect(code).toContain('bagScroll.direction = "vertical";');
+        expect(code).toContain('bagScroll.scrollY = 32;');
+        expect(code).toContain('bagScroll.addChild(slotRows);');
+    });
+
+    it('rejects invalid ScrollContainer direction values', () => {
+        const result = validateSceneContent({
+            scene: 'src/scenes/Inventory.scene',
+            content: `
+                <Scene name="Inventory">
+                  <ScrollContainer id="bagScroll" direction="diagonal" />
+                </Scene>
+            `,
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/Inventory.scene',
+            error: 'Scene validation failed.',
+            diagnostics: [{
+                path: '0:bagScroll',
+                prop: 'direction',
+                expected: 'one of "vertical", "horizontal", "both"',
+                actual: 'string',
+                hint: 'Set ScrollContainer.direction to one of the allowed values.',
+            }],
         });
     });
 

@@ -1042,6 +1042,53 @@ describe('project file tree service', () => {
         preview.dispose();
     });
 
+    it('renders ScrollContainer children through the compiler runtime preview content layer', async () => {
+        host.reset({
+            src: host.directory({
+                scenes: host.directory({
+                    'Inventory.scene': host.file(`
+                        <Scene name="Inventory" width="690" height="650">
+                          <ScrollContainer id="bagScroll" x="42" y="126" width="606" height="180" direction="vertical" scrollY="32">
+                            <VBoxContainer id="slotRows" width="606" gap="18">
+                              <Rect id="firstItem" width="100" height="100" />
+                              <Rect id="secondItem" width="100" height="100" />
+                            </VBoxContainer>
+                          </ScrollContainer>
+                        </Scene>
+                    `),
+
+                    'Inventory.ts': emptySceneScript('Inventory'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/src/scenes/Inventory.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+        const document = getCompilerSceneDocument();
+
+        const preview = await createCompilerSceneRuntimePreview({
+            document: document!,
+            projectTree: tree,
+            scenePath: 'src/scenes/Inventory.scene',
+        });
+
+        const bagScroll = preview.nodes.get('0:bagScroll');
+        const slotRows = preview.nodes.get('0:bagScroll/0:slotRows');
+        expect(bagScroll?.constructor.name).toBe('ScrollContainer');
+        expect(slotRows?.constructor.name).toBe('VBoxContainer');
+        expect(bagScroll?.x).toBe(42);
+        expect(bagScroll?.y).toBe(126);
+        expect((bagScroll as { width?: number }).width).toBe(606);
+        expect((bagScroll as { height?: number }).height).toBe(180);
+        expect((bagScroll as { direction?: string }).direction).toBe('vertical');
+        expect((bagScroll as { scrollY?: number }).scrollY).toBe(32);
+        expect((bagScroll as { contentLayer?: Pixi.Container }).contentLayer?.children).toContain(slotRows);
+        expect(slotRows?.parent).toBe((bagScroll as { contentLayer?: Pixi.Container }).contentLayer);
+        expect((bagScroll as { contentLayer?: Pixi.Container }).contentLayer?.x).toBeCloseTo(0);
+        expect((bagScroll as { contentLayer?: Pixi.Container }).contentLayer?.y).toBe(-32);
+        preview.dispose();
+    });
+
     it('binds compiler preview scene events to the opened scene script instance', async () => {
         host.reset({
             src: host.directory({
@@ -1706,6 +1753,18 @@ describe('project file tree service', () => {
             },
             children: [],
         });
+        expect(createCompilerPixiTemplateNode(template, 'ScrollContainer')).toMatchObject({
+            kind: 'pixi',
+            type: 'ScrollContainer',
+            props: {
+                width: 240,
+                height: 160,
+                direction: 'vertical',
+                scrollX: 0,
+                scrollY: 0,
+            },
+            children: [],
+        });
         expect(createCompilerPixiTemplateNode(template, 'NineSliceSprite')).toMatchObject({
             kind: 'pixi',
             type: 'NineSliceSprite',
@@ -1768,6 +1827,13 @@ describe('project file tree service', () => {
             tileScaleX: 1,
             tileScaleY: 1,
         });
+        expect(pixiSceneNodeDefaults('ScrollContainer')).toEqual({
+            width: 240,
+            height: 160,
+            direction: 'vertical',
+            scrollX: 0,
+            scrollY: 0,
+        });
         expect(pixiSceneNodeDefaults('Graphics')).toEqual({
             shape: 'roundRect',
             width: 100,
@@ -1800,6 +1866,10 @@ describe('project file tree service', () => {
             type: 'enum',
             options: ['stretch', 'contain', 'cover', 'none'],
         });
+        expect(pixiSceneFieldSchema('direction')).toMatchObject({
+            type: 'enum',
+            options: ['vertical', 'horizontal', 'both'],
+        });
     });
 
     it('groups compiler Pixi basic node props by node capability', () => {
@@ -1825,6 +1895,12 @@ describe('project file tree service', () => {
             {
                 group: 'props',
                 fields: ['texture', 'tilePositionX', 'tilePositionY', 'tileScaleX', 'tileScaleY', 'tileRotation', 'anchorX', 'anchorY', 'tint'],
+            },
+        ]);
+        expect(pixiSceneNodePropGroups('ScrollContainer')).toEqual([
+            {
+                group: 'props',
+                fields: ['direction', 'scrollX', 'scrollY'],
             },
         ]);
         expect(pixiSceneNodePropGroups('NineSliceSprite')).toEqual([

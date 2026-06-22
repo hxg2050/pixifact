@@ -7,7 +7,7 @@
 
 - `.scene` 与同名 `.ts` 脚本配对。
 - `Rect`、`Image`、`NineImage`、`TileImage` 的基础用法。
-- `HBoxContainer`、`VBoxContainer` 的简单组合布局。
+- `HBoxContainer`、`VBoxContainer`、`ScrollContainer` 的简单组合布局。
 - Scene instance 的 props、events 和 slots 契约。
 
 常用命令：

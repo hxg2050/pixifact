@@ -300,11 +300,14 @@ describe('compiler scene document controller undo redo', () => {
         loadTemplate();
 
         const templateItem = pixiNodeTemplateLibrary.find((item) => item.name === 'VBoxContainer');
+        const scrollTemplateItem = pixiNodeTemplateLibrary.find((item) => item.name === 'ScrollContainer');
         expect(templateItem).toBeDefined();
+        expect(scrollTemplateItem).toBeDefined();
         expect(nodeTemplateLibraryGroups.map((group) => group.titleKey)).toEqual([
             'addPixiNodeGroup',
         ]);
         expect(nodeTemplateLibraryGroups[0].items).toContain(templateItem);
+        expect(nodeTemplateLibraryGroups[0].items).toContain(scrollTemplateItem);
 
         const result = addCompilerSceneNodeAtTarget(
             '0:content/0:title',
@@ -323,6 +326,31 @@ describe('compiler scene document controller undo redo', () => {
                 width: 160,
                 height: 240,
                 gap: 8,
+            },
+            children: [],
+        });
+
+        const scrollResult = addCompilerSceneNodeAtTarget(
+            '0:content/1:vBoxContainer1',
+            createCompilerPixiTemplateNode(getCompilerSceneDocument()!.template, 'ScrollContainer'),
+        );
+
+        expect(scrollResult).toEqual({
+            ok: true,
+            locator: '0:content/1:vBoxContainer1/0:scrollContainer1',
+        });
+        const stackNode = contentChildren()[1];
+        expect(stackNode.kind).toBe('pixi');
+        expect(stackNode.kind === 'pixi' ? stackNode.children[0] : undefined).toMatchObject({
+            kind: 'pixi',
+            type: 'ScrollContainer',
+            id: 'scrollContainer1',
+            props: {
+                width: 240,
+                height: 160,
+                direction: 'vertical',
+                scrollX: 0,
+                scrollY: 0,
             },
             children: [],
         });

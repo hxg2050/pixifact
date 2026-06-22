@@ -2,7 +2,7 @@ import type { SceneTemplatePrimitiveType, SceneTemplateValue } from './spec';
 
 export type PixiSceneNodeType = Extract<
     SceneTemplatePrimitiveType,
-    'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'Image' | 'NineImage' | 'TileImage' | 'HBoxContainer' | 'VBoxContainer'
+    'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'Image' | 'NineImage' | 'TileImage' | 'HBoxContainer' | 'ScrollContainer' | 'VBoxContainer'
 >;
 
 export type PixiSceneFieldType = 'string' | 'number' | 'boolean' | 'color' | 'enum';
@@ -152,6 +152,12 @@ export const pixiSceneStackProps = [
     'justify',
 ] as const;
 
+export const pixiSceneScrollProps = [
+    'direction',
+    'scrollX',
+    'scrollY',
+] as const;
+
 export const pixiSceneTextStyleProps = [
     'fontSize',
     'fontFamily',
@@ -177,10 +183,12 @@ export const pixiSceneKnownProps = [
     ...pixiSceneGraphicsProps,
     ...pixiSceneRectProps,
     ...pixiSceneStackProps,
+    ...pixiSceneScrollProps,
 ] as const;
 
 export const pixiSceneAddableNodeTypes = [
     'HBoxContainer',
+    'ScrollContainer',
     'VBoxContainer',
     'Container',
     'Sprite',
@@ -260,6 +268,9 @@ const pixiSceneFieldSchemas: Partial<Record<string, PixiSceneFieldSchema>> = {
     alignX: { key: 'alignX', type: 'enum', options: ['start', 'center', 'end'] },
     alignY: { key: 'alignY', type: 'enum', options: ['start', 'center', 'end'] },
     justify: { key: 'justify', type: 'enum', options: ['start', 'center', 'end', 'space-between'] },
+    direction: { key: 'direction', type: 'enum', options: ['vertical', 'horizontal', 'both'] },
+    scrollX: { key: 'scrollX', type: 'number' },
+    scrollY: { key: 'scrollY', type: 'number' },
 };
 
 const pixiSceneNodeSchemas: Record<PixiSceneNodeType, PixiSceneNodeSchema> = {
@@ -436,6 +447,20 @@ const pixiSceneNodeSchemas: Record<PixiSceneNodeType, PixiSceneNodeSchema> = {
         },
         groups: {
             stack: pixiSceneStackHBoxProps,
+        },
+    },
+    ScrollContainer: {
+        type: 'ScrollContainer',
+        acceptsChildren: true,
+        defaults: {
+            width: 240,
+            height: 160,
+            direction: 'vertical',
+            scrollX: 0,
+            scrollY: 0,
+        },
+        groups: {
+            props: pixiSceneScrollProps,
         },
     },
     VBoxContainer: {

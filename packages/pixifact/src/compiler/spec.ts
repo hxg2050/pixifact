@@ -14,6 +14,7 @@ export type SceneTemplatePrimitiveType =
     | 'TilingSprite'
     | 'DOMContainer'
     | 'HBoxContainer'
+    | 'ScrollContainer'
     | 'VBoxContainer';
 
 export type SceneTemplateScalarValue = string | number | boolean;

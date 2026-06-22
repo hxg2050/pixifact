@@ -32,6 +32,7 @@ const pixiTypes = new Set<string>([
     'TilingSprite',
     'DOMContainer',
     'HBoxContainer',
+    'ScrollContainer',
     'VBoxContainer',
 ]);
 
