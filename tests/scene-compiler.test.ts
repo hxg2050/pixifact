@@ -207,6 +207,39 @@ describe('Pixifact scene compiler spike', () => {
         expect(anchoredScroll.contentLayer.y).toBe(-120);
     });
 
+    it('clamps ScrollContainer targets without reverse scroll dead zones', () => {
+        const wheelScroll = new ScrollContainer({ width: 100, height: 100 });
+        wheelScroll.addChild(new Rect({ width: 100, height: 160 }));
+        wheelScroll.emit('wheel', {
+            deltaX: 0,
+            deltaY: 100,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        });
+
+        expect(wheelScroll.scrollY).toBe(60);
+
+        wheelScroll.emit('wheel', {
+            deltaX: 0,
+            deltaY: -1,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        });
+
+        expect(wheelScroll.scrollY).toBe(59);
+
+        const dragScroll = new ScrollContainer({ width: 100, height: 100 });
+        dragScroll.addChild(new Rect({ width: 100, height: 160 }));
+        dragScroll.emit('pointerdown', { pointerId: 1, global: { x: 0, y: 0 } });
+        dragScroll.emit('globalpointermove', { pointerId: 1, global: { x: 0, y: -100 } });
+
+        expect(dragScroll.scrollY).toBe(60);
+
+        dragScroll.emit('globalpointermove', { pointerId: 1, global: { x: 0, y: -99 } });
+
+        expect(dragScroll.scrollY).toBe(59);
+    });
+
     it('calculates Pixifact viewport layout modes from design resolution and screen size', () => {
         const resolution = { width: 750, height: 1334 };
         const screen = { width: 390, height: 844 };

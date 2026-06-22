@@ -33,8 +33,6 @@ export class ScrollContainer extends Control {
             pointerId: number;
             globalX: number;
             globalY: number;
-            scrollX: number;
-            scrollY: number;
         }
         | undefined;
 
@@ -200,10 +198,10 @@ export class ScrollContainer extends Control {
         const beforeX = this.#scrollX;
         const beforeY = this.#scrollY;
         if (this.#direction !== 'vertical') {
-            this.#targetScrollX += event.deltaX;
+            this.#targetScrollX = this.#scrollX + event.deltaX;
         }
         if (this.#direction !== 'horizontal') {
-            this.#targetScrollY += event.deltaY;
+            this.#targetScrollY = this.#scrollY + event.deltaY;
         }
         this.#applyScroll();
         if (beforeX !== this.#scrollX || beforeY !== this.#scrollY) {
@@ -217,8 +215,6 @@ export class ScrollContainer extends Control {
             pointerId: event.pointerId,
             globalX: event.global.x,
             globalY: event.global.y,
-            scrollX: this.#targetScrollX,
-            scrollY: this.#targetScrollY,
         };
     }
 
@@ -229,12 +225,14 @@ export class ScrollContainer extends Control {
         const deltaX = event.global.x - this.#drag.globalX;
         const deltaY = event.global.y - this.#drag.globalY;
         if (this.#direction !== 'vertical') {
-            this.#targetScrollX = this.#drag.scrollX - deltaX;
+            this.#targetScrollX = this.#scrollX - deltaX;
         }
         if (this.#direction !== 'horizontal') {
-            this.#targetScrollY = this.#drag.scrollY - deltaY;
+            this.#targetScrollY = this.#scrollY - deltaY;
         }
         this.#applyScroll();
+        this.#drag.globalX = event.global.x;
+        this.#drag.globalY = event.global.y;
     }
 
     #handlePointerUp(event: FederatedPointerEvent) {
