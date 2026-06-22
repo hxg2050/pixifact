@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Container, Graphics, Mesh, NineSliceSprite, Rectangle, Text, Texture, TextureSource, Ticker, TilingSprite } from 'pixi.js';
-import { Control, Group, HBoxContainer, Image, NineImage, Rect, ScrollContainer, TileImage, VBoxContainer, calculatePixifactViewportLayout, getFrameLayout } from 'pixifact/runtime';
+import { Control, GridContainer, Group, HBoxContainer, Image, NineImage, Rect, ScrollContainer, TileImage, VBoxContainer, calculatePixifactViewportLayout, getFrameLayout } from 'pixifact/runtime';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -83,6 +83,7 @@ describe('Pixifact scene compiler spike', () => {
 
     it('keeps runtime layout containers on the Control base', () => {
         const RuntimeScenes = [
+            GridContainer,
             HBoxContainer,
             ScrollContainer,
             VBoxContainer,
@@ -95,6 +96,7 @@ describe('Pixifact scene compiler spike', () => {
 
     it('keeps runtime layout container box sizes in the Group size protocol', () => {
         const RuntimeScenes = [
+            GridContainer,
             HBoxContainer,
             ScrollContainer,
             VBoxContainer,
@@ -116,6 +118,25 @@ describe('Pixifact scene compiler spike', () => {
 
     it('does not expose runtime layout containers as built-in Scene interfaces', () => {
         expect(builtinSceneInterfaces(builtinSceneScriptSources)).toEqual({});
+    });
+
+    it('lays out GridContainer children by columns, gaps, and cell alignment', () => {
+        const grid = new GridContainer();
+        grid.columns = 2;
+        grid.gapX = 10;
+        grid.gapY = 20;
+        grid.alignX = 'center';
+        grid.alignY = 'end';
+        const first = new Rect({ width: 40, height: 30 });
+        const second = new Rect({ width: 60, height: 50 });
+        const third = new Rect({ width: 20, height: 10 });
+
+        grid.addChild(first, second, third);
+
+        expect(grid.getSize()).toEqual({ width: 110, height: 80 });
+        expect(first.position).toMatchObject({ x: 0, y: 20 });
+        expect(second.position).toMatchObject({ x: 50, y: 0 });
+        expect(third.position).toMatchObject({ x: 10, y: 70 });
     });
 
     it('keeps runtime Control on the Group size protocol', () => {
@@ -1524,19 +1545,22 @@ import { Group } from 'pixifact/runtime';`);
     it('parses runtime layout container tags as primitive nodes', () => {
         const template = parseSceneTemplate(`
             <Scene name="MainMenu">
-              <VBoxContainer id="menuStack" gap="12" alignX="center">
+              <GridContainer id="itemGrid" columns="3" gapX="12" gapY="18" alignX="center" alignY="end">
                 <Text id="title" text="Start" />
-              </VBoxContainer>
+              </GridContainer>
             </Scene>
         `);
 
         expect(template.children[0]).toMatchObject({
             kind: 'pixi',
-            type: 'VBoxContainer',
-            id: 'menuStack',
+            type: 'GridContainer',
+            id: 'itemGrid',
             props: {
-                gap: 12,
+                columns: 3,
+                gapX: 12,
+                gapY: 18,
                 alignX: 'center',
+                alignY: 'end',
             },
             children: [{
                 kind: 'pixi',
@@ -1546,8 +1570,8 @@ import { Group } from 'pixifact/runtime';`);
         });
 
         const source = serializeSceneTemplate(template);
-        expect(source).toContain('<VBoxContainer id="menuStack" gap="12" alignX="center">');
-        expect(source).not.toContain('scene="pixifact:VBoxContainer.scene"');
+        expect(source).toContain('<GridContainer id="itemGrid" columns="3" gapX="12" gapY="18" alignX="center" alignY="end">');
+        expect(source).not.toContain('scene="pixifact:GridContainer.scene"');
         expect(parseSceneTemplate(source)).toEqual(template);
         expect(validateSceneContent({
             scene: 'src/scenes/MainMenu.scene',
@@ -1555,6 +1579,88 @@ import { Group } from 'pixifact/runtime';`);
             sceneInterfaces: builtinSceneInterfaces(builtinSceneScriptSources),
         })).toMatchObject({
             ok: true,
+        });
+    });
+
+    it('parses, serializes, validates, and compiles GridContainer primitive nodes', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="Inventory" width="690" height="650">
+              <GridContainer id="itemGrid" columns="5" gapX="18" gapY="20" alignX="center" alignY="center">
+                <Text id="itemLabel" text="Potion" />
+              </GridContainer>
+            </Scene>
+        `);
+
+        expect(template.children[0]).toMatchObject({
+            kind: 'pixi',
+            type: 'GridContainer',
+            id: 'itemGrid',
+            props: {
+                columns: 5,
+                gapX: 18,
+                gapY: 20,
+                alignX: 'center',
+                alignY: 'center',
+            },
+            children: [{
+                kind: 'pixi',
+                type: 'Text',
+                id: 'itemLabel',
+            }],
+        });
+
+        const source = serializeSceneTemplate(template);
+        expect(source).toContain('<GridContainer id="itemGrid" columns="5" gapX="18" gapY="20" alignX="center" alignY="center">');
+        expect(parseSceneTemplate(source)).toEqual(template);
+        expect(validateSceneContent({
+            scene: 'src/scenes/Inventory.scene',
+            content: source,
+        })).toMatchObject({
+            ok: true,
+        });
+
+        const code = compileSceneTemplateToTs(template);
+        expect(code).toContain(`import { Container, Text } from 'pixi.js';
+import { Group, GridContainer } from 'pixifact/runtime';`);
+        expect(code).toContain('itemGrid: GridContainer;');
+        expect(code).toContain('const itemGrid = new GridContainer();');
+        expect(code).toContain('itemGrid.columns = 5;');
+        expect(code).toContain('itemGrid.gapX = 18;');
+        expect(code).toContain('itemGrid.gapY = 20;');
+        expect(code).toContain('itemGrid.alignX = "center";');
+        expect(code).toContain('itemGrid.alignY = "center";');
+    });
+
+    it('rejects invalid GridContainer layout values', () => {
+        const result = validateSceneContent({
+            scene: 'src/scenes/Inventory.scene',
+            content: `
+                <Scene name="Inventory">
+                  <GridContainer id="itemGrid" columns="many" alignX="middle" />
+                </Scene>
+            `,
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/Inventory.scene',
+            error: 'Scene validation failed.',
+            diagnostics: [
+                {
+                    path: '0:itemGrid',
+                    prop: 'columns',
+                    expected: 'number',
+                    actual: 'string',
+                    hint: 'Set GridContainer.columns to a numeric value.',
+                },
+                {
+                    path: '0:itemGrid',
+                    prop: 'alignX',
+                    expected: 'one of "start", "center", "end"',
+                    actual: 'string',
+                    hint: 'Set GridContainer.alignX to one of the allowed values.',
+                },
+            ],
         });
     });
 

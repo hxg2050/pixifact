@@ -4,36 +4,28 @@
   <Text id="capacityText" text="18 / 32" x="542" y="43" fontSize="24" fontWeight="700" fill="#ffdb84" />
   <Rect id="divider" x="42" y="88" width="606" height="2" fillColor="#f2ce76" fillAlpha="0.38" />
   <ScrollContainer id="slotScroll" x="42" y="126" width="606" height="372" direction="vertical">
-    <VBoxContainer id="slotRows" width="606" gap="18">
-      <HBoxContainer id="slotRowA" width="606" height="112" gap="18" justify="space-between">
-        <ItemSlot id="firstSlot" scene="./ItemSlot.scene" itemName="治疗药水" quantity="6" selected="true" />
-        <ItemSlot id="secondSlot" scene="./ItemSlot.scene" itemName="月石碎片" quantity="12" />
-        <ItemSlot id="thirdSlot" scene="./ItemSlot.scene" itemName="古旧钥匙" quantity="1" />
-        <ItemSlot id="fourthSlot" scene="./ItemSlot.scene" itemName="火把" quantity="4" />
-        <ItemSlot id="fifthSlot" scene="./ItemSlot.scene" itemName="绷带" quantity="9" />
-      </HBoxContainer>
-      <HBoxContainer id="slotRowB" width="606" height="112" gap="18" justify="space-between">
-        <ItemSlot id="sixthSlot" scene="./ItemSlot.scene" itemName="短剑" quantity="1" />
-        <ItemSlot id="seventhSlot" scene="./ItemSlot.scene" itemName="护符" quantity="2" />
-        <ItemSlot id="eighthSlot" scene="./ItemSlot.scene" itemName="蓝莓" quantity="15" />
-        <ItemSlot id="ninthSlot" scene="./ItemSlot.scene" itemName="卷轴" quantity="3" />
-        <ItemSlot id="tenthSlot" scene="./ItemSlot.scene" itemName="宝石" quantity="5" />
-      </HBoxContainer>
-      <HBoxContainer id="slotRowC" width="606" height="112" gap="18" justify="space-between">
-        <ItemSlot id="eleventhSlot" scene="./ItemSlot.scene" itemName="皮革" quantity="8" />
-        <ItemSlot id="twelfthSlot" scene="./ItemSlot.scene" itemName="银币袋" quantity="2" />
-        <ItemSlot id="thirteenthSlot" scene="./ItemSlot.scene" itemName="空瓶" quantity="7" />
-        <ItemSlot id="fourteenthSlot" scene="./ItemSlot.scene" itemName="罗盘" quantity="1" />
-        <ItemSlot id="fifteenthSlot" scene="./ItemSlot.scene" itemName="羽毛" quantity="6" />
-      </HBoxContainer>
-      <HBoxContainer id="slotRowD" width="606" height="112" gap="18" justify="space-between">
-        <ItemSlot id="sixteenthSlot" scene="./ItemSlot.scene" itemName="铁矿" quantity="14" />
-        <ItemSlot id="seventeenthSlot" scene="./ItemSlot.scene" itemName="蜂蜡" quantity="3" />
-        <ItemSlot id="eighteenthSlot" scene="./ItemSlot.scene" itemName="旧地图" quantity="1" />
-        <ItemSlot id="nineteenthSlot" scene="./ItemSlot.scene" itemName="蘑菇" quantity="11" />
-        <ItemSlot id="twentiethSlot" scene="./ItemSlot.scene" itemName="铜铃" quantity="2" />
-      </HBoxContainer>
-    </VBoxContainer>
+    <GridContainer id="slotGrid" columns="5" gapX="18" gapY="18">
+      <ItemSlot id="firstSlot" scene="./ItemSlot.scene" itemName="治疗药水" quantity="6" selected="true" />
+      <ItemSlot id="secondSlot" scene="./ItemSlot.scene" itemName="月石碎片" quantity="12" />
+      <ItemSlot id="thirdSlot" scene="./ItemSlot.scene" itemName="古旧钥匙" quantity="1" />
+      <ItemSlot id="fourthSlot" scene="./ItemSlot.scene" itemName="火把" quantity="4" />
+      <ItemSlot id="fifthSlot" scene="./ItemSlot.scene" itemName="绷带" quantity="9" />
+      <ItemSlot id="sixthSlot" scene="./ItemSlot.scene" itemName="短剑" quantity="1" />
+      <ItemSlot id="seventhSlot" scene="./ItemSlot.scene" itemName="护符" quantity="2" />
+      <ItemSlot id="eighthSlot" scene="./ItemSlot.scene" itemName="蓝莓" quantity="15" />
+      <ItemSlot id="ninthSlot" scene="./ItemSlot.scene" itemName="卷轴" quantity="3" />
+      <ItemSlot id="tenthSlot" scene="./ItemSlot.scene" itemName="宝石" quantity="5" />
+      <ItemSlot id="eleventhSlot" scene="./ItemSlot.scene" itemName="皮革" quantity="8" />
+      <ItemSlot id="twelfthSlot" scene="./ItemSlot.scene" itemName="银币袋" quantity="2" />
+      <ItemSlot id="thirteenthSlot" scene="./ItemSlot.scene" itemName="空瓶" quantity="7" />
+      <ItemSlot id="fourteenthSlot" scene="./ItemSlot.scene" itemName="罗盘" quantity="1" />
+      <ItemSlot id="fifteenthSlot" scene="./ItemSlot.scene" itemName="羽毛" quantity="6" />
+      <ItemSlot id="sixteenthSlot" scene="./ItemSlot.scene" itemName="铁矿" quantity="14" />
+      <ItemSlot id="seventeenthSlot" scene="./ItemSlot.scene" itemName="蜂蜡" quantity="3" />
+      <ItemSlot id="eighteenthSlot" scene="./ItemSlot.scene" itemName="旧地图" quantity="1" />
+      <ItemSlot id="nineteenthSlot" scene="./ItemSlot.scene" itemName="蘑菇" quantity="11" />
+      <ItemSlot id="twentiethSlot" scene="./ItemSlot.scene" itemName="铜铃" quantity="2" />
+    </GridContainer>
   </ScrollContainer>
   <Rect id="hintBack" x="42" y="528" width="386" height="70" fillColor="#101927" fillAlpha="0.88" strokeColor="#6f8aa4" strokeAlpha="0.36" strokeWidth="1" radius="18" />
   <Text id="hintTitle" text="选中：治疗药水" x="64" y="544" fontSize="20" fontWeight="700" fill="#d8e6f3" />

@@ -1089,6 +1089,48 @@ describe('project file tree service', () => {
         preview.dispose();
     });
 
+    it('renders GridContainer layout through the compiler runtime preview', async () => {
+        host.reset({
+            src: host.directory({
+                scenes: host.directory({
+                    'Inventory.scene': host.file(`
+                        <Scene name="Inventory" width="320" height="240">
+                          <GridContainer id="itemGrid" columns="2" gapX="10" gapY="20" alignX="center" alignY="end">
+                            <Rect id="firstItem" width="40" height="30" />
+                            <Rect id="secondItem" width="60" height="50" />
+                            <Rect id="thirdItem" width="20" height="10" />
+                          </GridContainer>
+                        </Scene>
+                    `),
+
+                    'Inventory.ts': emptySceneScript('Inventory'),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/src/scenes/Inventory.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+        const document = getCompilerSceneDocument();
+
+        const preview = await createCompilerSceneRuntimePreview({
+            document: document!,
+            projectTree: tree,
+            scenePath: 'src/scenes/Inventory.scene',
+        });
+
+        const itemGrid = preview.nodes.get('0:itemGrid');
+        const firstItem = preview.nodes.get('0:itemGrid/0:firstItem');
+        const secondItem = preview.nodes.get('0:itemGrid/1:secondItem');
+        const thirdItem = preview.nodes.get('0:itemGrid/2:thirdItem');
+        expect(itemGrid?.constructor.name).toBe('GridContainer');
+        expect((itemGrid as { width?: number }).width).toBe(110);
+        expect((itemGrid as { height?: number }).height).toBe(80);
+        expect(firstItem?.position).toMatchObject({ x: 0, y: 20 });
+        expect(secondItem?.position).toMatchObject({ x: 50, y: 0 });
+        expect(thirdItem?.position).toMatchObject({ x: 10, y: 70 });
+        preview.dispose();
+    });
+
     it('binds compiler preview scene events to the opened scene script instance', async () => {
         host.reset({
             src: host.directory({
@@ -1765,6 +1807,18 @@ describe('project file tree service', () => {
             },
             children: [],
         });
+        expect(createCompilerPixiTemplateNode(template, 'GridContainer')).toMatchObject({
+            kind: 'pixi',
+            type: 'GridContainer',
+            props: {
+                width: 240,
+                height: 160,
+                columns: 2,
+                gapX: 8,
+                gapY: 8,
+            },
+            children: [],
+        });
         expect(createCompilerPixiTemplateNode(template, 'NineSliceSprite')).toMatchObject({
             kind: 'pixi',
             type: 'NineSliceSprite',
@@ -1834,6 +1888,13 @@ describe('project file tree service', () => {
             scrollX: 0,
             scrollY: 0,
         });
+        expect(pixiSceneNodeDefaults('GridContainer')).toEqual({
+            width: 240,
+            height: 160,
+            columns: 2,
+            gapX: 8,
+            gapY: 8,
+        });
         expect(pixiSceneNodeDefaults('Graphics')).toEqual({
             shape: 'roundRect',
             width: 100,
@@ -1870,6 +1931,16 @@ describe('project file tree service', () => {
             type: 'enum',
             options: ['vertical', 'horizontal', 'both'],
         });
+        expect(pixiSceneFieldSchema('columns')).toMatchObject({
+            type: 'number',
+        });
+        expect(pixiSceneFieldSchema('gapX')).toMatchObject({
+            type: 'number',
+        });
+        expect(pixiSceneFieldSchema('alignX')).toMatchObject({
+            type: 'enum',
+            options: ['start', 'center', 'end'],
+        });
     });
 
     it('groups compiler Pixi basic node props by node capability', () => {
@@ -1901,6 +1972,12 @@ describe('project file tree service', () => {
             {
                 group: 'props',
                 fields: ['direction', 'scrollX', 'scrollY'],
+            },
+        ]);
+        expect(pixiSceneNodePropGroups('GridContainer')).toEqual([
+            {
+                group: 'stack',
+                fields: ['columns', 'gapX', 'gapY', 'alignX', 'alignY'],
             },
         ]);
         expect(pixiSceneNodePropGroups('NineSliceSprite')).toEqual([

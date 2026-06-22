@@ -300,13 +300,16 @@ describe('compiler scene document controller undo redo', () => {
         loadTemplate();
 
         const templateItem = pixiNodeTemplateLibrary.find((item) => item.name === 'VBoxContainer');
+        const gridTemplateItem = pixiNodeTemplateLibrary.find((item) => item.name === 'GridContainer');
         const scrollTemplateItem = pixiNodeTemplateLibrary.find((item) => item.name === 'ScrollContainer');
         expect(templateItem).toBeDefined();
+        expect(gridTemplateItem).toBeDefined();
         expect(scrollTemplateItem).toBeDefined();
         expect(nodeTemplateLibraryGroups.map((group) => group.titleKey)).toEqual([
             'addPixiNodeGroup',
         ]);
         expect(nodeTemplateLibraryGroups[0].items).toContain(templateItem);
+        expect(nodeTemplateLibraryGroups[0].items).toContain(gridTemplateItem);
         expect(nodeTemplateLibraryGroups[0].items).toContain(scrollTemplateItem);
 
         const result = addCompilerSceneNodeAtTarget(
@@ -351,6 +354,30 @@ describe('compiler scene document controller undo redo', () => {
                 direction: 'vertical',
                 scrollX: 0,
                 scrollY: 0,
+            },
+            children: [],
+        });
+
+        const gridResult = addCompilerSceneNodeAtTarget(
+            '0:content/1:vBoxContainer1',
+            createCompilerPixiTemplateNode(getCompilerSceneDocument()!.template, 'GridContainer'),
+        );
+
+        expect(gridResult).toEqual({
+            ok: true,
+            locator: '0:content/1:vBoxContainer1/1:gridContainer1',
+        });
+        const stackNodeAfterGrid = contentChildren()[1];
+        expect(stackNodeAfterGrid.kind === 'pixi' ? stackNodeAfterGrid.children[1] : undefined).toMatchObject({
+            kind: 'pixi',
+            type: 'GridContainer',
+            id: 'gridContainer1',
+            props: {
+                width: 240,
+                height: 160,
+                columns: 2,
+                gapX: 8,
+                gapY: 8,
             },
             children: [],
         });

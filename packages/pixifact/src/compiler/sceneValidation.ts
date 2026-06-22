@@ -241,7 +241,7 @@ function validatePixiNode(
             prop: 'type',
             expected: 'supported compiler Pixi node type',
             actual: node.type,
-            hint: 'Use HBoxContainer, ScrollContainer, VBoxContainer, Container, Sprite, NineSliceSprite, TilingSprite, Text, BitmapText, HTMLText, Graphics, Rect, Image, NineImage, or TileImage.',
+            hint: 'Use GridContainer, HBoxContainer, ScrollContainer, VBoxContainer, Container, Sprite, NineSliceSprite, TilingSprite, Text, BitmapText, HTMLText, Graphics, Rect, Image, NineImage, or TileImage.',
         }];
     }
 

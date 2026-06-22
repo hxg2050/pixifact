@@ -25,8 +25,8 @@ const spriteProps = new Set<string>(pixiSceneSpriteLikeProps);
 const graphicsProps = new Set<string>(pixiSceneGraphicsProps);
 const rectProps = new Set<string>(pixiSceneRectProps);
 const textStyleProps = new Set<string>(pixiSceneTextStyleProps);
-const runtimeNodeTypes = new Set<SceneTemplatePrimitiveType>(['HBoxContainer', 'ScrollContainer', 'VBoxContainer', 'Rect', 'Image', 'NineImage', 'TileImage']);
-const runtimeNodeProps = new Set<string>(['gap', 'alignX', 'alignY', 'justify', 'direction', 'scrollX', 'scrollY']);
+const runtimeNodeTypes = new Set<SceneTemplatePrimitiveType>(['GridContainer', 'HBoxContainer', 'ScrollContainer', 'VBoxContainer', 'Rect', 'Image', 'NineImage', 'TileImage']);
+const runtimeNodeProps = new Set<string>(['columns', 'gap', 'gapX', 'gapY', 'alignX', 'alignY', 'justify', 'direction', 'scrollX', 'scrollY']);
 
 export function compileSceneTemplateToTs(template: SceneTemplate, options: CompileSceneTemplateOptions = {}) {
     const context = new CompileContext(template, options);

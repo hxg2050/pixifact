@@ -13,6 +13,7 @@ export type SceneTemplatePrimitiveType =
     | 'NineSliceSprite'
     | 'TilingSprite'
     | 'DOMContainer'
+    | 'GridContainer'
     | 'HBoxContainer'
     | 'ScrollContainer'
     | 'VBoxContainer';

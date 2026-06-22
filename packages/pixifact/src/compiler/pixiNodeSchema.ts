@@ -2,7 +2,7 @@ import type { SceneTemplatePrimitiveType, SceneTemplateValue } from './spec';
 
 export type PixiSceneNodeType = Extract<
     SceneTemplatePrimitiveType,
-    'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'Image' | 'NineImage' | 'TileImage' | 'HBoxContainer' | 'ScrollContainer' | 'VBoxContainer'
+    'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'Image' | 'NineImage' | 'TileImage' | 'GridContainer' | 'HBoxContainer' | 'ScrollContainer' | 'VBoxContainer'
 >;
 
 export type PixiSceneFieldType = 'string' | 'number' | 'boolean' | 'color' | 'enum';
@@ -139,6 +139,14 @@ export const pixiSceneStackHBoxProps = [
     'justify',
 ] as const;
 
+export const pixiSceneGridProps = [
+    'columns',
+    'gapX',
+    'gapY',
+    'alignX',
+    'alignY',
+] as const;
+
 export const pixiSceneStackVBoxProps = [
     'gap',
     'alignX',
@@ -146,7 +154,10 @@ export const pixiSceneStackVBoxProps = [
 ] as const;
 
 export const pixiSceneStackProps = [
+    'columns',
     'gap',
+    'gapX',
+    'gapY',
     'alignX',
     'alignY',
     'justify',
@@ -187,6 +198,7 @@ export const pixiSceneKnownProps = [
 ] as const;
 
 export const pixiSceneAddableNodeTypes = [
+    'GridContainer',
     'HBoxContainer',
     'ScrollContainer',
     'VBoxContainer',
@@ -264,7 +276,10 @@ const pixiSceneFieldSchemas: Partial<Record<string, PixiSceneFieldSchema>> = {
     strokeColor: { key: 'strokeColor', type: 'color' },
     strokeWidth: { key: 'strokeWidth', type: 'number' },
     strokeAlpha: { key: 'strokeAlpha', type: 'number' },
+    columns: { key: 'columns', type: 'number' },
     gap: { key: 'gap', type: 'number' },
+    gapX: { key: 'gapX', type: 'number' },
+    gapY: { key: 'gapY', type: 'number' },
     alignX: { key: 'alignX', type: 'enum', options: ['start', 'center', 'end'] },
     alignY: { key: 'alignY', type: 'enum', options: ['start', 'center', 'end'] },
     justify: { key: 'justify', type: 'enum', options: ['start', 'center', 'end', 'space-between'] },
@@ -435,6 +450,20 @@ const pixiSceneNodeSchemas: Record<PixiSceneNodeType, PixiSceneNodeSchema> = {
         },
         groups: {
             props: pixiSceneTileImageProps,
+        },
+    },
+    GridContainer: {
+        type: 'GridContainer',
+        acceptsChildren: true,
+        defaults: {
+            width: 240,
+            height: 160,
+            columns: 2,
+            gapX: 8,
+            gapY: 8,
+        },
+        groups: {
+            stack: pixiSceneGridProps,
         },
     },
     HBoxContainer: {

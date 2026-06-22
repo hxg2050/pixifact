@@ -18,14 +18,12 @@
   - `ItemSlot.scene`
 - 每个 `.scene` 必须有同名 `.ts` 脚本配对。
 - Scene 脚本保持薄层，只展示 `@scene`、`@part`、`@prop`、`@event`、`@slot` 等公开契约。
-- Demo 优先使用 Pixifact runtime 节点：`Rect`、`Image`、`NineImage`、`TileImage`、`HBoxContainer`、`VBoxContainer`。
+- Demo 优先使用 Pixifact runtime 节点：`Rect`、`Image`、`NineImage`、`TileImage`、`GridContainer`、`HBoxContainer`、`VBoxContainer`、`ScrollContainer`。
 - 需要图片效果时使用本地示例资源，避免依赖远程资源。
 
 ## Non-Goals
 
 - 不实现完整背包数据系统、战斗系统或存档。
-- 不实现 `GridContainer`。
-- 不新增运行时 API。
 - 不改 `create-pixifact` 默认模板。
 - 不引入新的第三方依赖。
 
