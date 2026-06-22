@@ -1,3 +1,9 @@
+import {
+    pixifactViewportModes,
+    type PixifactViewportConfig,
+    type PixifactViewportMode,
+} from '../viewport';
+
 export const pixifactProjectConfigFileName = 'pixifact.project.json';
 
 export interface PixifactProjectRunConfig {
@@ -16,13 +22,17 @@ export interface PixifactProjectConfig {
     version: 1;
     name: string;
     resolution: PixifactProjectResolution;
+    viewport: PixifactProjectViewport;
     scenes: Record<string, string>;
     run?: PixifactProjectRunConfig;
 }
 
+export type PixifactProjectViewport = PixifactViewportConfig;
+
 export interface PixifactProjectSummary {
     name: string;
     resolution: PixifactProjectResolution;
+    viewport: PixifactProjectViewport;
     scenes: Record<string, string>;
     run?: PixifactProjectRunConfig;
 }
@@ -30,6 +40,10 @@ export interface PixifactProjectSummary {
 export const defaultPixifactProjectResolution: PixifactProjectResolution = {
     width: 750,
     height: 1334,
+};
+
+export const defaultPixifactProjectViewport: PixifactProjectViewport = {
+    mode: 'showAll',
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -99,6 +113,24 @@ function parseResolution(value: unknown): PixifactProjectResolution {
     };
 }
 
+function parseViewport(value: unknown): PixifactProjectViewport {
+    if (value === undefined) {
+        return defaultPixifactProjectViewport;
+    }
+    const viewport = assertRecord(value, 'viewport');
+    const mode = assertString(viewport.mode, 'viewport.mode');
+    if (!isPixifactViewportMode(mode)) {
+        throw new Error(`viewport.mode must be one of ${pixifactViewportModes.join(', ')}`);
+    }
+    return {
+        mode,
+    };
+}
+
+function isPixifactViewportMode(value: string): value is PixifactViewportMode {
+    return (pixifactViewportModes as readonly string[]).includes(value);
+}
+
 function parseRun(value: unknown): PixifactProjectRunConfig | undefined {
     if (value === undefined) {
         return undefined;
@@ -124,6 +156,7 @@ export function parsePixifactProjectConfig(value: unknown): PixifactProjectConfi
         version: 1,
         name: assertString(config.name, 'name'),
         resolution: parseResolution(config.resolution),
+        viewport: parseViewport(config.viewport),
         scenes: parseScenes(config.scenes),
         run: parseRun(config.run),
     };
@@ -133,6 +166,7 @@ export function summarizePixifactProjectConfig(config: PixifactProjectConfig): P
     return {
         name: config.name,
         resolution: config.resolution,
+        viewport: config.viewport,
         scenes: config.scenes,
         ...(config.run === undefined ? {} : { run: config.run }),
     };

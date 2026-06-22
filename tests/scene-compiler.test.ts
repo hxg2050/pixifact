@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Container, Graphics, Mesh, NineSliceSprite, Rectangle, Text, Texture, TextureSource, TilingSprite } from 'pixi.js';
-import { Control, Group, HBoxContainer, Image, NineImage, Rect, TileImage, VBoxContainer, getFrameLayout } from 'pixifact/runtime';
+import { Control, Group, HBoxContainer, Image, NineImage, Rect, TileImage, VBoxContainer, calculatePixifactViewportLayout, getFrameLayout } from 'pixifact/runtime';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -113,6 +113,44 @@ describe('Pixifact scene compiler spike', () => {
         expect(control.hitArea).toMatchObject({ x: 0, y: 0, width: 90, height: 32 });
         expect(control.scale.x).toBe(1);
         expect(control.scale.y).toBe(1);
+    });
+
+    it('calculates Pixifact viewport layout modes from design resolution and screen size', () => {
+        const resolution = { width: 750, height: 1334 };
+        const screen = { width: 390, height: 844 };
+
+        expect(calculatePixifactViewportLayout({ resolution, screen, mode: 'showAll' })).toMatchObject({
+            mode: 'showAll',
+            scene: { width: 750, height: 1334 },
+            visibleRect: { x: 0, y: 0, width: 750, height: 1334 },
+            offset: { x: 0 },
+        });
+        expect(calculatePixifactViewportLayout({ resolution, screen, mode: 'showAll' }).scale).toBeCloseTo(0.52);
+        expect(calculatePixifactViewportLayout({ resolution, screen, mode: 'showAll' }).offset.y).toBeCloseTo(75.16);
+
+        const cover = calculatePixifactViewportLayout({ resolution, screen, mode: 'cover' });
+        expect(cover.scale).toBeCloseTo(844 / 1334);
+        expect(cover.scene).toEqual({ width: 750, height: 1334 });
+        expect(cover.visibleRect.x).toBeCloseTo(66.79);
+        expect(cover.visibleRect.y).toBe(0);
+        expect(cover.visibleRect.width).toBeCloseTo(616.42);
+        expect(cover.visibleRect.height).toBeCloseTo(1334);
+        expect(cover.offset.x).toBeCloseTo(-42.26);
+        expect(cover.offset.y).toBe(0);
+
+        const fixedWidth = calculatePixifactViewportLayout({ resolution, screen, mode: 'fixedWidth' });
+        expect(fixedWidth.scale).toBeCloseTo(0.52);
+        expect(fixedWidth.offset).toEqual({ x: 0, y: 0 });
+        expect(fixedWidth.scene.width).toBe(750);
+        expect(fixedWidth.scene.height).toBeCloseTo(1623.08);
+        expect(fixedWidth.visibleRect).toEqual({ x: 0, y: 0, width: fixedWidth.scene.width, height: fixedWidth.scene.height });
+
+        const fixedHeight = calculatePixifactViewportLayout({ resolution, screen, mode: 'fixedHeight' });
+        expect(fixedHeight.scale).toBeCloseTo(844 / 1334);
+        expect(fixedHeight.offset).toEqual({ x: 0, y: 0 });
+        expect(fixedHeight.scene.width).toBeCloseTo(616.42);
+        expect(fixedHeight.scene.height).toBe(1334);
+        expect(fixedHeight.visibleRect).toEqual({ x: 0, y: 0, width: fixedHeight.scene.width, height: fixedHeight.scene.height });
     });
 
     it('exports Rect as a Graphics leaf with Pixifact box size', () => {

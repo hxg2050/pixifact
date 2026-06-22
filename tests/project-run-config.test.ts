@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     defaultPixifactProjectResolution,
+    defaultPixifactProjectViewport,
     parsePixifactProjectConfig,
     pixifactProjectConfigFileName,
     summarizePixifactProjectConfig,
@@ -14,6 +15,9 @@ describe('Pixifact project run config', () => {
             resolution: {
                 width: 720,
                 height: 1280,
+            },
+            viewport: {
+                mode: 'fixedWidth',
             },
             scenes: {
                 hud: 'scenes/Hud.scene',
@@ -35,6 +39,9 @@ describe('Pixifact project run config', () => {
                 width: 720,
                 height: 1280,
             },
+            viewport: {
+                mode: 'fixedWidth',
+            },
             scenes: {
                 hud: 'scenes/Hud.scene',
                 gameOver: 'scenes/GameOver.scene',
@@ -51,6 +58,9 @@ describe('Pixifact project run config', () => {
             resolution: {
                 width: 720,
                 height: 1280,
+            },
+            viewport: {
+                mode: 'fixedWidth',
             },
             scenes: config.scenes,
             run: config.run,
@@ -91,13 +101,26 @@ describe('Pixifact project run config', () => {
 
         expect(config.run).toBeUndefined();
         expect(config.resolution).toEqual(defaultPixifactProjectResolution);
+        expect(config.viewport).toEqual(defaultPixifactProjectViewport);
         expect(summarizePixifactProjectConfig(config)).toEqual({
             name: 'Scene Only Project',
             resolution: defaultPixifactProjectResolution,
+            viewport: defaultPixifactProjectViewport,
             scenes: {
                 hud: 'scenes/Hud.scene',
             },
         });
+    });
+
+    it('rejects invalid viewport mode data', () => {
+        expect(() => parsePixifactProjectConfig({
+            version: 1,
+            name: 'Bad Game',
+            viewport: {
+                mode: 'stretch',
+            },
+            scenes: {},
+        })).toThrow('viewport.mode must be one of showAll, cover, fixedWidth, fixedHeight');
     });
 
     it('rejects invalid project resolution data', () => {

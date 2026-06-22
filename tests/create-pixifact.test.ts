@@ -66,6 +66,9 @@ describe('create-pixifact scaffold', () => {
                 width: 960,
                 height: 540,
             },
+            viewport: {
+                mode: 'showAll',
+            },
             scenes: {
                 mainMenu: 'src/scenes/MainMenu.scene',
             },

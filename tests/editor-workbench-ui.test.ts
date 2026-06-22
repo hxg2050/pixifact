@@ -33,6 +33,7 @@ import {
     panViewportTransform,
     pickTopCompilerSceneHit,
     pickCompilerSceneResizeHandle,
+    projectPreviewSceneSize,
     resizeManualViewportTransform,
     resizeCompilerSceneNodeProps,
     selectCompilerSceneViewportHit,
@@ -466,6 +467,16 @@ describe('Editor workbench UI', () => {
             scale: 1,
             offset: { x: 120, y: 130 },
         });
+        expect(projectPreviewSceneSize(
+            { width: 750, height: 1334 },
+            { mode: 'fixedWidth' },
+            { width: 390, height: 844 },
+        ).height).toBeCloseTo(1623.08);
+        expect(projectPreviewSceneSize(
+            { width: 750, height: 1334 },
+            { mode: 'showAll' },
+            { width: 390, height: 844 },
+        )).toEqual({ width: 750, height: 1334 });
         expect(clampViewportScale(0.01)).toBe(0.1);
         expect(clampViewportScale(20)).toBe(8);
         expect(zoomViewportTransform(

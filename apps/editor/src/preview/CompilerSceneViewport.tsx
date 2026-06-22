@@ -8,8 +8,9 @@ import {
     useSyncExternalStore,
 } from 'react';
 import { Application as PixiApplication, Container } from 'pixi.js';
-import { defaultPixifactProjectResolution } from 'pixifact';
+import { defaultPixifactProjectResolution, defaultPixifactProjectViewport, type PixifactProjectViewport } from 'pixifact';
 import { normalizeSceneAssetId } from 'pixifact/compiler';
+import { calculatePixifactViewportLayout } from 'pixifact/runtime';
 import {
     getCompilerSceneNode,
     selectCompilerSceneNode,
@@ -35,6 +36,7 @@ interface CompilerSceneViewportProps {
     document: CompilerSceneDocument;
     fillsProjectResolution?: boolean;
     projectResolution?: ViewportSize;
+    projectViewport?: PixifactProjectViewport;
     projectTree: ProjectFileTreeNode;
     onStateChange?: (state: CompilerSceneViewportState) => void;
 }
@@ -93,6 +95,7 @@ interface ViewportModel {
     gridVisible: boolean;
     mode: 'fit' | 'manual';
     projectResolution: ViewportSize;
+    projectViewport: PixifactProjectViewport;
     scene: ViewportSize;
     transform: ViewportTransform;
 }
@@ -168,6 +171,18 @@ export function fitViewportTransform(scene: ViewportSize, viewport: ViewportSize
 
 export function actualSizeViewportTransform(scene: ViewportSize, viewport: ViewportSize): ViewportTransform {
     return centeredViewportTransform(scene, viewport, 1);
+}
+
+export function projectPreviewSceneSize(
+    resolution: ViewportSize,
+    viewport: PixifactProjectViewport,
+    screen: ViewportSize,
+): ViewportSize {
+    return calculatePixifactViewportLayout({
+        resolution,
+        screen,
+        mode: viewport.mode,
+    }).scene;
 }
 
 export function centeredViewportTransform(scene: ViewportSize, viewport: ViewportSize, scale: number): ViewportTransform {
@@ -350,12 +365,17 @@ function selectedCompilerNode(document: CompilerSceneDocument) {
         : undefined;
 }
 
-function defaultViewportModel(projectResolution: ViewportSize = defaultPixifactProjectResolution, fillsProjectResolution = false): ViewportModel {
+function defaultViewportModel(
+    projectResolution: ViewportSize = defaultPixifactProjectResolution,
+    fillsProjectResolution = false,
+    projectViewport: PixifactProjectViewport = defaultPixifactProjectViewport,
+): ViewportModel {
     const scene = fillsProjectResolution ? projectResolution : { width: previewWidth, height: previewHeight };
     return {
         gridVisible: true,
         mode: 'fit',
         projectResolution,
+        projectViewport,
         scene,
         transform: fitViewportTransform(scene, scene),
     };
@@ -565,6 +585,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         document,
         fillsProjectResolution = false,
         projectResolution = defaultPixifactProjectResolution,
+        projectViewport = defaultPixifactProjectViewport,
         projectTree,
         onStateChange,
     }, ref) {
@@ -572,7 +593,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         const nodesRef = useRef<Map<string, Container>>(new Map());
         const previewRef = useRef<Awaited<ReturnType<typeof createCompilerSceneRuntimePreview>> | undefined>(undefined);
         const viewportRef = useRef<ViewportSize>({ width: previewWidth, height: previewHeight });
-        const transformRef = useRef<ViewportTransform>(defaultViewportModel(projectResolution, fillsProjectResolution).transform);
+        const transformRef = useRef<ViewportTransform>(defaultViewportModel(projectResolution, fillsProjectResolution, projectViewport).transform);
         const selectedNodeRef = useRef<string | undefined>(undefined);
         const spacePressedRef = useRef(false);
         const panRef = useRef<{ pointerId: number; last: ViewportPoint } | undefined>(undefined);
@@ -582,7 +603,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
         const moveSessionRef = useRef(0);
         const resizeSessionRef = useRef(0);
         const [viewport, setViewport] = useState<ViewportSize>({ width: previewWidth, height: previewHeight });
-        const [model, setModel] = useState<ViewportModel>(() => defaultViewportModel(projectResolution, fillsProjectResolution));
+        const [model, setModel] = useState<ViewportModel>(() => defaultViewportModel(projectResolution, fillsProjectResolution, projectViewport));
         const [outline, setOutline] = useState<SelectionRect | undefined>(undefined);
         const [status, setStatus] = useState('正在初始化编译器预览');
         const profilerSnapshot = useSyncExternalStore(
@@ -639,8 +660,9 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
             updateModel((current) => ({
                 ...current,
                 projectResolution,
+                projectViewport,
             }));
-        }, [projectResolution, updateModel]);
+        }, [projectResolution, projectViewport, updateModel]);
 
         useEffect(() => {
             const hostElement = hostRef.current;
@@ -648,8 +670,10 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 return;
             }
             const host = hostElement;
-            const initialScene = fillsProjectResolution ? projectResolution : { width: previewWidth, height: previewHeight };
             const initialViewport = hostSize(host);
+            const initialScene = fillsProjectResolution
+                ? projectPreviewSceneSize(projectResolution, projectViewport, initialViewport)
+                : { width: previewWidth, height: previewHeight };
             const initialTransform = fitViewportTransform(initialScene, initialViewport);
             viewportRef.current = initialViewport;
             transformRef.current = initialTransform;
@@ -658,6 +682,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 gridVisible: true,
                 mode: 'fit',
                 projectResolution,
+                projectViewport,
                 scene: initialScene,
                 transform: initialTransform,
             });
@@ -679,11 +704,18 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                     app.renderer.resize(nextViewport.width, nextViewport.height);
                 }
                 setModel((current) => {
+                    const scene = fillsProjectResolution
+                        ? projectPreviewSceneSize(current.projectResolution, current.projectViewport, nextViewport)
+                        : current.scene;
+                    if (fillsProjectResolution) {
+                        previewRef.current?.root.setSize(scene.width, scene.height);
+                    }
                     const transform = current.mode === 'fit'
-                        ? fitViewportTransform(current.scene, nextViewport)
+                        ? fitViewportTransform(scene, nextViewport)
                         : resizeManualViewportTransform(current.transform, previousViewport, nextViewport);
                     const next = {
                         ...current,
+                        scene,
                         transform,
                     };
                     applyTransform(previewRef.current?.root, transform);
@@ -723,9 +755,12 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                     resizeObserver.observe(host);
 
                     const scenePath = normalizeSceneAssetId(document.scenePath.slice(projectTree.path.length + 1));
+                    const previewProjectResolution = fillsProjectResolution
+                        ? projectPreviewSceneSize(projectResolution, projectViewport, viewportRef.current)
+                        : undefined;
                     const preview = await createCompilerSceneRuntimePreview({
                         document,
-                        projectResolution: fillsProjectResolution ? projectResolution : undefined,
+                        projectResolution: previewProjectResolution,
                         projectTree,
                         scenePath,
                     });
@@ -776,7 +811,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 destroyPreview();
                 destroyApp();
             };
-        }, [document.scenePath, document.template, fillsProjectResolution, projectResolution, projectTree]);
+        }, [document.scenePath, document.template, fillsProjectResolution, projectResolution, projectTree, projectViewport]);
 
         useEffect(() => {
             setOutline(compilerSceneSelectionRect(nodesRef.current.get(selectedCompilerNode(document) ?? '')));

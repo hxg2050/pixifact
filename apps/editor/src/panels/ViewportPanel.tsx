@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { defaultPixifactProjectResolution, type PixifactProjectConfig } from 'pixifact';
+import { defaultPixifactProjectResolution, defaultPixifactProjectViewport, type PixifactProjectConfig, type PixifactProjectViewport } from 'pixifact';
 import { getCompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { useEditorStore } from '../editorStore';
 import { useI18n } from '../i18n';
@@ -33,6 +33,7 @@ export function ViewportPanel() {
     const [viewportState, setViewportState] = useState<CompilerSceneViewportState | undefined>(undefined);
     const [projectConfig, setProjectConfig] = useState<PixifactProjectConfig | undefined>(undefined);
     const [projectResolution, setProjectResolution] = useState<ViewportSize>(defaultPixifactProjectResolution);
+    const [projectViewport, setProjectViewport] = useState<PixifactProjectViewport>(defaultPixifactProjectViewport);
     const t = useI18n();
     const isCompilerScene = openedScenePath && compilerDocument?.scenePath === openedScenePath;
     const handleViewportStateChange = useCallback((state: CompilerSceneViewportState) => {
@@ -54,6 +55,7 @@ export function ViewportPanel() {
         if (!projectTree) {
             setProjectConfig(undefined);
             setProjectResolution(defaultPixifactProjectResolution);
+            setProjectViewport(defaultPixifactProjectViewport);
             return;
         }
         let cancelled = false;
@@ -62,6 +64,7 @@ export function ViewportPanel() {
                 if (!cancelled) {
                     setProjectConfig(config);
                     setProjectResolution(config?.resolution ?? defaultPixifactProjectResolution);
+                    setProjectViewport(config?.viewport ?? defaultPixifactProjectViewport);
                 }
             });
         return () => {
@@ -132,6 +135,7 @@ export function ViewportPanel() {
                                 onStateChange={handleViewportStateChange}
                                 projectResolution={projectResolution}
                                 projectTree={projectTree}
+                                projectViewport={projectViewport}
                                 ref={viewportRef}
                             />
                         ) : (

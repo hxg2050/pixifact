@@ -12,14 +12,9 @@ body {
 }
 
 #game {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    overflow: hidden;
 }
 
 canvas {
     display: block;
-    width: min(100vw, calc(100vh * 750 / 1334));
-    height: auto;
-    max-height: 100vh;
 }

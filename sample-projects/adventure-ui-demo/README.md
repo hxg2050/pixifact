@@ -1,6 +1,7 @@
 # Pixifact Adventure UI Demo
 
 这是 Pixifact 仓库内的竖屏移动端示例项目，设计分辨率为 `750x1334`。
+项目使用 `viewport.mode = "fixedWidth"`：设计宽度固定为 `750`，逻辑高度随真实屏幕比例变化。
 
 它展示：
 

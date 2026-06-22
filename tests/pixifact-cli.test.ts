@@ -225,6 +225,9 @@ describe('Pixifact CLI', () => {
                 width: 750,
                 height: 1334,
             },
+            viewport: {
+                mode: 'showAll',
+            },
             scenes: {
                 hud: 'src/scenes/Button.scene',
             },

@@ -55,6 +55,9 @@ describe('sample projects', () => {
                 width: 750,
                 height: 1334,
             },
+            viewport: {
+                mode: 'fixedWidth',
+            },
             scenes: {
                 main: 'src/scenes/Main.scene',
             },
