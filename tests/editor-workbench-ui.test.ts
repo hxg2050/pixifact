@@ -37,6 +37,8 @@ import {
     projectPreviewSceneSize,
     resizeManualViewportTransform,
     resizeCompilerSceneNodeProps,
+    resolveCompilerSceneHorizontalLayoutMode,
+    resolveCompilerSceneVerticalLayoutMode,
     selectCompilerSceneViewportHit,
     viewportDeltaToSceneDelta,
     viewportPointToScenePoint,
@@ -529,6 +531,39 @@ describe('Editor workbench UI', () => {
         )).toEqual({
             x: -12,
             y: 7,
+        });
+        expect(resolveCompilerSceneHorizontalLayoutMode({ left: 0, right: 0 })).toBe('stretch');
+        expect(resolveCompilerSceneHorizontalLayoutMode({ left: 0, horizontal: 0 })).toBe('left');
+        expect(resolveCompilerSceneHorizontalLayoutMode({ right: 12 })).toBe('right');
+        expect(resolveCompilerSceneHorizontalLayoutMode({ horizontal: 0 })).toBe('center');
+        expect(resolveCompilerSceneHorizontalLayoutMode({ width: 120 })).toBe('free');
+        expect(resolveCompilerSceneVerticalLayoutMode({ top: 0, bottom: 0 })).toBe('stretch');
+        expect(resolveCompilerSceneVerticalLayoutMode({ top: 0, vertical: 0 })).toBe('top');
+        expect(resolveCompilerSceneVerticalLayoutMode({ bottom: 12 })).toBe('bottom');
+        expect(resolveCompilerSceneVerticalLayoutMode({ vertical: 0 })).toBe('center');
+        expect(resolveCompilerSceneVerticalLayoutMode({ height: 40 })).toBe('free');
+        expect(moveCompilerSceneNodeProps(
+            { horizontal: 0, top: 252 },
+            { x: 20, y: -12 },
+        )).toEqual({
+            horizontal: 20,
+            top: 240,
+        });
+        expect(moveCompilerSceneNodeProps(
+            { right: 10, bottom: 20 },
+            { x: 5, y: 8 },
+        )).toEqual({
+            bottom: 12,
+            right: 5,
+        });
+        expect(moveCompilerSceneNodeProps(
+            { left: 0, right: 0, top: 0, bottom: 0 },
+            { x: 12, y: -6 },
+        )).toEqual({
+            bottom: 6,
+            left: 12,
+            right: -12,
+            top: -6,
         });
         expect(canBeginCompilerSceneMove('0:label', '0:label')).toBe(true);
         expect(canBeginCompilerSceneMove('0:label', '1:background')).toBe(false);

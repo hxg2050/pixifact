@@ -83,13 +83,23 @@ export interface CompilerSceneHitTarget {
 }
 
 export interface CompilerSceneMoveProps {
+    bottom?: unknown;
     height?: unknown;
+    horizontal?: unknown;
+    left?: unknown;
+    right?: unknown;
+    top?: unknown;
+    vertical?: unknown;
     width?: unknown;
     x?: unknown;
     y?: unknown;
 }
 
 export type CompilerSceneResizeHandle = 'north' | 'west' | 'north-west' | 'east' | 'south' | 'south-east';
+export type CompilerSceneHorizontalLayoutMode = 'free' | 'left' | 'right' | 'center' | 'stretch';
+export type CompilerSceneVerticalLayoutMode = 'free' | 'top' | 'bottom' | 'center' | 'stretch';
+type CompilerSceneMovePropKey = 'bottom' | 'horizontal' | 'left' | 'right' | 'top' | 'vertical' | 'x' | 'y';
+type CompilerSceneMoveUpdateProps = Partial<Record<CompilerSceneMovePropKey, number>>;
 
 interface ViewportModel {
     gridVisible: boolean;
@@ -101,15 +111,13 @@ interface ViewportModel {
 }
 
 interface MoveSession {
-    currentProps?: {
-        x: number;
-        y: number;
-    };
+    currentProps?: CompilerSceneMoveUpdateProps;
     locator: string;
     mergeKey: string;
     pointerId: number;
     profileId?: number;
     started: boolean;
+    startBounds: CompilerSceneRect;
     startPoint: ViewportPoint;
     startProps: CompilerSceneMoveProps;
 }
@@ -313,11 +321,88 @@ export function selectCompilerSceneViewportHit(targets: readonly CompilerSceneHi
 }
 
 export function moveCompilerSceneNodeProps(startProps: CompilerSceneMoveProps, deltaScene: ViewportPoint) {
-    const startX = typeof startProps.x === 'number' ? startProps.x : 0;
-    const startY = typeof startProps.y === 'number' ? startProps.y : 0;
+    const horizontalMode = resolveCompilerSceneHorizontalLayoutMode(startProps);
+    const verticalMode = resolveCompilerSceneVerticalLayoutMode(startProps);
+    const nextProps: CompilerSceneMoveUpdateProps = {};
+
+    if (horizontalMode === 'stretch') {
+        nextProps.left = numberSceneProp(startProps.left) + deltaScene.x;
+        nextProps.right = numberSceneProp(startProps.right) - deltaScene.x;
+    } else if (horizontalMode === 'left') {
+        nextProps.left = numberSceneProp(startProps.left) + deltaScene.x;
+    } else if (horizontalMode === 'right') {
+        nextProps.right = numberSceneProp(startProps.right) - deltaScene.x;
+    } else if (horizontalMode === 'center') {
+        nextProps.horizontal = numberSceneProp(startProps.horizontal) + deltaScene.x;
+    } else {
+        nextProps.x = numberSceneProp(startProps.x) + deltaScene.x;
+    }
+
+    if (verticalMode === 'stretch') {
+        nextProps.top = numberSceneProp(startProps.top) + deltaScene.y;
+        nextProps.bottom = numberSceneProp(startProps.bottom) - deltaScene.y;
+    } else if (verticalMode === 'top') {
+        nextProps.top = numberSceneProp(startProps.top) + deltaScene.y;
+    } else if (verticalMode === 'bottom') {
+        nextProps.bottom = numberSceneProp(startProps.bottom) - deltaScene.y;
+    } else if (verticalMode === 'center') {
+        nextProps.vertical = numberSceneProp(startProps.vertical) + deltaScene.y;
+    } else {
+        nextProps.y = numberSceneProp(startProps.y) + deltaScene.y;
+    }
+    return nextProps;
+}
+
+function scenePropIsNumber(value: unknown) {
+    return typeof value === 'number';
+}
+
+function numberSceneProp(value: unknown) {
+    return scenePropIsNumber(value) ? value : 0;
+}
+
+export function resolveCompilerSceneHorizontalLayoutMode(props: CompilerSceneMoveProps): CompilerSceneHorizontalLayoutMode {
+    if (scenePropIsNumber(props.left) && scenePropIsNumber(props.right)) {
+        return 'stretch';
+    }
+    if (scenePropIsNumber(props.left)) {
+        return 'left';
+    }
+    if (scenePropIsNumber(props.right)) {
+        return 'right';
+    }
+    if (scenePropIsNumber(props.horizontal)) {
+        return 'center';
+    }
+    return 'free';
+}
+
+export function resolveCompilerSceneVerticalLayoutMode(props: CompilerSceneMoveProps): CompilerSceneVerticalLayoutMode {
+    if (scenePropIsNumber(props.top) && scenePropIsNumber(props.bottom)) {
+        return 'stretch';
+    }
+    if (scenePropIsNumber(props.top)) {
+        return 'top';
+    }
+    if (scenePropIsNumber(props.bottom)) {
+        return 'bottom';
+    }
+    if (scenePropIsNumber(props.vertical)) {
+        return 'center';
+    }
+    return 'free';
+}
+
+function moveCompilerSceneNodePreviewProps(
+    startProps: CompilerSceneMoveProps,
+    startBounds: CompilerSceneRect,
+    deltaScene: ViewportPoint,
+) {
+    const horizontalMode = resolveCompilerSceneHorizontalLayoutMode(startProps);
+    const verticalMode = resolveCompilerSceneVerticalLayoutMode(startProps);
     return {
-        x: startX + deltaScene.x,
-        y: startY + deltaScene.y,
+        x: (horizontalMode === 'free' ? numberSceneProp(startProps.x) : startBounds.x) + deltaScene.x,
+        y: (verticalMode === 'free' ? numberSceneProp(startProps.y) : startBounds.y) + deltaScene.y,
     };
 }
 
@@ -894,7 +979,15 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                     });
                     if (canBeginCompilerSceneMove(selectedLocator, hitLocator)) {
                         const node = getCompilerSceneNode(selectedLocator!);
-                        if (node && node.kind !== 'slotOutlet') {
+                        const target = nodesRef.current.get(selectedLocator!);
+                        const startOverlayBounds = target ? compilerSceneSelectionRect(target) : undefined;
+                        if (node && node.kind !== 'slotOutlet' && target && startOverlayBounds) {
+                            const startBounds = {
+                                x: (startOverlayBounds.x - transformRef.current.offset.x) / transformRef.current.scale,
+                                y: (startOverlayBounds.y - transformRef.current.offset.y) / transformRef.current.scale,
+                                width: startOverlayBounds.width / transformRef.current.scale,
+                                height: startOverlayBounds.height / transformRef.current.scale,
+                            };
                             event.preventDefault();
                             moveSessionRef.current += 1;
                             hostRef.current?.setPointerCapture(event.pointerId);
@@ -904,8 +997,15 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                                 pointerId: event.pointerId,
                                 profileId: beginSceneViewProfile('move', { locator: selectedLocator }),
                                 started: false,
+                                startBounds,
                                 startPoint: start,
                                 startProps: {
+                                    bottom: node.props.bottom,
+                                    horizontal: node.props.horizontal,
+                                    left: node.props.left,
+                                    right: node.props.right,
+                                    top: node.props.top,
+                                    vertical: node.props.vertical,
                                     x: node.props.x,
                                     y: node.props.y,
                                 },
@@ -978,11 +1078,12 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 countSceneViewProfile('viewport.moveUpdate');
                 const deltaScene = viewportDeltaToSceneDelta(transformRef.current, deltaViewport);
                 const nextProps = moveCompilerSceneNodeProps(move.startProps, deltaScene);
+                const nextPreviewProps = moveCompilerSceneNodePreviewProps(move.startProps, move.startBounds, deltaScene);
                 const target = nodesRef.current.get(move.locator);
                 const node = getCompilerSceneNode(move.locator);
                 if (!target || !node || node.kind === 'slotOutlet') {
                     if (target) {
-                        applyCompilerSceneNodePosition(target, move.startProps);
+                        applyCompilerSceneNodePosition(target, move.startBounds);
                         setOutline(compilerSceneSelectionRect(target));
                     }
                     moveRef.current = undefined;
@@ -990,7 +1091,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                     return;
                 }
                 move.currentProps = nextProps;
-                applyCompilerSceneNodePosition(target, nextProps);
+                applyCompilerSceneNodePosition(target, nextPreviewProps);
                 setOutline(compilerSceneSelectionRect(target));
                 return;
             }
@@ -1060,7 +1161,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 const move = moveRef.current;
                 const target = nodesRef.current.get(move.locator);
                 if (target) {
-                    applyCompilerSceneNodeTransform(target, move.startProps);
+                    applyCompilerSceneNodePosition(target, move.startBounds);
                     setOutline(compilerSceneSelectionRect(target));
                 }
                 endSceneViewProfile(move.profileId, { cancelled: true });
