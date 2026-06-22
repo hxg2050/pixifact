@@ -1,10 +1,12 @@
 import {
     Container,
     Graphics,
+    Ticker,
     type ContainerChild,
     type DestroyOptions,
     type FederatedPointerEvent,
     type FederatedWheelEvent,
+    type Ticker as PixiTicker,
 } from 'pixi.js';
 import { Control } from './Control';
 import type { GroupOptions } from './Group';
@@ -17,6 +19,13 @@ export type ScrollContainerOptions = GroupOptions & {
     scrollY?: number;
 };
 
+const elasticResistance = 0.5;
+const inertiaFriction = 0.92;
+const springStrength = 0.18;
+const springFriction = 0.72;
+const settleDistance = 0.05;
+const settleVelocity = 0.05;
+
 export class ScrollContainer extends Control {
     readonly contentLayer = new Container();
 
@@ -26,6 +35,9 @@ export class ScrollContainer extends Control {
     #targetScrollY = 0;
     #scrollX = 0;
     #scrollY = 0;
+    #velocityX = 0;
+    #velocityY = 0;
+    #animating = false;
     #watchedContent = new Set<ContainerChild>();
     #destroying = false;
     #drag:
@@ -63,6 +75,7 @@ export class ScrollContainer extends Control {
     }
 
     set direction(value: ScrollDirection) {
+        this.#stopMomentum();
         this.#direction = value;
         this.#applyScroll();
     }
@@ -72,6 +85,7 @@ export class ScrollContainer extends Control {
     }
 
     set scrollX(value: number) {
+        this.#stopMomentum();
         this.#targetScrollX = value;
         this.#applyScroll();
     }
@@ -81,6 +95,7 @@ export class ScrollContainer extends Control {
     }
 
     set scrollY(value: number) {
+        this.#stopMomentum();
         this.#targetScrollY = value;
         this.#applyScroll();
     }
@@ -141,6 +156,7 @@ export class ScrollContainer extends Control {
 
     override destroy(options?: DestroyOptions) {
         this.#destroying = true;
+        this.#stopMomentum();
         this.contentLayer.off('childAdded', this.#handleContentChildAdded, this);
         this.contentLayer.off('childRemoved', this.#handleContentChildRemoved, this);
         for (const child of this.#watchedContent) {
@@ -195,6 +211,7 @@ export class ScrollContainer extends Control {
     }
 
     #handleWheel(event: FederatedWheelEvent) {
+        this.#stopMomentum();
         const beforeX = this.#scrollX;
         const beforeY = this.#scrollY;
         if (this.#direction !== 'vertical') {
@@ -211,6 +228,9 @@ export class ScrollContainer extends Control {
     }
 
     #handlePointerDown(event: FederatedPointerEvent) {
+        this.#stopMomentum();
+        this.#velocityX = 0;
+        this.#velocityY = 0;
         this.#drag = {
             pointerId: event.pointerId,
             globalX: event.global.x,
@@ -224,13 +244,17 @@ export class ScrollContainer extends Control {
         }
         const deltaX = event.global.x - this.#drag.globalX;
         const deltaY = event.global.y - this.#drag.globalY;
+        const beforeX = this.#scrollX;
+        const beforeY = this.#scrollY;
         if (this.#direction !== 'vertical') {
             this.#targetScrollX = this.#scrollX - deltaX;
         }
         if (this.#direction !== 'horizontal') {
             this.#targetScrollY = this.#scrollY - deltaY;
         }
-        this.#applyScroll();
+        this.#applyElasticScroll();
+        this.#velocityX = this.#scrollX - beforeX;
+        this.#velocityY = this.#scrollY - beforeY;
         this.#drag.globalX = event.global.x;
         this.#drag.globalY = event.global.y;
     }
@@ -240,6 +264,7 @@ export class ScrollContainer extends Control {
             return;
         }
         this.#drag = undefined;
+        this.#startMomentum();
     }
 
     #syncMask() {
@@ -248,17 +273,81 @@ export class ScrollContainer extends Control {
     }
 
     #applyScroll() {
-        this.#scrollX = clamp(this.#direction === 'vertical' ? 0 : this.#targetScrollX, 0, this.#maxScrollX());
-        this.#scrollY = clamp(this.#direction === 'horizontal' ? 0 : this.#targetScrollY, 0, this.#maxScrollY());
+        const limits = this.#scrollLimits();
+        this.#setScrollPosition(
+            clamp(this.#direction === 'vertical' ? 0 : this.#targetScrollX, 0, limits.x),
+            clamp(this.#direction === 'horizontal' ? 0 : this.#targetScrollY, 0, limits.y),
+        );
+    }
+
+    #applyElasticScroll() {
+        const limits = this.#scrollLimits();
+        this.#setScrollPosition(
+            this.#direction === 'vertical' ? 0 : elasticClamp(this.#targetScrollX, 0, limits.x),
+            this.#direction === 'horizontal' ? 0 : elasticClamp(this.#targetScrollY, 0, limits.y),
+        );
+    }
+
+    #setScrollPosition(scrollX: number, scrollY: number) {
+        this.#scrollX = scrollX;
+        this.#scrollY = scrollY;
         this.contentLayer.position.set(-this.#scrollX, -this.#scrollY);
     }
 
-    #maxScrollX() {
-        return Math.max(0, this.#contentSize().width - this.width);
+    #scrollLimits() {
+        const size = this.#contentSize();
+        return {
+            x: Math.max(0, size.width - this.width),
+            y: Math.max(0, size.height - this.height),
+        };
     }
 
-    #maxScrollY() {
-        return Math.max(0, this.#contentSize().height - this.height);
+    #startMomentum() {
+        if (this.#animating || !this.#needsMomentum()) {
+            return;
+        }
+        this.#animating = true;
+        Ticker.shared.add(this.#handleTick, this);
+    }
+
+    #stopMomentum() {
+        if (!this.#animating) {
+            return;
+        }
+        Ticker.shared.remove(this.#handleTick, this);
+        this.#animating = false;
+    }
+
+    #handleTick(ticker: PixiTicker) {
+        if (this.#destroying || this.destroyed || this.#drag) {
+            this.#stopMomentum();
+            return;
+        }
+
+        const deltaTime = Math.min(ticker.deltaTime, 4);
+        const limits = this.#scrollLimits();
+        const nextX = this.#direction === 'vertical'
+            ? { value: 0, velocity: 0 }
+            : stepMomentumAxis(this.#scrollX, this.#velocityX, 0, limits.x, deltaTime);
+        const nextY = this.#direction === 'horizontal'
+            ? { value: 0, velocity: 0 }
+            : stepMomentumAxis(this.#scrollY, this.#velocityY, 0, limits.y, deltaTime);
+
+        this.#velocityX = nextX.velocity;
+        this.#velocityY = nextY.velocity;
+        this.#setScrollPosition(nextX.value, nextY.value);
+        this.#targetScrollX = this.#scrollX;
+        this.#targetScrollY = this.#scrollY;
+
+        if (!this.#needsMomentum()) {
+            this.#stopMomentum();
+        }
+    }
+
+    #needsMomentum() {
+        const limits = this.#scrollLimits();
+        return this.#direction !== 'vertical' && needsMomentumAxis(this.#scrollX, this.#velocityX, 0, limits.x)
+            || this.#direction !== 'horizontal' && needsMomentumAxis(this.#scrollY, this.#velocityY, 0, limits.y);
     }
 
     #contentSize() {
@@ -275,6 +364,63 @@ export class ScrollContainer extends Control {
 
 function clamp(value: number, min: number, max: number) {
     return Math.min(max, Math.max(min, value));
+}
+
+function elasticClamp(value: number, min: number, max: number) {
+    if (value < min) {
+        return min + (value - min) * elasticResistance;
+    }
+    if (value > max) {
+        return max + (value - max) * elasticResistance;
+    }
+    return value;
+}
+
+function stepMomentumAxis(value: number, velocity: number, min: number, max: number, deltaTime: number) {
+    let nextVelocity = velocity;
+    const bound = nearestBound(value, min, max);
+    if (bound === undefined) {
+        nextVelocity *= Math.pow(inertiaFriction, deltaTime);
+    } else {
+        nextVelocity += (bound - value) * springStrength * deltaTime;
+        nextVelocity *= Math.pow(springFriction, deltaTime);
+    }
+
+    let nextValue = value + nextVelocity * deltaTime;
+    const nextBound = nearestBound(nextValue, min, max);
+    if (bound !== undefined && nextBound === undefined) {
+        return {
+            value: bound,
+            velocity: 0,
+        };
+    }
+    if (
+        nextBound !== undefined
+        && Math.abs(nextValue - nextBound) <= settleDistance
+        && Math.abs(nextVelocity) <= settleVelocity
+    ) {
+        nextValue = nextBound;
+        nextVelocity = 0;
+    }
+
+    return {
+        value: nextValue,
+        velocity: nextVelocity,
+    };
+}
+
+function needsMomentumAxis(value: number, velocity: number, min: number, max: number) {
+    return Math.abs(velocity) > settleVelocity || nearestBound(value, min, max) !== undefined;
+}
+
+function nearestBound(value: number, min: number, max: number) {
+    if (value < min) {
+        return min;
+    }
+    if (value > max) {
+        return max;
+    }
+    return undefined;
 }
 
 function transformedLocalBounds(child: ContainerChild) {

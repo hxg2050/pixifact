@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Container, Graphics, Mesh, NineSliceSprite, Rectangle, Text, Texture, TextureSource, TilingSprite } from 'pixi.js';
+import { Container, Graphics, Mesh, NineSliceSprite, Rectangle, Text, Texture, TextureSource, Ticker, TilingSprite } from 'pixi.js';
 import { Control, Group, HBoxContainer, Image, NineImage, Rect, ScrollContainer, TileImage, VBoxContainer, calculatePixifactViewportLayout, getFrameLayout } from 'pixifact/runtime';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -44,6 +44,17 @@ function texture(width: number, height: number) {
             height,
         }),
     });
+}
+
+function tickSharedTicker(frames: number) {
+    let time = Math.max(1000, Ticker.shared.lastTime);
+    if (Ticker.shared.lastTime < 0) {
+        Ticker.shared.update(time);
+    }
+    for (let i = 0; i < frames; i++) {
+        time += 1000 / 60;
+        Ticker.shared.update(time);
+    }
 }
 
 describe('Pixifact scene compiler spike', () => {
@@ -233,11 +244,51 @@ describe('Pixifact scene compiler spike', () => {
         dragScroll.emit('pointerdown', { pointerId: 1, global: { x: 0, y: 0 } });
         dragScroll.emit('globalpointermove', { pointerId: 1, global: { x: 0, y: -100 } });
 
-        expect(dragScroll.scrollY).toBe(60);
+        expect(dragScroll.scrollY).toBeGreaterThan(60);
+        const overscrolledY = dragScroll.scrollY;
 
         dragScroll.emit('globalpointermove', { pointerId: 1, global: { x: 0, y: -99 } });
 
-        expect(dragScroll.scrollY).toBe(59);
+        expect(dragScroll.scrollY).toBeLessThan(overscrolledY);
+    });
+
+    it('allows elastic ScrollContainer drag beyond bounds and springs back on release', () => {
+        const scroll = new ScrollContainer({ width: 100, height: 100 });
+        try {
+            scroll.addChild(new Rect({ width: 100, height: 160 }));
+            scroll.emit('pointerdown', { pointerId: 1, global: { x: 0, y: 0 } });
+            scroll.emit('globalpointermove', { pointerId: 1, global: { x: 0, y: 40 } });
+
+            expect(scroll.scrollY).toBeLessThan(0);
+            expect(scroll.scrollY).toBeGreaterThan(-40);
+            expect(scroll.contentLayer.y).toBeGreaterThan(0);
+
+            scroll.emit('pointerup', { pointerId: 1 });
+            tickSharedTicker(90);
+
+            expect(scroll.scrollY).toBeCloseTo(0, 1);
+            expect(scroll.contentLayer.y).toBeCloseTo(0, 1);
+        } finally {
+            scroll.destroy();
+        }
+    });
+
+    it('continues ScrollContainer movement with inertia after drag release', () => {
+        const scroll = new ScrollContainer({ width: 100, height: 100 });
+        try {
+            scroll.addChild(new Rect({ width: 100, height: 400 }));
+            scroll.emit('pointerdown', { pointerId: 1, global: { x: 0, y: 0 } });
+            scroll.emit('globalpointermove', { pointerId: 1, global: { x: 0, y: -30 } });
+
+            expect(scroll.scrollY).toBe(30);
+
+            scroll.emit('pointerup', { pointerId: 1 });
+            tickSharedTicker(1);
+
+            expect(scroll.scrollY).toBeGreaterThan(30);
+        } finally {
+            scroll.destroy();
+        }
     });
 
     it('calculates Pixifact viewport layout modes from design resolution and screen size', () => {
