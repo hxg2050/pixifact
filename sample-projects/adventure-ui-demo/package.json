@@ -1,0 +1,20 @@
+{
+  "name": "pixifact-adventure-ui-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile:scenes": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts compile-scenes --project-root .",
+    "dev": "bun run compile:scenes && vite . --host 127.0.0.1 --port 5178 --strictPort",
+    "build": "bun run compile:scenes && vite build . --config vite.config.ts"
+  },
+  "dependencies": {
+    "pixi.js": "8.18.1",
+    "pixifact": "workspace:*"
+  },
+  "devDependencies": {
+    "pixifact-cli": "workspace:*",
+    "typescript": "^5.3.3",
+    "vite": "^8.0.10"
+  }
+}

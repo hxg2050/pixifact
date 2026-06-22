@@ -1,0 +1,6 @@
+<Scene name="ItemSlot" width="96" height="112">
+  <NineImage id="frame" texture="assets/ui/slot-9.svg" left="0" right="0" top="0" bottom="0" leftWidth="12" rightWidth="12" topHeight="12" bottomHeight="12" />
+  <Image id="itemIcon" texture="assets/icons/potion.svg" x="18" y="13" width="60" height="60" fit="contain" />
+  <Text id="quantityText" text="x1" x="58" y="72" fontSize="18" fontWeight="700" fill="#fff3cf" />
+  <Text id="nameText" text="药水" x="13" y="92" fontSize="14" fontWeight="600" fill="#d8e6f3" />
+</Scene>

@@ -1,0 +1,15 @@
+<Scene name="Hud" width="750" height="188">
+  <Rect id="topShade" left="0" right="0" top="0" height="188" fillColor="#09101b" fillAlpha="0.72" />
+  <Rect id="portraitFrame" x="30" y="32" width="82" height="82" fillColor="#172233" strokeColor="#f2ce76" strokeAlpha="0.8" strokeWidth="3" radius="22" />
+  <Image id="portrait" texture="assets/icons/hero.svg" x="37" y="39" width="68" height="68" fit="cover" />
+  <Text id="nameText" text="艾拉" x="132" y="34" fontSize="30" fontWeight="700" fill="#fff3cf" />
+  <Text id="classText" text="遗迹游侠 · Lv.18" x="132" y="72" fontSize="18" fontWeight="600" fill="#a9c6d8" />
+  <Rect id="energyBack" x="132" y="112" width="310" height="18" fillColor="#172233" strokeColor="#6f8aa4" strokeAlpha="0.5" strokeWidth="1" radius="9" />
+  <Rect id="energyFill" x="134" y="114" width="226" height="14" fillColor="#6dd08c" radius="7" />
+  <HBoxContainer id="goldRow" x="520" y="44" width="196" height="48" gap="10" alignY="center" justify="end">
+    <Image id="coinIcon" texture="assets/icons/coin.svg" width="42" height="42" fit="contain" />
+    <Text id="goldText" text="1280" fontSize="30" fontWeight="700" fill="#ffdb84" />
+  </HBoxContainer>
+  <Rect id="questPill" x="500" y="111" width="216" height="38" fillColor="#172233" fillAlpha="0.9" strokeColor="#6f8aa4" strokeAlpha="0.45" strokeWidth="1" radius="19" />
+  <Text id="questText" text="主线：进入月井" x="524" y="119" fontSize="17" fontWeight="600" fill="#d8e6f3" />
+</Scene>

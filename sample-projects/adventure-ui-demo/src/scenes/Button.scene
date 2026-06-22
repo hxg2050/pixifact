@@ -1,0 +1,7 @@
+<Scene name="Button" width="220" height="64">
+  <Rect id="background" left="0" right="0" top="0" bottom="0" fillColor="#24456f" fillAlpha="0.94" strokeColor="#f2ce76" strokeAlpha="0.72" strokeWidth="2" radius="18" />
+  <Container id="contentHost" x="18" y="13">
+    <slot name="icon" />
+    <Text id="labelText" text="Button" x="54" y="5" fontSize="23" fontWeight="700" fill="#fff3cf" />
+  </Container>
+</Scene>

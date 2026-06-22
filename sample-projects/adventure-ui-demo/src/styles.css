@@ -1,0 +1,25 @@
+html,
+body,
+#game {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    overflow: hidden;
+    background: #070b12;
+}
+
+#game {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+canvas {
+    display: block;
+    width: min(100vw, calc(100vh * 750 / 1334));
+    height: auto;
+    max-height: 100vh;
+}

@@ -5,7 +5,8 @@
   "private": true,
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "apps/*",
+    "sample-projects/*"
   ],
   "packageManager": "bun@1.3.13",
   "type": "module",

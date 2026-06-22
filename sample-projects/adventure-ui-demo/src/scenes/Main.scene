@@ -1,0 +1,8 @@
+<Scene name="Main" width="750" height="1334">
+  <TileImage id="stonePattern" texture="assets/world/stone-tile.svg" left="0" right="0" top="0" bottom="0" tileScaleX="1.6" tileScaleY="1.6" />
+  <Image id="sceneBackdrop" texture="assets/world/forest-ruins.svg" left="0" right="0" top="0" height="920" fit="cover" />
+  <Rect id="shade" left="0" right="0" top="0" bottom="0" fillColor="#050914" fillAlpha="0.32" />
+  <Hud id="hud" scene="./Hud.scene" left="0" right="0" top="0" height="188" />
+  <InventoryPanel id="inventoryPanel" scene="./InventoryPanel.scene" horizontal="0" top="252" width="690" height="650" />
+  <BottomMenu id="bottomMenu" scene="./BottomMenu.scene" left="0" right="0" bottom="0" height="154" @openInventory="toggleInventory" />
+</Scene>

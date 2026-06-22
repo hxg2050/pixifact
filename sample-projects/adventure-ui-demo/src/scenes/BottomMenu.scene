@@ -1,0 +1,17 @@
+<Scene name="BottomMenu" width="750" height="154">
+  <NineImage id="menuBack" texture="assets/ui/panel-9.svg" left="18" right="18" top="14" bottom="20" leftWidth="28" rightWidth="28" topHeight="28" bottomHeight="28" />
+  <HBoxContainer id="menuRow" x="44" y="40" width="662" height="72" gap="18" alignY="center" justify="space-between">
+    <Button id="mapButton" scene="./Button.scene" width="148" height="64" label="地图" tone="ghost">
+      <Image slot="icon" id="mapIcon" texture="assets/icons/map.svg" width="38" height="38" fit="contain" />
+    </Button>
+    <Button id="teamButton" scene="./Button.scene" width="148" height="64" label="队伍" tone="ghost">
+      <Image slot="icon" id="teamIcon" texture="assets/icons/shield.svg" width="38" height="38" fit="contain" />
+    </Button>
+    <Button id="bagButton" scene="./Button.scene" width="148" height="64" label="背包" tone="primary" @click="emitOpenInventory">
+      <Image slot="icon" id="bagIcon" texture="assets/icons/bag.svg" width="38" height="38" fit="contain" />
+    </Button>
+    <Button id="battleButton" scene="./Button.scene" width="148" height="64" label="行动" tone="danger">
+      <Image slot="icon" id="battleIcon" texture="assets/icons/sword.svg" width="38" height="38" fit="contain" />
+    </Button>
+  </HBoxContainer>
+</Scene>

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "name": "Pixifact Adventure UI Demo",
+  "resolution": {
+    "width": 750,
+    "height": 1334
+  },
+  "scenes": {
+    "main": "src/scenes/Main.scene"
+  },
+  "run": {
+    "command": "bun",
+    "args": ["run", "dev"],
+    "cwd": ".",
+    "url": "http://127.0.0.1:5178"
+  }
+}
