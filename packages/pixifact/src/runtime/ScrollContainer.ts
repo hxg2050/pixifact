@@ -267,8 +267,9 @@ export class ScrollContainer extends Control {
         let width = 0;
         let height = 0;
         for (const child of this.contentLayer.children) {
-            width = Math.max(width, child.x + child.width);
-            height = Math.max(height, child.y + child.height);
+            const bounds = transformedLocalBounds(child);
+            width = Math.max(width, bounds.right);
+            height = Math.max(height, bounds.bottom);
         }
         return { width, height };
     }
@@ -276,4 +277,27 @@ export class ScrollContainer extends Control {
 
 function clamp(value: number, min: number, max: number) {
     return Math.min(max, Math.max(min, value));
+}
+
+function transformedLocalBounds(child: ContainerChild) {
+    child.updateLocalTransform();
+    const bounds = child.getLocalBounds();
+    if (!bounds.isValid) {
+        return { right: 0, bottom: 0 };
+    }
+
+    const transform = child.localTransform;
+    const x0 = transform.a * bounds.minX + transform.c * bounds.minY + transform.tx;
+    const y0 = transform.b * bounds.minX + transform.d * bounds.minY + transform.ty;
+    const x1 = transform.a * bounds.maxX + transform.c * bounds.minY + transform.tx;
+    const y1 = transform.b * bounds.maxX + transform.d * bounds.minY + transform.ty;
+    const x2 = transform.a * bounds.maxX + transform.c * bounds.maxY + transform.tx;
+    const y2 = transform.b * bounds.maxX + transform.d * bounds.maxY + transform.ty;
+    const x3 = transform.a * bounds.minX + transform.c * bounds.maxY + transform.tx;
+    const y3 = transform.b * bounds.minX + transform.d * bounds.maxY + transform.ty;
+
+    return {
+        right: Math.max(0, x0, x1, x2, x3),
+        bottom: Math.max(0, y0, y1, y2, y3),
+    };
 }

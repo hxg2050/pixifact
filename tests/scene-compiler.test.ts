@@ -183,6 +183,30 @@ describe('Pixifact scene compiler spike', () => {
         expect(scroll.contentLayer.y).toBe(-64);
     });
 
+    it('measures ScrollContainer content from child local bounds', () => {
+        const offsetScroll = new ScrollContainer({ width: 100, height: 60 });
+        const wrapper = new Container();
+        const offsetChild = new Rect({ width: 100, height: 180 });
+        offsetChild.y = 50;
+        wrapper.addChild(offsetChild);
+        offsetScroll.addChild(wrapper);
+
+        offsetScroll.scrollY = 999;
+
+        expect(offsetScroll.scrollY).toBe(170);
+        expect(offsetScroll.contentLayer.y).toBe(-170);
+
+        const anchoredScroll = new ScrollContainer({ width: 100, height: 60 });
+        const anchoredChild = new Image({ width: 100, height: 180, anchorY: 0.5 });
+        anchoredChild.y = 90;
+        anchoredScroll.addChild(anchoredChild);
+
+        anchoredScroll.scrollY = 999;
+
+        expect(anchoredScroll.scrollY).toBe(120);
+        expect(anchoredScroll.contentLayer.y).toBe(-120);
+    });
+
     it('calculates Pixifact viewport layout modes from design resolution and screen size', () => {
         const resolution = { width: 750, height: 1334 };
         const screen = { width: 390, height: 844 };
