@@ -45,6 +45,8 @@ export class ScrollContainer extends Control {
             pointerId: number;
             globalX: number;
             globalY: number;
+            scrollX: number;
+            scrollY: number;
         }
         | undefined;
 
@@ -235,6 +237,8 @@ export class ScrollContainer extends Control {
             pointerId: event.pointerId,
             globalX: event.global.x,
             globalY: event.global.y,
+            scrollX: this.#scrollX,
+            scrollY: this.#scrollY,
         };
     }
 
@@ -247,10 +251,12 @@ export class ScrollContainer extends Control {
         const beforeX = this.#scrollX;
         const beforeY = this.#scrollY;
         if (this.#direction !== 'vertical') {
-            this.#targetScrollX = this.#scrollX - deltaX;
+            this.#drag.scrollX -= deltaX;
+            this.#targetScrollX = this.#drag.scrollX;
         }
         if (this.#direction !== 'horizontal') {
-            this.#targetScrollY = this.#scrollY - deltaY;
+            this.#drag.scrollY -= deltaY;
+            this.#targetScrollY = this.#drag.scrollY;
         }
         this.#applyElasticScroll();
         this.#velocityX = this.#scrollX - beforeX;

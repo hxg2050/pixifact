@@ -273,6 +273,22 @@ describe('Pixifact scene compiler spike', () => {
         }
     });
 
+    it('keeps elastic ScrollContainer drag moving with the pointer before release', () => {
+        const scroll = new ScrollContainer({ width: 100, height: 100 });
+        try {
+            scroll.addChild(new Rect({ width: 100, height: 160 }));
+            scroll.emit('pointerdown', { pointerId: 1, global: { x: 0, y: 0 } });
+            scroll.emit('globalpointermove', { pointerId: 1, global: { x: 0, y: 40 } });
+            const firstElasticY = scroll.scrollY;
+
+            scroll.emit('globalpointermove', { pointerId: 1, global: { x: 0, y: 41 } });
+
+            expect(scroll.scrollY).toBeLessThan(firstElasticY);
+        } finally {
+            scroll.destroy();
+        }
+    });
+
     it('continues ScrollContainer movement with inertia after drag release', () => {
         const scroll = new ScrollContainer({ width: 100, height: 100 });
         try {
