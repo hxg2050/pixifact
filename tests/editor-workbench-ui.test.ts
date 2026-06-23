@@ -20,6 +20,9 @@ import {
 } from '../apps/editor/src/document/compilerSceneDocumentController';
 import { InspectorPanel } from '../apps/editor/src/panels/InspectorPanel';
 import {
+    compilerLayoutAlignmentPatch,
+} from '../apps/editor/src/panels/InspectorPanel';
+import {
     actualSizeViewportTransform,
     applyCompilerSceneNodeTransform,
     canBeginCompilerSceneMove,
@@ -564,6 +567,42 @@ describe('Editor workbench UI', () => {
             left: 12,
             right: -12,
             top: -6,
+        });
+        expect(compilerLayoutAlignmentPatch(
+            { x: 30, y: 252, width: 690, height: 650 },
+            { width: 750, height: 1334 },
+            'horizontal',
+            'center',
+        )).toEqual({
+            horizontal: 0,
+            left: undefined,
+            right: undefined,
+            width: 690,
+            x: undefined,
+        });
+        expect(compilerLayoutAlignmentPatch(
+            { x: 30, y: 252, width: 690, height: 650 },
+            { width: 750, height: 1334 },
+            'vertical',
+            'top',
+        )).toEqual({
+            bottom: undefined,
+            height: 650,
+            top: 252,
+            vertical: undefined,
+            y: undefined,
+        });
+        expect(compilerLayoutAlignmentPatch(
+            { x: 30, y: 252, width: 690, height: 650 },
+            { width: 750, height: 1334 },
+            'horizontal',
+            'stretch',
+        )).toEqual({
+            horizontal: undefined,
+            left: 30,
+            right: 30,
+            width: undefined,
+            x: undefined,
         });
         expect(canBeginCompilerSceneMove('0:label', '0:label')).toBe(true);
         expect(canBeginCompilerSceneMove('0:label', '1:background')).toBe(false);
@@ -1306,6 +1345,45 @@ describe('Editor workbench UI', () => {
             expect(getCompilerSceneDocument()?.template.children[0].props.x).toBe(42);
         } finally {
             vi.useRealTimers();
+            await view.cleanup();
+        }
+    });
+
+    it('switches Inspector layout alignment from the current rect without moving the node', async () => {
+        loadCompilerSceneDocument({
+            scenePath: 'GameProject/src/scenes/Button.scene',
+            template: parseSceneTemplate(`
+                <Scene name="Button" width="750" height="1334">
+                  <Text id="label" text="Start" x="30" y="252" width="690" height="650" />
+                </Scene>
+            `),
+            sceneInterfaces: {},
+        });
+        selectCompilerSceneNode('0:label');
+        const view = await renderEditorApp();
+        try {
+            const horizontalButtons = [...view.container.querySelectorAll('[aria-label="Horizontal Alignment"] button')] as HTMLButtonElement[];
+            const verticalButtons = [...view.container.querySelectorAll('[aria-label="Vertical Alignment"] button')] as HTMLButtonElement[];
+            const horizontalCenterButton = horizontalButtons.find((button) => button.textContent === 'Center');
+            const verticalTopButton = verticalButtons.find((button) => button.textContent === 'Top');
+            expect(horizontalCenterButton).toBeTruthy();
+            expect(verticalTopButton).toBeTruthy();
+
+            await act(async () => {
+                click(horizontalCenterButton!);
+                click(verticalTopButton!);
+                await Promise.resolve();
+            });
+
+            expect(getCompilerSceneDocument()?.template.children[0].props).toMatchObject({
+                horizontal: 0,
+                top: 252,
+                width: 690,
+                height: 650,
+            });
+            expect(getCompilerSceneDocument()?.template.children[0].props.x).toBeUndefined();
+            expect(getCompilerSceneDocument()?.template.children[0].props.y).toBeUndefined();
+        } finally {
             await view.cleanup();
         }
     });

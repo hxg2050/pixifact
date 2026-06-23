@@ -151,6 +151,10 @@ interface SelectedCompilerSlot {
 
 type SelectedCompilerItem = CompilerSceneTemplateNode | SelectedCompilerSlot | undefined;
 type EditableCompilerNode = Extract<CompilerSceneTemplateNode, { kind: 'pixi' | 'sceneInstance' }>;
+type CompilerLayoutAxis = 'horizontal' | 'vertical';
+type CompilerHorizontalAlignment = 'none' | 'left' | 'center' | 'right' | 'stretch';
+type CompilerVerticalAlignment = 'none' | 'top' | 'middle' | 'bottom' | 'stretch';
+type CompilerLayoutAlignment = CompilerHorizontalAlignment | CompilerVerticalAlignment;
 
 const compilerKnownPixiProps = new Set<string>(pixiSceneKnownProps);
 const compilerPixiGroupTitles: Record<PixiScenePropGroup, string> = {
@@ -215,6 +219,11 @@ function selectedCompilerNode(nodes: readonly CompilerSceneTemplateNode[], locat
         }
     }
     return undefined;
+}
+
+function compilerParentNode(nodes: readonly CompilerSceneTemplateNode[], locator: string) {
+    const parentLocator = locator.includes('/') ? locator.split('/').slice(0, -1).join('/') : undefined;
+    return parentLocator ? selectedCompilerNode(nodes, parentLocator) : undefined;
 }
 
 function selectedCompilerSlot(nodes: readonly CompilerSceneTemplateNode[], locator: string): SelectedCompilerSlot | undefined {
@@ -406,6 +415,168 @@ function compilerLayoutFields(node: SelectedCompilerItem): InspectorFieldModel[]
         return [];
     }
     return pixiSceneLayoutProps.map((key) => compilerField(key, node.props[key]));
+}
+
+function compilerLayoutParentSize(
+    compilerDocument: NonNullable<ReturnType<typeof getCompilerSceneDocument>>,
+    locator: string | undefined,
+) {
+    const parent = locator ? compilerParentNode(compilerDocument.template.children, locator) : undefined;
+    const parentProps = parent && parent.kind !== 'slotOutlet' ? parent.props : undefined;
+    return {
+        width: typeof parentProps?.width === 'number'
+            ? parentProps.width
+            : typeof compilerDocument.template.props.width === 'number'
+                ? compilerDocument.template.props.width
+                : 0,
+        height: typeof parentProps?.height === 'number'
+            ? parentProps.height
+            : typeof compilerDocument.template.props.height === 'number'
+                ? compilerDocument.template.props.height
+                : 0,
+    };
+}
+
+function numberProp(props: Record<string, unknown>, key: string, fallback = 0) {
+    return typeof props[key] === 'number' ? props[key] : fallback;
+}
+
+function compilerLayoutRect(
+    props: Record<string, unknown>,
+    parentSize: { width: number; height: number },
+) {
+    const left = typeof props.left === 'number' ? props.left : undefined;
+    const right = typeof props.right === 'number' ? props.right : undefined;
+    const horizontal = typeof props.horizontal === 'number' ? props.horizontal : undefined;
+    const top = typeof props.top === 'number' ? props.top : undefined;
+    const bottom = typeof props.bottom === 'number' ? props.bottom : undefined;
+    const vertical = typeof props.vertical === 'number' ? props.vertical : undefined;
+    const width = left !== undefined && right !== undefined
+        ? Math.max(0, parentSize.width - left - right)
+        : numberProp(props, 'width');
+    const height = top !== undefined && bottom !== undefined
+        ? Math.max(0, parentSize.height - top - bottom)
+        : numberProp(props, 'height');
+    const x = left !== undefined
+        ? left
+        : right !== undefined
+            ? parentSize.width - right - width
+            : horizontal !== undefined
+                ? (parentSize.width - width) / 2 + horizontal
+                : numberProp(props, 'x');
+    const y = top !== undefined
+        ? top
+        : bottom !== undefined
+            ? parentSize.height - bottom - height
+            : vertical !== undefined
+                ? (parentSize.height - height) / 2 + vertical
+                : numberProp(props, 'y');
+    return { x, y, width, height };
+}
+
+export function compilerLayoutHorizontalAlignment(props: Record<string, unknown>): CompilerHorizontalAlignment {
+    if (typeof props.left === 'number' && typeof props.right === 'number') {
+        return 'stretch';
+    }
+    if (typeof props.left === 'number') {
+        return 'left';
+    }
+    if (typeof props.right === 'number') {
+        return 'right';
+    }
+    if (typeof props.horizontal === 'number') {
+        return 'center';
+    }
+    return 'none';
+}
+
+export function compilerLayoutVerticalAlignment(props: Record<string, unknown>): CompilerVerticalAlignment {
+    if (typeof props.top === 'number' && typeof props.bottom === 'number') {
+        return 'stretch';
+    }
+    if (typeof props.top === 'number') {
+        return 'top';
+    }
+    if (typeof props.bottom === 'number') {
+        return 'bottom';
+    }
+    if (typeof props.vertical === 'number') {
+        return 'middle';
+    }
+    return 'none';
+}
+
+export function compilerLayoutAlignmentPatch(
+    props: Record<string, unknown>,
+    parentSize: { width: number; height: number },
+    axis: CompilerLayoutAxis,
+    alignment: CompilerLayoutAlignment,
+) {
+    const rect = compilerLayoutRect(props, parentSize);
+    if (axis === 'horizontal') {
+        if (alignment === 'left') {
+            return { x: undefined, left: rect.x, right: undefined, horizontal: undefined, width: rect.width };
+        }
+        if (alignment === 'center') {
+            return {
+                x: undefined,
+                left: undefined,
+                right: undefined,
+                horizontal: rect.x + rect.width / 2 - parentSize.width / 2,
+                width: rect.width,
+            };
+        }
+        if (alignment === 'right') {
+            return {
+                x: undefined,
+                left: undefined,
+                right: parentSize.width - rect.x - rect.width,
+                horizontal: undefined,
+                width: rect.width,
+            };
+        }
+        if (alignment === 'stretch') {
+            return {
+                x: undefined,
+                left: rect.x,
+                right: parentSize.width - rect.x - rect.width,
+                horizontal: undefined,
+                width: undefined,
+            };
+        }
+        return { x: rect.x, left: undefined, right: undefined, horizontal: undefined, width: rect.width };
+    }
+    if (alignment === 'top') {
+        return { y: undefined, top: rect.y, bottom: undefined, vertical: undefined, height: rect.height };
+    }
+    if (alignment === 'middle') {
+        return {
+            y: undefined,
+            top: undefined,
+            bottom: undefined,
+            vertical: rect.y + rect.height / 2 - parentSize.height / 2,
+            height: rect.height,
+        };
+    }
+    if (alignment === 'bottom') {
+        return {
+            y: undefined,
+            top: undefined,
+            bottom: parentSize.height - rect.y - rect.height,
+            vertical: undefined,
+            height: rect.height,
+        };
+    }
+    if (alignment === 'stretch') {
+        return {
+            y: undefined,
+            top: rect.y,
+            bottom: parentSize.height - rect.y - rect.height,
+            vertical: undefined,
+            height: undefined,
+        };
+    }
+    return { y: rect.y, top: undefined, bottom: undefined, vertical: undefined, height: rect.height };
 }
 
 function compilerDisplayFieldValue(key: string, value: unknown) {
@@ -754,6 +925,124 @@ function EditableFieldRow({
     ) : row;
 }
 
+const horizontalAlignmentOptions: { label: string; value: CompilerHorizontalAlignment }[] = [
+    { label: 'None', value: 'none' },
+    { label: 'Left', value: 'left' },
+    { label: 'Center', value: 'center' },
+    { label: 'Right', value: 'right' },
+    { label: 'Stretch', value: 'stretch' },
+];
+
+const verticalAlignmentOptions: { label: string; value: CompilerVerticalAlignment }[] = [
+    { label: 'None', value: 'none' },
+    { label: 'Top', value: 'top' },
+    { label: 'Middle', value: 'middle' },
+    { label: 'Bottom', value: 'bottom' },
+    { label: 'Stretch', value: 'stretch' },
+];
+
+function compilerLayoutVisibleFields(
+    horizontal: CompilerHorizontalAlignment,
+    vertical: CompilerVerticalAlignment,
+) {
+    const fields: string[] = [];
+    if (horizontal === 'none') {
+        fields.push('x', 'width');
+    } else if (horizontal === 'left') {
+        fields.push('left', 'width');
+    } else if (horizontal === 'center') {
+        fields.push('horizontal', 'width');
+    } else if (horizontal === 'right') {
+        fields.push('right', 'width');
+    } else {
+        fields.push('left', 'right');
+    }
+    if (vertical === 'none') {
+        fields.push('y', 'height');
+    } else if (vertical === 'top') {
+        fields.push('top', 'height');
+    } else if (vertical === 'middle') {
+        fields.push('vertical', 'height');
+    } else if (vertical === 'bottom') {
+        fields.push('bottom', 'height');
+    } else {
+        fields.push('top', 'bottom');
+    }
+    return fields;
+}
+
+interface CompilerLayoutAlignmentEditorProps {
+    node: EditableCompilerNode;
+    parentSize: { width: number; height: number };
+    onCommit(key: string, value: unknown, options?: InspectorFieldCommitOptions): void;
+    onCommitMany(props: Record<string, string | number | boolean | undefined>, axis: CompilerLayoutAxis): void;
+}
+
+function CompilerLayoutAlignmentEditor({
+    node,
+    parentSize,
+    onCommit,
+    onCommitMany,
+}: CompilerLayoutAlignmentEditorProps) {
+    const horizontal = compilerLayoutHorizontalAlignment(node.props);
+    const vertical = compilerLayoutVerticalAlignment(node.props);
+    const visibleFields = compilerLayoutVisibleFields(horizontal, vertical);
+
+    const commitAlignment = (axis: CompilerLayoutAxis, alignment: CompilerLayoutAlignment) => {
+        onCommitMany(
+            compilerLayoutAlignmentPatch(node.props, parentSize, axis, alignment),
+            axis,
+        );
+    };
+
+    return (
+        <div className="layoutAlignmentEditor">
+            <div className="layoutAlignmentGroup">
+                <span className="layoutAlignmentTitle">Horizontal Alignment</span>
+                <div className="layoutSegmented" role="group" aria-label="Horizontal Alignment">
+                    {horizontalAlignmentOptions.map((option) => (
+                        <button
+                            aria-pressed={horizontal === option.value}
+                            className={horizontal === option.value ? 'isActive' : undefined}
+                            key={option.value}
+                            onClick={() => commitAlignment('horizontal', option.value)}
+                            type="button"
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <div className="layoutAlignmentGroup">
+                <span className="layoutAlignmentTitle">Vertical Alignment</span>
+                <div className="layoutSegmented" role="group" aria-label="Vertical Alignment">
+                    {verticalAlignmentOptions.map((option) => (
+                        <button
+                            aria-pressed={vertical === option.value}
+                            className={vertical === option.value ? 'isActive' : undefined}
+                            key={option.value}
+                            onClick={() => commitAlignment('vertical', option.value)}
+                            type="button"
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <div className="fieldGrid inspectorCompactGrid">
+                {visibleFields.map((key) => (
+                    <EditableFieldRow
+                        field={compilerField(key, node.props[key] ?? (key === 'width' ? parentSize.width : key === 'height' ? parentSize.height : undefined))}
+                        key={key}
+                        label={key}
+                        onCommit={(value, options) => onCommit(key, value, options)}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
+
 export function InspectorPanel() {
     useCompilerSceneRevision();
     const t = useI18n();
@@ -811,6 +1100,7 @@ export function InspectorPanel() {
         const compilerSelection = compilerDocument.selection.type === 'node'
             ? compilerDocument.selection.node
             : undefined;
+        const compilerLayoutParent = compilerLayoutParentSize(compilerDocument, compilerSelection);
         const sceneSelected = !selectedCompiler;
         const canEditCompilerNode = compilerSelection && selectedCompiler && selectedCompiler.kind !== 'slot' && selectedCompiler.kind !== 'slotOutlet';
         const canEditCompilerSlotOutlet = compilerSelection && selectedCompiler?.kind === 'slotOutlet';
@@ -851,6 +1141,17 @@ export function InspectorPanel() {
                     [key]: value as string | number | boolean | undefined,
                 },
             }, mergeCompilerNodeField(key, options));
+        };
+        const commitCompilerProps = (
+            props: Record<string, string | number | boolean | undefined>,
+            mergeKey: string,
+        ) => {
+            if (!canEditCompilerNode) {
+                return;
+            }
+            updateCompilerSceneNode(compilerSelection, {
+                props,
+            }, { mergeKey: `inspector:node:${compilerSelection}:${mergeKey}` });
         };
         const commitCompilerTextureAsset = (key: string, path: string) => {
             if (!projectTree) {
@@ -976,16 +1277,14 @@ export function InspectorPanel() {
                         {compilerLayoutEditorFields.length ? (
                             <section className="inspectorSection inspectorSection--layout">
                                 <h3>Layout</h3>
-                                <div className="fieldGrid inspectorCompactGrid">
-                                    {compilerLayoutEditorFields.map((field) => (
-                                        <EditableFieldRow
-                                            field={field}
-                                            key={field.key}
-                                            label={field.label}
-                                            onCommit={(value, options) => commitCompilerProp(field.key, value, options)}
-                                        />
-                                    ))}
-                                </div>
+                                {canEditCompilerNode ? (
+                                    <CompilerLayoutAlignmentEditor
+                                        node={selectedCompiler}
+                                        onCommit={commitCompilerProp}
+                                        onCommitMany={(props, axis) => commitCompilerProps(props, `layout:${axis}`)}
+                                        parentSize={compilerLayoutParent}
+                                    />
+                                ) : null}
                             </section>
                         ) : null}
                         {compilerDisplayEditorFields.length ? (
