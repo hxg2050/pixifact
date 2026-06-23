@@ -13,8 +13,7 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力。Agent 编排、Git 分�
 - [文档入口](./docs/index.md)：按工作场景查找当前文档。
 - [Layout](./docs/LAYOUT.md)：设计分辨率、视口适配、frame layout、编辑器布局对齐。
 - [Agent Scene Authoring](./docs/AI_SCENE_AUTHORING.md)：外部 Agent 如何编辑 `.scene`。
-- [测试策略](./docs/TESTING.md)：TDD / BDD 和常用验证命令。
-- [v0.1.3 发布记录](./docs/releases/v0.1.3.md)：首个 npm 发布版本的历史记录。
+- [内部文档](./internal-docs/index.md)：仓库维护、测试、发布、计划和历史规格。
 
 ## npm 快速开始
 
@@ -219,7 +218,7 @@ runtime 或导出 API 改动：
 bun run build
 ```
 
-项目级测试策略见 [docs/TESTING.md](./docs/TESTING.md)。
+项目级测试策略见 [internal-docs/testing/TESTING.md](./internal-docs/testing/TESTING.md)。
 
 ## Codex Skills
 

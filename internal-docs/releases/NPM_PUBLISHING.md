@@ -15,7 +15,7 @@ Pixifact 发布三个公开 npm 包：
 - npm packages: `0.1.3`
 - git tag: `v0.1.3`
 - GitHub release: <https://github.com/hxg2050/pixifact/releases/tag/v0.1.3>
-- release notes source: [`docs/releases/v0.1.3.md`](./releases/v0.1.3.md)
+- release notes source: [`v0.1.3.md`](./v0.1.3.md)
 
 Trusted Publishing 已经在 npm 网站为三个包配置完成。正常发布路径不需要本地 npm token。
 
@@ -116,7 +116,7 @@ bun run build
 gh release create vX.Y.Z --title "Pixifact vX.Y.Z" --notes-file packages/pixifact/CHANGELOG.md
 ```
 
-如果需要更精简的 notes，可以从 Changesets 生成的 changelog 中复制本次版本段落到 `docs/releases/vX.Y.Z.md`，再用该文件创建 release。
+如果需要更精简的 notes，可以从 Changesets 生成的 changelog 中复制本次版本段落到 `internal-docs/releases/vX.Y.Z.md`，再用该文件创建 release。
 
 ## 手动发布应急
 

@@ -10,6 +10,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [documentation-split.md](./documentation-split.md) | 对外文档和内部文档分层迁移 |
 | [documentation-foundation.md](./documentation-foundation.md) | README、文档入口和 Layout 文档整理 |
 | [adventure-ui-demo.md](./adventure-ui-demo.md) | 示例项目计划 |
 | [viewport-adaptation-v1.md](./viewport-adaptation-v1.md) | 视口适配第一版 |
@@ -20,4 +21,4 @@
 
 ## 使用规则
 
-计划文件记录任务级决策、验证方式和续作入口。实现完成后，当前行为应沉淀到活跃文档，例如 [../LAYOUT.md](../LAYOUT.md) 或 [../AI_SCENE_AUTHORING.md](../AI_SCENE_AUTHORING.md)。
+计划文件记录任务级决策、验证方式和续作入口。实现完成后，当前行为应沉淀到活跃文档，例如 [../../docs/LAYOUT.md](../../docs/LAYOUT.md) 或 [../../docs/AI_SCENE_AUTHORING.md](../../docs/AI_SCENE_AUTHORING.md)。

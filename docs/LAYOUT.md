@@ -3,7 +3,7 @@
 状态：活跃
 权威范围：Pixifact 设计分辨率、视口适配、frame layout、布局容器和 Editor 布局编辑行为
 上游文档：[../README.md](../README.md)、[./index.md](./index.md)
-下游文档：[./AI_SCENE_AUTHORING.md](./AI_SCENE_AUTHORING.md)、[./plans/viewport-adaptation-v1.md](./plans/viewport-adaptation-v1.md)
+下游文档：[./AI_SCENE_AUTHORING.md](./AI_SCENE_AUTHORING.md)
 更新规则：修改 runtime layout 协议、视口模式、布局容器或 Inspector 布局交互时更新
 
 ## 核心心智

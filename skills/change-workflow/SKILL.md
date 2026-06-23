@@ -21,7 +21,7 @@ description: 用于执行任何仓库代码变更、新功能、缺陷修复、�
 
 3. **制定计划**
    - Small：在对话中简述计划即可。
-   - Medium 或 Large：在项目中创建或更新计划文件，通常为 `docs/plans/<feature>.md`。
+   - Medium 或 Large：在项目中创建或更新计划文件，通常为 `internal-docs/plans/<feature>.md`。
    - 计划文档中的 `Decisions` 是该任务的事实来源，除非用户明确要求重新设计。
 
 4. **测试优先**
@@ -93,4 +93,3 @@ Next:
 1. ...
 2. ...
 ```
-

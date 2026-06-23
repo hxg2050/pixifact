@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本文件是给 Codex / coding agents 的项目入口说明。进入本仓库后，先阅读本文件，再按任务需要阅读 `README.md`、`docs/TESTING.md` 和相关源码。
+本文件是给 Codex / coding agents 的项目入口说明。进入本仓库后，先阅读本文件，再按任务需要阅读 `README.md`、`docs/index.md`、`internal-docs/index.md`、`internal-docs/testing/TESTING.md` 和相关源码。
 
 ## 附加行为规范
 
@@ -47,7 +47,7 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 - Scene 脚本继承 `Group`，并用 `@scene()`、`@part()`、`@prop()`、`@event()`、`@slot()` 暴露契约。
 - 运行 `scene validate`、`compile-scenes` 和项目最小相关验证。
 
-不要把 Pixifact 框架仓库维护内容写进该 skill，例如 npm 发布、Changesets、Trusted Publishing、Editor 内部实现细节、内置 Scene 源码维护规则、仓库架构决策或本仓库 Git 工作流。本仓库开发任务应以本 `AGENTS.md`、`CODEX.md`、`README.md`、相关 `docs/` 和源码为准。
+不要把 Pixifact 框架仓库维护内容写进该 skill，例如 npm 发布、Changesets、Trusted Publishing、Editor 内部实现细节、内置 Scene 源码维护规则、仓库架构决策或本仓库 Git 工作流。本仓库开发任务应以本 `AGENTS.md`、`CODEX.md`、`README.md`、相关 `docs/`、`internal-docs/` 和源码为准。
 
 ## 核心架构规则
 
