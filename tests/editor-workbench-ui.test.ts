@@ -1202,6 +1202,8 @@ describe('Editor workbench UI', () => {
         const view = await renderEditorApp();
         try {
             const inspector = view.container.querySelector('[data-testid="compiler-scene-inspector"]');
+            const layoutSection = inspector?.querySelector('.inspectorSection--layout');
+            const transformSection = inspector?.querySelector('.inspectorSection--transform');
             const sectionTitles = [...inspector?.querySelectorAll('.inspectorSection h3') ?? []].map((title) => title.textContent);
             const xInput = inspector?.querySelector('input[aria-label="x"]') as HTMLInputElement | null;
             const yInput = inspector?.querySelector('input[aria-label="y"]') as HTMLInputElement | null;
@@ -1222,6 +1224,10 @@ describe('Editor workbench UI', () => {
             expect(yInput?.value).toBe('0');
             expect(widthInput?.value).toBe('120');
             expect(heightInput?.value).toBe('28');
+            expect(layoutSection?.querySelector('input[aria-label="width"]')).toBeFalsy();
+            expect(layoutSection?.querySelector('input[aria-label="height"]')).toBeFalsy();
+            expect(transformSection?.querySelector('input[aria-label="width"]')).toBeTruthy();
+            expect(transformSection?.querySelector('input[aria-label="height"]')).toBeTruthy();
             expect(scaleXInput?.value).toBe('1');
             expect(scaleYInput?.value).toBe('1');
             expect(alphaInput?.value).toBe('1');

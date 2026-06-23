@@ -947,24 +947,24 @@ function compilerLayoutVisibleFields(
 ) {
     const fields: string[] = [];
     if (horizontal === 'none') {
-        fields.push('x', 'width');
+        fields.push('x');
     } else if (horizontal === 'left') {
-        fields.push('left', 'width');
+        fields.push('left');
     } else if (horizontal === 'center') {
-        fields.push('horizontal', 'width');
+        fields.push('horizontal');
     } else if (horizontal === 'right') {
-        fields.push('right', 'width');
+        fields.push('right');
     } else {
         fields.push('left', 'right');
     }
     if (vertical === 'none') {
-        fields.push('y', 'height');
+        fields.push('y');
     } else if (vertical === 'top') {
-        fields.push('top', 'height');
+        fields.push('top');
     } else if (vertical === 'middle') {
-        fields.push('vertical', 'height');
+        fields.push('vertical');
     } else if (vertical === 'bottom') {
-        fields.push('bottom', 'height');
+        fields.push('bottom');
     } else {
         fields.push('top', 'bottom');
     }
