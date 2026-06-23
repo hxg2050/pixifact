@@ -30,7 +30,7 @@
     },
     "packages/create-pixifact": {
       "name": "create-pixifact",
-      "version": "0.1.3",
+      "version": "0.2.0",
       "bin": {
         "create-pixifact": "dist/index.js",
       },
@@ -41,7 +41,7 @@
     },
     "packages/pixifact": {
       "name": "pixifact",
-      "version": "0.1.3",
+      "version": "0.2.0",
       "dependencies": {
         "typescript": "^5.3.3",
       },
@@ -57,12 +57,25 @@
     },
     "packages/pixifact-cli": {
       "name": "pixifact-cli",
-      "version": "0.1.3",
+      "version": "0.2.0",
       "bin": {
-        "pixifact": "./src/pixifact-cli.ts",
+        "pixifact": "src/pixifact-cli.ts",
       },
       "dependencies": {
-        "pixifact": "^0.1.3",
+        "pixifact": "^0.2.0",
+      },
+    },
+    "sample-projects/adventure-ui-demo": {
+      "name": "pixifact-adventure-ui-demo",
+      "version": "0.1.1",
+      "dependencies": {
+        "pixi.js": "8.18.1",
+        "pixifact": "workspace:*",
+      },
+      "devDependencies": {
+        "pixifact-cli": "workspace:*",
+        "typescript": "^5.3.3",
+        "vite": "^8.0.10",
       },
     },
   },
@@ -486,6 +499,8 @@
     "pixi.js": ["pixi.js@8.18.1", "https://registry.npmmirror.com/pixi.js/-/pixi.js-8.18.1.tgz", { "dependencies": { "@pixi/colord": "^2.9.6", "@types/earcut": "^3.0.0", "@webgpu/types": "^0.1.69", "@xmldom/xmldom": "^0.8.12", "earcut": "^3.0.2", "eventemitter3": "^5.0.1", "gifuct-js": "^2.1.2", "ismobilejs": "^1.1.1", "parse-svg-path": "^0.1.2", "tiny-lru": "^11.4.7" } }, "sha512-6LUPWYgulZhp/w4kam2XHXB0QedISZIqrJbRdHLLQ3csn5a38uzKxAp6B5j6s89QFYaIJbg95kvgTRcbgpO1ow=="],
 
     "pixifact": ["pixifact@workspace:packages/pixifact"],
+
+    "pixifact-adventure-ui-demo": ["pixifact-adventure-ui-demo@workspace:sample-projects/adventure-ui-demo"],
 
     "pixifact-cli": ["pixifact-cli@workspace:packages/pixifact-cli"],
 

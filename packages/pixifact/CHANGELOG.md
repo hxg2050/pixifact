@@ -1,5 +1,11 @@
 # pixifact
 
+## 0.2.0
+
+### Minor Changes
+
+- 发布 runtime 布局与资源节点更新：新增 Rect、Image、NineImage、TileImage、ScrollContainer、GridContainer 和栈布局容器，补充 viewport 适配能力，改进 Scene 尺寸、节点移动/缩放和示例项目体验。
+
 ## 0.1.5
 
 ### Patch Changes
