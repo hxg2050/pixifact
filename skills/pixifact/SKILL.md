@@ -1,6 +1,6 @@
 ---
 name: pixifact
-description: 用于下游 Pixifact 游戏项目开发：编辑项目相对 .scene 文件（如 src/scenes/Hud.scene）、维护配对 Scene 脚本、读取 pixifact.project.json、运行 pixifact scene inspect/validate/compile-scenes，或编写 Pixifact UI、HUD、menu、轻量 Scene 和游戏代码。
+description: 用于下游 Pixifact 游戏项目开发：编辑项目相对 .scene 文件（如 src/scenes/Hud.scene）、维护配对 Scene 脚本、读取 pixifact.project.json、运行 pixifact scene inspect/validate/compile-scenes，或编写 Pixifact UI、HUD、menu、轻量 Scene、游戏代码，以及识别可用 runtime 和 .scene primitive 白名单。
 ---
 
 # Pixifact
@@ -46,6 +46,49 @@ description: 用于下游 Pixifact 游戏项目开发：编辑项目相对 .scen
 
 如果项目已有 script，优先使用 `bun run compile:scenes`、`bun run build`、`bun run dev` 等项目命令。详细 `.scene` 工作流见 `references/compiler-scene-agent.md`。
 
+## 可用节点
+
+- `pixifact/runtime` 当前可直接导入的内置 runtime 包括：`Group`、`Control`、`Rect`、`Image`、`NineImage`、`TileImage`、`GridContainer`、`HBoxContainer`、`ScrollContainer`、`VBoxContainer`、`frameLayout`、`stackLayout` 和 `viewport`。
+- `.scene` 中可直接使用的 primitive 节点以编译器白名单为准，当前包括：`Container`、`Sprite`、`NineSliceSprite`、`TilingSprite`、`Text`、`BitmapText`、`HTMLText`、`Graphics`、`Rect`、`Image`、`NineImage`、`TileImage`、`GridContainer`、`HBoxContainer`、`ScrollContainer` 和 `VBoxContainer`。
+- `Group`、`Control` 这类是 `src/` 里的 runtime / Scene 脚本基类，不是 `.scene` 里的裸标签。
+- 如果节点不在这个白名单里，不要假设它能在 `.scene` 中直接使用；先查编译器和 runtime 导出，再决定是否需要新增节点。
+
+## 核心 API
+
+只记录 AI 写 UI 时必须知道的公共契约，不展开 PixiJS 全量 API。
+
+### Scene 脚本契约
+
+- `@scene()`：标记 Scene 脚本类。
+- `@part()`：绑定 `.scene` 中稳定 `id` 的子节点。
+- `@prop()`：暴露可从父 Scene 传入的公开属性。
+- `@event()`：暴露可被 `.scene` 事件绑定调用的公开事件。
+- `@slot()`：暴露可接收子内容的插槽契约。
+- Scene 脚本类必须继承 `Group`。
+
+### runtime 关键语义
+
+- `Group`：Scene 根节点和盒子尺寸容器，`width` / `height` 表示 Pixifact 盒子尺寸，不是 Pixi bounds 语义。
+- `Control`：布局基础节点，配合 `left`、`right`、`top`、`bottom`、`horizontal`、`vertical` 做 frame layout。
+- `Rect`：纯矩形 / 圆角矩形绘制节点，常用属性是 `fillColor`、`fillAlpha`、`strokeColor`、`strokeAlpha`、`strokeWidth`、`radius`。
+- `Image`：图片盒子，常用属性是 `texture`、`fit`、`anchorX`、`anchorY`、`tint`。
+- `NineImage`：九宫格图片盒子，常用属性是 `texture`、`leftWidth`、`rightWidth`、`topHeight`、`bottomHeight`、`anchorX`、`anchorY`、`tint`。
+- `TileImage`：平铺图片盒子，常用属性是 `texture`、`tilePositionX`、`tilePositionY`、`tileScaleX`、`tileScaleY`、`tileRotation`、`anchorX`、`anchorY`、`tint`。
+- `GridContainer`：网格布局容器，常用属性是 `columns`、`gapX`、`gapY`、`alignX`、`alignY`。
+- `HBoxContainer` / `VBoxContainer`：栈布局容器，常用属性是 `gap`、`alignX` / `alignY`、`justify`。
+- `ScrollContainer`：滚动容器，常用属性是 `direction`、`scrollX`、`scrollY`。
+- `frameLayout`、`stackLayout`、`viewport`：布局和视口相关工具能力。
+
+### `.scene` primitive 重点
+
+- `Container`：唯一允许直接承载普通 child primitives 的基础容器。
+- `Sprite`：用 `texture`、`anchorX`、`anchorY`、`tint`。
+- `Text` / `BitmapText` / `HTMLText`：用 `text`、`fontSize`、`fontFamily`、`fontWeight`、`fill`。
+- `Graphics`：用 `shape`、`fill`、`fillAlpha`、`strokeColor`、`strokeWidth`、`strokeAlpha`、`radius`。
+- `Rect` / `Image` / `NineImage` / `TileImage`：优先按各自的盒子尺寸和专属 props 写，不要当成裸 Pixi 节点去猜。
+- `GridContainer`、`HBoxContainer`、`ScrollContainer`、`VBoxContainer`：都是可直接在 `.scene` 中声明的布局容器。
+- primitive 节点的可写属性以编译器 schema 为准；如果 AI 不确定某个属性是否存在，先查白名单和 schema，不要瞎编。
+
 ## 硬性规则
 
 - Scene 资产是同目录、同 basename 的文件对，例如 `src/scenes/Hud.scene` 和 `src/scenes/Hud.ts`。
@@ -61,7 +104,7 @@ description: 用于下游 Pixifact 游戏项目开发：编辑项目相对 .scen
 - 不要编辑生成的 Scene 文件，例如 `.pixifact/generated/**`、`src/generated/**`、`*.scene.generated.ts` 或 `scenes.generated.ts`。
 - 如果 validation 报告 diagnostics，修复 `.scene` 源文件后重新 validate。
 - Compiler `.scene` 文件使用 `<Scene name="...">` root。
-- Primitive `.scene` 标签是 `Container`、`Sprite`、`NineSliceSprite`、`TilingSprite`、`Text`、`BitmapText`、`HTMLText` 和 `Graphics`。
+- Primitive `.scene` 标签以编译器白名单为准，当前是 `Container`、`Sprite`、`NineSliceSprite`、`TilingSprite`、`Text`、`BitmapText`、`HTMLText`、`Graphics`、`Rect`、`Image`、`NineImage`、`TileImage`、`GridContainer`、`HBoxContainer`、`ScrollContainer` 和 `VBoxContainer`。
 - 只有 `Container` 接受直接 primitive children。子 Scene instance 只通过已声明 slot 接受 children。
 - 使用 `<slot name="..."/>` 表示 slot outlet。
 - 使用 `.scene` attribute 表达显示数据，例如 `Text text="..."`、`Sprite texture="assets/..."` 和 `Graphics shape="roundRect" fill="#ffffff"`。
@@ -75,6 +118,16 @@ description: 用于下游 Pixifact 游戏项目开发：编辑项目相对 .scen
 - `pixifact/runtime`
 - `pixifact/compiler`
 - `pixifact/compiler-node`
+
+在写 gameplay 或 UI runtime 时，优先从 `pixifact/runtime` 里选现成节点和布局能力，不要自己重复造同类节点：
+
+- 盒子与根节点：`Group`
+- 通用布局容器：`Control`
+- 轻量绘制节点：`Rect`
+- 图片类节点：`Image`、`NineImage`、`TileImage`
+- 栈与网格布局：`HBoxContainer`、`VBoxContainer`、`GridContainer`
+- 滚动容器：`ScrollContainer`
+- 其他通用能力：`frameLayout`、`stackLayout`、`viewport`
 
 只有在 Pixifact 未覆盖的底层渲染或资产行为中，才直接使用 PixiJS v8。如果任务依赖 raw PixiJS v8 API，同时使用 PixiJS skill 或官方 PixiJS v8 文档。
 
