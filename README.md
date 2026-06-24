@@ -10,9 +10,9 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力。Agent 编排、Git 分�
 
 ## 从哪里开始读
 
-- [文档入口](./docs/index.md)：按工作场景查找当前文档。
-- [Layout](./docs/LAYOUT.md)：设计分辨率、视口适配、frame layout、编辑器布局对齐。
-- [Agent Scene Authoring](./docs/AI_SCENE_AUTHORING.md)：外部 Agent 如何编辑 `.scene`。
+- [文档入口](./docs/zh/index.md)：按工作场景查找当前中文文档。
+- [Layout](./docs/zh/layout.md)：设计分辨率、视口适配、frame layout、编辑器布局对齐。
+- [Agent Scene Authoring](./docs/zh/agent-scene-authoring.md)：外部 Agent 如何编辑 `.scene`。
 - [内部文档](./internal-docs/index.md)：仓库维护、测试、发布、计划和历史规格。
 
 ## npm 快速开始
@@ -90,7 +90,7 @@ Editor 是能力增强：提供当前打开 Scene、当前选中节点、预览�
 - `left + right` 或 `top + bottom` 表示在该轴上拉伸。
 - `width` / `height` 仍表示节点自身盒子尺寸。
 
-详细规则见 [Layout](./docs/LAYOUT.md)。
+详细规则见 [Layout](./docs/zh/layout.md)。
 
 ## Runtime 节点
 

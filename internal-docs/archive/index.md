@@ -14,4 +14,4 @@
 
 ## 使用规则
 
-归档内容只提供历史上下文，不作为当前实现权威。当前维护入口以 [../index.md](../index.md) 为准，对外产品行为以 [../../docs/index.md](../../docs/index.md) 为准。
+归档内容只提供历史上下文，不作为当前实现权威。当前维护入口以 [../index.md](../index.md) 为准，对外产品行为以 [../../docs/zh/index.md](../../docs/zh/index.md) 和 [../../docs/en/index.md](../../docs/en/index.md) 为准。

@@ -3,7 +3,7 @@
 本文用于新会话快速接续 Pixifact compiler 方向。完整当前方向见：
 
 ```txt
-docs/AI_SCENE_AUTHORING.md
+docs/zh/agent-scene-authoring.md
 ```
 
 核心结论：

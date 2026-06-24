@@ -39,5 +39,5 @@
 
 - `docs/` 只放对外文档，面向下游用户和外部 Agent 使用者。
 - `internal-docs/` 放仓库维护文档，面向 Pixifact 框架开发。
-- 当前产品行为应沉淀到 [../docs/index.md](../docs/index.md) 指向的对外文档。
+- 当前产品行为应沉淀到 [../docs/zh/index.md](../docs/zh/index.md) 和 [../docs/en/index.md](../docs/en/index.md) 指向的对外文档。
 - 任务过程、测试策略、发布流程和历史规格应留在本目录。

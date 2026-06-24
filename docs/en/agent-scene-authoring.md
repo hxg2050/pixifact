@@ -1,5 +1,13 @@
 # Agent Scene Authoring
 
+Status: Active
+Authority: Rules, contracts, and validation boundaries for external agents editing Pixifact `.scene` directly
+Upstream: [./index.md](./index.md), [../../README.en.md](../../README.en.md)
+Downstream: [./layout.md](./layout.md)
+Update rule: Update when the `.scene` authoring model, CLI validation boundary, Scene script contracts, or live context behavior changes.
+
+[中文](../zh/agent-scene-authoring.md)
+
 Pixifact uses source-level agent editing as the final authoring model for compiler scenes. The target user flow is external coding agents such as Claude Code and Codex using Pixifact CLI tools. Pixifact does not need integrated AI chat or a built-in model service for this flow.
 
 Pixifact is intentionally a focused Scene capability, not a full AI IDE or project manager. It provides inspect, edit, validate, compile, preview, and diagnose support for `.scene` source. Agent orchestration, Git branches, commits, reverts, PRs, CI, and task management belong to external tools.
@@ -37,7 +45,7 @@ A compiler Scene asset is a pair of colocated files with the same basename. For 
 
 Agents should not edit `.pixifact/generated` or generated TypeScript, because generated code contains renderer details, resource loading details, temporary variables, and compiler structure that are not the user's intent.
 
-Final UI adaptation uses runtime `Control` frame layout plus runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` nodes. Do not use `FlexLayout` / `FlexItem`; they are no longer official built-ins. See [Layout](./LAYOUT.md).
+Final UI adaptation uses runtime `Control` frame layout plus runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` nodes. Do not use `FlexLayout` / `FlexItem`; they are no longer official built-ins. See [Layout](./layout.md).
 
 ## Default Direct Editing
 

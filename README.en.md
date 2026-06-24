@@ -8,6 +8,13 @@ Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestra
 
 [中文](./README.md)
 
+## Start Here
+
+- [Docs](./docs/en/index.md): public English documentation entry.
+- [Layout](./docs/en/layout.md): design resolution, viewport adaptation, frame layout, and editor layout controls.
+- [Agent Scene Authoring](./docs/en/agent-scene-authoring.md): how external agents edit `.scene` source.
+- [Internal Docs](./internal-docs/index.md): repository maintenance, testing, release, plans, and historical specs.
+
 ## npm Quick Start
 
 The first Pixifact npm packages have been published:

@@ -21,4 +21,4 @@
 
 ## 使用规则
 
-计划文件记录任务级决策、验证方式和续作入口。实现完成后，当前行为应沉淀到活跃文档，例如 [../../docs/LAYOUT.md](../../docs/LAYOUT.md) 或 [../../docs/AI_SCENE_AUTHORING.md](../../docs/AI_SCENE_AUTHORING.md)。
+计划文件记录任务级决策、验证方式和续作入口。实现完成后，当前行为应沉淀到活跃文档，例如 [../../docs/zh/layout.md](../../docs/zh/layout.md) 或 [../../docs/zh/agent-scene-authoring.md](../../docs/zh/agent-scene-authoring.md)。

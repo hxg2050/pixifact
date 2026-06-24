@@ -19,4 +19,4 @@
 
 ## 使用规则
 
-规格文件记录内部设计和执行上下文。实现完成后的对外行为应沉淀到 [../../docs/index.md](../../docs/index.md) 指向的对外文档。
+规格文件记录内部设计和执行上下文。实现完成后的对外行为应沉淀到 [../../docs/zh/index.md](../../docs/zh/index.md) 和 [../../docs/en/index.md](../../docs/en/index.md) 指向的对外文档。
