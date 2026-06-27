@@ -3,7 +3,7 @@
 状态：活跃
 权威范围：外部 Agent 直接编辑 Pixifact `.scene` 的规则、契约和校验边界
 上游文档：[./index.md](./index.md)、[../../README.md](../../README.md)
-下游文档：[./layout.md](./layout.md)
+下游文档：[./layout.md](./layout.md)、[./scene-objects.md](./scene-objects.md)
 更新规则：修改 `.scene` authoring 模型、CLI 校验边界、Scene 脚本契约或 live context 行为时更新
 
 [English](../en/agent-scene-authoring.md)
@@ -45,7 +45,7 @@ compiler Scene asset 是同目录同 basename 的一对文件。例如 `src/scen
 
 Agent 不应该编辑 `.pixifact/generated` 或生成 TypeScript。生成代码包含 renderer 细节、资源加载细节、临时变量和 compiler 结构，不代表用户意图。
 
-最终 UI 适配使用 runtime `Control` frame layout，加上 runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` 节点。不要使用 `FlexLayout` / `FlexItem`，它们不再是官方内置能力。见 [Layout](./layout.md)。
+最终 UI 适配使用 runtime `Control` frame layout，加上 runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` 节点。不要使用 `FlexLayout` / `FlexItem`，它们不再是官方内置能力。布局规则见 [Layout](./layout.md)，`.scene` 可写对象和属性见 [Scene Objects](./scene-objects.md)。
 
 ## 默认直接编辑流程
 
@@ -172,6 +172,7 @@ Validation errors 应足够明确，便于 Agent repair loop。错误应指出 n
 - 引用其他 Scenes 时使用 `.scene` paths，不要使用 bare names。
 - `.pixifact/generated` 永远不是 Agent editing target。
 - 每个 editable node 必须有 stable ID。
+- 官方基础对象和属性以 [Scene Objects](./scene-objects.md) 为准。
 - Scene script props 必须使用 `String` / `Number` / `Boolean` 或 exported struct class type。
 - Structured scene props 必须使用 dot-path `.scene` attributes，不要用 JSON strings。
 - Public Scene contracts 通过 same-file parents 或 relative named imports 继承。
@@ -223,6 +224,7 @@ Pixifact Scene asset rules:
 - The unique Scene id is the project-relative .scene path.
 - Scene names and class names are local, not globally unique.
 - Reference other Scenes with .scene paths, never bare names.
+- Use the Pixifact Scene Objects reference for official base object tags and props.
 - Do not edit .pixifact/generated.
 - Current Scene: <scene-path>
 - After editing, run:

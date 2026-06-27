@@ -108,6 +108,8 @@ Pixifact runtime 从 `pixifact/runtime` 导出当前官方基础节点：
 
 PixiJS 原生 `Container` 语义保持不变，尤其是 `width` / `height` 的 bounds / scale 语义。需要 Pixifact 盒子尺寸和 authoring 容器心智时使用 `Group` 或继承自 `Group` 的 runtime 节点。
 
+`.scene` 中可以直接使用的官方对象、通用属性、对象专属属性和示例见 [Scene Objects](./docs/zh/scene-objects.md)。
+
 ## Editor
 
 桌面编辑器负责预览、资产浏览、Scene 层级、Inspector、布局微调和 live context。它不取代代码编辑器，也不把 React state 变成项目数据源。
