@@ -3,7 +3,7 @@
 Status: Active
 Authority: Rules, contracts, and validation boundaries for external agents editing Pixifact `.scene` directly
 Upstream: [./index.md](./index.md), [../../README.en.md](../../README.en.md)
-Downstream: [./layout.md](./layout.md)
+Downstream: [./layout.md](./layout.md), [./scene-objects.md](./scene-objects.md)
 Update rule: Update when the `.scene` authoring model, CLI validation boundary, Scene script contracts, or live context behavior changes.
 
 [中文](../zh/agent-scene-authoring.md)
@@ -45,7 +45,7 @@ A compiler Scene asset is a pair of colocated files with the same basename. For 
 
 Agents should not edit `.pixifact/generated` or generated TypeScript, because generated code contains renderer details, resource loading details, temporary variables, and compiler structure that are not the user's intent.
 
-Final UI adaptation uses runtime `Control` frame layout plus runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` nodes. Do not use `FlexLayout` / `FlexItem`; they are no longer official built-ins. See [Layout](./layout.md).
+Final UI adaptation uses runtime `Control` frame layout plus runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` nodes. Do not use `FlexLayout` / `FlexItem`; they are no longer official built-ins. See [Layout](./layout.md) for layout rules and [Scene Objects](./scene-objects.md) for `.scene` object tags and props.
 
 ## Default Direct Editing
 
@@ -172,6 +172,7 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 - Reference other Scenes with `.scene` paths, never bare names.
 - `.pixifact/generated` is never an agent editing target.
 - Every editable node must have a stable ID.
+- Official base objects and props belong to [Scene Objects](./scene-objects.md).
 - Scene script props must use `String` / `Number` / `Boolean` or an exported struct class type.
 - Structured scene props must use dot-path `.scene` attributes, not JSON strings.
 - Public Scene contracts are inherited through same-file parents or relative named imports.
@@ -223,6 +224,7 @@ Pixifact Scene asset rules:
 - The unique Scene id is the project-relative .scene path.
 - Scene names and class names are local, not globally unique.
 - Reference other Scenes with .scene paths, never bare names.
+- Use the Pixifact Scene Objects reference for official base object tags and props.
 - Do not edit .pixifact/generated.
 - Current Scene: <scene-path>
 - After editing, run:

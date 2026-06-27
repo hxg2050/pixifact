@@ -12,6 +12,7 @@ Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestra
 
 - [Docs](./docs/en/index.md): public English documentation entry.
 - [Layout](./docs/en/layout.md): design resolution, viewport adaptation, frame layout, and editor layout controls.
+- [Scene Objects](./docs/en/scene-objects.md): official `.scene` object tags, props, use cases, and examples.
 - [Agent Scene Authoring](./docs/en/agent-scene-authoring.md): how external agents edit `.scene` source.
 - [Internal Docs](./internal-docs/index.md): repository maintenance, testing, release, plans, and historical specs.
 

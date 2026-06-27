@@ -6,6 +6,8 @@
 下游文档：[./layout.md](./layout.md)
 更新规则：修改 compiler Pixi node schema、Scene instance contract、slot 语法、runtime 节点或 `.scene` 校验边界时更新
 
+[English](../en/scene-objects.md)
+
 本页描述当前 `.scene` authoring 中可以直接写的对象。这里的“可用”以 `scene validate` 接受的官方 compiler Scene 节点为准。
 
 ## 基本结构
