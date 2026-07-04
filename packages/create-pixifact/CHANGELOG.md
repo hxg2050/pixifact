@@ -1,5 +1,11 @@
 # create-pixifact
 
+## 0.2.1
+
+### Patch Changes
+
+- 更新 AI-first CLI 主路径、Scene authoring 文档和 Pixifact skill 离线参考。
+
 ## 0.2.0
 
 ### Minor Changes
