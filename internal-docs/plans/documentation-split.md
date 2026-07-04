@@ -64,13 +64,10 @@ Done:
 - 已移动内部文档并新增内部入口。
 - 已更新 README、AGENTS、对外 docs 入口和内部索引。
 - 已修复 Markdown 相对链接。
-- 已更新 `skills/change-workflow` 源文件中的计划路径。
 
 Current State:
 - 文档迁移和验证完成。
-- `.agents/skills/change-workflow/SKILL.md` 是当前沙箱只读路径，未能同步；需要用户按既有流程从 `skills/change-workflow/SKILL.md` 手动复制。
 - 自动提交被当前环境阻塞：`git add` 需要创建 `.git/index.lock`，但本会话对 `.git` 只有读权限，报错 `Operation not permitted`。
 
 Next:
 1. 在具备 `.git` 写权限的环境中提交文档变更。
-2. 将 `skills/change-workflow/SKILL.md` 手动同步到 `.agents/skills/change-workflow/SKILL.md`。
