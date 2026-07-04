@@ -40,14 +40,25 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 
 `skills/change-workflow` 是仓库内通用变更流程 skill 的可维护源文件；需要在当前项目生效时，手动复制到 `.agents/skills/change-workflow`。它可在本仓库或复制到其他项目后用于规划、测试优先、验证、续作记录和提交纪律；不包含 Pixifact 专属实现细节。
 
-这个 skill 只应描述游戏项目内的 Agent 工作流和约束，例如：
+维护这个 skill 时只保留下游游戏项目里的 Agent 工作流和约束，例如：
 
 - 直接编辑项目相对 `.scene` 源文件。
 - `.scene` 与同目录同 basename 的 `.ts` 脚本配对。
 - Scene 脚本继承 `Group`，并用 `@scene()`、`@part()`、`@prop()`、`@event()`、`@slot()` 暴露契约。
 - 运行 `scene validate`、`compile-scenes` 和项目最小相关验证。
 
-不要把 Pixifact 框架仓库维护内容写进该 skill，例如 npm 发布、Changesets、Trusted Publishing、Editor 内部实现细节、内置 Scene 源码维护规则、仓库架构决策或本仓库 Git 工作流。本仓库开发任务应以本 `AGENTS.md`、`CODEX.md`、`README.md`、相关 `docs/`、`internal-docs/` 和源码为准。
+不要把以下内容写进该 skill：
+
+- Pixifact 框架仓库维护内容，例如 npm 发布、Changesets、Trusted Publishing、Editor 内部实现细节、内置 Scene 源码维护规则、仓库架构决策或本仓库 Git 工作流。
+- Pixifact 产品介绍、设计原因、路线图、历史背景或长篇解释。
+- 完整 `.scene` 对象清单、属性表、语法大全或可由 CLI 校验直接发现的细节。
+
+这些内容的权威位置是：
+
+- 下游 Agent `.scene` 工作流：`docs/zh/agent-scene-authoring.md` 和 `docs/en/agent-scene-authoring.md`。
+- `.scene` 对象和属性：`docs/zh/scene-objects.md` 和 `docs/en/scene-objects.md`。
+- CLI 主路径：`packages/pixifact-cli/README.md`。
+- 本仓库开发任务：本 `AGENTS.md`、`CODEX.md`、`README.md`、相关 `docs/`、`internal-docs/` 和源码。
 
 ## 核心架构规则
 
