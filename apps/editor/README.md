@@ -61,11 +61,7 @@ bun run pixifact -- live scene get
 bun run pixifact -- live node inspect --node 0:content/0:label
 ```
 
-完整方向见：
-
-```txt
-docs/AI_SCENE_AUTHORING.md
-```
+完整方向见 [Agent Scene Authoring](../../docs/zh/agent-scene-authoring.md) 和 [Scene Objects](../../docs/zh/scene-objects.md)。
 
 ## Scene
 

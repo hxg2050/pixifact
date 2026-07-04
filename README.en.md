@@ -18,7 +18,7 @@ Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestra
 
 ## npm Quick Start
 
-The first Pixifact npm packages have been published:
+The current Pixifact npm packages are:
 
 - `pixifact`: runtime extensions, project config, and compiler APIs.
 - `pixifact-cli`: Bun-first Scene automation CLI.
@@ -48,16 +48,6 @@ pixifact compile-scenes --project-root .
 ```
 
 `pixifact-cli` and `create-pixifact` are Bun-first tools in this release, so Bun must be installed locally.
-
-## 0.1.3 Release Notes
-
-`v0.1.3` is the first Pixifact npm release and includes:
-
-- `pixifact@0.1.3`
-- `pixifact-cli@0.1.3`
-- `create-pixifact@0.1.3`
-
-After publishing, the release was verified with `bun create pixifact npm-smoke`, `bun install`, and `bun run build` from npm registry packages.
 
 ## Core Model
 
@@ -161,7 +151,7 @@ bun run test
 Editor changes:
 
 ```bash
-bunx --no-install tsc --noEmit --strict --jsx react-jsx --moduleResolution Node --module ESNext --target ESNext --lib ESNext,DOM --experimentalDecorators --allowSyntheticDefaultImports --skipLibCheck apps/editor/src/main.tsx
+bunx --no-install tsc -p apps/editor/tsconfig.json
 bun run editor:frontend:build
 ```
 
@@ -185,7 +175,7 @@ Install from the source checkout:
 bun run skills:install
 ```
 
-Installing from npm will be provided later by a separate `pixifact-skills` package. The first npm release only includes the runtime package, CLI, and project scaffold.
+Installing skills from npm will be provided later by a separate `pixifact-skills` package. The current public npm packages only include the runtime package, CLI, and project scaffold.
 
 ## License
 

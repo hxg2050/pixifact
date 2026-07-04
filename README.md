@@ -236,7 +236,7 @@ skills/pixifact
 bun run skills:install
 ```
 
-从已发布包安装将由后续独立的 `pixifact-skills` 包提供；第一版 npm 发布只包含 runtime、CLI 和项目脚手架。
+从已发布包安装将由后续独立的 `pixifact-skills` 包提供；当前公开 npm 包只包含 runtime、CLI 和项目脚手架。
 
 ## 许可证
 
