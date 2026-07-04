@@ -42,8 +42,8 @@ bun add -d pixifact-cli
 常用 CLI：
 
 ```bash
-pixifact scene validate --project-root . --all
-pixifact compile-scenes --project-root .
+pixifact scene validate --all
+pixifact compile-scenes
 ```
 
 当前 `pixifact-cli` 和 `create-pixifact` 都是 Bun-first 工具，需要本机安装 Bun。
@@ -146,14 +146,14 @@ CLI 是外部 Agent 操作 Pixifact 项目的主入口。Pixifact 不把内置�
 常用命令：
 
 ```bash
-bun run pixifact -- summary --project-root /path/to/project
-bun run pixifact -- scene inspect --project-root /path/to/project --scene src/scenes/Button.scene
-bun run pixifact -- scene validate --project-root /path/to/project --scene src/scenes/Button.scene
-bun run pixifact -- scene validate --project-root /path/to/project --all
-bun run pixifact -- compile-scenes --project-root /path/to/project
+pixifact summary
+pixifact scene inspect --scene src/scenes/Button.scene
+pixifact scene validate --scene src/scenes/Button.scene
+pixifact scene validate --all
+pixifact compile-scenes
 ```
 
-小范围改动可以校验单个 `.scene`；批量改动或不确定影响范围时使用 `scene validate --all` 校验所有 compiler Scene。
+默认项目根目录是当前工作目录；不在项目根目录运行时再加 `--project-root <path>`。小范围改动可以校验单个 `.scene`；批量改动或不确定影响范围时使用 `scene validate --all` 校验所有 compiler Scene。
 
 Editor live context 只读：
 

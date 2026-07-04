@@ -26,8 +26,8 @@ bun add -d pixifact-cli
 然后校验和编译 `.scene` 文件：
 
 ```bash
-pixifact scene validate --project-root . --all
-pixifact compile-scenes --project-root .
+pixifact scene validate --all
+pixifact compile-scenes
 ```
 
 ## Scene 工作流

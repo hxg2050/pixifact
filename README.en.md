@@ -43,8 +43,8 @@ bun add -d pixifact-cli
 Common installed CLI commands:
 
 ```bash
-pixifact scene validate --project-root . --all
-pixifact compile-scenes --project-root .
+pixifact scene validate --all
+pixifact compile-scenes
 ```
 
 `pixifact-cli` and `create-pixifact` are Bun-first tools in this release, so Bun must be installed locally.
@@ -101,14 +101,14 @@ The CLI is the primary entry point for external agents operating on Pixifact pro
 Common commands:
 
 ```bash
-bun run pixifact -- summary --project-root /path/to/project
-bun run pixifact -- scene inspect --project-root /path/to/project --scene src/scenes/Button.scene
-bun run pixifact -- scene validate --project-root /path/to/project --scene src/scenes/Button.scene
-bun run pixifact -- scene validate --project-root /path/to/project --all
-bun run pixifact -- compile-scenes --project-root /path/to/project
+pixifact summary
+pixifact scene inspect --scene src/scenes/Button.scene
+pixifact scene validate --scene src/scenes/Button.scene
+pixifact scene validate --all
+pixifact compile-scenes
 ```
 
-Use `scene validate --all` after broad edits or when multiple `.scene` files may have changed.
+The default project root is the current working directory. Add `--project-root <path>` only when running outside the project root. Use `scene validate --all` after broad edits or when multiple `.scene` files may have changed.
 
 Read-only Editor live context:
 

@@ -62,7 +62,7 @@ Agents should follow this loop. AI-facing docs should expose this primary path f
 7. Run the smallest relevant project build or test.
 8. If Editor is running, optionally read `live scene get` for current selection, preview context, and the latest external refresh or validation result.
 
-Example commands should be run in the downstream Pixifact game project, using that project's root and scene paths.
+Example commands should be run from the downstream Pixifact game project root with project-relative scene paths. Add `--project-root <path>` only when running outside the project root.
 
 `scene validate` checks parse errors, prop names, prop value types, asset references, and public Scene instance contracts. Use `--scene` for a known target and `--all` when multiple scenes may have changed. It is the required safety check after direct `.scene` edits. Git state, commits, rollback, branch isolation, and merge strategy are intentionally outside Pixifact; external agents and developer tools should manage them directly.
 
@@ -229,11 +229,11 @@ Pixifact Scene asset rules:
 - Do not edit .pixifact/generated.
 - Current Scene: <scene-path>
 - After editing, run:
-  bun run pixifact -- scene validate --project-root <project-root> --scene <scene-path>
+  pixifact scene validate --scene <scene-path>
 - If multiple scenes changed, run:
-  bun run pixifact -- scene validate --project-root <project-root> --all
+  pixifact scene validate --all
 - Then run:
-  bun run pixifact -- compile-scenes --project-root <project-root>
+  pixifact compile-scenes
 - Finally run the smallest relevant build or test.
 ```
 
@@ -255,19 +255,19 @@ Text diff can still be available as a secondary view, but approval should be bas
 Compiler scene agent workflows should move toward these commands:
 
 ```bash
-bun run pixifact -- summary --project-root <project-root>
-bun run pixifact -- scene inspect --project-root <project-root> --scene src/scenes/Button.scene
-bun run pixifact -- scene validate --project-root <project-root> --scene src/scenes/Button.scene
-bun run pixifact -- compile-scenes --project-root <project-root>
+pixifact summary
+pixifact scene inspect --scene src/scenes/Button.scene
+pixifact scene validate --scene src/scenes/Button.scene
+pixifact compile-scenes
 ```
 
 If multiple scenes may have changed, replace single-scene validation with:
 
 ```bash
-bun run pixifact -- scene validate --project-root <project-root> --all
+pixifact scene validate --all
 ```
 
-Do not present `scene get`, `node inspect`, or `live ...` as the default AI path. They are auxiliary entries: `scene get` overlaps with `scene inspect`, `node inspect` is for known locators, and `live ...` is read-only context when the Editor is running.
+The default project root is the current working directory. Add `--project-root <path>` only when running outside the project root. Do not present `node inspect` or `live ...` as the default AI path. They are auxiliary entries: `node inspect` is for known locators, and `live ...` is read-only context when the Editor is running. File mode does not expose `scene get`; use `scene inspect` to read a Scene.
 
 Live mutation commands have been removed from the external CLI surface. The supported agent-facing mutation path is direct `.scene` source editing plus validation.
 

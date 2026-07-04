@@ -200,6 +200,66 @@ describe('Pixifact CLI', () => {
         expect(result.json.scenes).toContain('src/scenes/Button.scene');
     });
 
+    it('defaults file commands to the current working directory', async () => {
+        const projectRoot = createCompilerSceneProject();
+        const originalCwd = process.cwd();
+
+        try {
+            process.chdir(projectRoot);
+            const summary = await runCli(['summary']);
+            const inspected = await runCli([
+                'scene',
+                'inspect',
+                '--scene',
+                'src/scenes/Button.scene',
+            ]);
+            const validated = await runCli([
+                'scene',
+                'validate',
+                '--scene',
+                'src/scenes/Button.scene',
+            ]);
+
+            expect(summary.exitCode).toBe(0);
+            expect(summary.json.scenes).toContain('src/scenes/Button.scene');
+            expect(inspected.exitCode).toBe(0);
+            expect(inspected.json.scenePath).toBe('src/scenes/Button.scene');
+            expect(validated.exitCode).toBe(0);
+            expect(validated.json.scenePath).toBe('src/scenes/Button.scene');
+        } finally {
+            process.chdir(originalCwd);
+        }
+    });
+
+    it('groups help output around the AI primary path', async () => {
+        const result = await runCli(['--help']);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json).toEqual({
+            aiPrimaryCommands: [
+                'summary',
+                'scene inspect --scene <scene-path>',
+                'scene validate --scene <scene-path>',
+                'compile-scenes',
+            ],
+            aiValidationAlternatives: [
+                'scene validate --all',
+            ],
+            auxiliaryCommands: [
+                'scene create --scene <scene-path> --name <SceneName>',
+                'node inspect --scene <scene-path> --node <locator>',
+            ],
+            liveContextCommands: [
+                'live summary',
+                'live scene get',
+                'live node inspect --node <locator>',
+            ],
+            defaults: {
+                projectRoot: 'current working directory',
+            },
+        });
+    });
+
     it('includes pixifact project run config in summary without running it', async () => {
         const projectRoot = createTempProject();
         fs.writeFileSync(path.join(projectRoot, 'pixifact.project.json'), JSON.stringify({
@@ -368,6 +428,25 @@ import { Group } from 'pixifact/runtime';
                     default: {},
                 },
             },
+        });
+    });
+
+    it('does not expose duplicate scene get as a file command', async () => {
+        const projectRoot = createCompilerSceneProject();
+
+        const result = await runCli([
+            'scene',
+            'get',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'src/scenes/Button.scene',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            error: 'Unknown Pixifact CLI command "scene get".',
         });
     });
 
@@ -1101,7 +1180,7 @@ import { Group } from 'pixifact/runtime';
 
         const result = await runCli([
             'scene',
-            'get',
+            'inspect',
             '--project-root',
             projectRoot,
             '--scene',

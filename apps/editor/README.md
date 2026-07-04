@@ -42,14 +42,14 @@ bun run desktop:build
 外部 Agent 的默认流程是直接编辑 compiler `.scene` 源文件，再运行 Pixifact CLI 验证和编译：
 
 ```bash
-bun run pixifact -- summary --project-root /path/to/project
-bun run pixifact -- scene inspect --project-root /path/to/project --scene src/scenes/Main.scene
-bun run pixifact -- scene validate --project-root /path/to/project --scene src/scenes/Main.scene
-bun run pixifact -- scene validate --project-root /path/to/project --all
-bun run pixifact -- compile-scenes --project-root /path/to/project
+pixifact summary
+pixifact scene inspect --scene src/scenes/Main.scene
+pixifact scene validate --scene src/scenes/Main.scene
+pixifact scene validate --all
+pixifact compile-scenes
 ```
 
-小范围改动可以校验当前 Scene；批量改动或不确定影响范围时用 `scene validate --all` 校验所有 compiler Scene。
+默认项目根目录是当前工作目录；不在项目根目录运行时再加 `--project-root <path>`。小范围改动可以校验当前 Scene；批量改动或不确定影响范围时用 `scene validate --all` 校验所有 compiler Scene。
 
 Scene 脚本按同目录同 basename 自动配对，例如 `src/scenes/Main.scene` 与 `src/scenes/Main.ts`。不要在 `.scene` 中写 `script="..."`，不要编辑 `.pixifact/generated`。
 
@@ -126,6 +126,6 @@ bun run editor:frontend:build
 - Zustand 只保存 UI 状态，不保存 `.scene` 模板副本作为项目数据源。
 - React panel 不保存项目树副本。
 - Agent 默认直接编辑 `.scene` 文件，再通过 CLI 验证和编译。
-- Editor live bridge 只提供 summary、scene get、node inspect 等上下文能力。
+- Editor live bridge 只提供 `live summary`、`live scene get`、`live node inspect` 等上下文能力。
 - JSON 只是资产格式，不作为普通用户主编辑界面。
 - 不引入 Monaco，不做内嵌代码编辑器。

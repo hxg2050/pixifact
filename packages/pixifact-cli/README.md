@@ -15,27 +15,29 @@ bun add -d pixifact-cli
 AI 修改 `.scene` 时优先只记这条路径：
 
 ```bash
-pixifact summary --project-root .
-pixifact scene inspect --project-root . --scene src/scenes/Hud.scene
-pixifact scene validate --project-root . --scene src/scenes/Hud.scene
-pixifact compile-scenes --project-root .
+pixifact summary
+pixifact scene inspect --scene src/scenes/Hud.scene
+pixifact scene validate --scene src/scenes/Hud.scene
+pixifact compile-scenes
 ```
 
 如果多个 Scene 可能变化，把单文件校验换成：
 
 ```bash
-pixifact scene validate --project-root . --all
+pixifact scene validate --all
 ```
 
-其他命令是辅助入口：`scene create` 用于新建 Scene，`node inspect` 用于已知 locator 的节点详情，`live ...` 只在 Editor 运行时读取上下文。
+默认使用当前工作目录作为项目根目录；不在项目根目录运行时再加 `--project-root <path>`。
+
+其他命令是辅助入口：`scene create` 用于新建 Scene，`node inspect` 用于已知 locator 的节点详情，`live ...` 只在 Editor 运行时读取上下文。不要使用 `scene get`，file mode 只保留 `scene inspect`。
 
 ## Agent 工作流
 
 Codex、Claude Code 和其他 coding agent 应直接编辑 `.scene` 文件，然后运行：
 
 ```bash
-pixifact scene validate --project-root . --all
-pixifact compile-scenes --project-root .
+pixifact scene validate --all
+pixifact compile-scenes
 bun run build
 ```
 

@@ -62,7 +62,7 @@ Agent 应遵循这个循环；AI-facing 文档优先只暴露这条主路径，�
 7. 运行最小相关项目 build 或 test。
 8. 如果 Editor 正在运行，可选读取 `live scene get` 获取当前选择、预览上下文和最近一次外部刷新或校验结果。
 
-示例命令应在下游 Pixifact 游戏项目中运行，使用该项目的 root 和 scene path。
+示例命令应在下游 Pixifact 游戏项目根目录运行，使用项目相对 scene path；不在项目根目录运行时再加 `--project-root <path>`。
 
 `scene validate` 检查 parse errors、prop names、prop value types、asset references 和 public Scene instance contracts。已知目标用 `--scene`，多个 Scene 可能变化时用 `--all`。直接编辑 `.scene` 后必须执行这个安全检查。Git 状态、commit、rollback、branch isolation 和 merge strategy 不属于 Pixifact；外部 Agent 和开发工具直接管理它们。
 
@@ -229,11 +229,11 @@ Pixifact Scene asset rules:
 - Do not edit .pixifact/generated.
 - Current Scene: <scene-path>
 - After editing, run:
-  bun run pixifact -- scene validate --project-root <project-root> --scene <scene-path>
+  pixifact scene validate --scene <scene-path>
 - If multiple scenes changed, run:
-  bun run pixifact -- scene validate --project-root <project-root> --all
+  pixifact scene validate --all
 - Then run:
-  bun run pixifact -- compile-scenes --project-root <project-root>
+  pixifact compile-scenes
 - Finally run the smallest relevant build or test.
 ```
 
@@ -255,19 +255,19 @@ Text diff 仍可作为辅助视图，但审批应优先基于 semantic scene dif
 Compiler scene Agent 工作流应收敛到这些命令：
 
 ```bash
-bun run pixifact -- summary --project-root <project-root>
-bun run pixifact -- scene inspect --project-root <project-root> --scene src/scenes/Button.scene
-bun run pixifact -- scene validate --project-root <project-root> --scene src/scenes/Button.scene
-bun run pixifact -- compile-scenes --project-root <project-root>
+pixifact summary
+pixifact scene inspect --scene src/scenes/Button.scene
+pixifact scene validate --scene src/scenes/Button.scene
+pixifact compile-scenes
 ```
 
 如果多个 Scene 可能变化，把单文件校验换成：
 
 ```bash
-bun run pixifact -- scene validate --project-root <project-root> --all
+pixifact scene validate --all
 ```
 
-不要把 `scene get`、`node inspect` 或 `live ...` 作为默认 AI 主路径。它们是辅助入口：`scene get` 与 `scene inspect` 重叠，`node inspect` 只在已有 locator 时使用，`live ...` 只在 Editor 正在运行时读取上下文。
+默认项目根目录是当前工作目录；不在项目根目录运行时再加 `--project-root <path>`。不要把 `node inspect` 或 `live ...` 作为默认 AI 主路径。它们是辅助入口：`node inspect` 只在已有 locator 时使用，`live ...` 只在 Editor 正在运行时读取上下文。file mode 不提供 `scene get`，查看 Scene 使用 `scene inspect`。
 
 Live mutation commands 已从外部 CLI surface 移除。对 Agent 暴露的修改路径是直接编辑 `.scene` source，然后执行 validation。
 
