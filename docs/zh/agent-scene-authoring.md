@@ -51,15 +51,16 @@ Agent 不应该编辑 `.pixifact/generated` 或生成 TypeScript。生成代码�
 
 直接编辑源文件是默认路径，因为 Codex 和 Claude Code 已经擅长读写文件。Pixifact 的职责不是重复这些工具，而是拥有领域校验边界。
 
-Agent 应遵循这个循环：
+Agent 应遵循这个循环；AI-facing 文档优先只暴露这条主路径，其他命令作为辅助入口：
 
-1. Inspect 当前 Scene。
-2. 编辑项目相对 `.scene` 路径，例如 `src/scenes/Hud.scene`，以及用户要求的相关源资源或脚本。
-3. 对每个编辑过的 compiler Scene 运行 `scene validate`；广泛修改后运行 `scene validate --all`。
-4. 运行 `compile-scenes`。
-5. 如果 validation 或 compilation 报 diagnostics，修复 `.scene` 源文件并重跑失败命令。
-6. 运行最小相关项目 build 或 test。
-7. 如果 Editor 正在运行，可选读取 `live scene get` 获取当前选择、预览上下文和最近一次外部刷新或校验结果。
+1. 运行 `summary` 理解项目。
+2. 运行 `scene inspect` 查看目标 Scene。
+3. 编辑项目相对 `.scene` 路径，例如 `src/scenes/Hud.scene`，以及用户要求的相关源资源或脚本。
+4. 对每个编辑过的 compiler Scene 运行 `scene validate`；广泛修改后运行 `scene validate --all`。
+5. 运行 `compile-scenes`。
+6. 如果 validation 或 compilation 报 diagnostics，修复 `.scene` 源文件并重跑失败命令。
+7. 运行最小相关项目 build 或 test。
+8. 如果 Editor 正在运行，可选读取 `live scene get` 获取当前选择、预览上下文和最近一次外部刷新或校验结果。
 
 示例命令应在下游 Pixifact 游戏项目中运行，使用该项目的 root 和 scene path。
 
@@ -254,11 +255,19 @@ Text diff 仍可作为辅助视图，但审批应优先基于 semantic scene dif
 Compiler scene Agent 工作流应收敛到这些命令：
 
 ```bash
+bun run pixifact -- summary --project-root <project-root>
 bun run pixifact -- scene inspect --project-root <project-root> --scene src/scenes/Button.scene
 bun run pixifact -- scene validate --project-root <project-root> --scene src/scenes/Button.scene
-bun run pixifact -- scene validate --project-root <project-root> --all
 bun run pixifact -- compile-scenes --project-root <project-root>
 ```
+
+如果多个 Scene 可能变化，把单文件校验换成：
+
+```bash
+bun run pixifact -- scene validate --project-root <project-root> --all
+```
+
+不要把 `scene get`、`node inspect` 或 `live ...` 作为默认 AI 主路径。它们是辅助入口：`scene get` 与 `scene inspect` 重叠，`node inspect` 只在已有 locator 时使用，`live ...` 只在 Editor 正在运行时读取上下文。
 
 Live mutation commands 已从外部 CLI surface 移除。对 Agent 暴露的修改路径是直接编辑 `.scene` source，然后执行 validation。
 

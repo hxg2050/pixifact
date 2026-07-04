@@ -10,31 +10,24 @@ Pixifact Scene 自动化命令行工具。
 bun add -d pixifact-cli
 ```
 
-## 命令
+## AI 主路径
 
-查看 Scene：
+AI 修改 `.scene` 时优先只记这条路径：
 
 ```bash
+pixifact summary --project-root .
 pixifact scene inspect --project-root . --scene src/scenes/Hud.scene
-```
-
-校验单个 Scene：
-
-```bash
 pixifact scene validate --project-root . --scene src/scenes/Hud.scene
+pixifact compile-scenes --project-root .
 ```
 
-校验所有 compiler Scene：
+如果多个 Scene 可能变化，把单文件校验换成：
 
 ```bash
 pixifact scene validate --project-root . --all
 ```
 
-编译生成 Scene runtime 文件：
-
-```bash
-pixifact compile-scenes --project-root .
-```
+其他命令是辅助入口：`scene create` 用于新建 Scene，`node inspect` 用于已知 locator 的节点详情，`live ...` 只在 Editor 运行时读取上下文。
 
 ## Agent 工作流
 
