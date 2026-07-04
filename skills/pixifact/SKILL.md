@@ -12,16 +12,17 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 处理 Scene、UI、HUD、menu、layout 或视觉资产任务时，优先编辑项目相对 `.scene` 源文件。
 
 1. 读取 `package.json`、`pixifact.project.json` 和目标 `.scene` / `.ts` 文件。
-2. 读取项目摘要：
+2. 新建 Scene、添加节点、修改布局或不确定对象属性时，先读 `references/scene-objects.md`。
+3. 读取项目摘要：
    ```bash
    pixifact summary
    ```
-3. 需要结构上下文时 inspect 目标 Scene：
+4. 需要结构上下文时 inspect 目标 Scene：
    ```bash
    pixifact scene inspect --scene src/scenes/MainMenu.scene
    ```
-4. 直接编辑 `.scene`，必要时同步同名 `.ts` 脚本契约。
-5. 校验被编辑的 Scene：
+5. 直接编辑 `.scene`，必要时同步同名 `.ts` 脚本契约。
+6. 校验被编辑的 Scene：
    ```bash
    pixifact scene validate --scene src/scenes/MainMenu.scene
    ```
@@ -29,11 +30,11 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
    ```bash
    pixifact scene validate --all
    ```
-6. 校验通过后编译：
+7. 校验通过后编译：
    ```bash
    pixifact compile-scenes
    ```
-7. 运行项目最小相关检查，通常是：
+8. 运行项目最小相关检查，通常是：
    ```bash
    bun run build
    ```
@@ -55,7 +56,7 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 - 使用 `<slot name="..."/>` 表示 slot outlet。
 - Structured prop 使用 dot-path attributes，例如 `rectTransform.x="0"`；不要传 JSON string。
 - 可编辑节点必须有稳定 `id`。
-- 官方对象和属性以项目文档及 `pixifact scene validate` 为准；不要在 skill 中维护对象大全。
+- 官方对象和属性见 `references/scene-objects.md`；最终以 `pixifact scene validate` 为准。
 
 ## 游戏代码
 
