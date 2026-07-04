@@ -18,33 +18,37 @@ description: 用于下游 Pixifact 游戏项目开发：编辑项目相对 .scen
 处理 Scene、UI、HUD、menu、layout 或视觉资产任务时，优先编辑 `.scene` 源文件。
 
 1. 读取 `package.json`、`pixifact.project.json` 和目标项目相对 `.scene` 文件。
-2. 当结构重要时先 inspect Scene：
+2. 先用 CLI 读取项目摘要：
    ```bash
-   bunx --no-install pixifact scene inspect --project-root . --scene src/scenes/MainMenu.scene
+   pixifact summary
    ```
-3. 直接编辑 `.scene`。
-4. validate 每个被编辑的 Scene：
+3. 当结构重要时 inspect 目标 Scene：
    ```bash
-   bunx --no-install pixifact scene validate --project-root . --scene src/scenes/MainMenu.scene
+   pixifact scene inspect --scene src/scenes/MainMenu.scene
+   ```
+4. 直接编辑 `.scene`。
+5. validate 每个被编辑的 Scene：
+   ```bash
+   pixifact scene validate --scene src/scenes/MainMenu.scene
    ```
    如果改动范围较大或影响不确定，validate 所有 compiler Scene：
    ```bash
-   bunx --no-install pixifact scene validate --project-root . --all
+   pixifact scene validate --all
    ```
-5. validation 通过后 compile：
+6. validation 通过后 compile：
    ```bash
    bun run compile:scenes
    ```
    如果没有对应 script：
    ```bash
-   bunx --no-install pixifact compile-scenes --project-root .
+   pixifact compile-scenes
    ```
-6. 运行最小相关项目检查，通常是：
+7. 运行最小相关项目检查，通常是：
    ```bash
    bun run build
    ```
 
-如果项目已有 script，优先使用 `bun run compile:scenes`、`bun run build`、`bun run dev` 等项目命令。详细 `.scene` 工作流见 `references/compiler-scene-agent.md`。
+默认项目根目录是当前工作目录；不在项目根目录运行时再加 `--project-root <path>`。如果项目已有 script，优先使用 `bun run compile:scenes`、`bun run build`、`bun run dev` 等项目命令。详细 `.scene` 工作流见 `references/compiler-scene-agent.md`。
 
 ## 硬性规则
 
@@ -61,10 +65,10 @@ description: 用于下游 Pixifact 游戏项目开发：编辑项目相对 .scen
 - 不要编辑生成的 Scene 文件，例如 `.pixifact/generated/**`、`src/generated/**`、`*.scene.generated.ts` 或 `scenes.generated.ts`。
 - 如果 validation 报告 diagnostics，修复 `.scene` 源文件后重新 validate。
 - Compiler `.scene` 文件使用 `<Scene name="...">` root。
-- Primitive `.scene` 标签是 `Container`、`Sprite`、`NineSliceSprite`、`TilingSprite`、`Text`、`BitmapText`、`HTMLText` 和 `Graphics`。
-- 只有 `Container` 接受直接 primitive children。子 Scene instance 只通过已声明 slot 接受 children。
+- 官方基础 `.scene` 标签是 `Container`、`HBoxContainer`、`VBoxContainer`、`GridContainer`、`ScrollContainer`、`Sprite`、`NineSliceSprite`、`TilingSprite`、`Text`、`BitmapText`、`HTMLText`、`Graphics`、`Rect`、`Image`、`NineImage` 和 `TileImage`。
+- `Container`、布局容器和 `ScrollContainer` 可以接受 children。叶子节点如 `Text`、`Image`、`Rect` 不能接受 children。子 Scene instance 只通过已声明 slot 接受 children。
 - 使用 `<slot name="..."/>` 表示 slot outlet。
-- 使用 `.scene` attribute 表达显示数据，例如 `Text text="..."`、`Sprite texture="assets/..."` 和 `Graphics shape="roundRect" fill="#ffffff"`。
+- 使用 `.scene` attribute 表达显示数据，例如 `Text text="..."`、`Image texture="assets/..." fit="cover"` 和 `Rect fillColor="#ffffff"`。
 - 可编辑节点必须有稳定的 `id`。
 
 ## 游戏代码
