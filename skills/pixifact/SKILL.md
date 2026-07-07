@@ -13,16 +13,17 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 
 1. 读取 `package.json`、`pixifact.project.json` 和目标 `.scene` / `.ts` 文件。
 2. 新建 Scene、添加节点、修改布局或不确定对象属性时，先读 `references/scene-objects.md`。
-3. 读取项目摘要：
+3. 新建或修改同名 `.ts` 脚本契约、`@part()`、`@prop()`、`@event()` 或 `@slot()` 时，先读 `references/scene-script-patterns.md`。
+4. 读取项目摘要：
    ```bash
    pixifact summary
    ```
-4. 需要结构上下文时 inspect 目标 Scene：
+5. 需要结构上下文时 inspect 目标 Scene：
    ```bash
    pixifact scene inspect --scene src/scenes/MainMenu.scene
    ```
-5. 直接编辑 `.scene`，必要时同步同名 `.ts` 脚本契约。
-6. 校验被编辑的 Scene：
+6. 直接编辑 `.scene`，必要时同步同名 `.ts` 脚本契约。
+7. 校验被编辑的 Scene：
    ```bash
    pixifact scene validate --scene src/scenes/MainMenu.scene
    ```
@@ -30,11 +31,11 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
    ```bash
    pixifact scene validate --all
    ```
-7. 校验通过后编译：
+8. 校验通过后编译：
    ```bash
    pixifact compile-scenes
    ```
-8. 运行项目最小相关检查，通常是：
+9. 运行项目最小相关检查，通常是：
    ```bash
    bun run build
    ```
@@ -43,7 +44,7 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 
 ## 对象和脚本契约
 
-官方 `.scene` 对象、通用属性、对象专属属性、children 规则、slot、event 和 structured prop 写法见 `references/scene-objects.md`。不要在 `SKILL.md` 里复制完整对象清单；如果不确定某个标签或属性是否可写，先读 reference，再以 `pixifact scene validate` 为准。
+官方 `.scene` 对象、通用属性、对象专属属性、children 规则、slot、event 和 structured prop 写法见 `references/scene-objects.md`。`.scene` 与同名 `.ts` 脚本的配对模板、`@part()` / `@prop()` / `@event()` / `@slot()` 模式和常见诊断修复见 `references/scene-script-patterns.md`。不要在 `SKILL.md` 里复制完整对象清单或模板库；如果不确定某个标签、属性或脚本契约是否可写，先读 reference，再以 `pixifact scene validate` 为准。
 
 ## 硬性规则
 
