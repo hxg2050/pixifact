@@ -700,12 +700,12 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
 
     const sceneTitle = hasProject ? (
         <>
-            <span>{compilerSceneOpened ? `${currentSceneName}.scene` : currentSceneName}</span>
+            <span className="sceneTitleName">{compilerSceneOpened ? `${currentSceneName}.scene` : currentSceneName}</span>
             <span className={currentSceneDirty ? 'statusPill dirty' : 'statusPill saved'}>{currentSceneDirty ? t('dirtyUnsaved') : t('saved')}</span>
         </>
     ) : (
         <>
-            <span>{t('projectNotOpened')}</span>
+            <span className="sceneTitleName">{t('projectNotOpened')}</span>
         </>
     );
 
@@ -719,8 +719,11 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
                         <small>{t('appTagline')}</small>
                     </div>
                 </div>
-                <div className="sceneTitleBar">
-                    {sceneTitle}
+                <div className="sceneTitleBar" aria-live="polite">
+                    <span className="sceneTitleEyebrow">{hasProject ? 'Scene' : t('project')}</span>
+                    <div className="sceneTitleStack">
+                        {sceneTitle}
+                    </div>
                 </div>
                 <div className="topActions" aria-label={t('topActionsLabel')}>
                     <div className="topActionGroup">
@@ -797,7 +800,7 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
                 />
             ) : null}
             <footer className="workbenchStatusBar" aria-label={t('agentStatusTitle')} data-testid="workbench-status-bar">
-                <div className="statusBarGroup">
+                <div className={currentSceneDirty ? 'statusBarGroup isDirty' : 'statusBarGroup isSaved'}>
                     <span>{currentSceneDirty ? t('dirtyUnsaved') : t('saved')}</span>
                     <strong data-testid="save-status">{saveStatus}</strong>
                     {externalSceneSyncStatusState ? (
@@ -806,7 +809,7 @@ export function EditorApp({ onDockviewReady }: { onDockviewReady?: (api: Dockvie
                         <small>{compilerSceneOpened ? `${currentSceneName}.scene` : currentSceneName}</small>
                     )}
                 </div>
-                <div className="statusBarGroup">
+                <div className={`statusBarGroup runState-${runStatus.state}`}>
                     <span>{t('runStatusTitle')}</span>
                     <strong>{t(`runState_${runStatus.state}`)}</strong>
                     <small>{runStatus.error ?? runStatus.stderr.at(-1) ?? runStatus.stdout.at(-1) ?? runStatus.command ?? t('runLogEmpty')}</small>
