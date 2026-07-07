@@ -1,26 +1,27 @@
 :root {
-    --app-bg: #dfe3de;
-    --app-bg-deep: #cfd6d0;
-    --panel: #fbfbf7;
-    --panel-raised: #ffffff;
-    --panel-muted: #f1f3ef;
-    --panel-subtle: #e8ece7;
-    --line: #d6dcd5;
-    --line-strong: #aeb9b0;
-    --text: #1b2521;
-    --muted: #66736d;
-    --soft: #98a39d;
-    --accent: #2f6f68;
-    --accent-strong: #18564f;
-    --accent-soft: #e4f1ed;
-    --danger: #b04438;
-    --danger-soft: #fff0ed;
-    --success: #267044;
-    --success-soft: #e7f5eb;
-    --warning: #95621a;
-    --warning-soft: #fff4df;
-    --shadow: 0 18px 42px rgba(29, 37, 33, 0.16);
-    --shadow-soft: 0 1px 2px rgba(29, 37, 33, 0.08);
+    color-scheme: dark;
+    --app-bg: #0b0d0f;
+    --app-bg-deep: #0b0d0f;
+    --panel: #121519;
+    --panel-raised: #1a1e23;
+    --panel-muted: #171b20;
+    --panel-subtle: #0f1216;
+    --line: #293039;
+    --line-strong: #39424d;
+    --text: #f1f3f0;
+    --muted: #9fa8aa;
+    --soft: #6f787d;
+    --accent: #8fb7c7;
+    --accent-strong: #c4dbe4;
+    --accent-soft: #172830;
+    --danger: #db9188;
+    --danger-soft: #2b1b1c;
+    --success: #8fbea1;
+    --success-soft: #18251f;
+    --warning: #d4b96e;
+    --warning-soft: #282314;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --shadow-soft: 0 1px 1px rgba(0, 0, 0, 0.04);
     color: var(--text);
     background: var(--app-bg);
     font-family: Aptos, Geist, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
@@ -43,9 +44,7 @@ body,
 
 body {
     overflow: hidden;
-    background:
-        radial-gradient(circle at 16% 0%, rgba(47, 111, 104, 0.10), transparent 30%),
-        linear-gradient(180deg, var(--app-bg), var(--app-bg-deep));
+    background: var(--app-bg);
 }
 
 .srOnly {
@@ -66,20 +65,20 @@ textarea {
 }
 
 button {
-    min-height: 30px;
+    min-height: 24px;
     border: 1px solid var(--line-strong);
     border-radius: 7px;
     background: var(--panel-raised);
     color: var(--text);
     cursor: pointer;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 720;
     transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
 button:hover:not(:disabled):not([data-disabled]) {
     border-color: var(--accent);
-    background: #f7faf7;
+    background: #20262b;
     box-shadow: var(--shadow-soft);
 }
 
@@ -87,7 +86,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-    outline: 2px solid rgba(47, 111, 104, 0.34);
+    outline: 2px solid rgba(143, 183, 199, 0.40);
     outline-offset: 2px;
 }
 
@@ -122,10 +121,8 @@ textarea {
     width: 100%;
     height: 100%;
     min-width: 1180px;
-    grid-template-rows: 62px minmax(0, 1fr) auto 40px;
-    background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.30), transparent 180px),
-        var(--app-bg);
+    grid-template-rows: 46px minmax(0, 1fr) auto 30px;
+    background: var(--app-bg);
 }
 
 .topbar {
@@ -133,10 +130,10 @@ textarea {
     grid-template-columns: minmax(230px, 0.9fr) minmax(260px, 1fr) minmax(420px, auto);
     align-items: center;
     gap: 14px;
-    border-bottom: 1px solid rgba(29, 37, 33, 0.20);
-    background: rgba(247, 248, 244, 0.92);
-    padding: 10px 14px;
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72), 0 8px 26px rgba(29, 37, 33, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+    background: rgba(18, 21, 25, 0.94);
+    padding: 6px 10px;
+    box-shadow: none;
     z-index: 4;
 }
 
@@ -149,16 +146,16 @@ textarea {
 
 .brand .mark {
     display: flex;
-    width: 36px;
-    height: 36px;
+    width: 28px;
+    height: 28px;
     align-items: center;
     justify-content: center;
-    border: 1px solid rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 8px;
-    background: #203530;
-    color: #e8f5ef;
+    background: var(--panel-raised);
+    color: var(--text);
     font-weight: 850;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 10px 22px rgba(32, 53, 48, 0.22);
+    box-shadow: none;
 }
 
 .brand div {
@@ -168,14 +165,14 @@ textarea {
 }
 
 .brand strong {
-    font-size: 14.5px;
+    font-size: 12px;
     font-weight: 830;
 }
 
 .brand small {
     overflow: hidden;
     color: var(--muted);
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 620;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -211,15 +208,15 @@ textarea {
     display: inline-flex;
     min-width: 0;
     max-width: 240px;
-    min-height: 25px;
+    min-height: 22px;
     align-items: center;
-    border: 1px solid rgba(174, 185, 176, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.70);
-    padding: 0 10px;
+    background: rgba(255, 255, 255, 0.055);
+    padding: 0 8px;
     overflow: hidden;
     color: var(--text);
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 820;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -227,24 +224,24 @@ textarea {
 
 .statusPill {
     display: inline-flex;
-    min-height: 25px;
+    min-height: 20px;
     align-items: center;
     border: 1px solid;
-    border-radius: 8px;
-    padding: 0 8px;
-    font-size: 11px;
+    border-radius: 999px;
+    padding: 0 7px;
+    font-size: 9.5px;
     font-weight: 760;
     white-space: nowrap;
 }
 
 .statusPill.saved {
-    border-color: #b7dcc4;
+    border-color: rgba(143, 190, 161, 0.28);
     background: var(--success-soft);
     color: var(--success);
 }
 
 .statusPill.dirty {
-    border-color: #e9c37d;
+    border-color: rgba(212, 185, 110, 0.28);
     background: var(--warning-soft);
     color: var(--warning);
 }
@@ -254,24 +251,24 @@ textarea {
     min-width: 0;
     align-items: center;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
 }
 
 .topActionGroup {
     display: inline-flex;
     align-items: center;
     gap: 3px;
-    border: 1px solid rgba(174, 185, 176, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.60);
-    padding: 4px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.64);
+    background: rgba(255, 255, 255, 0.045);
+    padding: 3px;
+    box-shadow: none;
 }
 
 .topActionGroup .systemButton,
 .topActionGroup .iconButton {
-    height: 30px;
-    min-height: 30px;
+    height: 24px;
+    min-height: 24px;
     border-color: transparent;
     background: transparent;
     box-shadow: none;
@@ -279,20 +276,20 @@ textarea {
 
 .topActionGroup .systemButton:hover:not(:disabled):not([data-disabled]),
 .topActionGroup .iconButton:hover:not(:disabled):not([data-disabled]) {
-    border-color: rgba(47, 111, 104, 0.28);
+    border-color: rgba(143, 183, 199, 0.28);
     background: var(--panel-raised);
 }
 
 .topActionGroup .systemButton--primary {
     border-color: var(--accent-strong);
     background: var(--accent);
-    color: #fff;
+    color: #111111;
 }
 
 .topActionGroup .systemButton--primary:hover:not(:disabled):not([data-disabled]) {
     border-color: var(--accent-strong);
     background: var(--accent-strong);
-    color: #fff;
+    color: #111111;
 }
 
 .topActionGroup .systemButton--danger:hover:not(:disabled):not([data-disabled]) {
@@ -303,13 +300,13 @@ textarea {
 
 .languageControl {
     display: inline-flex;
-    height: 38px;
+    height: 28px;
     align-items: center;
     gap: 6px;
-    border: 1px solid rgba(174, 185, 176, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 10px;
-    background: rgba(255, 255, 255, 0.60);
-    padding: 3px 6px;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 2px 6px;
     color: var(--muted);
 }
 
@@ -321,7 +318,7 @@ textarea {
 .languageSelect .systemSelectButton {
     display: inline-flex;
     min-width: 108px;
-    height: 26px;
+    height: 24px;
     align-items: center;
     justify-content: space-between;
     border: 0;
@@ -329,7 +326,7 @@ textarea {
     background: transparent;
     color: var(--text);
     padding: 0 8px;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 760;
 }
 
@@ -344,7 +341,7 @@ textarea {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 0 10px;
+    padding: 0 8px;
 }
 
 .systemButton--withIcon {
@@ -354,7 +351,7 @@ textarea {
 .systemButton--primary {
     border-color: var(--accent-strong);
     background: var(--accent);
-    color: #fff;
+    color: #111111;
 }
 
 .systemButton--primary:hover:not(:disabled):not([data-disabled]) {
@@ -369,7 +366,7 @@ textarea {
 }
 
 .systemButton--danger {
-    border-color: #e7aaa3;
+    border-color: rgba(219, 145, 136, 0.34);
     background: var(--danger-soft);
     color: var(--danger);
 }
@@ -390,10 +387,10 @@ textarea {
 
 .iconButton {
     display: inline-flex;
-    width: 34px;
-    min-width: 34px;
-    height: 34px;
-    min-height: 34px;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
     align-items: center;
     justify-content: center;
     padding: 0;
@@ -424,7 +421,7 @@ textarea {
 
 .dockHost {
     min-height: 0;
-    padding: 8px;
+    padding: 6px;
     overflow: hidden;
 }
 
@@ -435,21 +432,21 @@ textarea {
 }
 
 .dockview-theme-light {
-    --dv-tabs-and-actions-container-height: 36px;
+    --dv-tabs-and-actions-container-height: 31px;
     --dv-tabs-and-actions-container-font-size: 12px;
     --dv-tab-font-size: 12px;
-    --dv-active-sash-color: rgba(47, 111, 104, 0.22);
+    --dv-active-sash-color: rgba(143, 183, 199, 0.28);
     --dv-active-sash-transition-delay: 0s;
     --dv-activegroup-visiblepanel-tab-background-color: var(--panel-raised);
-    --dv-activegroup-hiddenpanel-tab-background-color: #e7ebe6;
+    --dv-activegroup-hiddenpanel-tab-background-color: var(--panel-subtle);
     --dv-activegroup-visiblepanel-tab-color: var(--text);
-    --dv-activegroup-hiddenpanel-tab-color: #667487;
+    --dv-activegroup-hiddenpanel-tab-color: var(--muted);
     --dv-tabs-and-actions-container-background-color: var(--panel-subtle);
     --dv-group-view-background-color: var(--panel);
     --dv-separator-border: var(--line-strong);
-    border: 1px solid rgba(151, 164, 155, 0.86);
+    border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 10px;
-    box-shadow: 0 12px 32px rgba(29, 37, 33, 0.10);
+    box-shadow: var(--shadow);
     overflow: hidden;
 }
 
@@ -492,7 +489,7 @@ textarea {
     display: grid;
     height: 100%;
     min-height: 0;
-    grid-template-rows: auto minmax(0, 1fr) 24px;
+    grid-template-rows: auto minmax(0, 1fr) 22px;
     background: var(--panel);
 }
 
@@ -502,7 +499,7 @@ textarea {
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    background: rgba(29, 37, 33, 0.18);
+    background: rgba(0, 0, 0, 0.42);
     padding-top: 84px;
     z-index: 20;
 }
@@ -514,7 +511,7 @@ textarea {
     border: 1px solid var(--line-strong);
     border-radius: 10px;
     background: var(--panel-raised);
-    box-shadow: var(--shadow);
+    box-shadow: none;
     padding: 14px;
 }
 
@@ -560,7 +557,7 @@ textarea {
     display: grid;
     min-width: 0;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
     grid-template-areas:
         "title actions"
         "path path"
@@ -568,7 +565,7 @@ textarea {
     grid-template-columns: minmax(0, 1fr) auto;
     border-bottom: 1px solid var(--line);
     background: var(--panel-muted);
-    padding: 8px 8px 9px;
+    padding: 8px;
 }
 
 .projectShelfTitle {
@@ -589,10 +586,10 @@ textarea {
 }
 
 .projectShelfActions .systemButton {
-    width: 26px;
-    min-width: 26px;
-    height: 26px;
-    min-height: 26px;
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
+    min-height: 24px;
     border-color: transparent;
     background: transparent;
     padding: 0;
@@ -623,9 +620,9 @@ textarea {
 .projectShelfSearch input {
     width: 100%;
     min-width: 0;
-    height: 26px;
-    padding: 0 9px;
-    font-size: 12px;
+    height: 24px;
+    padding: 0 8px;
+    font-size: 11.5px;
 }
 
 .projectShelfBody {
@@ -644,7 +641,7 @@ textarea {
 
 .projectShelfTree {
     background: var(--panel);
-    padding: 7px 5px;
+    padding: 5px;
 }
 
 .projectShelfTree .systemTree [role="row"][data-selected] .projectFolderRow,
@@ -656,15 +653,15 @@ textarea {
 .projectFolderRow {
     display: flex;
     width: 100%;
-    min-height: 24px;
+    min-height: 21px;
     align-items: center;
     border-color: transparent;
     border-radius: 6px;
     background: transparent;
-    gap: 6px;
-    padding: 0 8px 0 calc(24px + var(--tree-indent, 0px));
-    color: #2d3833;
-    font-size: 12px;
+    gap: 5px;
+    padding: 0 5px 0 calc(22px + var(--tree-indent, 0px));
+    color: var(--text);
+    font-size: 11px;
     font-weight: 720;
     overflow: hidden;
     text-align: left;
@@ -673,14 +670,14 @@ textarea {
 }
 
 .projectFileIcon {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
     flex: 0 0 auto;
     color: var(--muted);
 }
 
 .projectFileIcon--folder-open {
-    color: #9b6b22;
+    color: var(--warning);
 }
 
 .projectFileIcon--file-box {
@@ -688,7 +685,7 @@ textarea {
 }
 
 .projectFileIcon--file-code {
-    color: #7b5d2b;
+    color: var(--accent-strong);
 }
 
 .projectFileName {
@@ -765,13 +762,10 @@ textarea {
     display: grid;
     min-height: 0;
     place-items: center;
-    border: 1px solid rgba(151, 164, 155, 0.86);
+    border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 10px;
-    background:
-        radial-gradient(circle at 50% 18%, rgba(47, 111, 104, 0.10), transparent 36%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(241, 243, 239, 0.92)),
-        var(--panel-muted);
-    box-shadow: 0 12px 32px rgba(29, 37, 33, 0.10);
+    background: var(--panel-muted);
+    box-shadow: none;
     overflow: hidden;
 }
 
@@ -790,11 +784,11 @@ textarea {
     place-items: center;
     border: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 12px;
-    background: #203530;
-    color: #e8f5ef;
+    background: var(--panel-raised);
+    color: var(--text);
     font-size: 24px;
     font-weight: 850;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 18px 36px rgba(32, 53, 48, 0.20);
+    box-shadow: none;
 }
 
 .welcomeCopy {
@@ -824,7 +818,7 @@ textarea {
 }
 
 .welcomeCopy span {
-    color: #34423d;
+    color: var(--text);
     font-size: 13px;
     font-weight: 700;
 }
@@ -846,21 +840,21 @@ textarea {
     align-items: center;
     gap: 8px;
     grid-template-columns: minmax(250px, 1.1fr) minmax(220px, 0.9fr) minmax(12px, 1fr) minmax(260px, 1.1fr) minmax(220px, 0.9fr);
-    border-top: 1px solid rgba(29, 37, 33, 0.18);
-    background: rgba(247, 248, 244, 0.94);
-    padding: 5px 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.075);
+    background: rgba(18, 21, 25, 0.96);
+    padding: 0 8px;
 }
 
 .statusBarGroup {
     display: grid;
     min-width: 0;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     grid-template-columns: auto minmax(80px, auto) minmax(0, 1fr);
-    border: 1px solid rgba(174, 185, 176, 0.58);
+    border: 0;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.54);
-    padding: 4px 7px;
+    background: transparent;
+    padding: 2px 7px;
 }
 
 .statusBarSpacer {
@@ -869,7 +863,7 @@ textarea {
 
 .workbenchStatusBar span {
     color: var(--muted);
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 760;
     white-space: nowrap;
 }
@@ -889,7 +883,7 @@ textarea {
 
 .workbenchStatusBar small {
     color: var(--muted);
-    font-size: 11px;
+    font-size: 10.5px;
 }
 
 .workbenchStatusBar small.saved {
@@ -901,23 +895,23 @@ textarea {
 }
 
 .statusBarGroup.isSaved {
-    border-color: rgba(38, 112, 68, 0.18);
+    border-color: transparent;
 }
 
 .statusBarGroup.isDirty {
-    border-color: rgba(149, 98, 26, 0.28);
-    background: rgba(255, 244, 223, 0.60);
+    border-color: transparent;
+    background: transparent;
 }
 
 .statusBarGroup.runState_failed {
-    border-color: rgba(176, 68, 56, 0.28);
-    background: rgba(255, 240, 237, 0.70);
+    border-color: transparent;
+    background: transparent;
 }
 
 .statusBarGroup.runState_running,
 .statusBarGroup.runState_starting {
-    border-color: rgba(47, 111, 104, 0.26);
-    background: rgba(228, 241, 237, 0.62);
+    border-color: transparent;
+    background: transparent;
 }
 
 .sceneSyncDiagnostics {
@@ -926,7 +920,7 @@ textarea {
     min-width: 0;
     overflow: auto;
     gap: 8px;
-    border-top: 1px solid #e5bd72;
+    border-top: 1px solid rgba(212, 185, 110, 0.34);
     background: var(--warning-soft);
     padding: 10px 12px;
 }
@@ -946,7 +940,7 @@ textarea {
 }
 
 .sceneSyncDiagnostics header strong {
-    color: #70440d;
+    color: var(--warning);
     font-size: 13px;
 }
 
@@ -958,7 +952,7 @@ textarea {
 
 .sceneSyncDiagnostics header small {
     flex: 0 0 auto;
-    border: 1px solid #e5bd72;
+    border: 1px solid rgba(212, 185, 110, 0.34);
     border-radius: 8px;
     background: var(--panel-raised);
     padding: 2px 8px;
@@ -978,7 +972,7 @@ textarea {
     display: grid;
     min-width: 0;
     gap: 7px;
-    border: 1px solid #ecd29a;
+    border: 1px solid rgba(212, 185, 110, 0.22);
     border-radius: 8px;
     background: var(--panel-raised);
     padding: 8px;
@@ -1006,7 +1000,7 @@ textarea {
 }
 
 .sceneSyncDiagnosticLocation span {
-    color: #70440d;
+    color: var(--warning);
     font-size: 11px;
 }
 
@@ -1043,7 +1037,7 @@ textarea {
 
 .sceneSyncDiagnosticList p {
     margin: 0;
-    color: #70440d;
+    color: var(--warning);
     font-size: 12px;
 }
 
@@ -1056,14 +1050,14 @@ textarea {
 }
 
 .sceneSyncCommands span {
-    color: #70440d;
+    color: var(--warning);
     font-size: 11px;
     font-weight: 780;
     white-space: nowrap;
 }
 
 .sceneSyncCommands code {
-    border: 1px solid #ecd29a;
+    border: 1px solid rgba(212, 185, 110, 0.22);
     border-radius: 6px;
     background: var(--panel-raised);
     padding: 4px 6px;
@@ -1090,7 +1084,7 @@ textarea {
 }
 
 .panelEmptyState strong {
-    color: #34423d;
+    color: var(--text);
     font-size: 13px;
     font-weight: 850;
 }
@@ -1127,7 +1121,7 @@ textarea {
 }
 
 .systemTree [role="row"][data-focus-visible] .nodeRow {
-    box-shadow: inset 0 0 0 1px rgba(47, 111, 104, 0.62);
+    box-shadow: inset 0 0 0 1px rgba(143, 183, 199, 0.62);
 }
 
 .systemTree [role="row"][data-selected] .nodeRow {
@@ -1146,7 +1140,7 @@ textarea {
 .nodeRow.dropTarget {
     border-color: var(--success);
     background: var(--success-soft);
-    box-shadow: inset 0 0 0 1px rgba(38, 112, 68, 0.28);
+    box-shadow: inset 0 0 0 1px rgba(143, 190, 161, 0.28);
 }
 
 .fieldDropZone {
@@ -1160,11 +1154,11 @@ textarea {
 
 .treeChevron {
     position: absolute;
-    left: calc(8px + var(--tree-indent, 0px));
-    width: 14px;
-    min-width: 14px;
-    height: 22px;
-    min-height: 22px;
+    left: calc(6px + var(--tree-indent, 0px));
+    width: 12px;
+    min-width: 12px;
+    height: 21px;
+    min-height: 21px;
     border: 0;
     background: transparent;
     color: var(--muted);
@@ -1191,14 +1185,14 @@ textarea {
 
 .nodeRow {
     display: grid;
-    min-height: 26px;
+    min-height: 21px;
     align-items: center;
     border: 1px solid transparent;
     border-radius: 6px;
     background: transparent;
-    padding: 3px 8px;
+    padding: 0 5px;
     color: var(--text);
-    font-size: 12px;
+    font-size: 11px;
     text-align: left;
 }
 
@@ -1221,7 +1215,7 @@ textarea {
 
 .nodeRow small {
     color: var(--muted);
-    font-size: 11px;
+    font-size: 9.5px;
 }
 
 .identity {
@@ -1276,7 +1270,7 @@ textarea {
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--panel-raised);
-    box-shadow: var(--shadow);
+    box-shadow: none;
     padding: 4px;
 }
 
@@ -1312,7 +1306,7 @@ textarea {
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--panel-raised);
-    box-shadow: var(--shadow);
+    box-shadow: none;
 }
 
 .nodeContextMenuGroup {
@@ -1362,7 +1356,7 @@ textarea {
 }
 
 .nodeRow.nodeDropTarget.inside {
-    box-shadow: inset 0 0 0 1px rgba(38, 112, 68, 0.42);
+    box-shadow: inset 0 0 0 1px rgba(143, 190, 161, 0.42);
 }
 
 .nodeRow.nodeDropTarget.after {
@@ -1378,13 +1372,13 @@ textarea {
     display: inline-grid;
     min-width: 0;
     align-items: center;
-    grid-template-columns: 16px minmax(0, 1fr);
-    gap: 6px;
+    grid-template-columns: 14px minmax(0, 1fr);
+    gap: 5px;
 }
 
 .nodeName .systemIcon {
-    width: 14px;
-    height: 14px;
+    width: 13px;
+    height: 13px;
     color: var(--muted);
 }
 
@@ -1402,13 +1396,13 @@ textarea {
 
 .nodeRow {
     grid-template-columns: minmax(0, 1fr) auto;
-    margin: 0 4px;
-    padding-left: calc(20px + var(--tree-indent, 0px));
+    margin: 0 3px;
+    padding-left: calc(18px + var(--tree-indent, 0px));
 }
 
 .viewportSurface {
     display: grid;
-    grid-template-rows: 42px minmax(0, 1fr);
+    grid-template-rows: 31px minmax(0, 1fr);
     overflow: hidden;
 }
 
@@ -1418,9 +1412,9 @@ textarea {
     justify-content: space-between;
     border-bottom: 1px solid var(--line);
     background: var(--panel-muted);
-    padding: 8px 10px;
+    padding: 4px 6px;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 760;
 }
 
@@ -1450,12 +1444,12 @@ textarea {
 }
 
 .viewportActions button {
-    height: 27px;
-    min-height: 27px;
+    height: 24px;
+    min-height: 24px;
     min-width: 0;
     border-color: var(--line);
     background: var(--panel-raised);
-    padding: 0 9px;
+    padding: 0 8px;
 }
 
 .viewportActions button[aria-pressed="true"] {
@@ -1469,20 +1463,16 @@ textarea {
     min-height: 0;
     align-items: stretch;
     justify-content: stretch;
-    background:
-        linear-gradient(90deg, rgba(255, 255, 255, 0.38) 1px, transparent 1px),
-        linear-gradient(rgba(255, 255, 255, 0.34) 1px, transparent 1px),
-        #d8ded8;
-    background-size: 24px 24px;
+    background: var(--panel-subtle);
     padding: 10px;
 }
 
 .stageFrame {
     width: 100%;
     height: 100%;
-    border: 1px solid rgba(78, 91, 85, 0.70);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 8px;
-    box-shadow: 0 18px 34px rgba(29, 37, 33, 0.18);
+    box-shadow: none;
     overflow: hidden;
 }
 
@@ -1514,9 +1504,8 @@ textarea {
     z-index: 0;
     width: 24000px;
     height: 24000px;
-    background-image:
-        linear-gradient(90deg, rgba(102, 115, 109, 0.28) 1px, transparent 1px),
-        linear-gradient(rgba(102, 115, 109, 0.28) 1px, transparent 1px);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M24 0H0V24' fill='none' stroke='%23ffffff' stroke-opacity='.1'/%3E%3C/svg%3E");
+    background-repeat: repeat;
     transform-origin: 0 0;
     pointer-events: none;
 }
@@ -1537,12 +1526,12 @@ textarea {
 }
 
 .compilerSceneBounds {
-    stroke: rgba(248, 250, 252, 0.95);
+    stroke: rgba(243, 241, 234, 0.86);
     stroke-width: 1.5;
 }
 
 .compilerSceneResolutionBounds {
-    stroke: rgba(47, 111, 104, 0.70);
+    stroke: rgba(143, 183, 199, 0.78);
     stroke-dasharray: 8 6;
     stroke-width: 1.5;
 }
@@ -1599,10 +1588,10 @@ textarea {
     width: min(360px, calc(100% - 20px));
     max-height: calc(100% - 20px);
     overflow: hidden;
-    border: 1px solid rgba(29, 37, 33, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 8px;
-    background: rgba(251, 251, 247, 0.95);
-    box-shadow: var(--shadow);
+    background: rgba(25, 26, 29, 0.96);
+    box-shadow: none;
     color: var(--text);
     font-size: 11px;
     pointer-events: none;
@@ -1617,7 +1606,7 @@ textarea {
 }
 
 .compilerSceneProfilerHeader {
-    border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     padding: 8px 10px;
 }
 
@@ -1631,7 +1620,7 @@ textarea {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0;
     margin: 0;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .compilerSceneProfilerFacts div {
@@ -1661,7 +1650,7 @@ textarea {
 
 .compilerSceneProfilerSummaryTitle {
     margin-bottom: 6px;
-    color: #34423d;
+    color: var(--text);
     font-weight: 700;
 }
 
@@ -1701,13 +1690,13 @@ textarea {
 
 .inspectorSection {
     border-bottom: 1px solid var(--line);
-    padding: 9px 10px 10px;
+    padding: 8px 9px;
 }
 
 .inspectorSection h3 {
-    margin: 0 0 6px;
-    color: #40504a;
-    font-size: 11px;
+    margin: 0 0 5px;
+    color: var(--muted);
+    font-size: 10.5px;
     font-weight: 850;
 }
 
@@ -1730,7 +1719,7 @@ textarea {
     display: inline-flex;
     min-height: 20px;
     align-items: center;
-    border: 1px solid #dbe3ee;
+    border: 1px solid var(--line);
     border-radius: 8px;
     padding: 0 7px;
     font-size: 11px;
@@ -1738,13 +1727,13 @@ textarea {
 }
 
 .bindingState.ok {
-    border-color: #b7dcc4;
+    border-color: rgba(143, 190, 161, 0.28);
     background: var(--success-soft);
     color: var(--success);
 }
 
 .bindingState.error {
-    border-color: #e7aaa3;
+    border-color: rgba(219, 145, 136, 0.34);
     background: var(--danger-soft);
     color: var(--danger);
 }
@@ -1780,7 +1769,7 @@ textarea {
 .fieldGrid,
 .fieldStack {
     display: grid;
-    gap: 5px;
+    gap: 4px;
 }
 
 .fieldGrid.four {
@@ -1803,17 +1792,17 @@ textarea {
 .editableFieldRow {
     display: grid;
     min-width: 0;
-    min-height: 26px;
+    min-height: 24px;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
 }
 
 .fieldRow {
-    grid-template-columns: 68px minmax(0, 1fr);
-    border: 1px solid #e6eae5;
+    grid-template-columns: 64px minmax(0, 1fr);
+    border: 1px solid var(--line);
     border-radius: 6px;
     background: var(--panel-raised);
-    padding: 3px 6px;
+    padding: 0 7px;
 }
 
 .editableFieldRow {
@@ -1823,13 +1812,10 @@ textarea {
 .editableFieldLabel {
     display: grid;
     min-width: 0;
-    grid-template-columns: 68px minmax(0, 1fr);
+    min-height: 24px;
+    grid-template-columns: 64px minmax(0, 1fr);
     align-items: center;
-    border: 1px solid #e6eae5;
-    border-radius: 6px;
-    background: var(--panel-raised);
-    gap: 5px;
-    padding: 2px 5px 2px 6px;
+    gap: 6px;
 }
 
 .fieldGrid.four .fieldRow,
@@ -1840,7 +1826,7 @@ textarea {
 
 .inspectorCompactGrid .editableFieldLabel,
 .inspectorPropGrid .editableFieldLabel {
-    grid-template-columns: minmax(52px, 0.48fr) minmax(0, 1fr);
+    grid-template-columns: minmax(56px, 0.46fr) minmax(0, 1fr);
 }
 
 .layoutAlignmentEditor {
@@ -1888,7 +1874,7 @@ textarea {
 .layoutSegmented button.isActive {
     background: var(--accent-soft);
     color: var(--accent-strong);
-    box-shadow: inset 0 0 0 1px rgba(47, 111, 104, 0.36);
+    box-shadow: inset 0 0 0 1px rgba(143, 183, 199, 0.34);
 }
 
 .editableFieldRow--wide {
@@ -1896,14 +1882,18 @@ textarea {
 }
 
 .editableFieldRow--wide .editableFieldLabel {
-    grid-template-columns: 68px minmax(0, 1fr);
+    grid-template-columns: 64px minmax(0, 1fr);
 }
 
 .fieldRow span,
 .editableFieldRow span {
+    min-width: 0;
+    overflow: hidden;
     color: var(--muted);
     font-size: 10.5px;
     font-weight: 750;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .fieldRow strong {
@@ -1982,6 +1972,8 @@ textarea {
 
 .editableFieldRow input[type="checkbox"] {
     width: 14px;
+    height: 14px;
+    min-height: 14px;
     justify-self: start;
     padding: 0;
 }
@@ -2011,7 +2003,7 @@ textarea {
     border: 1px solid var(--line);
     border-radius: 8px;
     background: var(--panel-raised);
-    box-shadow: var(--shadow);
+    box-shadow: none;
 }
 
 .systemSelectList {
@@ -2041,7 +2033,7 @@ textarea {
 }
 
 .editableFieldRow.warning {
-    border: 1px solid #f2c66d;
+    border: 1px solid rgba(212, 185, 110, 0.34);
     border-radius: 8px;
     background: var(--warning-soft);
     padding: 4px 6px;
@@ -2063,7 +2055,7 @@ textarea {
 
     .inspectorCompactGrid .editableFieldLabel,
     .inspectorPropGrid .editableFieldLabel {
-        grid-template-columns: 68px minmax(0, 1fr);
+        grid-template-columns: 64px minmax(0, 1fr);
     }
 }
 
@@ -2095,7 +2087,7 @@ textarea {
 }
 
 .errorBox {
-    border: 1px solid #e7aaa3;
+    border: 1px solid rgba(219, 145, 136, 0.34);
     background: var(--danger-soft);
     color: var(--danger);
 }
