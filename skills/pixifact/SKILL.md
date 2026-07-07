@@ -12,18 +12,20 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 处理 Scene、UI、HUD、menu、layout 或视觉资产任务时，优先编辑项目相对 `.scene` 源文件。
 
 1. 读取 `package.json`、`pixifact.project.json` 和目标 `.scene` / `.ts` 文件。
-2. 新建 Scene、添加节点、修改布局或不确定对象属性时，先读 `references/scene-objects.md`。
-3. 新建或修改同名 `.ts` 脚本契约、`@part()`、`@prop()`、`@event()` 或 `@slot()` 时，先读 `references/scene-script-patterns.md`。
-4. 读取项目摘要：
+2. 开始任何非纯查阅的 Scene 改动前，按 `references/scene-authoring-decisions.md` 做短决策；新建或大改 Scene 时先读全文。
+3. 新建 Scene、添加节点、修改布局或不确定对象属性时，先读 `references/scene-objects.md`。
+4. 涉及层级结构重组、复杂列表、overlay、slot content 或子 Scene 拆分时，先读 `references/scene-hierarchy-patterns.md`。
+5. 新建或修改同名 `.ts` 脚本契约、`@part()`、`@prop()`、`@event()` 或 `@slot()` 时，先读 `references/scene-script-patterns.md`。
+6. 读取项目摘要：
    ```bash
    pixifact summary
    ```
-5. 需要结构上下文时 inspect 目标 Scene：
+7. 需要结构上下文时 inspect 目标 Scene：
    ```bash
    pixifact scene inspect --scene src/scenes/MainMenu.scene
    ```
-6. 直接编辑 `.scene`，必要时同步同名 `.ts` 脚本契约。
-7. 校验被编辑的 Scene：
+8. 直接编辑 `.scene`，必要时同步同名 `.ts` 脚本契约。
+9. 校验被编辑的 Scene：
    ```bash
    pixifact scene validate --scene src/scenes/MainMenu.scene
    ```
@@ -31,11 +33,11 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
    ```bash
    pixifact scene validate --all
    ```
-8. 校验通过后编译：
+10. 校验通过后编译：
    ```bash
    pixifact compile-scenes
    ```
-9. 运行项目最小相关检查，通常是：
+11. 运行项目最小相关检查，通常是：
    ```bash
    bun run build
    ```
@@ -44,7 +46,7 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 
 ## 对象和脚本契约
 
-官方 `.scene` 对象、通用属性、对象专属属性、children 规则、slot、event 和 structured prop 写法见 `references/scene-objects.md`。`.scene` 与同名 `.ts` 脚本的配对模板、`@part()` / `@prop()` / `@event()` / `@slot()` 模式和常见诊断修复见 `references/scene-script-patterns.md`。不要在 `SKILL.md` 里复制完整对象清单或模板库；如果不确定某个标签、属性或脚本契约是否可写，先读 reference，再以 `pixifact scene validate` 为准。
+动手前判断见 `references/scene-authoring-decisions.md`。官方 `.scene` 对象、通用属性、对象专属属性、children 规则、slot、event 和 structured prop 写法见 `references/scene-objects.md`。层级结构组织、root 区块、layout container、scroll、overlay 和 inspect 复核见 `references/scene-hierarchy-patterns.md`。`.scene` 与同名 `.ts` 脚本的配对模板、`@part()` / `@prop()` / `@event()` / `@slot()` 模式和常见诊断修复见 `references/scene-script-patterns.md`。不要在 `SKILL.md` 里复制完整对象清单或模板库；如果不确定某个标签、属性、层级或脚本契约是否可写，先读 reference，再以 `pixifact scene validate` 为准。
 
 ## 硬性规则
 
