@@ -466,19 +466,25 @@
 | public events | 子 Scene 脚本中用 `@event()` 暴露的事件，用 `@eventName="actionName"` 绑定。 |
 | public slots | 子 Scene 脚本中用 `@slot()` 暴露的 slot，父 Scene 用子节点的 `slot="name"` 填入。 |
 
+事件绑定值是 action name。运行时会优先连接 external actions；没有对应 action 时，连接当前 root 脚本实例上的同名方法。
+
 子 Scene 脚本示例：
 
 ```ts
+import type { Container } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
+import { createEvent, event, prop, scene, slot } from 'pixifact/compiler';
+
 @scene()
 export class PrimaryButton extends Group {
     @prop({ type: String, default: 'Button' })
     text = 'Button';
 
     @event()
-    click = new EventEmitter<void>();
+    readonly click = createEvent();
 
     @slot()
-    icon!: Container;
+    readonly icon!: Container;
 }
 ```
 

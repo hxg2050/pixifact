@@ -41,48 +41,9 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 
 默认项目根是当前工作目录；不在项目根运行时再加 `--project-root <path>`。项目自己的 `bun run build`、`bun run dev` 等命令只作为后续检查或预览入口。
 
-## 可用节点
+## 对象和脚本契约
 
-- `pixifact/runtime` 当前可直接导入的内置 runtime 包括：`Group`、`Control`、`Rect`、`Image`、`NineImage`、`TileImage`、`GridContainer`、`HBoxContainer`、`ScrollContainer`、`VBoxContainer`、`frameLayout`、`stackLayout` 和 `viewport`。
-- `.scene` 中可直接使用的 primitive 节点以编译器白名单为准，当前包括：`Container`、`Sprite`、`NineSliceSprite`、`TilingSprite`、`Text`、`BitmapText`、`HTMLText`、`Graphics`、`Rect`、`Image`、`NineImage`、`TileImage`、`GridContainer`、`HBoxContainer`、`ScrollContainer` 和 `VBoxContainer`。
-- `Group`、`Control` 这类是 `src/` 里的 runtime / Scene 脚本基类，不是 `.scene` 里的裸标签。
-- 如果节点不在这个白名单里，不要假设它能在 `.scene` 中直接使用；先查编译器和 runtime 导出，再决定是否需要新增节点。
-
-## 核心 API
-
-只记录 AI 写 UI 时必须知道的公共契约，不展开 PixiJS 全量 API。
-
-### Scene 脚本契约
-
-- `@scene()`：标记 Scene 脚本类。
-- `@part()`：绑定 `.scene` 中稳定 `id` 的子节点。
-- `@prop()`：暴露可从父 Scene 传入的公开属性。
-- `@event()`：暴露可被 `.scene` 事件绑定调用的公开事件。
-- `@slot()`：暴露可接收子内容的插槽契约。
-- Scene 脚本类必须继承 `Group`。
-
-### runtime 关键语义
-
-- `Group`：Scene 根节点和盒子尺寸容器，`width` / `height` 表示 Pixifact 盒子尺寸，不是 Pixi bounds 语义。
-- `Control`：布局基础节点，配合 `left`、`right`、`top`、`bottom`、`horizontal`、`vertical` 做 frame layout。
-- `Rect`：纯矩形 / 圆角矩形绘制节点，常用属性是 `fillColor`、`fillAlpha`、`strokeColor`、`strokeAlpha`、`strokeWidth`、`radius`。
-- `Image`：图片盒子，常用属性是 `texture`、`fit`、`anchorX`、`anchorY`、`tint`。
-- `NineImage`：九宫格图片盒子，常用属性是 `texture`、`leftWidth`、`rightWidth`、`topHeight`、`bottomHeight`、`anchorX`、`anchorY`、`tint`。
-- `TileImage`：平铺图片盒子，常用属性是 `texture`、`tilePositionX`、`tilePositionY`、`tileScaleX`、`tileScaleY`、`tileRotation`、`anchorX`、`anchorY`、`tint`。
-- `GridContainer`：网格布局容器，常用属性是 `columns`、`gapX`、`gapY`、`alignX`、`alignY`。
-- `HBoxContainer` / `VBoxContainer`：栈布局容器，常用属性是 `gap`、`alignX` / `alignY`、`justify`。
-- `ScrollContainer`：滚动容器，常用属性是 `direction`、`scrollX`、`scrollY`。
-- `frameLayout`、`stackLayout`、`viewport`：布局和视口相关工具能力。
-
-### `.scene` primitive 重点
-
-- `Container`：唯一允许直接承载普通 child primitives 的基础容器。
-- `Sprite`：用 `texture`、`anchorX`、`anchorY`、`tint`。
-- `Text` / `BitmapText` / `HTMLText`：用 `text`、`fontSize`、`fontFamily`、`fontWeight`、`fill`。
-- `Graphics`：用 `shape`、`fill`、`fillAlpha`、`strokeColor`、`strokeWidth`、`strokeAlpha`、`radius`。
-- `Rect` / `Image` / `NineImage` / `TileImage`：优先按各自的盒子尺寸和专属 props 写，不要当成裸 Pixi 节点去猜。
-- `GridContainer`、`HBoxContainer`、`ScrollContainer`、`VBoxContainer`：都是可直接在 `.scene` 中声明的布局容器。
-- primitive 节点的可写属性以编译器 schema 为准；如果 AI 不确定某个属性是否存在，先查白名单和 schema，不要瞎编。
+官方 `.scene` 对象、通用属性、对象专属属性、children 规则、slot、event 和 structured prop 写法见 `references/scene-objects.md`。不要在 `SKILL.md` 里复制完整对象清单；如果不确定某个标签或属性是否可写，先读 reference，再以 `pixifact scene validate` 为准。
 
 ## 硬性规则
 
@@ -91,7 +52,8 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 - `.scene` root 使用 `<Scene name="...">`。
 - Scene 脚本类必须继承 `Group`，并使用 `@scene()` 标记。
 - `@part()` 绑定 `.scene` 中稳定 `id` 节点；`@prop()`、`@event()`、`@slot()` 暴露公开契约。
-- `.scene` 中的事件属性如 `@clicked="handlePause"` 绑定到当前 Scene 脚本实例上的同名方法；不要把它写成全局函数或生成文件逻辑。
+- `@prop()` 类型使用 `String` / `Number` / `Boolean` 或导出的 structured prop class；不要使用旧字符串类型。
+- `.scene` 中的事件属性如 `@clicked="handlePause"` 绑定 action name；运行时连接 external actions 或当前 root 脚本同名方法。不要把它写成全局函数或生成文件逻辑。
 - 不要在 `.scene` 文件中添加 `script="..."`。
 - 不要给 `@scene()` 添加 template path。
 - 引用其他 Scene 时使用 `.scene` 路径，不要使用裸名称。

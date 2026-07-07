@@ -466,19 +466,25 @@ Child Scene instance capabilities come from these sources:
 | Public events | Events exposed with `@event()` in the child Scene script; bind them with `@eventName="actionName"`. |
 | Public slots | Slots exposed with `@slot()` in the child Scene script; parent Scenes fill them with child nodes using `slot="name"`. |
 
+The event binding value is an action name. At runtime, Pixifact first connects matching external actions; if none exists, it connects a method with the same name on the current root script instance.
+
 Child Scene script example:
 
 ```ts
+import type { Container } from 'pixi.js';
+import { Group } from 'pixifact/runtime';
+import { createEvent, event, prop, scene, slot } from 'pixifact/compiler';
+
 @scene()
 export class PrimaryButton extends Group {
     @prop({ type: String, default: 'Button' })
     text = 'Button';
 
     @event()
-    click = new EventEmitter<void>();
+    readonly click = createEvent();
 
     @slot()
-    icon!: Container;
+    readonly icon!: Container;
 }
 ```
 
