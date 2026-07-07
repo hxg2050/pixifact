@@ -1,5 +1,13 @@
 # Agent Scene Authoring
 
+Status: Active
+Authority: Rules, contracts, and validation boundaries for external agents editing Pixifact `.scene` directly
+Upstream: [./index.md](./index.md), [../../README.en.md](../../README.en.md)
+Downstream: [./layout.md](./layout.md), [./scene-objects.md](./scene-objects.md)
+Update rule: Update when the `.scene` authoring model, CLI validation boundary, Scene script contracts, or live context behavior changes.
+
+[中文](../zh/agent-scene-authoring.md)
+
 Pixifact uses source-level agent editing as the final authoring model for compiler scenes. The target user flow is external coding agents such as Claude Code and Codex using Pixifact CLI tools. Pixifact does not need integrated AI chat or a built-in model service for this flow.
 
 Pixifact is intentionally a focused Scene capability, not a full AI IDE or project manager. It provides inspect, edit, validate, compile, preview, and diagnose support for `.scene` source. Agent orchestration, Git branches, commits, reverts, PRs, CI, and task management belong to external tools.
@@ -37,23 +45,24 @@ A compiler Scene asset is a pair of colocated files with the same basename. For 
 
 Agents should not edit `.pixifact/generated` or generated TypeScript, because generated code contains renderer details, resource loading details, temporary variables, and compiler structure that are not the user's intent.
 
-Final UI adaptation uses runtime `Control` frame layout plus runtime `HBoxContainer` / `VBoxContainer` stack nodes. Do not use `FlexLayout` / `FlexItem`; they are no longer official built-ins. See [Control Frame Layout](./FLEX_SCENE_LAYOUT.md).
+Final UI adaptation uses runtime `Control` frame layout plus runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` nodes. Do not use `FlexLayout` / `FlexItem`; they are no longer official built-ins. See [Layout](./layout.md) for layout rules and [Scene Objects](./scene-objects.md) for `.scene` object tags and props.
 
 ## Default Direct Editing
 
 Direct source editing is the default because Codex and Claude Code already know how to read and edit files. Pixifact's responsibility is not to duplicate those tools; Pixifact owns the domain validation boundary.
 
-Agents should follow this loop:
+Agents should follow this loop. AI-facing docs should expose this primary path first and keep other commands as auxiliary entries:
 
-1. Inspect the current scene.
-2. Edit project-relative `.scene` paths such as `src/scenes/Hud.scene` and related source assets/scripts requested by the user.
-3. Run `scene validate` on every edited compiler scene, or `scene validate --all` after broad edits.
-4. Run `compile-scenes`.
-5. If validation or compilation reports diagnostics, repair the `.scene` source and rerun the failing command.
-6. Run the smallest relevant project build or test.
-7. If Editor is running, optionally read `live scene get` for current selection, preview context, and the latest external refresh or validation result.
+1. Run `summary` to understand the project.
+2. Run `scene inspect` on the target Scene.
+3. Edit project-relative `.scene` paths such as `src/scenes/Hud.scene` and related source assets/scripts requested by the user.
+4. Run `scene validate` on every edited compiler scene, or `scene validate --all` after broad edits.
+5. Run `compile-scenes`.
+6. If validation or compilation reports diagnostics, repair the `.scene` source and rerun the failing command.
+7. Run the smallest relevant project build or test.
+8. If Editor is running, optionally read `live scene get` for current selection, preview context, and the latest external refresh or validation result.
 
-Example commands should be run in the downstream Pixifact game project, using that project's root and scene paths.
+Example commands should be run from the downstream Pixifact game project root with project-relative scene paths. Add `--project-root <path>` only when running outside the project root.
 
 `scene validate` checks parse errors, prop names, prop value types, asset references, and public Scene instance contracts. Use `--scene` for a known target and `--all` when multiple scenes may have changed. It is the required safety check after direct `.scene` edits. Git state, commits, rollback, branch isolation, and merge strategy are intentionally outside Pixifact; external agents and developer tools should manage them directly.
 
@@ -164,6 +173,7 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 - Reference other Scenes with `.scene` paths, never bare names.
 - `.pixifact/generated` is never an agent editing target.
 - Every editable node must have a stable ID.
+- Official base objects and props belong to [Scene Objects](./scene-objects.md).
 - Scene script props must use `String` / `Number` / `Boolean` or an exported struct class type.
 - Structured scene props must use dot-path `.scene` attributes, not JSON strings.
 - Public Scene contracts are inherited through same-file parents or relative named imports.
@@ -215,14 +225,15 @@ Pixifact Scene asset rules:
 - The unique Scene id is the project-relative .scene path.
 - Scene names and class names are local, not globally unique.
 - Reference other Scenes with .scene paths, never bare names.
+- Use the Pixifact Scene Objects reference for official base object tags and props.
 - Do not edit .pixifact/generated.
 - Current Scene: <scene-path>
 - After editing, run:
-  bun run pixifact -- scene validate --project-root <project-root> --scene <scene-path>
+  pixifact scene validate --scene <scene-path>
 - If multiple scenes changed, run:
-  bun run pixifact -- scene validate --project-root <project-root> --all
+  pixifact scene validate --all
 - Then run:
-  bun run pixifact -- compile-scenes --project-root <project-root>
+  pixifact compile-scenes
 - Finally run the smallest relevant build or test.
 ```
 
@@ -244,11 +255,19 @@ Text diff can still be available as a secondary view, but approval should be bas
 Compiler scene agent workflows should move toward these commands:
 
 ```bash
-bun run pixifact -- scene inspect --project-root <project-root> --scene src/scenes/Button.scene
-bun run pixifact -- scene validate --project-root <project-root> --scene src/scenes/Button.scene
-bun run pixifact -- scene validate --project-root <project-root> --all
-bun run pixifact -- compile-scenes --project-root <project-root>
+pixifact summary
+pixifact scene inspect --scene src/scenes/Button.scene
+pixifact scene validate --scene src/scenes/Button.scene
+pixifact compile-scenes
 ```
+
+If multiple scenes may have changed, replace single-scene validation with:
+
+```bash
+pixifact scene validate --all
+```
+
+The default project root is the current working directory. Add `--project-root <path>` only when running outside the project root. Do not present `node inspect` or `live ...` as the default AI path. They are auxiliary entries: `node inspect` is for known locators, and `live ...` is read-only context when the Editor is running. File mode does not expose `scene get`; use `scene inspect` to read a Scene.
 
 Live mutation commands have been removed from the external CLI surface. The supported agent-facing mutation path is direct `.scene` source editing plus validation.
 

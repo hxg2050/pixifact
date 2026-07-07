@@ -1736,6 +1736,54 @@ textarea {
     grid-template-columns: minmax(52px, 0.48fr) minmax(0, 1fr);
 }
 
+.layoutAlignmentEditor {
+    display: grid;
+    gap: 8px;
+}
+
+.layoutAlignmentGroup {
+    display: grid;
+    gap: 5px;
+}
+
+.layoutAlignmentTitle {
+    color: var(--muted);
+    font-size: 10.5px;
+    font-weight: 750;
+}
+
+.layoutSegmented {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: #dfe7f0;
+    padding: 1px;
+}
+
+.layoutSegmented button {
+    min-width: 0;
+    height: 24px;
+    border: 0;
+    border-radius: 4px;
+    background: #fff;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 10.5px;
+    font-weight: 750;
+}
+
+.layoutSegmented button:hover {
+    background: #f8fafc;
+}
+
+.layoutSegmented button.isActive {
+    background: #ecfdf3;
+    color: #087b32;
+    box-shadow: inset 0 0 0 1px #86efac;
+}
+
 .editableFieldRow--wide {
     grid-column: 1 / -1;
 }

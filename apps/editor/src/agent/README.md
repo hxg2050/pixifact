@@ -22,13 +22,13 @@ ws://127.0.0.1:8791/pixifact-agent
 文件模式：
 
 ```bash
-bun run pixifact -- summary --project-root /path/to/project
-bun run pixifact -- scene inspect --project-root /path/to/project --scene src/scenes/Main.scene
-bun run pixifact -- scene validate --project-root /path/to/project --scene src/scenes/Main.scene
-bun run pixifact -- compile-scenes --project-root /path/to/project
+pixifact summary
+pixifact scene inspect --scene src/scenes/Main.scene
+pixifact scene validate --scene src/scenes/Main.scene
+pixifact compile-scenes
 ```
 
-Scene 脚本由同目录同名 `.ts` 自动配对，例如 `src/scenes/Main.scene` 和 `src/scenes/Main.ts`。不要在 `.scene` 中写 `script="..."`，也不要编辑 `.pixifact/generated`。
+默认项目根目录是当前工作目录；不在项目根目录运行时再加 `--project-root <path>`。Scene 脚本由同目录同名 `.ts` 自动配对，例如 `src/scenes/Main.scene` 和 `src/scenes/Main.ts`。不要在 `.scene` 中写 `script="..."`，也不要编辑 `.pixifact/generated`。
 
 Live mode：
 

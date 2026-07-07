@@ -67,6 +67,14 @@ function requireFlag(flags: Record<string, string | true>, name: string) {
     return value;
 }
 
+function projectRootFlag(flags: Record<string, string | true>) {
+    const value = flags['project-root'];
+    if (value === undefined) {
+        return process.cwd();
+    }
+    return requireFlag(flags, 'project-root');
+}
+
 function jsonLine(value: unknown) {
     return `${JSON.stringify(value, null, 2)}\n`;
 }
@@ -199,9 +207,9 @@ function sourcePositionFromMessage(source: string, message: string) {
 
 async function executeFileCommand(positionals: string[], flags: Record<string, string | true>, automation: Automation) {
     const [area, action] = positionals;
+    const projectRoot = projectRootFlag(flags);
 
     if (area === 'compile-scenes' && action === undefined) {
-        const projectRoot = typeof flags['project-root'] === 'string' ? flags['project-root'] : process.cwd();
         try {
             await compileScenes({ projectRoot });
         } catch (error) {
@@ -215,20 +223,13 @@ async function executeFileCommand(positionals: string[], flags: Record<string, s
 
     if (area === 'summary' && action === undefined) {
         return automation.getProjectSummary({
-            projectRoot: requireFlag(flags, 'project-root'),
-        });
-    }
-
-    if (area === 'scene' && action === 'get') {
-        return automation.inspectCompilerScene({
-            projectRoot: requireFlag(flags, 'project-root'),
-            scenePath: requireFlag(flags, 'scene'),
+            projectRoot,
         });
     }
 
     if (area === 'scene' && action === 'create') {
         return automation.createScene({
-            projectRoot: requireFlag(flags, 'project-root'),
+            projectRoot,
             scenePath: requireFlag(flags, 'scene'),
             name: requireFlag(flags, 'name'),
         });
@@ -236,7 +237,7 @@ async function executeFileCommand(positionals: string[], flags: Record<string, s
 
     if (area === 'scene' && action === 'inspect') {
         return automation.inspectCompilerScene({
-            projectRoot: requireFlag(flags, 'project-root'),
+            projectRoot,
             scenePath: requireFlag(flags, 'scene'),
         });
     }
@@ -247,18 +248,18 @@ async function executeFileCommand(positionals: string[], flags: Record<string, s
                 throw new Error('Use either --all or --scene, not both.');
             }
             return automation.validateAllCompilerScenes({
-                projectRoot: requireFlag(flags, 'project-root'),
+                projectRoot,
             });
         }
         return automation.validateCompilerScene({
-            projectRoot: requireFlag(flags, 'project-root'),
+            projectRoot,
             scenePath: requireFlag(flags, 'scene'),
         });
     }
 
     if (area === 'node' && action === 'inspect') {
         return automation.inspectNode({
-            projectRoot: requireFlag(flags, 'project-root'),
+            projectRoot,
             scenePath: requireFlag(flags, 'scene'),
             node: requireFlag(flags, 'node'),
         });
@@ -299,19 +300,27 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
             return {
                 exitCode: 0,
                 stdout: jsonLine({
-                    commands: [
-                        'compile-scenes',
+                    aiPrimaryCommands: [
                         'summary',
-                        'scene create',
-                        'scene get',
-                        'scene inspect',
-                        'scene validate',
+                        'scene inspect --scene <scene-path>',
+                        'scene validate --scene <scene-path>',
+                        'compile-scenes',
+                    ],
+                    aiValidationAlternatives: [
                         'scene validate --all',
-                        'node inspect',
+                    ],
+                    auxiliaryCommands: [
+                        'scene create --scene <scene-path> --name <SceneName>',
+                        'node inspect --scene <scene-path> --node <locator>',
+                    ],
+                    liveContextCommands: [
                         'live summary',
                         'live scene get',
-                        'live node inspect',
+                        'live node inspect --node <locator>',
                     ],
+                    defaults: {
+                        projectRoot: 'current working directory',
+                    },
                 }),
                 stderr: '',
             };

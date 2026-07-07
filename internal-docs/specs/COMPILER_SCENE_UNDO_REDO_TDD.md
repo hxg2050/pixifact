@@ -2,7 +2,7 @@
 
 本文档定义 compiler `.scene` 撤销 / 重做能力的测试驱动实施计划。
 
-行为规格见 [COMPILER_SCENE_UNDO_REDO_BDD.md](./COMPILER_SCENE_UNDO_REDO_BDD.md)。全局 TDD 规范见 [TDD.md](./TDD.md)。
+行为规格见 [COMPILER_SCENE_UNDO_REDO_BDD.md](./COMPILER_SCENE_UNDO_REDO_BDD.md)。全局 TDD 规范见 [TDD.md](../testing/TDD.md)。
 
 ## 1. 测试边界
 

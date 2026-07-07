@@ -1,6 +1,6 @@
 # Pixifact Compiler Notes
 
-本文是早期 compiler 讨论的归档入口，不再作为实施计划。当前 Agent authoring 方向以 [Agent Scene Authoring](./AI_SCENE_AUTHORING.md) 为准。
+本文是早期 compiler 讨论的归档入口，不再作为实施计划。当前 Agent authoring 方向以 [Agent Scene Authoring](../../docs/zh/agent-scene-authoring.md) 为准。
 
 当前结论：
 
@@ -13,7 +13,7 @@
 后续设计和实现请更新：
 
 ```txt
-docs/AI_SCENE_AUTHORING.md
-docs/BDD.md
-docs/TDD.md
+docs/zh/agent-scene-authoring.md
+internal-docs/testing/BDD.md
+internal-docs/testing/TDD.md
 ```
