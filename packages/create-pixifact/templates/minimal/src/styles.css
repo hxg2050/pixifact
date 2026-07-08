@@ -11,6 +11,10 @@ body {
     background: #10131d;
 }
 
+#game {
+    overflow: hidden;
+}
+
 canvas {
     display: block;
 }
