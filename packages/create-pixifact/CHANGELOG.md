@@ -1,5 +1,11 @@
 # create-pixifact
 
+## 0.2.2
+
+### Patch Changes
+
+- 修复 minimal 模板运行时屏幕适配，按项目 `resolution` / `viewport` resize Pixi renderer 并应用 Pixifact viewport layout。
+
 ## 0.2.1
 
 ### Patch Changes
