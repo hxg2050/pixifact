@@ -60,6 +60,17 @@ describe('create-pixifact scaffold', () => {
         expect(await readProjectFile(projectRoot, 'src/scenes/MainMenu.scene')).not.toContain('script=');
         expect(await readProjectFile(projectRoot, 'src/scenes/MainMenu.ts')).toContain('export class MainMenu');
         expect(await readProjectFile(projectRoot, 'src/scenes/MainMenu.ts')).toContain('extends Group');
+        const mainSource = await readProjectFile(projectRoot, 'src/main.ts');
+        expect(mainSource).toContain("from '../pixifact.project.json'");
+        expect(mainSource).toContain('calculatePixifactViewportLayout');
+        expect(mainSource).toContain('applyPixifactViewportLayout');
+        expect(mainSource).toContain('new ResizeObserver(resizeViewport)');
+        expect(JSON.parse(await readProjectFile(projectRoot, 'tsconfig.json'))).toMatchObject({
+            compilerOptions: {
+                resolveJsonModule: true,
+                allowSyntheticDefaultImports: true,
+            },
+        });
         expect(JSON.parse(await readProjectFile(projectRoot, 'pixifact.project.json'))).toMatchObject({
             name: 'My Game',
             resolution: {
