@@ -47,7 +47,7 @@ An `@scene()` class must be constructable without arguments and must not declare
 
 Agents should not edit `.pixifact/generated` or generated TypeScript, because generated code contains renderer details, resource loading details, temporary variables, and compiler structure that are not the user's intent.
 
-Final UI adaptation uses runtime `Control` frame layout plus runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` nodes. Do not use `FlexLayout` / `FlexItem`; they are no longer official built-ins. See [Layout](./layout.md) for layout rules and [Scene Objects](./scene-objects.md) for `.scene` object tags and props.
+Final UI adaptation uses explicit `<Group>` box sizes and runtime `Control` frame layout plus runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` nodes. `Container` retains native Pixi bounds / scale size semantics. Do not use `FlexLayout` / `FlexItem`; they are no longer official built-ins. See [Layout](./layout.md) for layout rules and [Scene Objects](./scene-objects.md) for `.scene` object tags and props.
 
 ## Default Direct Editing
 

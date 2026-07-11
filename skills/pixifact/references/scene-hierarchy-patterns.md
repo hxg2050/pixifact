@@ -51,13 +51,14 @@ Scene Main
 合理容器理由：
 
 - 分组移动、缩放、显隐或排序。
+- 需要稳定的盒子宽高或 frame layout 时使用 `Group`。
 - 隔离层级，例如 content / overlay / modal。
 - 使用 layout container 排列子节点。
 - `ScrollContainer` 裁剪和滚动内容。
 - 子 Scene 的 slot outlet host。
 - 复用组件边界。
 
-没有职责的空壳 `Container` 不要加。容器名字应该说明职责，例如 `resourceRow`、`contentLayer`、`questList`，不要只叫 `group1`。
+没有职责的空壳 `Container` 或 `Group` 不要加。容器名字应该说明职责，例如 `resourceRow`、`contentLayer`、`questList`，不要只叫 `group1`。
 
 ## 叶子节点不是容器
 
@@ -88,10 +89,10 @@ Graphics
 正确：
 
 ```xml
-<Container id="buttonGroup" width="180" height="64">
+<Group id="buttonGroup" width="180" height="64">
   <Rect id="buttonBack" left="0" right="0" top="0" bottom="0" radius="12" fillColor="#2563eb" />
   <Text id="label" text="Start" x="48" y="18" fontSize="24" fill="#ffffff" />
-</Container>
+</Group>
 ```
 
 更可复用时，拆成 `PrimaryButton.scene`。

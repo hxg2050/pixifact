@@ -23,7 +23,7 @@
 | `width` | number | 可选。Scene 设计宽度。 |
 | `height` | number | 可选。Scene 设计高度。 |
 
-`Group` 和 `Control` 是 runtime 类型，不是可直接写的 `.scene` 标签。需要容器时用 `Container`、布局容器、子 Scene 实例，或项目自己的 Scene 脚本。
+`<Group>` 是可直接写的 Pixifact 盒子容器；它的 `width` / `height` 使用稳定的 Pixifact 盒子尺寸语义，也支持 frame layout。`<Container>` 保持 PixiJS 原生 bounds / scale 尺寸语义，适合纯分组。`<Control>` 是 runtime 布局基类，不能直接写成 `.scene` 标签。
 
 不要在 `<Scene>` 上写 `class="..."` 或 `script="..."`。Scene 脚本由同目录同 basename 的 `.ts` 文件和其中的 `@scene()` class 推断。
 
@@ -103,6 +103,7 @@
 
 | 对象 | 可放子节点 | 适合场景 |
 | --- | --- | --- |
+| `Group` | 是 | 有明确宽高、需要 frame layout 的普通盒子容器。 |
 | `Container` | 是 | 轻量分组、统一移动、显示隐藏、排序。 |
 | `HBoxContainer` | 是 | 横向按钮组、工具栏、图标加数字。 |
 | `VBoxContainer` | 是 | 纵向菜单、列表、表单项。 |
@@ -122,11 +123,27 @@
 
 叶子节点不能放 children。需要把文字放到背景上时，用容器或子 Scene 包起来，不要把 `Text` 写进 `Image`、`Rect`、`NineImage` 等叶子节点里。
 
+## Group
+
+`Group` 是 Pixifact 盒子容器，继承 `Container`。它可以放子节点，`width` / `height` 是明确的开发坐标盒子尺寸，不会因为子节点 bounds 或缩放而改变。需要普通容器同时固定宽高或使用 frame layout 时，直接使用 `<Group>`。
+
+专属属性：无，只使用通用属性。
+
+`Group` 不绘制背景，也不自动排列子节点。需要背景时放入 `Rect`、`Image` 或 `NineImage`；需要自动排列时使用 `HBoxContainer`、`VBoxContainer` 或 `GridContainer`。
+
+```xml
+<Group id="rewardPanel" left="24" right="24" top="160" height="140">
+  <Rect id="background" left="0" right="0" top="0" bottom="0" radius="16" fillColor="#1f2937" />
+  <Image id="coinIcon" texture="assets/icons/coin.png" x="24" y="46" width="48" height="48" />
+  <Text id="coinAmount" text="+120" x="84" y="54" fontSize="28" fill="#ffd166" />
+</Group>
+```
+
 ## Container
 
 `Container` 是 PixiJS 原生容器。专属属性：无，只使用通用属性。
 
-`Container.width` / `Container.height` 保持 Pixi 原生 bounds / scale 语义，不是 Pixifact 盒子尺寸。需要稳定盒子尺寸时，优先使用布局容器、`Rect`、`Image`、`NineImage`、`TileImage` 或继承 `Group` 的项目 Scene。
+`Container.width` / `Container.height` 保持 Pixi 原生 bounds / scale 语义，不是 Pixifact 盒子尺寸。需要稳定盒子尺寸和 frame layout 时，使用 `<Group>` 或布局容器。
 
 ```xml
 <Container id="rewardLayer" x="24" y="160" zIndex="10">
@@ -504,7 +521,6 @@ export class RewardCard extends Group {
 
 | 标签 | 说明 |
 | --- | --- |
-| `Group` | runtime 根和脚本基类，不是 `.scene` 标签。 |
 | `Control` | runtime 布局基类，不是 `.scene` 标签。 |
 | `Mesh` | parser 底层类型中仍有遗留入口，但不在官方可新增和校验支持列表中。 |
 | `DOMContainer` | parser 底层类型中仍有遗留入口，但不在官方可新增和校验支持列表中。 |

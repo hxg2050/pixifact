@@ -252,7 +252,7 @@ function validatePixiNode(
             prop: 'children',
             expected: 'no child nodes',
             actual: `${node.children.length} ${node.children.length === 1 ? 'child node' : 'child nodes'}`,
-            hint: `${node.type} is a leaf drawing node. Wrap it and sibling content in a Container or Group Scene.`,
+            hint: `${node.type} is a leaf drawing node. Wrap it and sibling content in a <Container> or <Group>.`,
         });
     }
     const knownProps = new Set<string>([

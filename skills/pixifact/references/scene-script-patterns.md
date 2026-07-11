@@ -35,7 +35,7 @@ export class Hud extends Group {}
 `.scene` 负责：
 
 - 视觉结构、层级、布局、文本、图片和静态显示属性。
-- 官方基础对象和项目子 Scene instance。
+- 官方基础对象（包括用于明确盒子尺寸的 `Group`）和项目子 Scene instance。
 - slot 填充和 event wiring，例如 `@click="startGame"`。
 
 `.ts` 负责：

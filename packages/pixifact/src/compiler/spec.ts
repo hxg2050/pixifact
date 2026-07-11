@@ -1,4 +1,5 @@
 export type SceneTemplatePrimitiveType =
+    | 'Group'
     | 'Container'
     | 'Sprite'
     | 'Text'

@@ -299,15 +299,18 @@ describe('compiler scene document controller undo redo', () => {
     it('adds runtime layout container nodes using the hierarchy context target rules', () => {
         loadTemplate();
 
+        const groupTemplateItem = pixiNodeTemplateLibrary.find((item) => item.name === 'Group');
         const templateItem = pixiNodeTemplateLibrary.find((item) => item.name === 'VBoxContainer');
         const gridTemplateItem = pixiNodeTemplateLibrary.find((item) => item.name === 'GridContainer');
         const scrollTemplateItem = pixiNodeTemplateLibrary.find((item) => item.name === 'ScrollContainer');
+        expect(groupTemplateItem).toBeDefined();
         expect(templateItem).toBeDefined();
         expect(gridTemplateItem).toBeDefined();
         expect(scrollTemplateItem).toBeDefined();
         expect(nodeTemplateLibraryGroups.map((group) => group.titleKey)).toEqual([
             'addPixiNodeGroup',
         ]);
+        expect(nodeTemplateLibraryGroups[0].items).toContain(groupTemplateItem);
         expect(nodeTemplateLibraryGroups[0].items).toContain(templateItem);
         expect(nodeTemplateLibraryGroups[0].items).toContain(gridTemplateItem);
         expect(nodeTemplateLibraryGroups[0].items).toContain(scrollTemplateItem);

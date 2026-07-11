@@ -1827,6 +1827,15 @@ describe('project file tree service', () => {
     it('creates compiler Pixi basic nodes with type defaults', () => {
         const template = parseSceneTemplate('<Scene name="Library" />');
 
+        expect(createCompilerPixiTemplateNode(template, 'Group')).toMatchObject({
+            kind: 'pixi',
+            type: 'Group',
+            props: {
+                width: 100,
+                height: 100,
+            },
+            children: [],
+        });
         expect(createCompilerPixiTemplateNode(template, 'Rect')).toMatchObject({
             kind: 'pixi',
             type: 'Rect',

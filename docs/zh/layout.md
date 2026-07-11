@@ -60,7 +60,7 @@ Pixifact runtime 增加盒子尺寸心智：
 - `Control extends Group`，是布局基础类型，支持 frame layout 属性。
 - `Rect`、`Image`、`NineImage`、`TileImage` 不是容器，但也支持 frame layout 属性。
 
-`Control` 是 runtime 类型，不是内置 Scene。不要在 `.scene` 中写裸 `<Control>`。需要容器时使用 `Group` 派生的具体 runtime 节点、子 Scene 实例，或项目自己的 Scene 脚本。
+`<Group>` 可直接写在 `.scene` 中，用于普通盒子容器。`Control` 是 runtime 布局基类，不是内置 Scene；不要在 `.scene` 中写裸 `<Control>`。需要自动排列时使用具体布局容器、子 Scene 实例或项目自己的 Scene 脚本。
 
 ## Frame Layout
 

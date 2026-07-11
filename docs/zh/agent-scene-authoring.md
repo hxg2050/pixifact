@@ -47,7 +47,7 @@ compiler Scene asset 是同目录同 basename 的一对文件。例如 `src/scen
 
 Agent 不应该编辑 `.pixifact/generated` 或生成 TypeScript。生成代码包含 renderer 细节、资源加载细节、临时变量和 compiler 结构，不代表用户意图。
 
-最终 UI 适配使用 runtime `Control` frame layout，加上 runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` 节点。不要使用 `FlexLayout` / `FlexItem`，它们不再是官方内置能力。布局规则见 [Layout](./layout.md)，`.scene` 可写对象和属性见 [Scene Objects](./scene-objects.md)。
+最终 UI 适配使用 `<Group>` 的明确盒子尺寸和 runtime `Control` frame layout，加上 runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` 节点。`Container` 保留 Pixi 原生的 bounds / scale 尺寸语义。不要使用 `FlexLayout` / `FlexItem`，它们不再是官方内置能力。布局规则见 [Layout](./layout.md)，`.scene` 可写对象和属性见 [Scene Objects](./scene-objects.md)。
 
 ## 默认直接编辑流程
 

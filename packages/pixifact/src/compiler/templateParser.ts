@@ -17,6 +17,7 @@ interface XmlElement {
 }
 
 const pixiTypes = new Set<string>([
+    'Group',
     'Container',
     'Sprite',
     'Text',

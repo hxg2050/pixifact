@@ -53,6 +53,7 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 - `.scene` 是 authored visual structure、hierarchy、layout、text、image、子 Scene instance、slot 和 event wiring 的 source of truth。
 - Scene 资产是同目录、同 basename 的文件对，例如 `src/scenes/Hud.scene` 和 `src/scenes/Hud.ts`。
 - `.scene` root 使用 `<Scene name="...">`。
+- `<Group>` 用于有明确宽高或 frame layout 的普通盒子容器；`Container` 保持 Pixi 原生 bounds / scale 尺寸语义。
 - Scene 脚本类必须继承 `Group`，并使用 `@scene()` 标记。
 - Scene 脚本类不能声明构造参数；构造函数和 `onMounted()` 只处理节点树与本地 UI 状态，运行数据通过显式方法在构造后传入。
 - `@part()` 绑定 `.scene` 中稳定 `id` 节点；`@prop()`、`@event()`、`@slot()` 暴露公开契约。

@@ -25,7 +25,7 @@ const spriteProps = new Set<string>(pixiSceneSpriteLikeProps);
 const graphicsProps = new Set<string>(pixiSceneGraphicsProps);
 const rectProps = new Set<string>(pixiSceneRectProps);
 const textStyleProps = new Set<string>(pixiSceneTextStyleProps);
-const runtimeNodeTypes = new Set<SceneTemplatePrimitiveType>(['GridContainer', 'HBoxContainer', 'ScrollContainer', 'VBoxContainer', 'Rect', 'Image', 'NineImage', 'TileImage']);
+const runtimeNodeTypes = new Set<SceneTemplatePrimitiveType>(['Group', 'GridContainer', 'HBoxContainer', 'ScrollContainer', 'VBoxContainer', 'Rect', 'Image', 'NineImage', 'TileImage']);
 const runtimeNodeProps = new Set<string>(['columns', 'gap', 'gapX', 'gapY', 'alignX', 'alignY', 'justify', 'direction', 'scrollX', 'scrollY']);
 
 export function compileSceneTemplateToTs(template: SceneTemplate, options: CompileSceneTemplateOptions = {}) {
@@ -102,7 +102,7 @@ class CompileContext {
             ...[...this.#imports].filter((item) => item !== 'Container').sort(),
             ...[...this.#pixiImports].sort(),
         ])];
-        const runtimeImports = ['Group', ...[...this.#pixiRuntimeImports].sort()];
+        const runtimeImports = [...new Set(['Group', ...[...this.#pixiRuntimeImports].sort()])];
         const lines = [`import { ${imports.join(', ')} } from 'pixi.js';`, `import { ${runtimeImports.join(', ')} } from 'pixifact/runtime';`];
         for (const [texture, variable] of this.#textureImportEntries()) {
             lines.push(`import ${variable} from ${JSON.stringify(this.options.textureImports?.[texture])};`);

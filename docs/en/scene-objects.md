@@ -31,7 +31,7 @@ Every `.scene` file must use `<Scene>` as its root:
 | `width` | number | Optional Scene design width. If omitted, an entry Scene can use the project default resolution. |
 | `height` | number | Optional Scene design height. If omitted, an entry Scene can use the project default resolution. |
 
-`Group` and `Control` are runtime types, not direct `.scene` tags. Do not write `<Group>` or `<Control>`. Use `Container`, layout containers, child Scene instances, or project Scene scripts when you need containers.
+`<Group>` is a direct Pixifact box container. Its `width` / `height` use stable Pixifact box-size semantics and it supports frame layout. `<Container>` keeps native PixiJS bounds / scale size semantics for pure grouping. `<Control>` remains a runtime layout base type and cannot be written directly as a `.scene` tag.
 
 ## Value Types
 
@@ -103,6 +103,7 @@ Horizontal priority is `left + right > left > right > horizontal > x`. Vertical 
 
 | Object | Allows Children | Common Use |
 | --- | --- | --- |
+| `Group` | Yes | Ordinary boxes with explicit size and frame layout. |
 | `Container` | Yes | Lightweight grouping, moving, hiding, or sorting a set of children together. |
 | `HBoxContainer` | Yes | Horizontal rows of buttons, icons, or resource bars. |
 | `VBoxContainer` | Yes | Vertical menus, lists, and form rows. |
@@ -122,13 +123,29 @@ Horizontal priority is `left + right > left > right > horizontal > x`. Vertical 
 
 Leaf nodes cannot contain children. To put text on top of a background, wrap both nodes in a container or child Scene instead of nesting `Text` inside `Image`, `Rect`, `NineImage`, or another leaf node.
 
+## Group
+
+`Group` is a Pixifact box container that extends `Container`. It accepts children, and its `width` / `height` are explicit design-coordinate box sizes that do not change with child bounds or scaling. Use `<Group>` when an ordinary container needs a fixed size or frame layout.
+
+Object-specific props: none. Use common props only.
+
+`Group` does not draw a background or arrange children. Put a `Rect`, `Image`, or `NineImage` inside for a background; use `HBoxContainer`, `VBoxContainer`, or `GridContainer` for automatic layout.
+
+```xml
+<Group id="rewardPanel" left="24" right="24" top="160" height="140">
+  <Rect id="background" left="0" right="0" top="0" bottom="0" radius="16" fillColor="#1f2937" />
+  <Image id="coinIcon" texture="assets/icons/coin.png" x="24" y="46" width="48" height="48" />
+  <Text id="coinAmount" text="+120" x="84" y="54" fontSize="28" fill="#ffd166" />
+</Group>
+```
+
 ## Container
 
 `Container` is the native PixiJS container. Use it when you only need grouping, shared movement, shared visibility, or `zIndex` sorting.
 
 Object-specific props: none. Use common props only.
 
-Note: `Container.width` / `Container.height` keep native Pixi bounds / scale semantics. They are not Pixifact box sizes. For stable box-size and frame-layout semantics, prefer layout containers, `Rect` / `Image` / `NineImage` / `TileImage`, or a project Scene that extends `Group`.
+Note: `Container.width` / `Container.height` keep native Pixi bounds / scale semantics. They are not Pixifact box sizes. Use `<Group>` or a layout container when you need stable box size and frame layout.
 
 ```xml
 <Container id="rewardLayer" x="24" y="160" zIndex="10">
@@ -533,7 +550,6 @@ These names are not current official `.scene` objects:
 
 | Tag | Description |
 | --- | --- |
-| `Group` | Runtime root and script base class, not a `.scene` tag. |
 | `Control` | Runtime layout base class, not a `.scene` tag. |
 | `Mesh` | Still present in a low-level parser/type list, but not in the official addable or validation-supported list. |
 | `DOMContainer` | Still present in a low-level parser/type list, but not in the official addable or validation-supported list. |

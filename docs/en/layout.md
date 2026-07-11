@@ -60,7 +60,7 @@ Pixifact runtime adds box-size semantics:
 - `Control extends Group` and is the base layout type with frame layout properties.
 - `Rect`, `Image`, `NineImage`, and `TileImage` are not containers, but they also support frame layout properties.
 
-`Control` is a runtime type, not a built-in Scene tag. Do not write bare `<Control>` in `.scene`. Use concrete runtime nodes, child Scene instances, or your own Scene scripts when you need a container.
+`<Group>` can be written directly in `.scene` as an ordinary box container. `Control` is a runtime layout base type, not a built-in Scene tag; do not write bare `<Control>`. Use concrete layout containers, child Scene instances, or your own Scene scripts when you need automatic arrangement.
 
 ## Frame Layout
 

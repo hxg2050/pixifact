@@ -2,7 +2,7 @@ import type { SceneTemplatePrimitiveType, SceneTemplateValue } from './spec';
 
 export type PixiSceneNodeType = Extract<
     SceneTemplatePrimitiveType,
-    'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'Image' | 'NineImage' | 'TileImage' | 'GridContainer' | 'HBoxContainer' | 'ScrollContainer' | 'VBoxContainer'
+    'Group' | 'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'Image' | 'NineImage' | 'TileImage' | 'GridContainer' | 'HBoxContainer' | 'ScrollContainer' | 'VBoxContainer'
 >;
 
 export type PixiSceneFieldType = 'string' | 'number' | 'boolean' | 'color' | 'enum';
@@ -198,6 +198,7 @@ export const pixiSceneKnownProps = [
 ] as const;
 
 export const pixiSceneAddableNodeTypes = [
+    'Group',
     'GridContainer',
     'HBoxContainer',
     'ScrollContainer',
@@ -289,6 +290,15 @@ const pixiSceneFieldSchemas: Partial<Record<string, PixiSceneFieldSchema>> = {
 };
 
 const pixiSceneNodeSchemas: Record<PixiSceneNodeType, PixiSceneNodeSchema> = {
+    Group: {
+        type: 'Group',
+        acceptsChildren: true,
+        defaults: {
+            width: 100,
+            height: 100,
+        },
+        groups: {},
+    },
     Container: {
         type: 'Container',
         acceptsChildren: true,

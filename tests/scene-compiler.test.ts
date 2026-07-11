@@ -1582,6 +1582,58 @@ import { Group } from 'pixifact/runtime';`);
         });
     });
 
+    it('parses, serializes, validates, and compiles Group primitive nodes', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="Hud" width="400" height="240">
+              <Group id="panel" left="20" right="20" top="24" height="120">
+                <Rect id="background" left="0" right="0" top="0" bottom="0" radius="12" fillColor="#111827" />
+                <Text id="title" text="Inventory" x="24" y="20" fontSize="28" fill="#ffffff" />
+              </Group>
+            </Scene>
+        `);
+
+        expect(template.children[0]).toMatchObject({
+            kind: 'pixi',
+            type: 'Group',
+            id: 'panel',
+            props: {
+                left: 20,
+                right: 20,
+                top: 24,
+                height: 120,
+            },
+            children: [{
+                kind: 'pixi',
+                type: 'Rect',
+                id: 'background',
+            }, {
+                kind: 'pixi',
+                type: 'Text',
+                id: 'title',
+            }],
+        });
+
+        const source = serializeSceneTemplate(template);
+        expect(source).toContain('<Group id="panel" left="20" right="20" top="24" height="120">');
+        expect(parseSceneTemplate(source)).toEqual(template);
+        expect(validateSceneContent({
+            scene: 'src/scenes/Hud.scene',
+            content: source,
+        })).toMatchObject({
+            ok: true,
+        });
+
+        const code = compileSceneTemplateToTs(template);
+        expect(code).toContain(`import { Container, Text } from 'pixi.js';
+import { Group, Rect, setFrameLayout } from 'pixifact/runtime';`);
+        expect(code).toContain('panel: Group;');
+        expect(code).toContain('const panel = new Group();');
+        expect(code).toContain('panel.height = 120;');
+        expect(code).toContain('setFrameLayout(panel, { left: 20, right: 20, top: 24 });');
+        expect(code).toContain('panel.addChild(background);');
+        expect(code).toContain('panel.addChild(title);');
+    });
+
     it('parses, serializes, validates, and compiles GridContainer primitive nodes', () => {
         const template = parseSceneTemplate(`
             <Scene name="Inventory" width="690" height="650">
@@ -1914,21 +1966,21 @@ import { Group, Image, NineImage, TileImage, setFrameLayout } from 'pixifact/run
                     prop: 'children',
                     expected: 'no child nodes',
                     actual: '1 child node',
-                    hint: 'Image is a leaf drawing node. Wrap it and sibling content in a Container or Group Scene.',
+                    hint: 'Image is a leaf drawing node. Wrap it and sibling content in a <Container> or <Group>.',
                 },
                 {
                     path: '1:panel',
                     prop: 'children',
                     expected: 'no child nodes',
                     actual: '1 child node',
-                    hint: 'NineImage is a leaf drawing node. Wrap it and sibling content in a Container or Group Scene.',
+                    hint: 'NineImage is a leaf drawing node. Wrap it and sibling content in a <Container> or <Group>.',
                 },
                 {
                     path: '2:ground',
                     prop: 'children',
                     expected: 'no child nodes',
                     actual: '1 child node',
-                    hint: 'TileImage is a leaf drawing node. Wrap it and sibling content in a Container or Group Scene.',
+                    hint: 'TileImage is a leaf drawing node. Wrap it and sibling content in a <Container> or <Group>.',
                 },
             ],
         });
@@ -1955,7 +2007,7 @@ import { Group, Image, NineImage, TileImage, setFrameLayout } from 'pixifact/run
                 prop: 'children',
                 expected: 'no child nodes',
                 actual: '1 child node',
-                hint: 'Rect is a leaf drawing node. Wrap it and sibling content in a Container or Group Scene.',
+                hint: 'Rect is a leaf drawing node. Wrap it and sibling content in a <Container> or <Group>.',
             }],
         });
     });
