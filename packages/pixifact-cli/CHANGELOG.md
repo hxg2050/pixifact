@@ -1,5 +1,12 @@
 # pixifact-cli
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [e21b1b9]
+  - pixifact@0.3.0
+
 ## 0.2.2
 
 ### Patch Changes

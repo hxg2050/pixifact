@@ -1,5 +1,11 @@
 # pixifact
 
+## 0.3.0
+
+### Minor Changes
+
+- e21b1b9: Allow direct `<Group>` nodes in `.scene` files for explicit box sizing and frame layout.
+
 ## 0.2.2
 
 ## 0.2.1
