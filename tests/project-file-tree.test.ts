@@ -834,6 +834,51 @@ describe('project file tree service', () => {
         }
     });
 
+    it('loads compiler preview script image imports as Blob URLs', async () => {
+        host.reset({
+            assets: host.directory({
+                'play.png': host.file('fake-png'),
+            }),
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.scene': host.file('<Scene name="Button" />'),
+                    'Button.ts': host.file(`
+                        import { Group } from 'pixifact/runtime';
+                        import { scene } from 'pixifact/compiler';
+                        import playTexture from '../../assets/play.png';
+
+                        @scene()
+                        export class Button extends Group {
+                            textureUrl = playTexture;
+                        }
+                    `),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/src/scenes/Button.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+        const document = getCompilerSceneDocument();
+        const createObjectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pixifact-preview-script-asset');
+        const revokeObjectUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+        try {
+            const preview = await createCompilerSceneRuntimePreview({
+                document: document!,
+                projectTree: tree,
+                scenePath: 'src/scenes/Button.scene',
+            });
+
+            expect((preview.root as typeof preview.root & { textureUrl: string }).textureUrl)
+                .toBe('blob:pixifact-preview-script-asset');
+            preview.dispose();
+            expect(revokeObjectUrl).toHaveBeenCalledWith('blob:pixifact-preview-script-asset');
+        } finally {
+            createObjectUrl.mockRestore();
+            revokeObjectUrl.mockRestore();
+        }
+    });
+
     it('loads compiler preview modules for inherited structured prop sources', async () => {
         host.reset({
             src: host.directory({

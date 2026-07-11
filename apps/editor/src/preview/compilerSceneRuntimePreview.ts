@@ -185,7 +185,10 @@ function isRelativeModuleSpecifier(value: string) {
 }
 
 function projectModuleCandidates(projectPath: string) {
-    if (projectScriptExtensions.includes(projectExtension(projectPath) as typeof projectScriptExtensions[number])) {
+    if (
+        projectScriptExtensions.includes(projectExtension(projectPath) as typeof projectScriptExtensions[number])
+        || assetMimeTypes[projectExtension(projectPath)]
+    ) {
         return [projectPath];
     }
     return [
@@ -416,10 +419,11 @@ function sceneInterfacesFor(scenePath: string, template: SceneTemplate, sceneInt
 }
 
 async function readProjectModule(
-    projectTree: ProjectFileTreeNode,
+    context: PreviewRuntimeContext,
     projectPath: string,
     modulesById: Map<string, PreviewModule>,
 ): Promise<PreviewModule> {
+    const { projectTree } = context;
     const normalizedPath = normalizeProjectPath(projectPath);
     const id = projectModuleId(normalizedPath);
     const existing = modulesById.get(id);
@@ -434,14 +438,16 @@ async function readProjectModule(
     const module: PreviewModule = {
         id,
         kind: 'project',
-        source: await readProjectFileText(projectTree, file),
+        source: assetMimeTypes[projectExtension(normalizedPath)]
+            ? `export default ${JSON.stringify(await createProjectAssetObjectUrl(context, normalizedPath, file))};`
+            : await readProjectFileText(projectTree, file),
     };
     modulesById.set(id, module);
 
     for (const source of collectStaticModuleSpecifiers(transpilePreviewModule(module.source))) {
         if (isRelativeModuleSpecifier(source)) {
             await readProjectModule(
-                projectTree,
+                context,
                 resolveProjectModulePath(projectTree, normalizedPath, source),
                 modulesById,
             );
@@ -554,7 +560,7 @@ async function collectPreviewModules(
         if (isBuiltinSceneAssetId(scenePath)) {
             await readBuiltinModule(`${builtinSceneNameFromAssetId(scenePath)}.ts`, modulesById);
         } else {
-            await readProjectModule(context.projectTree, pairedSceneScriptPath(scenePath), modulesById);
+            await readProjectModule(context, pairedSceneScriptPath(scenePath), modulesById);
         }
     }
     for (const scenePath of [...scenePaths].sort()) {
@@ -698,13 +704,22 @@ async function loadPreviewAsset(context: PreviewRuntimeContext, source: unknown)
         return Pixi.Assets.load(source);
     }
 
-    const bytes = await readProjectFileBytes(context.projectTree, file);
-    const objectUrl = URL.createObjectURL(new Blob([bytes as BlobPart], { type: assetMimeType(assetPath) }));
-    context.objectUrls.push(objectUrl);
+    const objectUrl = await createProjectAssetObjectUrl(context, assetPath, file);
     return Pixi.Assets.load({
         src: objectUrl,
         parser: assetParser(assetPath),
     });
+}
+
+async function createProjectAssetObjectUrl(
+    context: PreviewRuntimeContext,
+    assetPath: string,
+    file: ProjectFileTreeNode,
+) {
+    const bytes = await readProjectFileBytes(context.projectTree, file);
+    const objectUrl = URL.createObjectURL(new Blob([bytes as BlobPart], { type: assetMimeType(assetPath) }));
+    context.objectUrls.push(objectUrl);
+    return objectUrl;
 }
 
 function isProjectAssetReference(source: string) {
