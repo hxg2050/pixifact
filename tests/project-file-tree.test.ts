@@ -879,6 +879,40 @@ describe('project file tree service', () => {
         }
     });
 
+    it('does not run scene lifecycle hooks in compiler preview', async () => {
+        host.reset({
+            src: host.directory({
+                scenes: host.directory({
+                    'Button.scene': host.file('<Scene name="Button" />'),
+                    'Button.ts': host.file(`
+                        import { Group } from 'pixifact/runtime';
+                        import { scene } from 'pixifact/compiler';
+
+                        @scene()
+                        export class Button extends Group {
+                            onMounted() {
+                                throw new Error('Game-only lifecycle');
+                            }
+                        }
+                    `),
+                }),
+            }),
+        });
+        const tree = await readHostTree();
+        const sceneFile = findFileByPath(tree, 'GameProject/src/scenes/Button.scene');
+        await openCompilerSceneFile(tree, sceneFile!);
+        const document = getCompilerSceneDocument();
+
+        const preview = await createCompilerSceneRuntimePreview({
+            document: document!,
+            projectTree: tree,
+            scenePath: 'src/scenes/Button.scene',
+        });
+
+        expect(preview.root.children).toEqual([]);
+        preview.dispose();
+    });
+
     it('loads compiler preview modules for inherited structured prop sources', async () => {
         host.reset({
             src: host.directory({
