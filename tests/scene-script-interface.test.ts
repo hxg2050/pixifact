@@ -397,4 +397,15 @@ import { Group } from 'pixifact/runtime';
             '@scene does not accept arguments. Pair scripts by colocating a same-basename .ts file next to the .scene file.',
         );
     });
+
+    it('rejects Scene constructors with parameters', () => {
+        expect(() => extractSceneScriptInterface(`
+            @scene()
+            export class Button {
+                constructor(label: string) {}
+            }
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow(
+            '@scene class "Button" must not declare constructor parameters. Use @prop() or an explicit method after construction.',
+        );
+    });
 });

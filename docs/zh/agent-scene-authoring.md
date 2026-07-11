@@ -43,6 +43,8 @@ Pixifact = validation and compile boundary
 
 compiler Scene asset 是同目录同 basename 的一对文件。例如 `src/scenes/Hud.scene` 负责视觉结构、层级、布局、文字、图片、子 Scene 实例、slot 和事件绑定；`src/scenes/Hud.ts` 负责行为、运行时状态更新、公开 props/events/slots 和 `@part` 访问。不要在 `.scene` 里添加 `script="..."`，也不要给 `@scene()` 添加模板路径。
 
+`@scene()` 类必须可以无参构造，不能声明构造参数。构造函数和 `onMounted()` 只处理节点树与本地 UI 状态；关卡数据、服务、Ticker 和回调等运行依赖在构造后通过显式方法传入。
+
 Agent 不应该编辑 `.pixifact/generated` 或生成 TypeScript。生成代码包含 renderer 细节、资源加载细节、临时变量和 compiler 结构，不代表用户意图。
 
 最终 UI 适配使用 runtime `Control` frame layout，加上 runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` 节点。不要使用 `FlexLayout` / `FlexItem`，它们不再是官方内置能力。布局规则见 [Layout](./layout.md)，`.scene` 可写对象和属性见 [Scene Objects](./scene-objects.md)。
@@ -169,6 +171,7 @@ Validation errors 应足够明确，便于 Agent repair loop。错误应指出 n
 - `.scene` files 是 compiler scenes 唯一 Agent-editable source。
 - `.scene` paths 是项目相对路径，例如 `src/scenes/Hud.scene`。
 - Scene scripts 按同目录同 basename 配对。
+- `@scene()` 类不能声明构造参数。
 - 不要在 `.scene` 中添加 `script="..."`。
 - 引用其他 Scenes 时使用 `.scene` paths，不要使用 bare names。
 - `.pixifact/generated` 永远不是 Agent editing target。

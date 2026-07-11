@@ -879,7 +879,7 @@ describe('project file tree service', () => {
         }
     });
 
-    it('does not run scene lifecycle hooks in compiler preview', async () => {
+    it('runs scene lifecycle hooks in compiler preview', async () => {
         host.reset({
             src: host.directory({
                 scenes: host.directory({
@@ -890,8 +890,10 @@ describe('project file tree service', () => {
 
                         @scene()
                         export class Button extends Group {
+                            mounted = false;
+
                             onMounted() {
-                                throw new Error('Game-only lifecycle');
+                                this.mounted = true;
                             }
                         }
                     `),
@@ -909,7 +911,7 @@ describe('project file tree service', () => {
             scenePath: 'src/scenes/Button.scene',
         });
 
-        expect(preview.root.children).toEqual([]);
+        expect((preview.root as typeof preview.root & { mounted: boolean }).mounted).toBe(true);
         preview.dispose();
     });
 

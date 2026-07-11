@@ -43,6 +43,8 @@ Pixifact = validation and compile boundary
 
 A compiler Scene asset is a pair of colocated files with the same basename. For example, `src/scenes/Hud.scene` owns visual structure, hierarchy, layout, text, images, child Scene instances, slots, and event wiring; `src/scenes/Hud.ts` owns behavior, runtime state updates, public props/events/slots, and `@part` access. Do not add `script="..."` to `.scene` files, and do not add template paths to `@scene()`.
 
+An `@scene()` class must be constructable without arguments and must not declare constructor parameters. Its constructor and `onMounted()` only handle the node tree and local UI state; runtime dependencies such as level data, services, tickers, and callbacks enter through explicit methods after construction.
+
 Agents should not edit `.pixifact/generated` or generated TypeScript, because generated code contains renderer details, resource loading details, temporary variables, and compiler structure that are not the user's intent.
 
 Final UI adaptation uses runtime `Control` frame layout plus runtime `HBoxContainer` / `VBoxContainer` / `GridContainer` / `ScrollContainer` nodes. Do not use `FlexLayout` / `FlexItem`; they are no longer official built-ins. See [Layout](./layout.md) for layout rules and [Scene Objects](./scene-objects.md) for `.scene` object tags and props.
@@ -169,6 +171,7 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 - `.scene` files are the only agent-editable source for compiler scenes.
 - `.scene` paths are project-relative, such as `src/scenes/Hud.scene`.
 - Scene scripts are paired by same directory and same basename.
+- `@scene()` classes must not declare constructor parameters.
 - Do not add `script="..."` to `.scene` files.
 - Reference other Scenes with `.scene` paths, never bare names.
 - `.pixifact/generated` is never an agent editing target.

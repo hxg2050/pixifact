@@ -76,6 +76,9 @@ function extractSceneScriptClasses(
             }
             continue;
         }
+        if (isSceneClass && sceneConstructorHasParameters(statement)) {
+            throw new Error(`@scene class "${className}" must not declare constructor parameters. Use @prop() or an explicit method after construction.`);
+        }
 
         const props: Record<string, SceneTemplatePropContract> = {};
         const events: Record<string, SceneTemplateEventContract> = {};
@@ -351,6 +354,10 @@ function hasSceneDecorator(node: ts.ClassDeclaration) {
         throw new Error('@scene does not accept arguments. Pair scripts by colocating a same-basename .ts file next to the .scene file.');
     }
     return true;
+}
+
+function sceneConstructorHasParameters(node: ts.ClassDeclaration) {
+    return node.members.some((member) => ts.isConstructorDeclaration(member) && member.parameters.length > 0);
 }
 
 function parentClassNameOf(node: ts.ClassDeclaration) {

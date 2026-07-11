@@ -54,6 +54,7 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 - Scene 资产是同目录、同 basename 的文件对，例如 `src/scenes/Hud.scene` 和 `src/scenes/Hud.ts`。
 - `.scene` root 使用 `<Scene name="...">`。
 - Scene 脚本类必须继承 `Group`，并使用 `@scene()` 标记。
+- Scene 脚本类不能声明构造参数；构造函数和 `onMounted()` 只处理节点树与本地 UI 状态，运行数据通过显式方法在构造后传入。
 - `@part()` 绑定 `.scene` 中稳定 `id` 节点；`@prop()`、`@event()`、`@slot()` 暴露公开契约。
 - `@prop()` 类型使用 `String` / `Number` / `Boolean` 或导出的 structured prop class；不要使用旧字符串类型。
 - `.scene` 中的事件属性如 `@clicked="handlePause"` 绑定 action name；运行时连接 external actions 或当前 root 脚本同名方法。不要把它写成全局函数或生成文件逻辑。

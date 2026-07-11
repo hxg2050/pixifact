@@ -579,18 +579,6 @@ async function collectPreviewModules(
 function createPreviewCompilerRuntime(context: PreviewRuntimeContext) {
     return {
         ...compilerRuntime,
-        scene() {
-            const decorate = compilerRuntime.scene();
-            return (constructor: Function) => {
-                const SceneClass = decorate(constructor);
-                if (!SceneClass) {
-                    return;
-                }
-                // Preview mounts authored structure without game-only lifecycle dependencies.
-                Object.defineProperty(SceneClass.prototype, 'onMounted', { value: undefined });
-                return SceneClass;
-            };
-        },
         registerSlot(target: Container, name: string, host: Container) {
             compilerRuntime.registerSlot(target, name, host);
             let slots = context.slotsByTarget.get(target);
