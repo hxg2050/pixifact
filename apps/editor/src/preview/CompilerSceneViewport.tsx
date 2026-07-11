@@ -122,6 +122,7 @@ interface ViewportModel {
 
 interface MoveSession {
     currentProps?: CompilerSceneMoveUpdateProps;
+    hitLocator: string;
     locator: string;
     mergeKey: string;
     pointerId: number;
@@ -585,7 +586,11 @@ function resizeHandleMovesNorth(handle: CompilerSceneResizeHandle) {
 }
 
 export function canBeginCompilerSceneMove(selectedLocator: string | undefined, hitLocator: string | undefined) {
-    return Boolean(selectedLocator && hitLocator && selectedLocator === hitLocator);
+    return Boolean(
+        selectedLocator
+        && hitLocator
+        && (selectedLocator === hitLocator || hitLocator.startsWith(`${selectedLocator}/`)),
+    );
 }
 
 function selectedCompilerNode(document: CompilerSceneDocument) {
@@ -1163,6 +1168,7 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                             moveSessionRef.current += 1;
                             hostRef.current?.setPointerCapture(event.pointerId);
                             moveRef.current = {
+                                hitLocator: hitLocator!,
                                 locator: selectedLocator!,
                                 mergeKey: `scene-view:move:${selectedLocator}:${moveSessionRef.current}`,
                                 pointerId: event.pointerId,
@@ -1301,6 +1307,8 @@ export const CompilerSceneViewport = forwardRef<CompilerSceneViewportHandle, Com
                 const move = moveRef.current;
                 if (move.started && move.currentProps) {
                     updateCompilerSceneNodePropsInPlace(move.locator, move.currentProps, { mergeKey: move.mergeKey });
+                } else if (move.hitLocator !== move.locator) {
+                    selectCompilerSceneNode(move.hitLocator);
                 }
                 endSceneViewProfile(move.profileId, { committed: move.started });
                 moveRef.current = undefined;

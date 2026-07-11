@@ -605,7 +605,9 @@ describe('Editor workbench UI', () => {
             x: undefined,
         });
         expect(canBeginCompilerSceneMove('0:label', '0:label')).toBe(true);
+        expect(canBeginCompilerSceneMove('0:content', '0:content/0:background')).toBe(true);
         expect(canBeginCompilerSceneMove('0:label', '1:background')).toBe(false);
+        expect(canBeginCompilerSceneMove('0:content', '0:contentBackground')).toBe(false);
         expect(canBeginCompilerSceneMove(undefined, '0:label')).toBe(false);
         expect(canBeginCompilerSceneMove('0:label', undefined)).toBe(false);
         expect(resizeCompilerSceneNodeProps(
