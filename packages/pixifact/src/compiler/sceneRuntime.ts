@@ -3,6 +3,7 @@ import type { Group } from '../runtime';
 
 export interface SceneMountResult {
     root: Group;
+    nodes: Record<string, Container>;
     parts: Record<string, Container>;
     slots: Record<string, Container>;
 }
@@ -13,6 +14,7 @@ export interface SceneDefinition {
 
 const sceneDefinitions = new Map<string, SceneDefinition>();
 const scenePathsByConstructor = new WeakMap<object, string>();
+const sceneMounts = new WeakMap<Group, SceneMountResult>();
 
 export function registerScene(path: string, definition: SceneDefinition) {
     sceneDefinitions.set(path, definition);
@@ -27,7 +29,9 @@ export function mountScene(root: Group, path: string) {
     if (!definition) {
         throw new Error(`Scene "${path}" has not been registered.`);
     }
-    return definition.mount(root);
+    const result = definition.mount(root);
+    sceneMounts.set(root, result);
+    return result;
 }
 
 export function mountSceneClass(root: Group, constructor: object) {
@@ -36,4 +40,8 @@ export function mountSceneClass(root: Group, constructor: object) {
         throw new Error(`Scene class "${constructor instanceof Function ? constructor.name : 'unknown'}" has not been bound to a .scene file.`);
     }
     return mountScene(root, path);
+}
+
+export function getSceneNode(root: Group, locator: string) {
+    return sceneMounts.get(root)?.nodes[locator];
 }

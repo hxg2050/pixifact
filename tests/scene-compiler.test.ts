@@ -23,6 +23,7 @@ import {
     createEvent,
     event,
     extractSceneScriptInterfaces,
+    getSceneNode,
     registerScene,
     registerSceneClass,
     registerSlot,
@@ -1024,6 +1025,7 @@ import { Group } from 'pixifact/runtime';`);
         expect(code).toContain('iconHost: Container;');
         expect(code).toContain('slots: Record<string, Container>;');
         expect(code).toContain('export function mountButtonScene(root: Group) {');
+        expect(code).toContain('const __pixifactNodes: Record<string, Container> = {};');
         expect(code).toContain('const __pixifactSlots: Record<string, Container> = {};');
         expect(code).toContain('root.setSize(180, 52);');
         expect(code).toContain('const background = new Graphics();');
@@ -1033,10 +1035,14 @@ import { Group } from 'pixifact/runtime';`);
         expect(code).toContain('label.pivot.set(10, 4);');
         expect(code).toContain('label.skew.set(0.1, 0.2);');
         expect(code).toContain('root.addChild(background);');
+        expect(code).toContain('__pixifactNodes["0:background"] = background;');
+        expect(code).toContain('__pixifactNodes["1:label"] = label;');
         expect(code).toContain('iconHost.position.set(20, 14);');
+        expect(code).toContain('__pixifactNodes["2:iconHost"] = iconHost;');
         expect(code).toContain('__pixifactSlots["icon"] = iconHost;');
         expect(code).toContain('registerSlot(root, "icon", iconHost);');
         expect(code).toContain('parts: { background, label, iconHost },');
+        expect(code).toContain('nodes: __pixifactNodes,');
         expect(code).toContain('slots: __pixifactSlots,');
     });
 
@@ -1121,11 +1127,13 @@ import { Group } from 'pixifact/runtime';`);
         expect(code).toContain('startButton.label = "Start";');
         expect(code).toContain('connectSceneEvent(startButton.click, "startGame", root, actions);');
         expect(code).toContain('root.addChild(startButton);');
+        expect(code).toContain('__pixifactNodes["0:startButton"] = startButton;');
         expect(code).toContain('const __pixifactTexture1 = await Assets.load("assets/icons/play.png");');
         expect(code).toContain('const playIcon = new Sprite({ texture: __pixifactTexture1 });');
         expect(code).toContain('playIcon.anchor.set(0.5, 0.5);');
         expect(code).toContain('playIcon.tint = 16711680;');
         expect(code).toContain('mount(startButton, playIcon, "icon");');
+        expect(code).toContain('__pixifactNodes["0:startButton/slot:icon/0:playIcon"] = playIcon;');
         expect(code).not.toContain('background');
         expect(code).not.toContain('hitArea');
     });
@@ -1431,6 +1439,10 @@ import { Group } from 'pixifact/runtime';`);
                         labelText,
                         iconHost,
                     },
+                    nodes: {
+                        '0:labelText': labelText,
+                        '1:iconHost': iconHost,
+                    },
                     slots: {
                         icon: iconHost,
                     },
@@ -1454,6 +1466,9 @@ import { Group } from 'pixifact/runtime';`);
         expect(clicked).toBe(true);
         expect((button.children[0] as Text).text).toBe('Play');
         expect(button.icon.children[0]).toBe(icon);
+        expect(getSceneNode(button, '0:labelText')).toBe(button.children[0]);
+        expect(getSceneNode(button, '1:iconHost')).toBe(button.icon);
+        expect(getSceneNode(button, '0:missing')).toBeUndefined();
     });
 
     it('mounts only the leaf scene when a decorated scene extends another decorated scene', () => {
@@ -1468,14 +1483,14 @@ import { Group } from 'pixifact/runtime';`);
         registerScene('scenes/Base.scene', {
             mount(root) {
                 calls.push('base');
-                return { root, parts: {}, slots: {} };
+                return { root, nodes: {}, parts: {}, slots: {} };
             },
         });
         registerSceneClass(BaseScene, 'scenes/Base.scene');
         registerScene('scenes/Leaf.scene', {
             mount(root) {
                 calls.push('leaf');
-                return { root, parts: {}, slots: {} };
+                return { root, nodes: {}, parts: {}, slots: {} };
             },
         });
         registerSceneClass(LeafScene, 'scenes/Leaf.scene');

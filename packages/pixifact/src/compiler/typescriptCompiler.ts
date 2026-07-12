@@ -17,6 +17,7 @@ import {
     pixiSceneTextStyleProps,
     pixiSceneTransformProps,
 } from './pixiNodeSchema';
+import { compilerSceneNodeLocator } from './commands';
 
 const transformProps = new Set<string>(pixiSceneTransformProps);
 const layoutProps = new Set<string>(pixiSceneLayoutProps);
@@ -62,14 +63,16 @@ class CompileContext {
         const textureLoads = this.#formatTextureLoads();
 
         this.#lines.push(`export function ${functionName}(root: Group${this.#hasEvents() ? `, ${actionsParameter}: Record<string, () => void> = {}` : ''}) {`);
+        this.#lines.push('  const __pixifactNodes: Record<string, Container> = {};');
         this.#lines.push('  const __pixifactSlots: Record<string, Container> = {};');
         this.#applyRootProps();
-        for (const child of this.template.children) {
-            this.#compileNode(child, 'root', actionsParameter);
+        for (const [index, child] of this.template.children.entries()) {
+            this.#compileNode(child, 'root', actionsParameter, String(index));
         }
         this.#lines.push('  return {');
         this.#lines.push('    root,');
         this.#lines.push(`    parts: { ${this.#parts.map((part) => part.id).join(', ')} },`);
+        this.#lines.push('    nodes: __pixifactNodes,');
         this.#lines.push('    slots: __pixifactSlots,');
         this.#lines.push('  };');
         this.#lines.push('}');
@@ -135,6 +138,7 @@ class CompileContext {
             lines.push(`    ${part.id}: ${part.type};`);
         }
         lines.push('  };');
+        lines.push('  nodes: Record<string, Container>;');
         lines.push('  slots: Record<string, Container>;');
         lines.push('};');
         return lines.join('\n');
@@ -213,7 +217,7 @@ class CompileContext {
             .join('\n');
     }
 
-    #compileNode(node: SceneTemplateNode, parent: string, actionsParameter: string) {
+    #compileNode(node: SceneTemplateNode, parent: string, actionsParameter: string, path: string) {
         if (node.kind === 'slotOutlet') {
             this.#runtimeImports.add('registerSlot');
             this.#lines.push(`  __pixifactSlots[${JSON.stringify(node.name)}] = ${parent};`);
@@ -221,26 +225,29 @@ class CompileContext {
             return;
         }
         if (node.kind === 'sceneInstance') {
-            this.#compileSceneInstance(node, parent, actionsParameter);
+            this.#compileSceneInstance(node, parent, actionsParameter, path);
             return;
         }
-        this.#compilePixiNode(node, parent, actionsParameter);
+        this.#compilePixiNode(node, parent, actionsParameter, path);
     }
 
-    #compilePixiNode(node: PixiTemplateNode, parent: string, actionsParameter: string) {
+    #compilePixiNode(node: PixiTemplateNode, parent: string, actionsParameter: string, path: string) {
         const variable = node.id || this.#anonymousName(node.type);
+        const locator = compilerSceneNodeLocator(node, path);
         this.#lines.push(`  const ${variable} = ${this.#constructPixiNode(node)};`);
         this.#applyNodeId(variable, node.id);
         this.#applyPixiProps(variable, node.props, false, undefined, node.type);
         this.#applyParentSorting(parent, node.props);
         this.#lines.push(`  ${parent}.addChild(${variable});`);
-        for (const child of node.children) {
-            this.#compileNode(child, variable, actionsParameter);
+        this.#lines.push(`  __pixifactNodes[${JSON.stringify(locator)}] = ${variable};`);
+        for (const [index, child] of node.children.entries()) {
+            this.#compileNode(child, variable, actionsParameter, `${locator}/${index}`);
         }
     }
 
-    #compileSceneInstance(node: SceneInstanceTemplateNode, parent: string, actionsParameter: string) {
+    #compileSceneInstance(node: SceneInstanceTemplateNode, parent: string, actionsParameter: string, path: string) {
         const variable = node.id || this.#anonymousName(node.type);
+        const locator = compilerSceneNodeLocator(node, path);
         const constructorName = this.#sceneConstructorName(node);
         this.#lines.push(`  const ${variable} = new ${constructorName}();`);
         this.#applyPixiProps(variable, node.props, true, node);
@@ -250,21 +257,28 @@ class CompileContext {
         }
         this.#applyParentSorting(parent, node.props);
         this.#lines.push(`  ${parent}.addChild(${variable});`);
+        this.#lines.push(`  __pixifactNodes[${JSON.stringify(locator)}] = ${variable};`);
         for (const [slot, children] of Object.entries(node.slots)) {
-            for (const child of children) {
-                const childVariable = this.#compileSlottedNode(child, variable, actionsParameter);
+            for (const [index, child] of children.entries()) {
+                const childVariable = this.#compileSlottedNode(
+                    child,
+                    variable,
+                    actionsParameter,
+                    `${locator}/slot:${slot}/${index}`,
+                );
                 this.#runtimeImports.add('mount');
                 this.#lines.push(`  mount(${variable}, ${childVariable}, ${JSON.stringify(slot)});`);
             }
         }
     }
 
-    #compileSlottedNode(node: SceneTemplateNode, slotTarget: string, actionsParameter: string) {
+    #compileSlottedNode(node: SceneTemplateNode, slotTarget: string, actionsParameter: string, path: string) {
         if (node.kind === 'slotOutlet') {
             throw new Error(`Cannot place <slot> inside ${slotTarget}.`);
         }
         if (node.kind === 'sceneInstance') {
             const variable = node.id || this.#anonymousName(node.type);
+            const locator = compilerSceneNodeLocator(node, path);
             const constructorName = this.#sceneConstructorName(node);
             this.#lines.push(`  const ${variable} = new ${constructorName}();`);
             this.#applyPixiProps(variable, node.props, true, node);
@@ -272,9 +286,15 @@ class CompileContext {
                 this.#runtimeImports.add('connectSceneEvent');
                 this.#lines.push(`  connectSceneEvent(${variable}.${name}, ${JSON.stringify(action)}, root, ${actionsParameter});`);
             }
+            this.#lines.push(`  __pixifactNodes[${JSON.stringify(locator)}] = ${variable};`);
             for (const [slot, children] of Object.entries(node.slots)) {
-                for (const child of children) {
-                    const childVariable = this.#compileSlottedNode(child, variable, actionsParameter);
+                for (const [index, child] of children.entries()) {
+                    const childVariable = this.#compileSlottedNode(
+                        child,
+                        variable,
+                        actionsParameter,
+                        `${locator}/slot:${slot}/${index}`,
+                    );
                     this.#runtimeImports.add('mount');
                     this.#lines.push(`  mount(${variable}, ${childVariable}, ${JSON.stringify(slot)});`);
                 }
@@ -283,11 +303,13 @@ class CompileContext {
         }
 
         const variable = node.id || this.#anonymousName(node.type);
+        const locator = compilerSceneNodeLocator(node, path);
         this.#lines.push(`  const ${variable} = ${this.#constructPixiNode(node)};`);
         this.#applyNodeId(variable, node.id);
         this.#applyPixiProps(variable, node.props, false, undefined, node.type);
-        for (const child of node.children) {
-            this.#compileNode(child, variable, actionsParameter);
+        this.#lines.push(`  __pixifactNodes[${JSON.stringify(locator)}] = ${variable};`);
+        for (const [index, child] of node.children.entries()) {
+            this.#compileNode(child, variable, actionsParameter, `${locator}/${index}`);
         }
         return variable;
     }
