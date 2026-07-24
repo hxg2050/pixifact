@@ -65,7 +65,7 @@ export async function createWechatPixiApplication(
         context: runtime.context as WebGL2RenderingContext,
         eventFeatures: options.eventFeatures ?? {
             click: true,
-            globalMove: false,
+            globalMove: true,
             move: true,
             wheel: false,
         },

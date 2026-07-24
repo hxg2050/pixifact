@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { validateWechatTarget } from '../packages/pixifact-cli/src/wechatTarget';
+import { buildWechatTarget, validateWechatTarget } from '../packages/pixifact-cli/src/wechatTarget';
 
 const sampleRoot = join(process.cwd(), 'sample-projects', 'wechat-minigame-demo');
 
@@ -12,6 +12,14 @@ describe('WeChat Mini Game target', () => {
 
         expect(result.diagnostics).toEqual([]);
         expect(result.context.target.outDir).toBe('dist/wechat');
+    });
+
+    it('defines Intl before PixiJS modules run on runtimes without Intl', async () => {
+        const report = await buildWechatTarget(sampleRoot, 'production');
+        const bundle = await readFile(join(report.outputDirectory, 'game.js'), 'utf8');
+
+        expect(bundle.startsWith('var Intl=globalThis.Intl||{};\n')).toBe(true);
+        expect(bundle.indexOf('Intl?.Segmenter')).toBeGreaterThan(0);
     });
 
     it('reports unsupported Scene nodes, invalid textures, and bad subpackages', async () => {

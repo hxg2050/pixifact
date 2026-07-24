@@ -17,9 +17,9 @@ The output is a directory that can be imported directly into WeChat DevTools. Pi
 The current target provides:
 
 - PixiJS WebGL 1 / WebGL 2 initialization with a DOM-free runtime adapter.
-- Regular `Text`, including Chinese text.
+- Regular `Text`, including Chinese text; when a device has no `Intl`, the bundle lets PixiJS use its built-in segmentation fallback.
 - `Graphics`, Pixifact runtime nodes, and compiler Scenes.
-- WeChat touch event forwarding to PixiJS pointer events.
+- WeChat touch event forwarding to PixiJS pointer events, including `globalpointermove` for dragging.
 - Ticker pause/resume and active touch cancellation across hide/show lifecycle events.
 - Local assets, WeChat resource subpackages, and HTTPS remote assets.
 - Development and production builds, watch mode, and package-size checks.
@@ -31,6 +31,8 @@ The following are explicitly unsupported:
 - `DOMContainer`.
 
 Scene textures support `.png`, `.jpg`, `.jpeg`, and `.webp`. Target validation reports unsupported nodes, textures, and resource-pack contents before the build.
+
+Regular Chinese, Latin text, and single-code-point characters do not require `Intl`. When `Intl.Segmenter` is unavailable on a device, PixiJS segments text by Unicode code point. Verify layout on target devices when exact wrapping of multi-code-point emoji or combining characters matters.
 
 ## Project Configuration
 

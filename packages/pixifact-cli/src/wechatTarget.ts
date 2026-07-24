@@ -440,6 +440,9 @@ function wechatBuildOptions(
     return {
         absWorkingDir: context.projectRoot,
         assetNames: 'assets/[name]-[hash]',
+        banner: {
+            js: 'var Intl=globalThis.Intl||{};',
+        },
         bundle: true,
         define: {
             'process.env.NODE_ENV': JSON.stringify(mode),

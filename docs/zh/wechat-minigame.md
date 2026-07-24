@@ -17,9 +17,9 @@ Pixifact 把微信小游戏作为游戏项目的一等构建目标。同一份 `
 当前微信 target 提供：
 
 - PixiJS WebGL 1 / WebGL 2 初始化和无 DOM runtime adapter。
-- 普通 `Text`，包括中文文字。
+- 普通 `Text`，包括中文文字；真机没有 `Intl` 时，构建产物会让 PixiJS 使用自身的字符分段降级路径。
 - `Graphics`、Pixifact runtime 节点和 compiler Scene。
-- 微信触摸事件到 PixiJS pointer event 的桥接。
+- 微信触摸事件到 PixiJS pointer event 的桥接，包括拖动所需的 `globalpointermove`。
 - 前后台切换时停止和恢复 ticker，并在隐藏时取消活动触摸。
 - 本地资源、微信资源分包和 HTTPS 远程资源。
 - development / production 构建、watch 开发模式和代码包体积检查。
@@ -31,6 +31,8 @@ Pixifact 把微信小游戏作为游戏项目的一等构建目标。同一份 `
 - `DOMContainer`。
 
 Scene 纹理支持 `.png`、`.jpg`、`.jpeg` 和 `.webp`。target 校验会在构建前报告不支持的节点、纹理和资源包内容。
+
+普通中文、拉丁文字和单码点字符不依赖 `Intl`。当真机没有 `Intl.Segmenter` 时，PixiJS 会按 Unicode 码点拆分文字；如果游戏依赖由多个码点组成的 emoji 或组合字符精确换行，应在目标真机上验证排版。
 
 ## 项目配置
 

@@ -182,9 +182,6 @@ function installGlobals(canvas: WechatCanvas, userAgent: string) {
             value: { now: () => Date.now() },
         });
     }
-    if (!mutableGlobals.Intl) {
-        Object.defineProperty(globals, 'Intl', { configurable: true, value: {} });
-    }
     globals.requestAnimationFrame ??= canvas.requestAnimationFrame
         ? canvas.requestAnimationFrame.bind(canvas)
         : (callback) => setTimeout(() => callback(performance.now()), 16) as unknown as number;
