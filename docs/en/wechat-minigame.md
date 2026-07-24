@@ -155,6 +155,8 @@ await startGame({
 - A `remote` pack is not copied into the code package. Scene textures map to `baseUrl`. Configure the CDN as an allowed domain in the WeChat console as well.
 - JSON, audio, and other non-Scene assets can also live in resource packs. Call `loadWechatSubpackage(name)` before manually reading a subpackage asset.
 
+`fetchWechatResource()` provides its own UTF-8 conversion for `text()` and `json()` and does not require `TextEncoder` or `TextDecoder` on the device.
+
 ```ts
 import {
   fetchWechatResource,

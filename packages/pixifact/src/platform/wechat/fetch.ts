@@ -12,6 +12,59 @@ class WechatResponseHeaders {
     }
 }
 
+type WechatResponseBody = ArrayBuffer | string;
+
+function decodeUtf8(buffer: ArrayBuffer) {
+    const bytes = new Uint8Array(buffer);
+    let output = '';
+    for (let index = 0; index < bytes.length;) {
+        const first = bytes[index++];
+        let codePoint: number;
+        if (first < 0x80) {
+            codePoint = first;
+        } else if (first < 0xe0) {
+            codePoint = ((first & 0x1f) << 6) | (bytes[index++] & 0x3f);
+        } else if (first < 0xf0) {
+            codePoint = ((first & 0x0f) << 12)
+                | ((bytes[index++] & 0x3f) << 6)
+                | (bytes[index++] & 0x3f);
+        } else {
+            codePoint = ((first & 0x07) << 18)
+                | ((bytes[index++] & 0x3f) << 12)
+                | ((bytes[index++] & 0x3f) << 6)
+                | (bytes[index++] & 0x3f);
+        }
+        output += String.fromCodePoint(codePoint);
+    }
+    return output;
+}
+
+function encodeUtf8(value: string) {
+    const bytes: number[] = [];
+    for (const character of value) {
+        const codePoint = character.codePointAt(0)!;
+        if (codePoint < 0x80) {
+            bytes.push(codePoint);
+        } else if (codePoint < 0x800) {
+            bytes.push(0xc0 | (codePoint >> 6), 0x80 | (codePoint & 0x3f));
+        } else if (codePoint < 0x10000) {
+            bytes.push(
+                0xe0 | (codePoint >> 12),
+                0x80 | ((codePoint >> 6) & 0x3f),
+                0x80 | (codePoint & 0x3f),
+            );
+        } else {
+            bytes.push(
+                0xf0 | (codePoint >> 18),
+                0x80 | ((codePoint >> 12) & 0x3f),
+                0x80 | ((codePoint >> 6) & 0x3f),
+                0x80 | (codePoint & 0x3f),
+            );
+        }
+    }
+    return new Uint8Array(bytes).buffer;
+}
+
 class WechatResourceResponse {
     readonly body = null;
     readonly bodyUsed = false;
@@ -22,7 +75,7 @@ class WechatResourceResponse {
     readonly headers: WechatResponseHeaders;
 
     constructor(
-        private readonly responseBody: ArrayBuffer,
+        private readonly responseBody: WechatResponseBody,
         readonly status: number,
         readonly url: string,
         responseHeaders: Record<string, string> = {},
@@ -32,7 +85,9 @@ class WechatResourceResponse {
     }
 
     async arrayBuffer() {
-        return this.responseBody.slice(0);
+        return typeof this.responseBody === 'string'
+            ? encodeUtf8(this.responseBody)
+            : this.responseBody.slice(0);
     }
 
     async blob(): Promise<Blob> {
@@ -40,7 +95,10 @@ class WechatResourceResponse {
     }
 
     clone() {
-        return new WechatResourceResponse(this.responseBody.slice(0), this.status, this.url);
+        const body = typeof this.responseBody === 'string'
+            ? this.responseBody
+            : this.responseBody.slice(0);
+        return new WechatResourceResponse(body, this.status, this.url);
     }
 
     async formData(): Promise<FormData> {
@@ -52,18 +110,20 @@ class WechatResourceResponse {
     }
 
     async text() {
-        return new TextDecoder().decode(this.responseBody);
+        return typeof this.responseBody === 'string'
+            ? this.responseBody
+            : decodeUtf8(this.responseBody);
     }
 }
 
-function toArrayBuffer(data: unknown) {
+function toResponseBody(data: unknown): WechatResponseBody {
     if (data instanceof ArrayBuffer) {
         return data;
     }
     if (ArrayBuffer.isView(data)) {
         return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
     }
-    return new TextEncoder().encode(typeof data === 'string' ? data : JSON.stringify(data)).buffer;
+    return typeof data === 'string' ? data : JSON.stringify(data);
 }
 
 function requestUrl(input: RequestInfo | URL) {
@@ -92,7 +152,7 @@ export function fetchWechatResource(input: RequestInfo | URL, init: RequestInit 
             responseType: 'arraybuffer',
             fail: (error) => reject(new Error(`Failed to request ${url}: ${error.errMsg}`)),
             success: (result) => resolve(new WechatResourceResponse(
-                toArrayBuffer(result.data),
+                toResponseBody(result.data),
                 result.statusCode,
                 url,
                 result.header,
@@ -107,7 +167,7 @@ export function fetchWechatResource(input: RequestInfo | URL, init: RequestInit 
         filePath,
         fail: (error) => reject(new Error(`Failed to read ${filePath}: ${error.errMsg}`)),
         success: (result) => resolve(new WechatResourceResponse(
-            toArrayBuffer(result.data),
+            toResponseBody(result.data),
             200,
             url,
         ) as unknown as Response),

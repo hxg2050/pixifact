@@ -1,10 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fetchWechatResource } from '../packages/pixifact/src/platform/wechat/fetch';
 import { bindWechatLifecycle } from '../packages/pixifact/src/platform/wechat/lifecycle';
 import type { WechatMiniGameApi } from '../packages/pixifact/src/platform/wechat/types';
 
 const originalWechatApi = (globalThis as typeof globalThis & { wx?: WechatMiniGameApi }).wx;
 
 afterEach(() => {
+    vi.unstubAllGlobals();
     const globals = globalThis as typeof globalThis & { wx?: WechatMiniGameApi };
     if (originalWechatApi) {
         globals.wx = originalWechatApi;
@@ -42,6 +44,35 @@ function installLifecycleApi() {
 }
 
 describe('WeChat platform runtime', () => {
+    it('reads UTF-8 JSON without TextEncoder or TextDecoder', async () => {
+        const jsonText = '{"title":"微信 🎮"}';
+        const encoded = new TextEncoder().encode(jsonText);
+        const encodedWithBom = new Uint8Array(encoded.length + 3);
+        encodedWithBom.set([0xef, 0xbb, 0xbf]);
+        encodedWithBom.set(encoded, 3);
+        let responseData: ArrayBuffer | string = encodedWithBom.buffer;
+        const api = {
+            getFileSystemManager: () => ({
+                readFile(options: {
+                    success(result: { data: ArrayBuffer | string }): void;
+                }) {
+                    options.success({ data: responseData });
+                },
+            }),
+        } as unknown as WechatMiniGameApi;
+        (globalThis as typeof globalThis & { wx: WechatMiniGameApi }).wx = api;
+        vi.stubGlobal('TextDecoder', undefined);
+        vi.stubGlobal('TextEncoder', undefined);
+
+        const binaryResponse = await fetchWechatResource('subpackages/demo-level/level.json');
+        await expect(binaryResponse.json()).resolves.toEqual({ title: '微信 🎮' });
+
+        responseData = jsonText;
+        const stringResponse = await fetchWechatResource('subpackages/demo-level/level.json');
+        const buffer = await stringResponse.arrayBuffer();
+        expect([...new Uint8Array(buffer)]).toEqual([...encoded]);
+    });
+
     it('resumes a running ticker after the game returns to the foreground', () => {
         const lifecycle = installLifecycleApi();
         const target = {

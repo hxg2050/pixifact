@@ -157,6 +157,8 @@ await startGame({
 - `remote` 资源包不复制到代码包，Scene 纹理映射到 `baseUrl`。CDN 域名还需要在微信公众平台配置合法域名。
 - JSON、音频等非 Scene 资源也可以放入资源包。代码手动读取分包资源前，应先调用 `loadWechatSubpackage(name)`。
 
+`fetchWechatResource()` 的 `text()` 和 `json()` 内置 UTF-8 转换，不依赖真机提供 `TextEncoder` 或 `TextDecoder`。
+
 例如：
 
 ```ts
