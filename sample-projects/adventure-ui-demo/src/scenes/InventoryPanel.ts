@@ -1,6 +1,6 @@
 import type { Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
-import { part, scene } from 'pixifact/compiler';
+import { part, scene } from 'pixifact/scene';
 import type { Button } from './Button';
 import type { ItemSlot } from './ItemSlot';
 

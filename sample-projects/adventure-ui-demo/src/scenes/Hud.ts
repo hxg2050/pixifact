@@ -1,6 +1,6 @@
 import type { Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
-import { part, prop, scene } from 'pixifact/compiler';
+import { part, prop, scene } from 'pixifact/scene';
 
 @scene()
 export class Hud extends Group {

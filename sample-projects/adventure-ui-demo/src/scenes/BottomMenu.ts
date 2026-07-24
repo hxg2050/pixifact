@@ -1,5 +1,5 @@
 import { Group } from 'pixifact/runtime';
-import { createEvent, event, part, scene } from 'pixifact/compiler';
+import { createEvent, event, part, scene } from 'pixifact/scene';
 import type { Button } from './Button';
 
 @scene()

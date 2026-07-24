@@ -64,13 +64,13 @@ export class Hud extends Group {}
 ```ts
 import type { Container, Text } from 'pixi.js';
 import { Group, type Rect } from 'pixifact/runtime';
-import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
+import { createEvent, event, part, prop, scene, slot } from 'pixifact/scene';
 ```
 
 原则：
 
 - `Group`、`Rect`、`Image`、`NineImage`、`TileImage` 等 runtime 类型来自 `pixifact/runtime`。
-- `scene`、`part`、`prop`、`event`、`slot`、`createEvent` 来自 `pixifact/compiler`。
+- `scene`、`part`、`prop`、`event`、`slot`、`createEvent` 来自 `pixifact/scene`。
 - Pixi 节点类型如 `Container`、`Text`、`Graphics` 来自 `pixi.js`。
 - 只用于类型标注时使用 `import type` 或 named type import。
 
@@ -89,7 +89,7 @@ import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
 
 ```ts
 import { Group } from 'pixifact/runtime';
-import { scene } from 'pixifact/compiler';
+import { scene } from 'pixifact/scene';
 
 @scene()
 export class StatusBadge extends Group {}
@@ -113,7 +113,7 @@ export class StatusBadge extends Group {}
 ```ts
 import type { Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
-import { part, prop, scene } from 'pixifact/compiler';
+import { part, prop, scene } from 'pixifact/scene';
 
 @scene()
 export class Hud extends Group {
@@ -178,7 +178,7 @@ export class Hud extends Group {
 ```ts
 import type { Container, Text } from 'pixi.js';
 import { Group, type Rect } from 'pixifact/runtime';
-import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
+import { createEvent, event, part, prop, scene, slot } from 'pixifact/scene';
 
 @scene()
 export class PrimaryButton extends Group {
@@ -229,7 +229,7 @@ export class PrimaryButton extends Group {
 
 ```ts
 import { Group } from 'pixifact/runtime';
-import { scene } from 'pixifact/compiler';
+import { scene } from 'pixifact/scene';
 
 @scene()
 export class MainMenu extends Group {
@@ -262,7 +262,7 @@ export class MainMenu extends Group {
 
 ```ts
 import { Group } from 'pixifact/runtime';
-import { prop, scene } from 'pixifact/compiler';
+import { prop, scene } from 'pixifact/scene';
 
 export class RectTransform {
     x = 0;

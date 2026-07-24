@@ -1,6 +1,6 @@
 import type { Container, Text } from 'pixi.js';
 import { Group, type Rect } from 'pixifact/runtime';
-import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
+import { createEvent, event, part, prop, scene, slot } from 'pixifact/scene';
 
 @scene()
 export class Button extends Group {

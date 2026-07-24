@@ -40,6 +40,8 @@ export interface CompileScenesOptions {
     generatedDir?: string;
 }
 
+export const generatedSceneAssetsFileName = 'scene-assets.generated.json';
+
 export class CompileSceneError extends Error {
     constructor(
         message: string,
@@ -104,6 +106,7 @@ export async function compileScenes(options: CompileScenesOptions) {
 
     const projectRegistryImports: string[] = [];
     const builtinRegistryImports: string[] = [];
+    const projectAssets = new Set<string>();
     for (const record of sceneRecords) {
         const { scenePath } = record;
         const template = templates.get(scenePath);
@@ -124,9 +127,13 @@ export async function compileScenes(options: CompileScenesOptions) {
             },
             sceneImports: sceneImportsFor(template, templates, projectRoot, generatedFileDir),
             sceneClassAliases: sceneClassAliasesFor(template),
+            sceneDependencies: [...collectSceneInstancePaths(template.children)].sort(),
             sceneInterfaces: sceneInterfacesFor(template, templates),
-            textureImports: textureImportsFor(template, projectRoot, generatedFileDir),
         });
+
+        if (record.kind === 'project') {
+            collectTemplateTextures(template, projectAssets);
+        }
 
         await mkdir(path.dirname(generatedFile), { recursive: true });
         await writeFile(generatedFile, code);
@@ -141,6 +148,10 @@ export async function compileScenes(options: CompileScenesOptions) {
         ...builtinRegistryImports,
         ...projectRegistryImports,
     ].join('\n')}\n`);
+    await writeFile(
+        path.join(generatedDir, generatedSceneAssetsFileName),
+        `${JSON.stringify([...projectAssets].sort(), null, 2)}\n`,
+    );
 }
 
 async function readProjectConfig(projectRoot: string): Promise<PixifactProjectConfig | undefined> {
@@ -381,17 +392,10 @@ function importSourceFor(sourcePath: string, generatedFileDir: string) {
     return source.startsWith('.') ? source : `./${source}`;
 }
 
-function textureImportsFor(template: SceneTemplate, projectRoot: string, generatedFileDir: string) {
-    const textures = new Set<string>();
+function collectTemplateTextures(template: SceneTemplate, textures: Set<string>) {
     for (const child of template.children) {
         collectTextureReferences(child, textures);
     }
-    return Object.fromEntries([...textures].map((texture) => {
-        const normalized = texture.replace(/^\.\/+/, '').replace(/^\/+/, '');
-        const assetPath = path.resolve(projectRoot, normalized);
-        const source = path.relative(generatedFileDir, assetPath).replaceAll(path.sep, '/');
-        return [texture, `${source.startsWith('.') ? source : `./${source}`}?url`];
-    }));
 }
 
 function collectSceneInstancePaths(nodes: readonly SceneTemplateNode[], scenePaths = new Set<string>()) {

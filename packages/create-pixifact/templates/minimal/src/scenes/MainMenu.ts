@@ -1,6 +1,6 @@
 import { Graphics, Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
-import { createEvent, event, part, scene } from 'pixifact/compiler';
+import { createEvent, event, part, scene } from 'pixifact/scene';
 
 @scene()
 export class MainMenu extends Group {

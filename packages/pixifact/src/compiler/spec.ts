@@ -113,8 +113,8 @@ export interface CompileSceneTemplateOptions {
     scriptImport?: SceneTemplateScriptImport;
     sceneImports?: SceneTemplateScriptImport[];
     sceneClassAliases?: Record<string, string>;
+    sceneDependencies?: string[];
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
-    textureImports?: Record<string, string>;
 }
 
 export interface SceneScriptInterface {

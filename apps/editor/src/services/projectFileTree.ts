@@ -262,7 +262,7 @@ function createBlankCompilerSceneScript(name: string) {
     const assetName = sceneAssetName(name);
     return [
         "import { Group } from 'pixifact/runtime';",
-        "import { scene } from 'pixifact/compiler';",
+        "import { scene } from 'pixifact/scene';",
         '',
         '@scene()',
         `export class ${assetName} extends Group {`,

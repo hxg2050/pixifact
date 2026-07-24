@@ -1,6 +1,7 @@
 import './styles.css';
 import 'pixifact:scenes';
 import { Application } from 'pixi.js';
+import { prepareSceneClass } from 'pixifact/scene';
 import { applyPixifactViewportLayout, calculatePixifactViewportLayout } from 'pixifact/runtime';
 import { Main } from './scenes/Main';
 
@@ -22,6 +23,7 @@ await app.init({
     resolution: Math.min(window.devicePixelRatio || 1, 2),
 });
 
+await prepareSceneClass(Main);
 const scene = new Main();
 
 function resizeViewport() {

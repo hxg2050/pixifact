@@ -421,7 +421,7 @@ Pixifact runtime 矩形节点，会按盒子尺寸自动重绘，适合 UI 背�
 ```ts
 import type { Container } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
-import { createEvent, event, prop, scene, slot } from 'pixifact/compiler';
+import { createEvent, event, prop, scene, slot } from 'pixifact/scene';
 
 @scene()
 export class PrimaryButton extends Group {

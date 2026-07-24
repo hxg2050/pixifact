@@ -42,6 +42,11 @@
       "import": "./dist/runtime/index.js",
       "require": "./dist/runtime/index.js"
     },
+    "./scene": {
+      "types": "./dist/scene/index.d.ts",
+      "import": "./dist/scene/index.js",
+      "require": "./dist/scene/index.js"
+    },
     "./compiler": {
       "types": "./dist/compiler/index.d.ts",
       "import": "./dist/compiler/index.js",
@@ -51,6 +56,11 @@
       "types": "./dist/compiler-node/index.d.ts",
       "import": "./dist/compiler-node/index.js",
       "require": "./dist/compiler-node/index.js"
+    },
+    "./platform/wechat": {
+      "types": "./dist/platform/wechat/index.d.ts",
+      "import": "./dist/platform/wechat/index.js",
+      "require": "./dist/platform/wechat/index.js"
     }
   },
   "peerDependencies": {

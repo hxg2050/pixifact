@@ -13,6 +13,7 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力。Agent 编排、Git 分�
 - [文档入口](./docs/zh/index.md)：按工作场景查找当前中文文档。
 - [Layout](./docs/zh/layout.md)：设计分辨率、视口适配、frame layout、编辑器布局对齐。
 - [Agent Scene Authoring](./docs/zh/agent-scene-authoring.md)：外部 Agent 如何编辑 `.scene`。
+- [微信小游戏构建](./docs/zh/wechat-minigame.md)：游戏项目的微信 target、平台 runtime、资源分包和构建产物。
 - [内部文档](./internal-docs/index.md)：仓库维护、测试、发布、计划和历史规格。
 
 ## npm 快速开始
@@ -44,6 +45,14 @@ bun add -d pixifact-cli
 ```bash
 pixifact scene validate --all
 pixifact compile-scenes
+```
+
+构建微信小游戏：
+
+```bash
+pixifact validate --target wechat
+pixifact build --target wechat
+pixifact dev --target wechat
 ```
 
 当前 `pixifact-cli` 和 `create-pixifact` 都是 Bun-first 工具，需要本机安装 Bun。
@@ -180,16 +189,20 @@ Pixifact Editor 提供项目资产浏览、轻量预览、资源引用和校验�
 ```ts
 import { createSceneRevision, parseSceneTemplate } from 'pixifact/compiler';
 import { Group, Control, Rect, Image, HBoxContainer } from 'pixifact/runtime';
+import { prepareSceneClass, scene } from 'pixifact/scene';
+import { createWechatPixiApplication } from 'pixifact/platform/wechat';
 import { parsePixifactProjectConfig } from 'pixifact';
 ```
 
-根入口 `pixifact` 导出项目配置、runtime 扩展和常用错误提示；compiler API 通过 `pixifact/compiler` 导出。
+根入口 `pixifact` 导出项目配置、runtime 扩展和常用错误提示；Scene decorator、事件、slot、异步准备和资源加载从 `pixifact/scene` 导出；compiler API 通过 `pixifact/compiler` 导出；微信平台 runtime 从 `pixifact/platform/wechat` 导出。
 
 ## 仓库目录
 
 ```txt
 packages/pixifact/              核心 Pixifact 包，包名为 pixifact
 packages/pixifact/src/runtime/  Pixifact runtime 扩展节点
+packages/pixifact/src/scene/    Scene 运行时公开入口
+packages/pixifact/src/platform/ 游戏目标平台 runtime
 packages/pixifact/src/project/  pixifact.project.json 解析和项目摘要
 packages/pixifact/src/compiler/ compiler .scene 解析、校验、生成
 packages/pixifact-cli/          Pixifact CLI，依赖 pixifact，不依赖桌面编辑器

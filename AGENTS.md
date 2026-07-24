@@ -27,12 +27,15 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 
 - `packages/pixifact/`：核心 Pixifact 包，包名为 `pixifact`。
 - `packages/pixifact/src/runtime/`：Pixifact 对 PixiJS 的 runtime 扩展节点，例如 `Group`。
+- `packages/pixifact/src/scene/`：Scene decorator、事件、slot、异步准备和跨平台资源运行时。
+- `packages/pixifact/src/platform/wechat/`：微信小游戏 PixiJS adapter、输入、生命周期和资源访问。
 - `packages/pixifact/src/project/`：`pixifact.project.json` 解析、默认开发分辨率和项目摘要。
 - `packages/pixifact/src/compiler/`：compiler `.scene` 解析、校验、生成。
 - `packages/pixifact-cli/`：Pixifact CLI，依赖 `pixifact`，不依赖桌面编辑器。
 - `apps/editor/`：Pixifact 桌面编辑器产品应用。
 - `apps/editor/src-tauri/`：Tauri desktop host。
 - `tests/`：单元测试、编辑器测试、CLI 测试。
+- `sample-projects/wechat-minigame-demo/`：Web / 微信小游戏共享 Scene 和逻辑的多目标示例。
 
 ## Pixifact Skill 职责边界
 

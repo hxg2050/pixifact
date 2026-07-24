@@ -1,0 +1,23 @@
+{
+  "appid": "touristappid",
+  "compileType": "game",
+  "description": "Pixifact 微信小游戏构建示例",
+  "libVersion": "3.8.10",
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "file",
+        "value": "game.js.map"
+      }
+    ]
+  },
+  "projectname": "pixifact-wechat-minigame-demo",
+  "setting": {
+    "compileHotReLoad": false,
+    "enhance": true,
+    "es6": true,
+    "minified": false,
+    "postcss": false,
+    "urlCheck": false
+  }
+}

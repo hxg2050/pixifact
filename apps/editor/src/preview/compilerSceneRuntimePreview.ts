@@ -4,7 +4,7 @@ import ts from 'typescript';
 import * as Pixi from 'pixi.js';
 import { Container } from 'pixi.js';
 import { Control, GridContainer, Group, HBoxContainer, Image, NineImage, Rect, ScrollContainer, TileImage, VBoxContainer, applyPixifactViewportLayout, calculatePixifactViewportLayout, getFrameLayout, layoutFrameChildren, requestFrameLayout, setFrameLayout } from 'pixifact/runtime';
-import * as compilerRuntime from 'pixifact/compiler';
+import * as sceneRuntime from 'pixifact/scene';
 import {
     compileSceneTemplateToTs,
     builtinSceneInterface,
@@ -71,7 +71,7 @@ interface PreviewRuntimeContext {
     objectUrls: string[];
 }
 
-const compilerModuleId = 'pixifact/compiler';
+const sceneModuleId = 'pixifact/scene';
 const runtimeModuleId = 'pixifact/runtime';
 const pixiModuleId = 'pixi.js';
 const projectModulePrefix = 'pixifact-preview:project:';
@@ -212,7 +212,7 @@ function resolveProjectModulePath(projectTree: ProjectFileTreeNode, importerPath
 function moduleIdFromImport(context: PreviewRuntimeContext, importerId: string, source: string) {
     if (
         source === pixiModuleId
-        || source === compilerModuleId
+        || source === sceneModuleId
         || source === runtimeModuleId
         || source.startsWith(projectModulePrefix)
         || source.startsWith(builtinModulePrefix)
@@ -508,6 +508,7 @@ function createGeneratedSceneModule(
             },
             sceneImports: sceneImportsFor(scenePath, template, templates),
             sceneClassAliases: sceneClassAliasesFor(scenePath, template),
+            sceneDependencies: [...collectSceneInstancePaths(scenePath, template.children)].sort(),
             sceneInterfaces: sceneInterfacesFor(scenePath, template, sceneInterfaces),
         }),
     };
@@ -576,11 +577,12 @@ async function collectPreviewModules(
     return [...modulesById.values()];
 }
 
-function createPreviewCompilerRuntime(context: PreviewRuntimeContext) {
+function createPreviewSceneRuntime(context: PreviewRuntimeContext) {
     return {
-        ...compilerRuntime,
+        ...sceneRuntime,
+        loadSceneTexture: (source: string) => loadPreviewAsset(context, source),
         registerSlot(target: Container, name: string, host: Container) {
-            compilerRuntime.registerSlot(target, name, host);
+            sceneRuntime.registerSlot(target, name, host);
             let slots = context.slotsByTarget.get(target);
             if (!slots) {
                 slots = new Map();
@@ -589,7 +591,7 @@ function createPreviewCompilerRuntime(context: PreviewRuntimeContext) {
             slots.set(name, host);
         },
         mount<T extends Container>(target: Container, child: T, slot = 'default') {
-            const mounted = compilerRuntime.mount(target, child, slot);
+            const mounted = sceneRuntime.mount(target, child, slot);
             let slots = context.mountedChildrenByTarget.get(target);
             if (!slots) {
                 slots = new Map();
@@ -606,7 +608,7 @@ function createPreviewCompilerRuntime(context: PreviewRuntimeContext) {
 function createModuleLoader(context: PreviewRuntimeContext, modules: PreviewModule[]) {
     const moduleSources = new Map(modules.map((module) => [module.id, transpilePreviewModule(module.source)]));
     const records = new Map<string, PreviewModuleRecord>();
-    const runtime = createPreviewCompilerRuntime(context);
+    const runtime = createPreviewSceneRuntime(context);
     const pixiRuntime = createPreviewPixiRuntime(context);
 
     function requireModule(id: string, importerId?: string): Record<string, unknown> {
@@ -614,7 +616,7 @@ function createModuleLoader(context: PreviewRuntimeContext, modules: PreviewModu
         if (resolvedId === pixiModuleId) {
             return pixiRuntime as unknown as Record<string, unknown>;
         }
-        if (resolvedId === compilerModuleId) {
+        if (resolvedId === sceneModuleId) {
             return runtime as unknown as Record<string, unknown>;
         }
         if (resolvedId === runtimeModuleId) {
@@ -680,7 +682,11 @@ function createModuleLoader(context: PreviewRuntimeContext, modules: PreviewModu
         return record.exports;
     }
 
-    return { loadModule, requireModule };
+    return {
+        loadModule,
+        prepareSceneClass: runtime.prepareSceneClass,
+        requireModule,
+    };
 }
 
 function createPreviewPixiRuntime(context: PreviewRuntimeContext) {
@@ -827,6 +833,7 @@ export async function createCompilerSceneRuntimePreview(options: CreateCompilerS
     if (typeof SceneClass !== 'function') {
         throw new Error(`Scene 脚本没有导出 ${options.document.template.name}。`);
     }
+    await loader.prepareSceneClass(SceneClass);
     const root = new (SceneClass as PreviewSceneConstructor)();
     if (!(root instanceof Group)) {
         throw new Error(`Scene 脚本 ${options.document.template.name} 必须继承 Group。`);

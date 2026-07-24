@@ -15,7 +15,11 @@ bun add pixifact pixi.js
 ```ts
 import { parseSceneTemplate } from 'pixifact/compiler';
 import { Group } from 'pixifact/runtime';
+import { prepareSceneClass, scene } from 'pixifact/scene';
+import { createWechatPixiApplication } from 'pixifact/platform/wechat';
 ```
+
+`pixifact/compiler` 只包含解析、校验和生成 API。游戏运行时使用 `pixifact/runtime`、`pixifact/scene` 和具体平台入口，不要从 compiler 入口导入 Scene decorator 或运行时加载 API。
 
 Compiler Scene 项目通常还会安装 CLI：
 
@@ -29,6 +33,16 @@ bun add -d pixifact-cli
 pixifact scene validate --all
 pixifact compile-scenes
 ```
+
+声明 `targets.wechat` 后，可校验和构建微信小游戏：
+
+```bash
+pixifact validate --target wechat
+pixifact build --target wechat
+pixifact dev --target wechat
+```
+
+完整配置见仓库文档 [微信小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/wechat-minigame.md)。
 
 ## Scene 工作流
 

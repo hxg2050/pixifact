@@ -175,6 +175,7 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 - Do not add `script="..."` to `.scene` files.
 - Reference other Scenes with `.scene` paths, never bare names.
 - `.pixifact/generated` is never an agent editing target.
+- Import Scene decorators, events, slots, and async preparation APIs from `pixifact/scene`; `pixifact/compiler` is only for parsing, validation, and generation APIs.
 - Every editable node must have a stable ID.
 - Official base objects and props belong to [Scene Objects](./scene-objects.md).
 - Scene script props must use `String` / `Number` / `Boolean` or an exported struct class type.

@@ -490,7 +490,7 @@
 ```ts
 import type { Container } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
-import { createEvent, event, prop, scene, slot } from 'pixifact/compiler';
+import { createEvent, event, prop, scene, slot } from 'pixifact/scene';
 
 @scene()
 export class PrimaryButton extends Group {

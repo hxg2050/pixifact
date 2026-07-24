@@ -60,7 +60,7 @@ class CompileContext {
         const functionName = this.options.functionName || `mount${this.template.name}Scene`;
         const actionsParameter = this.options.actionsParameter || 'actions';
         const partsType = this.#formatPartsType();
-        const textureLoads = this.#formatTextureLoads();
+        const texturePreparation = this.#formatTexturePreparation();
 
         this.#lines.push(`export function ${functionName}(root: Group${this.#hasEvents() ? `, ${actionsParameter}: Record<string, () => void> = {}` : ''}) {`);
         this.#lines.push('  const __pixifactNodes: Record<string, Container> = {};');
@@ -83,7 +83,10 @@ class CompileContext {
             }
             this.#lines.push('');
             this.#lines.push(`registerScene(${JSON.stringify(this.options.registrationPath)}, {`);
+            this.#lines.push(`  assets: ${JSON.stringify([...this.#textures.keys()])},`);
+            this.#lines.push(`  dependencies: ${JSON.stringify(this.options.sceneDependencies ?? [])},`);
             this.#lines.push(`  mount: ${functionName},`);
+            this.#lines.push(`  prepare: ${this.#prepareFunctionName()},`);
             this.#lines.push('});');
             if (this.options.scriptImport) {
                 this.#lines.push(`registerSceneClass(${this.options.scriptImport.localName}, ${JSON.stringify(this.options.registrationPath)});`);
@@ -93,7 +96,7 @@ class CompileContext {
         const imports = this.#formatImports();
         return [
             imports,
-            textureLoads,
+            texturePreparation,
             partsType,
             this.#lines.join('\n'),
         ].filter(Boolean).join('\n\n') + '\n';
@@ -107,9 +110,6 @@ class CompileContext {
         ])];
         const runtimeImports = [...new Set(['Group', ...[...this.#pixiRuntimeImports].sort()])];
         const lines = [`import { ${imports.join(', ')} } from 'pixi.js';`, `import { ${runtimeImports.join(', ')} } from 'pixifact/runtime';`];
-        for (const [texture, variable] of this.#textureImportEntries()) {
-            lines.push(`import ${variable} from ${JSON.stringify(this.options.textureImports?.[texture])};`);
-        }
         for (const sceneImport of this.options.sceneImports ?? []) {
             const classImport = sceneImport.exportName === sceneImport.localName
                 ? sceneImport.exportName
@@ -126,7 +126,7 @@ class CompileContext {
             lines.push(`import { ${this.options.scriptImport.exportName} as ${this.options.scriptImport.localName} } from ${JSON.stringify(this.options.scriptImport.source)};`);
         }
         if (this.#runtimeImports.size > 0) {
-            lines.push(`import { ${[...this.#runtimeImports].sort().join(', ')} } from 'pixifact/compiler';`);
+            lines.push(`import { ${[...this.#runtimeImports].sort().join(', ')} } from 'pixifact/scene';`);
         }
         return lines.join('\n');
     }
@@ -207,14 +207,26 @@ class CompileContext {
         }
     }
 
-    #formatTextureLoads() {
+    #formatTexturePreparation() {
         if (this.#textures.size === 0) {
-            return '';
+            return `export async function ${this.#prepareFunctionName()}() {}`;
         }
-        this.#pixiImports.add('Assets');
-        return [...this.#textures.entries()]
-            .map(([texture, variable]) => `const ${variable} = await Assets.load(${this.#textureLoadSource(texture)});`)
-            .join('\n');
+        this.#pixiImports.add('Texture');
+        this.#runtimeImports.add('loadSceneTexture');
+        const entries = [...this.#textures.entries()];
+        return [
+            ...entries.map(([, variable]) => `let ${variable}: Texture;`),
+            '',
+            `export async function ${this.#prepareFunctionName()}() {`,
+            `  [${entries.map(([, variable]) => variable).join(', ')}] = await Promise.all([`,
+            ...entries.map(([texture]) => `    loadSceneTexture(${JSON.stringify(texture)}),`),
+            '  ]);',
+            '}',
+        ].join('\n');
+    }
+
+    #prepareFunctionName() {
+        return `prepare${this.template.name}Scene`;
     }
 
     #compileNode(node: SceneTemplateNode, parent: string, actionsParameter: string, path: string) {
@@ -666,23 +678,6 @@ class CompileContext {
         const variable = `__pixifactTexture${this.#nextTextureId}`;
         this.#textures.set(texture, variable);
         return variable;
-    }
-
-    #textureImportEntries() {
-        return [...this.#textures.keys()]
-            .filter((texture) => this.options.textureImports?.[texture])
-            .map((texture, index) => [texture, `__pixifactTextureUrl${index + 1}`] as const);
-    }
-
-    #textureImportVariable(texture: string) {
-        const index = [...this.#textures.keys()]
-            .filter((key) => this.options.textureImports?.[key])
-            .indexOf(texture);
-        return index >= 0 ? `__pixifactTextureUrl${index + 1}` : undefined;
-    }
-
-    #textureLoadSource(texture: string) {
-        return this.#textureImportVariable(texture) ?? this.#value(texture);
     }
 
     #textureValue(value: SceneTemplateValue) {

@@ -31,6 +31,7 @@
     "start": "bun src/pixifact-cli.ts"
   },
   "dependencies": {
+    "esbuild": "^0.27.2",
     "pixifact": "^0.3.0"
   }
 }

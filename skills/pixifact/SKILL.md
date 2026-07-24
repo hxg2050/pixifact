@@ -41,6 +41,11 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
    ```bash
    bun run build
    ```
+12. 项目声明 `targets.wechat` 且改动影响微信目标时，再运行：
+   ```bash
+   pixifact validate --target wechat
+   pixifact build --target wechat
+   ```
 
 默认项目根是当前工作目录；不在项目根运行时再加 `--project-root <path>`。项目自己的 `bun run build`、`bun run dev` 等命令只作为后续检查或预览入口。
 
@@ -55,6 +60,7 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 - `.scene` root 使用 `<Scene name="...">`。
 - `<Group>` 用于有明确宽高或 frame layout 的普通盒子容器；`Container` 保持 Pixi 原生 bounds / scale 尺寸语义。
 - Scene 脚本类必须继承 `Group`，并使用 `@scene()` 标记。
+- Scene decorator、event、slot 和异步 Scene 准备 API 从 `pixifact/scene` 导入，不要从 `pixifact/compiler` 导入运行时 API。
 - Scene 脚本类不能声明构造参数；构造函数和 `onMounted()` 只处理节点树与本地 UI 状态，运行数据通过显式方法在构造后传入。
 - `@part()` 绑定 `.scene` 中稳定 `id` 节点；`@prop()`、`@event()`、`@slot()` 暴露公开契约。
 - `@prop()` 类型使用 `String` / `Number` / `Boolean` 或导出的 structured prop class；不要使用旧字符串类型。

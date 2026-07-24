@@ -1,0 +1,23 @@
+{
+  "name": "pixifact-wechat-minigame-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile:scenes": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts compile-scenes --project-root .",
+    "dev": "bun run compile:scenes && vite . --host 127.0.0.1 --port 5179 --strictPort",
+    "build:web": "bun run compile:scenes && vite build . --config vite.config.ts",
+    "validate:wx": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts validate --target wechat --project-root .",
+    "build:wx": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts build --target wechat --project-root .",
+    "dev:wx": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts dev --target wechat --project-root ."
+  },
+  "dependencies": {
+    "pixi.js": "8.18.1",
+    "pixifact": "workspace:*"
+  },
+  "devDependencies": {
+    "pixifact-cli": "workspace:*",
+    "typescript": "^5.3.3",
+    "vite": "^8.0.10"
+  }
+}

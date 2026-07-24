@@ -43,6 +43,23 @@ bun run build
 
 不要编辑 `.pixifact/generated/**` 下的生成文件。
 
+## 微信小游戏 target
+
+项目在 `pixifact.project.json` 声明 `targets.wechat` 后，可运行：
+
+```bash
+pixifact validate --target wechat
+pixifact build --target wechat
+pixifact build --target wechat --mode development
+pixifact dev --target wechat
+```
+
+`build` 默认使用 production mode，压缩 `game.js`；development mode 额外输出 source map。`dev` 固定使用 development mode，并在 Scene、脚本、平台配置或资源变化时重建。
+
+输出目录由 `targets.wechat.outDir` 决定，可直接导入微信开发者工具。CLI 负责 target 校验、Scene 编译、主包资源 hash、资源分包 / HTTPS 远程资源映射、原生配置复制和 4 MiB 主包 / 20 MiB 总包检查，不负责上传、体验版、审核或发布。
+
+完整配置和支持矩阵见 [微信小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/wechat-minigame.md)，可运行示例见 [wechat-minigame-demo](https://github.com/hxg2050/pixifact/tree/main/sample-projects/wechat-minigame-demo)。
+
 ## 环境要求
 
 - Bun

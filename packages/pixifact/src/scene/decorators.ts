@@ -6,7 +6,7 @@ import type {
     ScenePartDecoratorOptions,
     ScenePropDecoratorOptions,
     SceneSlotDecoratorOptions,
-} from './spec';
+} from '../compiler/spec';
 import { mountSceneClass } from './sceneRuntime';
 
 type SceneConstructor = new (...args: unknown[]) => object;

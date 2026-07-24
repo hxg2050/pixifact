@@ -1,5 +1,5 @@
 import { Group } from 'pixifact/runtime';
-import { part, scene } from 'pixifact/compiler';
+import { part, scene } from 'pixifact/scene';
 import type { BottomMenu } from './BottomMenu';
 import type { InventoryPanel } from './InventoryPanel';
 

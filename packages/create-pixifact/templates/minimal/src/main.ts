@@ -2,6 +2,7 @@ import './styles.css';
 import 'pixifact:scenes';
 import { Application } from 'pixi.js';
 import type { PixifactProjectConfig } from 'pixifact';
+import { prepareSceneClass } from 'pixifact/scene';
 import { applyPixifactViewportLayout, calculatePixifactViewportLayout } from 'pixifact/runtime';
 import projectConfigJson from '../pixifact.project.json';
 import { MainMenu } from './scenes/MainMenu';
@@ -24,6 +25,7 @@ await app.init({
     resolution: Math.min(window.devicePixelRatio || 1, 2),
 });
 
+await prepareSceneClass(MainMenu);
 const scene = new MainMenu();
 
 function resizeViewport() {

@@ -528,7 +528,7 @@ function createBlankCompilerSceneSource(sceneName: string) {
 function createBlankCompilerSceneScript(sceneName: string) {
     return [
         "import { Group } from 'pixifact/runtime';",
-        "import { scene } from 'pixifact/compiler';",
+        "import { scene } from 'pixifact/scene';",
         '',
         '@scene()',
         `export class ${sceneName} extends Group {}`,

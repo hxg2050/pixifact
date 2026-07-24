@@ -1,21 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
     emitSceneScriptInterfaceDescriptor,
-    event,
     extractSceneScriptInterfaces,
     extractSceneScriptInterface,
+} from 'pixifact/compiler';
+import {
+    event,
     part,
     prop,
     scene,
     slot,
-} from 'pixifact/compiler';
+} from 'pixifact/scene';
 
 describe('scene script interface extractor', () => {
     it('extracts scene public contract from narrow TypeScript decorators', () => {
         const contract = extractSceneScriptInterface(`
             import { Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
-            import { event, part, prop, scene, slot } from 'pixifact/compiler';
+            import { event, part, prop, scene, slot } from 'pixifact/scene';
 
             @scene()
             export class Button extends Group {

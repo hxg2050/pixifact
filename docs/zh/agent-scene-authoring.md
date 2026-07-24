@@ -175,6 +175,7 @@ Validation errors 应足够明确，便于 Agent repair loop。错误应指出 n
 - 不要在 `.scene` 中添加 `script="..."`。
 - 引用其他 Scenes 时使用 `.scene` paths，不要使用 bare names。
 - `.pixifact/generated` 永远不是 Agent editing target。
+- Scene 脚本的 decorator、event、slot 和异步准备 API 从 `pixifact/scene` 导入；`pixifact/compiler` 只用于解析、校验和生成 API。
 - 每个 editable node 必须有 stable ID。
 - 官方基础对象和属性以 [Scene Objects](./scene-objects.md) 为准。
 - Scene script props 必须使用 `String` / `Number` / `Boolean` 或 exported struct class type。

@@ -18,12 +18,37 @@ export interface PixifactProjectResolution {
     height: number;
 }
 
+export interface PixifactProjectResourcePack {
+    root: string;
+}
+
+export type PixifactWechatResourcePack = {
+    delivery: 'subpackage';
+    root: string;
+} | {
+    delivery: 'remote';
+    baseUrl: string;
+};
+
+export interface PixifactWechatTargetConfig {
+    entry: string;
+    configDir: string;
+    outDir: string;
+    resourcePacks: Record<string, PixifactWechatResourcePack>;
+}
+
+export interface PixifactProjectTargets {
+    wechat?: PixifactWechatTargetConfig;
+}
+
 export interface PixifactProjectConfig {
     version: 1;
     name: string;
     resolution: PixifactProjectResolution;
     viewport: PixifactProjectViewport;
     scenes: Record<string, string>;
+    resourcePacks?: Record<string, PixifactProjectResourcePack>;
+    targets?: PixifactProjectTargets;
     run?: PixifactProjectRunConfig;
 }
 
@@ -34,6 +59,8 @@ export interface PixifactProjectSummary {
     resolution: PixifactProjectResolution;
     viewport: PixifactProjectViewport;
     scenes: Record<string, string>;
+    resourcePacks?: Record<string, PixifactProjectResourcePack>;
+    targets?: PixifactProjectTargets;
     run?: PixifactProjectRunConfig;
 }
 
@@ -94,6 +121,14 @@ function normalizeRunCwd(value: unknown) {
     return normalizeProjectPath(input, 'run.cwd');
 }
 
+function normalizeProjectChildPath(value: unknown, name: string) {
+    const input = normalizeProjectPath(value, name);
+    if (input === '.') {
+        throw new Error(`${name} must not be projectRoot.`);
+    }
+    return input;
+}
+
 function parseScenes(value: unknown) {
     const scenes = assertRecord(value, 'scenes');
     return Object.fromEntries(Object.entries(scenes).map(([key, scenePath]) => [
@@ -147,10 +182,71 @@ function parseRun(value: unknown): PixifactProjectRunConfig | undefined {
     };
 }
 
+function parseResourcePacks(value: unknown): Record<string, PixifactProjectResourcePack> | undefined {
+    if (value === undefined) {
+        return undefined;
+    }
+    const packs = assertRecord(value, 'resourcePacks');
+    return Object.fromEntries(Object.entries(packs).map(([name, packValue]) => {
+        const pack = assertRecord(packValue, `resourcePacks.${name}`);
+        return [assertString(name, 'resource pack name'), {
+            root: normalizeProjectChildPath(pack.root, `resourcePacks.${name}.root`),
+        }];
+    }));
+}
+
+function parseWechatResourcePacks(value: unknown) {
+    const packs = assertRecord(value, 'targets.wechat.resourcePacks');
+    return Object.fromEntries(Object.entries(packs).map(([name, packValue]) => {
+        const pack = assertRecord(packValue, `targets.wechat.resourcePacks.${name}`);
+        const delivery = assertString(pack.delivery, `targets.wechat.resourcePacks.${name}.delivery`);
+        if (delivery === 'subpackage') {
+            return [name, {
+                delivery,
+                root: normalizeProjectChildPath(pack.root, `targets.wechat.resourcePacks.${name}.root`),
+            } satisfies PixifactWechatResourcePack];
+        }
+        if (delivery === 'remote') {
+            return [name, {
+                delivery,
+                baseUrl: assertString(pack.baseUrl, `targets.wechat.resourcePacks.${name}.baseUrl`).replace(/\/+$/, ''),
+            } satisfies PixifactWechatResourcePack];
+        }
+        throw new Error(`targets.wechat.resourcePacks.${name}.delivery must be subpackage or remote.`);
+    }));
+}
+
+function parseTargets(value: unknown): PixifactProjectTargets | undefined {
+    if (value === undefined) {
+        return undefined;
+    }
+    const targets = assertRecord(value, 'targets');
+    if (targets.wechat === undefined) {
+        return {};
+    }
+    const wechat = assertRecord(targets.wechat, 'targets.wechat');
+    const outDir = normalizeProjectChildPath(wechat.outDir, 'targets.wechat.outDir');
+    return {
+        wechat: {
+            entry: normalizeProjectPath(wechat.entry, 'targets.wechat.entry'),
+            configDir: normalizeProjectPath(wechat.configDir, 'targets.wechat.configDir'),
+            outDir,
+            resourcePacks: parseWechatResourcePacks(wechat.resourcePacks),
+        },
+    };
+}
+
 export function parsePixifactProjectConfig(value: unknown): PixifactProjectConfig {
     const config = assertRecord(value, 'pixifact.project.json');
     if (config.version !== 1) {
         throw new Error('pixifact.project.json version must be 1.');
+    }
+    const resourcePacks = parseResourcePacks(config.resourcePacks);
+    const targets = parseTargets(config.targets);
+    for (const name of Object.keys(targets?.wechat?.resourcePacks ?? {})) {
+        if (!resourcePacks?.[name]) {
+            throw new Error(`targets.wechat.resourcePacks.${name} must reference resourcePacks.${name}.`);
+        }
     }
     return {
         version: 1,
@@ -158,6 +254,8 @@ export function parsePixifactProjectConfig(value: unknown): PixifactProjectConfi
         resolution: parseResolution(config.resolution),
         viewport: parseViewport(config.viewport),
         scenes: parseScenes(config.scenes),
+        ...(resourcePacks === undefined ? {} : { resourcePacks }),
+        ...(targets === undefined ? {} : { targets }),
         run: parseRun(config.run),
     };
 }
@@ -168,6 +266,8 @@ export function summarizePixifactProjectConfig(config: PixifactProjectConfig): P
         resolution: config.resolution,
         viewport: config.viewport,
         scenes: config.scenes,
+        ...(config.resourcePacks === undefined ? {} : { resourcePacks: config.resourcePacks }),
+        ...(config.targets === undefined ? {} : { targets: config.targets }),
         ...(config.run === undefined ? {} : { run: config.run }),
     };
 }

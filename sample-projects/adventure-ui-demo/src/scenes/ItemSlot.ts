@@ -1,6 +1,6 @@
 import type { Text } from 'pixi.js';
 import { Group, type NineImage } from 'pixifact/runtime';
-import { part, prop, scene } from 'pixifact/compiler';
+import { part, prop, scene } from 'pixifact/scene';
 
 @scene()
 export class ItemSlot extends Group {

@@ -4,6 +4,13 @@ import { hintForCommandError } from 'pixifact';
 import { CompileSceneError, compileScenes } from 'pixifact/compiler-node';
 import type { SceneValidationDiagnostic } from 'pixifact/compiler';
 import { createLiveBridgeServer } from './liveBridgeServer';
+import {
+    buildWechatTarget,
+    devWechatTarget,
+    validateWechatTarget,
+    type WechatDevEvent,
+    WechatTargetError,
+} from './wechatTarget';
 
 type Automation = ReturnType<typeof createPixifactAutomation>;
 type LiveBridge = Pick<ReturnType<typeof createLiveBridgeServer>, 'connected' | 'callAction' | 'stop'> & {
@@ -13,6 +20,7 @@ type LiveBridge = Pick<ReturnType<typeof createLiveBridgeServer>, 'connected' | 
 interface CliOptions {
     automation?: Automation;
     liveBridge?: LiveBridge;
+    onWechatDevEvent?: (event: WechatDevEvent) => void;
 }
 
 interface CliResult {
@@ -205,9 +213,83 @@ function sourcePositionFromMessage(source: string, message: string) {
     };
 }
 
-async function executeFileCommand(positionals: string[], flags: Record<string, string | true>, automation: Automation) {
+async function executeFileCommand(
+    positionals: string[],
+    flags: Record<string, string | true>,
+    automation: Automation,
+    onWechatDevEvent?: (event: WechatDevEvent) => void,
+) {
     const [area, action] = positionals;
     const projectRoot = projectRootFlag(flags);
+
+    if ((area === 'build' || area === 'dev' || area === 'validate') && action === undefined) {
+        const target = requireFlag(flags, 'target');
+        if (target !== 'wechat') {
+            throw new Error(`Unknown Pixifact target "${target}".`);
+        }
+        if (area === 'validate') {
+            const result = await validateWechatTarget(projectRoot);
+            return result.diagnostics.length > 0
+                ? {
+                    ok: false,
+                    target,
+                    diagnostics: result.diagnostics,
+                    hint: 'Fix the listed WeChat target diagnostics, then validate again.',
+                }
+                : { ok: true, projectRoot, target };
+        }
+        if (area === 'dev') {
+            if (flags.mode !== undefined) {
+                throw new Error('dev --target wechat always uses development mode; remove --mode.');
+            }
+            try {
+                const session = await devWechatTarget(projectRoot, onWechatDevEvent);
+                return {
+                    ok: true,
+                    projectRoot,
+                    target,
+                    mode: 'development',
+                    watching: true,
+                    report: session.initialReport,
+                };
+            } catch (error) {
+                if (error instanceof WechatTargetError) {
+                    return {
+                        ok: false,
+                        target,
+                        error: error.message,
+                        diagnostics: error.diagnostics,
+                        hint: 'Fix the listed WeChat target diagnostics, then start dev again.',
+                    };
+                }
+                throw error;
+            }
+        }
+        const mode = flags.mode === undefined ? 'production' : requireFlag(flags, 'mode');
+        if (mode !== 'development' && mode !== 'production') {
+            throw new Error('--mode must be development or production.');
+        }
+        try {
+            return {
+                ok: true,
+                projectRoot,
+                target,
+                mode,
+                report: await buildWechatTarget(projectRoot, mode),
+            };
+        } catch (error) {
+            if (error instanceof WechatTargetError) {
+                return {
+                    ok: false,
+                    target,
+                    error: error.message,
+                    diagnostics: error.diagnostics,
+                    hint: 'Fix the listed WeChat target diagnostics, then build again.',
+                };
+            }
+            throw error;
+        }
+    }
 
     if (area === 'compile-scenes' && action === undefined) {
         try {
@@ -305,6 +387,9 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'scene inspect --scene <scene-path>',
                         'scene validate --scene <scene-path>',
                         'compile-scenes',
+                        'validate --target wechat',
+                        'build --target wechat',
+                        'dev --target wechat',
                     ],
                     aiValidationAlternatives: [
                         'scene validate --all',
@@ -334,7 +419,12 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                 parsed.flags,
                 options.liveBridge ?? (ownedBridge = createLiveBridgeServer()),
             )
-            : await executeFileCommand(parsed.positionals, parsed.flags, automation);
+            : await executeFileCommand(
+                parsed.positionals,
+                parsed.flags,
+                automation,
+                options.onWechatDevEvent,
+            );
         if (isFailedResult(result)) {
             return {
                 exitCode: 1,
@@ -363,7 +453,9 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-    const result = await executePixifactCli(process.argv.slice(2));
+    const result = await executePixifactCli(process.argv.slice(2), {
+        onWechatDevEvent: (event) => process.stdout.write(jsonLine(event)),
+    });
     process.stdout.write(result.stdout);
     process.stderr.write(result.stderr);
     process.exitCode = result.exitCode;

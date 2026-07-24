@@ -90,7 +90,7 @@ function createTempProject() {
     ].join('\n'), 'utf8');
     fs.writeFileSync(path.join(root, 'src', 'scenes', 'Button.ts'), [
         'import { Group } from "pixifact/runtime";',
-        'import { scene } from "pixifact/compiler";',
+        'import { scene } from "pixifact/scene";',
         '',
         '@scene()',
         'export class Button extends Group {}',
@@ -118,7 +118,7 @@ function createCompilerSceneProject() {
     ].join('\n'), 'utf8');
     fs.writeFileSync(path.join(root, 'src', 'scenes', 'Button.ts'), [
         'import { Group } from "pixifact/runtime";',
-        'import { scene } from "pixifact/compiler";',
+        'import { scene } from "pixifact/scene";',
         '',
         '@scene()',
         'export class Button extends Group {}',
@@ -241,6 +241,9 @@ describe('Pixifact CLI', () => {
                 'scene inspect --scene <scene-path>',
                 'scene validate --scene <scene-path>',
                 'compile-scenes',
+                'validate --target wechat',
+                'build --target wechat',
+                'dev --target wechat',
             ],
             aiValidationAlternatives: [
                 'scene validate --all',
@@ -342,7 +345,7 @@ describe('Pixifact CLI', () => {
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), `
             import { Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
-            import { part, prop, scene } from 'pixifact/compiler';
+            import { part, prop, scene } from 'pixifact/scene';
 
             @scene()
             export class Button extends Group {
@@ -371,7 +374,7 @@ import { Group } from 'pixifact/runtime';
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'BaseControl.scene'), '<Scene name="BaseControl" />\n', 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'BaseControl.ts'), [
             'import { Group } from "pixifact/runtime";',
-            'import { prop, scene, slot } from "pixifact/compiler";',
+            'import { prop, scene, slot } from "pixifact/scene";',
             '',
             '@scene()',
             'export class BaseControl extends Group {',
@@ -384,7 +387,7 @@ import { Group } from 'pixifact/runtime';
             '',
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
-            'import { prop, scene } from "pixifact/compiler";',
+            'import { prop, scene } from "pixifact/scene";',
             'import { BaseControl } from "./BaseControl";',
             '',
             '@scene()',
@@ -484,7 +487,7 @@ import { Group } from 'pixifact/runtime';
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'MainMenu.ts'), [
             'import { Group } from "pixifact/runtime";',
-            'import { scene } from "pixifact/compiler";',
+            'import { scene } from "pixifact/scene";',
             '',
             '@scene()',
             'export class MainMenu extends Group {}',
@@ -521,7 +524,7 @@ import { Group } from 'pixifact/runtime';
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Broken.ts'), [
             'import { Group } from "pixifact/runtime";',
-            'import { scene } from "pixifact/compiler";',
+            'import { scene } from "pixifact/scene";',
             '',
             '@scene()',
             'export class Broken extends Group {}',
@@ -625,7 +628,7 @@ import { Group } from 'pixifact/runtime';
         const projectRoot = createCompilerSceneProject();
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
             'import { Group } from "pixifact/runtime";',
-            'import { scene } from "pixifact/compiler";',
+            'import { scene } from "pixifact/scene";',
             '',
             '@scene()',
             'export class PrimaryButton extends Group {}',
@@ -692,7 +695,7 @@ import { Group } from 'pixifact/runtime';
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
             'import { Group } from "pixifact/runtime";',
-            'import { prop, scene } from "pixifact/compiler";',
+            'import { prop, scene } from "pixifact/scene";',
             '',
             '@scene()',
             'export class Button extends Group {',
@@ -703,7 +706,7 @@ import { Group } from 'pixifact/runtime';
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'MainMenu.ts'), [
             'import { Group } from "pixifact/runtime";',
-            'import { scene } from "pixifact/compiler";',
+            'import { scene } from "pixifact/scene";',
             '',
             '@scene()',
             'export class MainMenu extends Group {}',
@@ -748,7 +751,7 @@ import { Group } from 'pixifact/runtime';
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'scenes', 'Button.ts'), [
             'import { Group } from "pixifact/runtime";',
-            'import { scene } from "pixifact/compiler";',
+            'import { scene } from "pixifact/scene";',
             '',
             '@scene()',
             'export class Button extends Group {}',
@@ -876,7 +879,7 @@ import { Group } from 'pixifact/runtime';
         const projectRoot = createCompilerSceneProject();
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
             'import { Group } from "pixifact/runtime";',
-            'import { scene } from "pixifact/compiler";',
+            'import { scene } from "pixifact/scene";',
             '',
             '@scene()',
             'export class PrimaryButton extends Group {}',
@@ -945,7 +948,7 @@ import { Group } from 'pixifact/runtime';
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
             'import { Text } from "pixi.js";',
             'import { Group } from "pixifact/runtime";',
-            'import { part, scene } from "pixifact/compiler";',
+            'import { part, scene } from "pixifact/scene";',
             '',
             '@scene()',
             'export class Button extends Group {',
@@ -1012,7 +1015,7 @@ import { Group } from 'pixifact/runtime';
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
             'import { Group } from "pixifact/runtime";',
-            'import { prop, scene } from "pixifact/compiler";',
+            'import { prop, scene } from "pixifact/scene";',
             '',
             '@scene()',
             'export class PrimaryButton extends Group {',
@@ -1029,7 +1032,7 @@ import { Group } from 'pixifact/runtime';
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'MainMenu.ts'), [
             'import { Group } from "pixifact/runtime";',
-            'import { scene } from "pixifact/compiler";',
+            'import { scene } from "pixifact/scene";',
             '',
             '@scene()',
             'export class MainMenu extends Group {}',
@@ -1064,7 +1067,7 @@ import { Group } from 'pixifact/runtime';
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
             'import { Text } from "pixi.js";',
             'import { Group } from "pixifact/runtime";',
-            'import { part, scene } from "pixifact/compiler";',
+            'import { part, scene } from "pixifact/scene";',
             '',
             '@scene()',
             'export class Button extends Group {',
@@ -1102,7 +1105,7 @@ import { Group } from 'pixifact/runtime';
         ].join('\n'), 'utf8');
         fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.ts'), [
             'import { Group } from "pixifact/runtime";',
-            'import { scene } from "pixifact/compiler";',
+            'import { scene } from "pixifact/scene";',
             '',
             '@scene()',
             'export class PrimaryButton extends Group {}',

@@ -315,7 +315,7 @@ function sceneScriptSource(className: string, members = '') {
     return `
         import { Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
-        import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
+        import { createEvent, event, part, prop, scene, slot } from 'pixifact/scene';
 
         @scene()
         export class ${className} extends Group {
@@ -467,7 +467,7 @@ describe('project file tree service', () => {
         expect(created.content).toBe('<Scene name="MenuPanel">\n</Scene>\n');
         expect(script).toBe([
             "import { Group } from 'pixifact/runtime';",
-            "import { scene } from 'pixifact/compiler';",
+            "import { scene } from 'pixifact/scene';",
             '',
             '@scene()',
             'export class MenuPanel extends Group {',
@@ -844,7 +844,7 @@ describe('project file tree service', () => {
                     'Button.scene': host.file('<Scene name="Button" />'),
                     'Button.ts': host.file(`
                         import { Group } from 'pixifact/runtime';
-                        import { scene } from 'pixifact/compiler';
+                        import { scene } from 'pixifact/scene';
                         import playTexture from '../../assets/play.png';
 
                         @scene()
@@ -886,7 +886,7 @@ describe('project file tree service', () => {
                     'Button.scene': host.file('<Scene name="Button" />'),
                     'Button.ts': host.file(`
                         import { Group } from 'pixifact/runtime';
-                        import { scene } from 'pixifact/compiler';
+                        import { scene } from 'pixifact/scene';
 
                         @scene()
                         export class Button extends Group {
@@ -931,7 +931,7 @@ describe('project file tree service', () => {
 
                     'BasePanel.ts': host.file(`
                         import { Group } from 'pixifact/runtime';
-                        import { prop, scene } from 'pixifact/compiler';
+                        import { prop, scene } from 'pixifact/scene';
 
                         export class RectTransform {
                             x = 0;
@@ -950,7 +950,7 @@ describe('project file tree service', () => {
                     'Button.scene': host.file('<Scene name="Button" />'),
 
                     'Button.ts': host.file(`
-                        import { prop, scene } from 'pixifact/compiler';
+                        import { prop, scene } from 'pixifact/scene';
                         import { BasePanel } from './BasePanel';
 
                         @scene()
@@ -1224,7 +1224,7 @@ describe('project file tree service', () => {
 
                     'Hud.ts': host.file(`
                         import { Group } from 'pixifact/runtime';
-                        import { scene } from 'pixifact/compiler';
+                        import { scene } from 'pixifact/scene';
 
                         @scene()
                         export class Hud extends Group {
@@ -1240,7 +1240,7 @@ describe('project file tree service', () => {
 
                     'Button.ts': host.file(`
                         import { Group } from 'pixifact/runtime';
-                        import { createEvent, event, scene } from 'pixifact/compiler';
+                        import { createEvent, event, scene } from 'pixifact/scene';
 
                         @scene()
                         export class Button extends Group {

@@ -170,4 +170,86 @@ describe('Pixifact project run config', () => {
             },
         })).toThrow('run.cwd must stay inside projectRoot');
     });
+
+    it('parses WeChat target resource delivery', () => {
+        const config = parsePixifactProjectConfig({
+            version: 1,
+            name: 'WeChat Game',
+            scenes: {
+                main: 'src/scenes/Main.scene',
+            },
+            resourcePacks: {
+                common: { root: 'resources/common' },
+                chapter1: { root: 'resources/chapter1' },
+            },
+            targets: {
+                wechat: {
+                    entry: 'src/wechat/main.ts',
+                    configDir: 'platforms/wechat',
+                    outDir: 'dist/wechat',
+                    resourcePacks: {
+                        common: {
+                            delivery: 'remote',
+                            baseUrl: 'https://cdn.example.com/common/',
+                        },
+                        chapter1: {
+                            delivery: 'subpackage',
+                            root: 'subpackages/chapter1',
+                        },
+                    },
+                },
+            },
+        });
+
+        expect(config.targets?.wechat).toEqual({
+            entry: 'src/wechat/main.ts',
+            configDir: 'platforms/wechat',
+            outDir: 'dist/wechat',
+            resourcePacks: {
+                common: {
+                    delivery: 'remote',
+                    baseUrl: 'https://cdn.example.com/common',
+                },
+                chapter1: {
+                    delivery: 'subpackage',
+                    root: 'subpackages/chapter1',
+                },
+            },
+        });
+    });
+
+    it('rejects invalid WeChat target paths and resource pack references', () => {
+        expect(() => parsePixifactProjectConfig({
+            version: 1,
+            name: 'Bad WeChat Game',
+            scenes: {},
+            targets: {
+                wechat: {
+                    entry: 'src/wechat/main.ts',
+                    configDir: 'platforms/wechat',
+                    outDir: '.',
+                    resourcePacks: {},
+                },
+            },
+        })).toThrow('targets.wechat.outDir must not be projectRoot');
+
+        expect(() => parsePixifactProjectConfig({
+            version: 1,
+            name: 'Bad WeChat Game',
+            scenes: {},
+            targets: {
+                wechat: {
+                    entry: 'src/wechat/main.ts',
+                    configDir: 'platforms/wechat',
+                    outDir: 'dist/wechat',
+                    resourcePacks: {
+                        missing: {
+                            delivery: 'subpackage',
+                            root: 'subpackages/missing',
+                        },
+                    },
+                },
+            },
+        })).toThrow('targets.wechat.resourcePacks.missing must reference resourcePacks.missing');
+    });
 });

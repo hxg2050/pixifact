@@ -7,6 +7,7 @@ import { validateSceneContent } from 'pixifact/compiler';
 
 const repoRoot = cwd();
 const sampleRoot = join(repoRoot, 'sample-projects', 'adventure-ui-demo');
+const wechatSampleRoot = join(repoRoot, 'sample-projects', 'wechat-minigame-demo');
 const sceneNames = [
     'Main',
     'Hud',
@@ -44,7 +45,7 @@ async function collectFiles(root: string, suffix: string) {
 }
 
 describe('sample projects', () => {
-    it('keeps the adventure UI demo as the single mobile portrait sample project', async () => {
+    it('keeps both mobile portrait sample projects discoverable', async () => {
         await expect(exists(join(sampleRoot, 'pixifact.project.json'))).resolves.toBe(true);
 
         const project = JSON.parse(await readFile(join(sampleRoot, 'pixifact.project.json'), 'utf8'));
@@ -65,7 +66,26 @@ describe('sample projects', () => {
 
         const sampleProjectDirectories = await readdir(join(repoRoot, 'sample-projects'), { withFileTypes: true });
         expect(sampleProjectDirectories.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort())
-            .toEqual(['adventure-ui-demo']);
+            .toEqual(['adventure-ui-demo', 'wechat-minigame-demo']);
+    });
+
+    it('keeps the WeChat sample importable by WeChat DevTools', async () => {
+        const project = JSON.parse(await readFile(join(wechatSampleRoot, 'pixifact.project.json'), 'utf8'));
+        expect(project.targets.wechat).toEqual({
+            entry: 'src/wechat/main.ts',
+            configDir: 'platforms/wechat',
+            outDir: 'dist/wechat',
+            resourcePacks: {
+                'demo-level': {
+                    delivery: 'subpackage',
+                    root: 'subpackages/demo-level',
+                },
+            },
+        });
+        await expect(exists(join(wechatSampleRoot, 'platforms', 'wechat', 'game.json'))).resolves.toBe(true);
+        await expect(exists(join(wechatSampleRoot, 'platforms', 'wechat', 'project.config.json'))).resolves.toBe(true);
+        await expect(exists(join(wechatSampleRoot, 'src', 'scenes', 'Main.scene'))).resolves.toBe(true);
+        await expect(exists(join(wechatSampleRoot, 'src', 'scenes', 'Main.ts'))).resolves.toBe(true);
     });
 
     it('keeps every adventure UI demo scene paired with a script', async () => {

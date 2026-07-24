@@ -5,36 +5,40 @@ import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
-    connectSceneEvent,
     compileSceneTemplateToTs,
     createSceneRevision,
     builtinSceneInterfaces,
     generatedSceneModuleImport,
     generatedSceneModulePath,
-    mount,
     normalizeSceneAssetId,
     parseSceneTemplate,
     pairedSceneScriptPath,
-    part,
-    prop,
     resolveSceneReference,
     serializeSceneTemplate,
     inspectSceneTemplate,
+    extractSceneScriptInterfaces,
+    sceneClassAlias,
+    sceneLocalName,
+    validateSceneContent,
+    type BuiltinSceneScriptSources,
+} from 'pixifact/compiler';
+import {
+    connectSceneEvent,
     createEvent,
     event,
-    extractSceneScriptInterfaces,
     getSceneNode,
+    mount,
+    part,
+    prepareScene,
+    prepareSceneClass,
+    prop,
     registerScene,
     registerSceneClass,
     registerSlot,
     scene,
-    sceneClassAlias,
-    sceneLocalName,
     slot,
-    validateSceneContent,
-    type BuiltinSceneScriptSources,
-} from 'pixifact/compiler';
-import { compileScenes, pixifactScenesPlugin } from 'pixifact/compiler-node';
+} from 'pixifact/scene';
+import { compileScenes, generatedSceneAssetsFileName, pixifactScenesPlugin } from 'pixifact/compiler-node';
 
 const builtinSceneScriptSources: BuiltinSceneScriptSources = {};
 
@@ -1128,7 +1132,9 @@ import { Group } from 'pixifact/runtime';`);
         expect(code).toContain('connectSceneEvent(startButton.click, "startGame", root, actions);');
         expect(code).toContain('root.addChild(startButton);');
         expect(code).toContain('__pixifactNodes["0:startButton"] = startButton;');
-        expect(code).toContain('const __pixifactTexture1 = await Assets.load("assets/icons/play.png");');
+        expect(code).toContain("import { connectSceneEvent, loadSceneTexture, mount } from 'pixifact/scene';");
+        expect(code).toContain('export async function prepareMainMenuScene()');
+        expect(code).toContain('loadSceneTexture("assets/icons/play.png")');
         expect(code).toContain('const playIcon = new Sprite({ texture: __pixifactTexture1 });');
         expect(code).toContain('playIcon.anchor.set(0.5, 0.5);');
         expect(code).toContain('playIcon.tint = 16711680;');
@@ -1381,9 +1387,9 @@ import { Group } from 'pixifact/runtime';`);
 
         expect(code).toContain('BitmapText');
         expect(code).toContain('NineSliceSprite');
-        expect(code).toContain('Assets');
-        expect(code).toContain('const __pixifactTexture1 = await Assets.load("assets/panel.png");');
-        expect(code).toContain('const __pixifactTexture2 = await Assets.load("assets/pattern.png");');
+        expect(code).toContain("import { loadSceneTexture } from 'pixifact/scene';");
+        expect(code).toContain('loadSceneTexture("assets/panel.png")');
+        expect(code).toContain('loadSceneTexture("assets/pattern.png")');
         expect(code).toContain('const panel = new NineSliceSprite({ texture: __pixifactTexture1 });');
         expect(code).toContain('panel.leftWidth = 12;');
         expect(code).toContain('panel.bottomHeight = 8;');
@@ -1395,7 +1401,7 @@ import { Group } from 'pixifact/runtime';`);
         expect(code).toContain('const richText = new HTMLText({ text: "<b>Ready</b>", style: { fontSize: 18, fill: 16711680 } })');
     });
 
-    it('mounts registered scene content through runtime decorators in plain TypeScript', () => {
+    it('mounts prepared scene content through runtime decorators in plain TypeScript', async () => {
         let RuntimeButton: typeof Container;
 
         @scene()
@@ -1424,6 +1430,8 @@ import { Group } from 'pixifact/runtime';`);
         RuntimeButton = RuntimeButtonScene;
 
         registerScene('scenes/RuntimeButton.scene', {
+            assets: [],
+            dependencies: [],
             mount(root) {
                 const labelText = new Text({ text: 'Button' });
                 labelText.label = 'labelText';
@@ -1448,9 +1456,13 @@ import { Group } from 'pixifact/runtime';`);
                     },
                 };
             },
+            async prepare() {},
         });
         registerSceneClass(RuntimeButton, 'scenes/RuntimeButton.scene');
 
+        expect(() => new RuntimeButton())
+            .toThrow('Scene "scenes/RuntimeButton.scene" must be prepared before it is instantiated.');
+        await prepareSceneClass(RuntimeButton);
         const button = new RuntimeButton();
         let clicked = false;
         button.click.connect(() => {
@@ -1471,7 +1483,50 @@ import { Group } from 'pixifact/runtime';`);
         expect(getSceneNode(button, '0:missing')).toBeUndefined();
     });
 
-    it('mounts only the leaf scene when a decorated scene extends another decorated scene', () => {
+    it('prepares Scene dependencies once before preparing the parent Scene', async () => {
+        const calls: string[] = [];
+        registerScene('runtime/PrepareChild.scene', {
+            assets: [],
+            dependencies: [],
+            mount: (root) => ({ root, nodes: {}, parts: {}, slots: {} }),
+            prepare: async () => {
+                calls.push('child');
+            },
+        });
+        registerScene('runtime/PrepareParent.scene', {
+            assets: [],
+            dependencies: ['runtime/PrepareChild.scene'],
+            mount: (root) => ({ root, nodes: {}, parts: {}, slots: {} }),
+            prepare: async () => {
+                calls.push('parent');
+            },
+        });
+
+        await prepareScene('runtime/PrepareParent.scene');
+        await prepareScene('runtime/PrepareParent.scene');
+
+        expect(calls).toEqual(['child', 'parent']);
+    });
+
+    it('rejects circular Scene preparation instead of leaving a pending promise', async () => {
+        registerScene('runtime/CycleA.scene', {
+            assets: [],
+            dependencies: ['runtime/CycleB.scene'],
+            mount: (root) => ({ root, nodes: {}, parts: {}, slots: {} }),
+            prepare: async () => undefined,
+        });
+        registerScene('runtime/CycleB.scene', {
+            assets: [],
+            dependencies: ['runtime/CycleA.scene'],
+            mount: (root) => ({ root, nodes: {}, parts: {}, slots: {} }),
+            prepare: async () => undefined,
+        });
+
+        await expect(prepareScene('runtime/CycleA.scene'))
+            .rejects.toThrow('Scene dependency cycle detected at "runtime/CycleA.scene".');
+    });
+
+    it('mounts only the leaf scene when a decorated scene extends another decorated scene', async () => {
         const calls: string[] = [];
 
         @scene()
@@ -1481,20 +1536,27 @@ import { Group } from 'pixifact/runtime';`);
         class LeafScene extends BaseScene {}
 
         registerScene('scenes/Base.scene', {
+            assets: [],
+            dependencies: [],
             mount(root) {
                 calls.push('base');
                 return { root, nodes: {}, parts: {}, slots: {} };
             },
+            async prepare() {},
         });
         registerSceneClass(BaseScene, 'scenes/Base.scene');
         registerScene('scenes/Leaf.scene', {
+            assets: [],
+            dependencies: [],
             mount(root) {
                 calls.push('leaf');
                 return { root, nodes: {}, parts: {}, slots: {} };
             },
+            async prepare() {},
         });
         registerSceneClass(LeafScene, 'scenes/Leaf.scene');
 
+        await prepareScene('scenes/Leaf.scene');
         const leaf = new LeafScene();
 
         expect(leaf).toBeInstanceOf(Group);
@@ -1929,14 +1991,14 @@ import { Group, Rect, setFrameLayout } from 'pixifact/runtime';`);
         });
 
         const code = compileSceneTemplateToTs(template);
-        expect(code).toContain(`import { Container, Assets } from 'pixi.js';
+        expect(code).toContain(`import { Container, Texture } from 'pixi.js';
 import { Group, Image, NineImage, TileImage, setFrameLayout } from 'pixifact/runtime';`);
         expect(code).toContain('hero: Image;');
         expect(code).toContain('panel: NineImage;');
         expect(code).toContain('ground: TileImage;');
-        expect(code).toContain('const __pixifactTexture1 = await Assets.load("assets/hero.png");');
-        expect(code).toContain('const __pixifactTexture2 = await Assets.load("assets/panel.png");');
-        expect(code).toContain('const __pixifactTexture3 = await Assets.load("assets/grass.png");');
+        expect(code).toContain('loadSceneTexture("assets/hero.png")');
+        expect(code).toContain('loadSceneTexture("assets/panel.png")');
+        expect(code).toContain('loadSceneTexture("assets/grass.png")');
         expect(code).toContain('const hero = new Image({ texture: __pixifactTexture1 });');
         expect(code).toContain('hero.width = 320;');
         expect(code).toContain('hero.height = 180;');
@@ -2111,7 +2173,7 @@ import { Group, Image, NineImage, TileImage, setFrameLayout } from 'pixifact/run
             await writeFile(join(root, 'src', 'ui', 'Button.ts'), `
                 import { Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
-                import { createEvent, event, part, prop, scene, slot } from 'pixifact/compiler';
+                import { createEvent, event, part, prop, scene, slot } from 'pixifact/scene';
 
                 @scene()
                 export class Button extends Group {
@@ -2131,7 +2193,7 @@ import { Group } from 'pixifact/runtime';
             await writeFile(join(root, 'src', 'menu', 'Button.scene'), '<Scene name="Button" />');
             await writeFile(join(root, 'src', 'menu', 'Button.ts'), `
                 import { Group } from 'pixifact/runtime';
-                import { scene } from 'pixifact/compiler';
+                import { scene } from 'pixifact/scene';
 
                 @scene()
                 export class Button extends Group {}
@@ -2144,7 +2206,7 @@ import { Group } from 'pixifact/runtime';
             `);
             await writeFile(join(root, 'src', 'screens', 'Main.ts'), `
                 import { Group } from 'pixifact/runtime';
-                import { scene } from 'pixifact/compiler';
+                import { scene } from 'pixifact/scene';
 
                 @scene()
                 export class Main extends Group {}
@@ -2158,13 +2220,17 @@ import { Group } from 'pixifact/runtime';
             const menuGenerated = await readFile(join(root, '.pixifact', 'generated', 'src', 'menu', 'Button.scene.generated.ts'), 'utf8');
             const mainGenerated = await readFile(join(root, '.pixifact', 'generated', 'src', 'screens', 'Main.scene.generated.ts'), 'utf8');
             const registry = await readFile(join(root, '.pixifact', 'generated', 'scenes.generated.ts'), 'utf8');
+            const assets = JSON.parse(await readFile(
+                join(root, '.pixifact', 'generated', generatedSceneAssetsFileName),
+                'utf8',
+            ));
 
             expect(uiGenerated).toContain('registerScene("src/ui/Button.scene"');
             expect(uiGenerated).toContain('registerSceneClass(SceneClass_src_ui_Button, "src/ui/Button.scene");');
             expect(uiGenerated).toContain('import { Button as SceneClass_src_ui_Button } from "../../../../src/ui/Button";');
-            expect(uiGenerated).toContain('import __pixifactTextureUrl1 from "../../../../src/assets/btn.png?url";');
+            expect(uiGenerated).toContain('loadSceneTexture("src/assets/btn.png")');
             expect(uiGenerated).not.toContain('from "../../../src/ui/Button";');
-            expect(uiGenerated).not.toContain('from "../../../src/assets/btn.png?url";');
+            expect(uiGenerated).not.toContain('?url');
             expect(menuGenerated).toContain('registerScene("src/menu/Button.scene"');
             expect(menuGenerated).toContain('import { Button as SceneClass_src_menu_Button } from "../../../../src/menu/Button";');
             expect(menuGenerated).not.toContain('from "../../../src/menu/Button";');
@@ -2173,6 +2239,7 @@ import { Group } from 'pixifact/runtime';
             expect(mainGenerated).toContain('root.setSize(720, 1280);');
             expect(mainGenerated).toContain('const uiButton = new SceneClass_src_ui_Button();');
             expect(mainGenerated).toContain('const menuButton = new SceneClass_src_menu_Button();');
+            expect(mainGenerated).toContain('dependencies: ["src/menu/Button.scene","src/ui/Button.scene"]');
             expect(uiGenerated).toContain('root.setSize(120, 40);');
             expect(menuGenerated).not.toContain('root.setSize(720, 1280);');
             expect(registry).toContain('import "./src/ui/Button.scene.generated";');
@@ -2180,6 +2247,7 @@ import { Group } from 'pixifact/runtime';
             expect(registry).toContain('import "./src/screens/Main.scene.generated";');
             expect(registry).not.toContain('BuildOnly');
             expect(registry).not.toContain('GeneratedOnly');
+            expect(assets).toEqual(['src/assets/btn.png']);
         } finally {
             await rm(root, { recursive: true, force: true });
         }
@@ -2198,7 +2266,7 @@ import { Group } from 'pixifact/runtime';
             `);
             await writeFile(join(root, 'src', 'scenes', 'Main.ts'), `
                 import { Container } from 'pixi.js';
-                import { scene } from 'pixifact/compiler';
+                import { scene } from 'pixifact/scene';
 
                 @scene()
                 export class Main extends Container {}
@@ -2228,7 +2296,7 @@ import { Group } from 'pixifact/runtime';
             await writeFile(join(root, 'src', 'scenes', 'VBoxContainer.scene'), '<Scene name="VBoxContainer" />');
             await writeFile(join(root, 'src', 'scenes', 'VBoxContainer.ts'), `
                 import { Container } from 'pixi.js';
-                import { scene } from 'pixifact/compiler';
+                import { scene } from 'pixifact/scene';
 
                 @scene()
                 export class VBoxContainer extends Container {}
@@ -2240,7 +2308,7 @@ import { Group } from 'pixifact/runtime';
             `);
             await writeFile(join(root, 'src', 'scenes', 'Main.ts'), `
                 import { Container } from 'pixi.js';
-                import { scene } from 'pixifact/compiler';
+                import { scene } from 'pixifact/scene';
 
                 @scene()
                 export class Main extends Container {}
@@ -2278,13 +2346,34 @@ import { Group } from 'pixifact/runtime';
         }
     });
 
-    it('resolves the Vite virtual scene registry to the generated project cache', () => {
+    it('resolves the Vite virtual scene registry', () => {
         const plugin = pixifactScenesPlugin({
             projectRoot: '/projects/game',
         });
 
-        expect(plugin.resolveId('pixifact:scenes')).toBe(join('/projects/game', '.pixifact', 'generated', 'scenes.generated.ts'));
+        expect(plugin.resolveId('pixifact:scenes')).toBe('\0pixifact:scenes');
         expect(plugin.resolveId('pixifact:other')).toBeUndefined();
+    });
+
+    it('loads the Vite Scene registry with Web asset URLs', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'pixifact-vite-scenes-'));
+        try {
+            const generatedDir = join(root, '.pixifact', 'generated');
+            await mkdir(generatedDir, { recursive: true });
+            await writeFile(join(generatedDir, 'scenes.generated.ts'), 'export {};\n');
+            await writeFile(
+                join(generatedDir, generatedSceneAssetsFileName),
+                '["assets/button.png"]\n',
+            );
+            const plugin = pixifactScenesPlugin({ projectRoot: root });
+            const source = await (plugin.load as (id: string) => Promise<string>)('\0pixifact:scenes');
+
+            expect(source).toContain('?url');
+            expect(source).toContain("import { configureSceneAssets } from 'pixifact/scene';");
+            expect(source).toContain('"assets/button.png"');
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
     });
 
     it('rejects scene files whose name does not match the paired @scene class', async () => {
@@ -2294,7 +2383,7 @@ import { Group } from 'pixifact/runtime';
             await writeFile(join(root, 'src', 'scenes', 'Button.scene'), '<Scene name="Button" />');
             await writeFile(join(root, 'src', 'scenes', 'Button.ts'), `
                 import { Group } from 'pixifact/runtime';
-                import { scene } from 'pixifact/compiler';
+                import { scene } from 'pixifact/scene';
 
                 @scene()
                 export class PrimaryButton extends Group {}
@@ -2319,7 +2408,7 @@ import { Group } from 'pixifact/runtime';
             await writeFile(join(root, 'src', 'scenes', 'Button.ts'), `
                 import { Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
-                import { part, scene } from 'pixifact/compiler';
+                import { part, scene } from 'pixifact/scene';
 
                 @scene()
                 export class Button extends Group {

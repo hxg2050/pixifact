@@ -14,6 +14,7 @@ Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestra
 - [Layout](./docs/en/layout.md): design resolution, viewport adaptation, frame layout, and editor layout controls.
 - [Scene Objects](./docs/en/scene-objects.md): official `.scene` object tags, props, use cases, and examples.
 - [Agent Scene Authoring](./docs/en/agent-scene-authoring.md): how external agents edit `.scene` source.
+- [WeChat Mini Game Builds](./docs/en/wechat-minigame.md): game target, platform runtime, resource delivery, and build output.
 - [Internal Docs](./internal-docs/index.md): repository maintenance, testing, release, plans, and historical specs.
 
 ## npm Quick Start
@@ -47,6 +48,14 @@ pixifact scene validate --all
 pixifact compile-scenes
 ```
 
+Build a WeChat Mini Game:
+
+```bash
+pixifact validate --target wechat
+pixifact build --target wechat
+pixifact dev --target wechat
+```
+
 `pixifact-cli` and `create-pixifact` are Bun-first tools in this release, so Bun must be installed locally.
 
 ## Core Model
@@ -68,6 +77,8 @@ Pixifact's default loop ends at `scene validate`, `compile-scenes`, and optional
 ```txt
 packages/pixifact/              core Pixifact package, published as pixifact
 packages/pixifact/src/runtime/  Pixifact runtime extensions such as Group
+packages/pixifact/src/scene/    Scene runtime public entry point
+packages/pixifact/src/platform/ game-target platform runtimes
 packages/pixifact/src/project/  pixifact.project.json parsing and project summaries
 packages/pixifact/src/compiler/ compiler .scene parsing, validation, generation
 packages/pixifact-cli/          Pixifact CLI; depends on pixifact, not on the desktop editor
@@ -134,11 +145,13 @@ Pixifact Editor provides project asset browsing, lightweight previews, resource 
 
 ```ts
 import { Group } from 'pixifact/runtime';
+import { prepareSceneClass, scene } from 'pixifact/scene';
 import { createSceneRevision, parseSceneTemplate } from 'pixifact/compiler';
+import { createWechatPixiApplication } from 'pixifact/platform/wechat';
 import { parsePixifactProjectConfig } from 'pixifact';
 ```
 
-The root `pixifact` entry exports project config helpers, runtime extensions, and common CLI error hints. Compiler APIs are exported from `pixifact/compiler`.
+The root `pixifact` entry exports project config helpers, runtime extensions, and common CLI error hints. Scene decorators, events, slots, async preparation, and asset loading are exported from `pixifact/scene`; compiler APIs come from `pixifact/compiler`; the WeChat platform runtime comes from `pixifact/platform/wechat`.
 
 ## Verification
 
