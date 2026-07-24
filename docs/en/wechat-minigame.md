@@ -32,7 +32,7 @@ The following are explicitly unsupported:
 
 Scene textures support `.png`, `.jpg`, `.jpeg`, and `.webp`. Target validation reports unsupported nodes, textures, and resource-pack contents before the build.
 
-Regular Chinese, Latin text, and single-code-point characters do not require `Intl`. When `Intl.Segmenter` is unavailable on a device, PixiJS segments text by Unicode code point. Verify layout on target devices when exact wrapping of multi-code-point emoji or combining characters matters.
+The WeChat build installs the `Intl` and `navigator` startup environment required by PixiJS before its modules execute, without relying on browser globals from WeChat DevTools. Regular Chinese, Latin text, and single-code-point characters do not require `Intl`. When `Intl.Segmenter` is unavailable on a device, PixiJS segments text by Unicode code point. Verify layout on target devices when exact wrapping of multi-code-point emoji or combining characters matters.
 
 ## Project Configuration
 

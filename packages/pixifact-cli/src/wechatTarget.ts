@@ -441,7 +441,10 @@ function wechatBuildOptions(
         absWorkingDir: context.projectRoot,
         assetNames: 'assets/[name]-[hash]',
         banner: {
-            js: 'var Intl=globalThis.Intl||{};',
+            js: [
+                'var Intl=globalThis.Intl||{};',
+                'var navigator=globalThis.navigator||(globalThis.navigator={gpu:null,userAgent:"WeChatMiniGame"});',
+            ].join('\n'),
         },
         bundle: true,
         define: {

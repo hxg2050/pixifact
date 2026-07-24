@@ -1,6 +1,7 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { buildWechatTarget, validateWechatTarget } from '../packages/pixifact-cli/src/wechatTarget';
 
@@ -14,12 +15,37 @@ describe('WeChat Mini Game target', () => {
         expect(result.context.target.outDir).toBe('dist/wechat');
     });
 
-    it('defines Intl before PixiJS modules run on runtimes without Intl', async () => {
+    it('evaluates the bundle before wx startup without browser globals', async () => {
         const report = await buildWechatTarget(sampleRoot, 'production');
         const bundle = await readFile(join(report.outputDirectory, 'game.js'), 'utf8');
+        const startupSentinel = new Error('canvas.getContext reached');
+        const errors: unknown[][] = [];
 
         expect(bundle.startsWith('var Intl=globalThis.Intl||{};\n')).toBe(true);
-        expect(bundle.indexOf('Intl?.Segmenter')).toBeGreaterThan(0);
+        runInNewContext(bundle, {
+            console: {
+                error: (...args: unknown[]) => errors.push(args),
+                info: () => undefined,
+            },
+            Intl: undefined,
+            wx: {
+                createCanvas() {
+                    return {
+                        getContext() {
+                            throw startupSentinel;
+                        },
+                        height: 1,
+                        width: 1,
+                    };
+                },
+            },
+        });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(errors).toEqual([[
+            '[pixifact-wechat] Failed to start',
+            startupSentinel,
+        ]]);
     });
 
     it('reports unsupported Scene nodes, invalid textures, and bad subpackages', async () => {
