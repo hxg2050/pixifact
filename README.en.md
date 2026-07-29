@@ -2,7 +2,7 @@
 
 Pixifact is a Scene, UI, lightweight scene, and project asset management layer for AI-assisted full game development. PixiJS is the rendering implementation underneath; Pixifact provides `.scene` source files, validation, compilation, preview, and runtime loading.
 
-Codex, Claude Code, and similar external coding agents are the primary AI entry points. Pixifact CLI is the tool layer those agents use to understand, edit, validate, and compile Scenes; the desktop editor lives in `apps/editor/` and provides preview, asset browsing, live context, validation feedback, and manual refinement.
+Codex, Claude Code, and similar external coding agents are the primary AI entry points. Pixifact CLI is the tool layer those agents use to understand, edit, validate, and compile Scenes; the browser Editor lives in `apps/editor/` and provides preview, asset browsing, an Inspector, and manual refinement.
 
 Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestration, Git branches / commits / reverts, task management, CI, PRs, and long-term project management belong to specialized external tools.
 
@@ -46,6 +46,7 @@ Common installed CLI commands:
 ```bash
 pixifact scene validate --all
 pixifact compile-scenes
+pixifact editor
 ```
 
 Build a WeChat Mini Game:
@@ -81,29 +82,21 @@ packages/pixifact/src/scene/    Scene runtime public entry point
 packages/pixifact/src/platform/ game-target platform runtimes
 packages/pixifact/src/project/  pixifact.project.json parsing and project summaries
 packages/pixifact/src/compiler/ compiler .scene parsing, validation, generation
-packages/pixifact-cli/          Pixifact CLI; depends on pixifact, not on the desktop editor
-apps/editor/                    Pixifact desktop editor React / Vite frontend
-apps/editor/src-tauri/          Tauri desktop host
+packages/pixifact-cli/          Pixifact CLI and local browser Editor service
+apps/editor/                    Pixifact browser Editor Vue / Vite frontend
 tests/                          unit, editor, and CLI tests
 skills/                         repository-owned Codex skills
 ```
 
 ## Run
 
-```bash
-bun install
-bun run desktop
-```
-
-`bun run editor` is an alias for `bun run desktop`. The project does not provide a standalone browser editor entry; the Vite server started by Tauri dev mode is only an internal desktop WebView frontend.
-
-Build the desktop app:
+Run the Editor from the target project root:
 
 ```bash
-bun run desktop:build
+pixifact editor
 ```
 
-Desktop development and packaging require Rust / Cargo. Users who install the packaged desktop app do not need Bun or Rust.
+When maintaining this repository, run `bun run editor`; it builds the Vue frontend, starts a local Bun service bound to `127.0.0.1`, and opens the system browser. Inspector input updates the long-lived Pixi preview immediately, then blur or Enter writes the versioned `.scene` file. Undo and Redo save automatically as well.
 
 ## CLI
 
@@ -164,7 +157,7 @@ bun run test
 Editor changes:
 
 ```bash
-bunx --no-install tsc -p apps/editor/tsconfig.json
+bun run editor:typecheck
 bun run editor:frontend:build
 ```
 

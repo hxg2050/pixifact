@@ -4,6 +4,7 @@ import { hintForCommandError } from 'pixifact';
 import { CompileSceneError, compileScenes } from 'pixifact/compiler-node';
 import type { SceneValidationDiagnostic } from 'pixifact/compiler';
 import { createLiveBridgeServer } from './liveBridgeServer';
+import { startEditorServer } from './editorServer';
 import {
     buildWechatTarget,
     devWechatTarget,
@@ -21,6 +22,7 @@ interface CliOptions {
     automation?: Automation;
     liveBridge?: LiveBridge;
     onWechatDevEvent?: (event: WechatDevEvent) => void;
+    startEditor?: typeof startEditorServer;
 }
 
 interface CliResult {
@@ -218,9 +220,19 @@ async function executeFileCommand(
     flags: Record<string, string | true>,
     automation: Automation,
     onWechatDevEvent?: (event: WechatDevEvent) => void,
+    startEditor: typeof startEditorServer = startEditorServer,
 ) {
     const [area, action] = positionals;
     const projectRoot = projectRootFlag(flags);
+
+    if (area === 'editor' && action === undefined) {
+        const session = await startEditor({ projectRoot });
+        return {
+            ok: true,
+            projectRoot,
+            url: session.url,
+        };
+    }
 
     if ((area === 'build' || area === 'dev' || area === 'validate') && action === undefined) {
         const target = requireFlag(flags, 'target');
@@ -395,6 +407,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'scene validate --all',
                     ],
                     auxiliaryCommands: [
+                        'editor',
                         'scene create --scene <scene-path> --name <SceneName>',
                         'node inspect --scene <scene-path> --node <locator>',
                     ],
@@ -424,6 +437,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                 parsed.flags,
                 automation,
                 options.onWechatDevEvent,
+                options.startEditor,
             );
         if (isFailedResult(result)) {
             return {

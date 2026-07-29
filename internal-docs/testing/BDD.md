@@ -117,7 +117,7 @@ Scenario: User opens a source asset
 
 TDD 入口：`tests/project-file-tree.test.ts`。
 
-### BDD-EDITOR-003 Zustand 不保存项目数据
+### BDD-EDITOR-003 Pinia 不保存项目数据
 
 Feature: UI store persistence boundary
 
@@ -126,10 +126,74 @@ Scenario: Editor UI preferences are persisted
   Given the user changes panel layout or language
   When the editor store persists state
   Then only lightweight UI preferences are stored
-  And Scene source, project file contents, and secrets are not stored in Zustand
+  And Scene source, project file contents, and secrets are not stored in Pinia
 ```
 
-TDD 入口：`tests/editor-store.test.ts`。
+TDD 入口：`tests/editor-vue-ui.test.ts`。
+
+### BDD-EDITOR-004 从当前项目启动浏览器 Editor
+
+Feature: Browser Editor startup
+
+```gherkin
+Scenario: User starts Editor from a Pixifact project
+  Given the current directory is a Pixifact project
+  When the user runs "pixifact editor"
+  Then Pixifact starts a local service bound to 127.0.0.1
+  And opens the Editor URL in the system browser
+  And the service exposes only files under the current project root
+```
+
+TDD 入口：`tests/pixifact-cli.test.ts`、`tests/editor-server.test.ts`。
+
+### BDD-EDITOR-005 打开一个 compiler Scene
+
+Feature: Single Scene authoring workspace
+
+```gherkin
+Scenario: User opens a Scene from the asset list
+  Given the project contains "src/scenes/Menu.scene"
+  When the user opens that Scene
+  Then the hierarchy displays its authored nodes
+  And the long-lived Pixi Application displays its authoring preview
+  And the Inspector displays fields for the selected node
+```
+
+TDD 入口：`tests/editor-scene-document.test.ts`、Editor 前端构建与浏览器验收。
+
+### BDD-EDITOR-006 Inspector 属性增量预览并自动保存
+
+Feature: Incremental Inspector editing
+
+```gherkin
+Scenario: User changes a numeric node property
+  Given a Scene node is selected in the Editor
+  When the user types a new x value in the Inspector
+  Then the existing Pixi node updates immediately
+  And the Pixi Application and Canvas are not recreated
+  When the input loses focus or the user presses Enter
+  Then one Scene Command is committed
+  And the .scene file is saved with its expected file version
+  And Undo restores the previous value and saves again
+```
+
+TDD 入口：`tests/editor-scene-document.test.ts`、`tests/editor-vue-ui.test.ts`。
+
+### BDD-EDITOR-007 外部修改不能被静默覆盖
+
+Feature: Versioned Scene writes
+
+```gherkin
+Scenario: Scene changes after the Editor reads it
+  Given the Editor has read a Scene file version
+  And an external Agent changes the same file
+  When the Editor commits an operation using the previous version
+  Then the local service rejects the write with a conflict
+  And the Editor reports "同步冲突"
+  And the external file content is not overwritten
+```
+
+TDD 入口：`tests/editor-server.test.ts`、`tests/editor-scene-document.test.ts`。
 
 ## 4. CLI
 

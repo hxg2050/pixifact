@@ -1,6 +1,6 @@
 # Editor vNext
 
-状态：活跃，设计已确认，尚未实现
+状态：活跃，第一条浏览器 Editor 纵向闭环已完成
 权威范围：Pixifact Editor vNext 的产品边界、用户行为、数据流和首版实现范围
 上游文档：[./index.md](./index.md)、[../../AGENTS.md](../../AGENTS.md)
 下游文档：后续 BDD、实现和对外 Editor 文档
@@ -122,16 +122,16 @@
 
 - [ ] 为 `pixifact editor` 启动、项目根绑定、本机地址限制和会话发现补 CLI / 服务测试。
 - [ ] 为受项目根约束的文件读取、版本写入、文件监听和图片访问补服务测试。
-- [ ] 为 SceneDocument Command、Undo / Redo、自动保存和同步冲突补单元测试。
+- [x] 为 SceneDocument Command、Undo / Redo、自动保存和同步冲突补单元测试。
 - [ ] 为普通属性不重建 Canvas、结构变化原子替换 Scene root 补 Preview 测试。
-- [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试。
+- [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试；当前已覆盖 Pinia 边界与 Inspector preview / commit。
 - [ ] 为外部 `.scene` / 脚本 / 图片变化和只读 live context 补集成测试。
-- [ ] 在桌面浏览器视口完成布局、无重叠、拖拽与 Inspector 实时反馈的人工验证。
+- [ ] 在桌面浏览器视口完成布局、无重叠、拖拽与 Inspector 实时反馈的人工验证；当前已完成固定三栏、Canvas 非空、属性实时反馈、自动保存和 Undo 验收。
 
 ## Verification
 
 ```bash
-rtk bunx --no-install vue-tsc --noEmit -p apps/editor/tsconfig.json
+rtk bun run editor:typecheck
 rtk bun run editor:frontend:build
 rtk bun run test
 rtk bun run pixifact -- editor
@@ -143,11 +143,11 @@ rtk bun run pixifact -- editor
 
 - [x] 确认产品边界、核心工作流和数据所有权。
 - [x] 确认固定三栏与中性深色视觉方向，并完成临时 HTML 验证稿。
-- [ ] 将首版用户行为写入 BDD。
-- [ ] 实现本地项目服务与 `pixifact editor`。
-- [ ] 实现 SceneDocument、自动保存和外部同步。
-- [ ] 实现长驻 ScenePreview 与属性增量更新。
-- [ ] 实现新版固定三栏 UI。
+- [x] 将首版用户行为写入 BDD。
+- [x] 实现本地项目服务与 `pixifact editor` 第一条启动 / 读写闭环。
+- [x] 实现 SceneDocument、自动保存、Undo / Redo、版本冲突和文件通知协调。
+- [x] 实现长驻 ScenePreview 与普通属性增量更新。
+- [x] 实现新版固定三栏 UI 的首个可用版本。
 - [ ] 删除旧 Tauri / Dockview / 运行服务并迁移对外文档。
 
 ## Resume Protocol
@@ -163,20 +163,24 @@ rtk bun run pixifact -- editor
 Last updated: 2026-07-29
 
 Done:
-- 完成 Editor vNext 产品、交互、数据流、技术边界和视觉方向讨论。
-- 明确浏览器 UI + 本地 Bun 服务、单项目、单 Scene、自动保存、外部 Agent direct edit 和固定三栏。
-- 明确第一版不做 Tauri、Dockview、运行进程、图片导入和集中式问题收集。
-- 明确 vNext 前端使用 Vue 3、TypeScript、Vite 与 Pinia，不保留 React 兼容层。
-- 明确使用 Reka UI 的无样式交互原语和项目自有 CSS，不引入完整视觉组件框架。
+- 完成 `pixifact editor` 本地 Bun 服务、127.0.0.1 绑定、系统浏览器启动、项目索引、受 project root 约束的文件读取和 versioned Scene write。
+- 完成 Vue 3 + Pinia + Reka UI 固定三栏，打开第一个 `.scene` 后展示层级、长驻 Pixi Canvas 和 schema-driven Inspector。
+- 完成 `SceneDocument` 的属性 preview、Command commit、自动保存、Undo / Redo、同步状态和 409 冲突。
+- 文件通知会等待保存队列稳定并比较文件版本，自身写入不会重建文档；外部版本建立新的文档基线。
+- Inspector 输入原地更新运行时节点，失焦或 Enter 后保存；提交后的 draft 不再被旧 revision 回跳。
+- 浏览器验收完成 `120 -> 130 -> Undo 120 -> 恢复 54`，全过程 Canvas 数量为 1，sample Scene 最终无 diff。
+- 新增 Editor server、SceneDocument 和 Vue Inspector / Pinia 回归测试。
 
 Current State:
-- 设计决策已确认，尚未开始正式 BDD 或代码实现。
-- 当前 README 和代码仍描述并实现旧 Tauri Editor；这是当前行为，不与本计划混用。
+- 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
+- 旧 React / Zustand / Dockview / Tauri 源码和依赖仍在仓库，但不再是 `bun run editor` 与 Vite 的入口。
+- vNext 还没有重新接通 read-only live context，也没有实现层级结构编辑、画布拖动 / resize 和完整资产交互。
+- 当前浏览器主包约 4.5 MB，原因是 runtime preview 将 TypeScript compiler 一并打包；第一闭环可接受，后续应把脚本编译迁到 Bun 服务。
 
 Currently Failing:
-- None。尚未开始实现，不存在目标测试失败。
+- None。
 
 Next:
-1. 把本文件的首版用户行为转写到 `internal-docs/testing/BDD.md`。
-2. 为 `pixifact editor` 本地服务建立最小失败测试。
-3. 从 CLI 启动和项目根绑定这一条纵向闭环开始实现。
+1. 重新接通浏览器 Editor 的 read-only live context 与外部 `.scene` 变化集成测试。
+2. 按已确认范围实现层级结构 Command 和画布移动 / resize，不扩展成自由工作台。
+3. vNext 覆盖旧入口后删除 React、Zustand、Dockview、Tauri 源码、脚本和依赖。

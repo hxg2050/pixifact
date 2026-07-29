@@ -1,8 +1,10 @@
 import { defineConfig } from 'vitest/config';
+import vue from '@vitejs/plugin-vue';
 
 const pixifactSrc = new URL('./packages/pixifact/src', import.meta.url).pathname;
 
 export default defineConfig({
+    plugins: [vue()],
     resolve: {
         alias: [
             {

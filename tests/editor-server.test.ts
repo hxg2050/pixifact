@@ -1,0 +1,105 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { createEditorProjectService } from '../packages/pixifact-cli/src/editorServer';
+
+const tempRoots: string[] = [];
+
+function createFixture() {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-editor-project-'));
+    const staticRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-editor-static-'));
+    tempRoots.push(projectRoot, staticRoot);
+    fs.mkdirSync(path.join(projectRoot, 'src', 'scenes'), { recursive: true });
+    fs.mkdirSync(path.join(projectRoot, 'assets'), { recursive: true });
+    fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Menu.scene'), [
+        '<Scene name="Menu">',
+        '  <Text id="title" x="20" text="开始" />',
+        '</Scene>',
+        '',
+    ].join('\n'));
+    fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Menu.ts'), 'export class Menu {}\n');
+    fs.writeFileSync(path.join(projectRoot, 'assets', 'button.png'), 'png');
+    fs.writeFileSync(path.join(staticRoot, 'index.html'), '<main>Pixifact Editor</main>');
+    return { projectRoot, staticRoot };
+}
+
+async function json(response: Response) {
+    return response.json() as Promise<Record<string, unknown>>;
+}
+
+afterEach(() => {
+    for (const root of tempRoots.splice(0)) {
+        fs.rmSync(root, { recursive: true, force: true });
+    }
+});
+
+describe('Editor project service', () => {
+    it('indexes project scenes and images and serves the browser app', async () => {
+        const fixture = createFixture();
+        const service = createEditorProjectService(fixture);
+
+        const project = await json(await service.fetch(new Request('http://localhost/api/project')));
+        const index = await service.fetch(new Request('http://localhost/'));
+
+        expect(project).toMatchObject({
+            name: path.basename(fixture.projectRoot),
+            scenes: ['src/scenes/Menu.scene'],
+            images: ['assets/button.png'],
+        });
+        expect(project.files).toEqual(expect.arrayContaining([
+            expect.objectContaining({ path: 'src/scenes/Menu.scene', kind: 'scene' }),
+            expect.objectContaining({ path: 'src/scenes/Menu.ts', kind: 'script' }),
+        ]));
+        expect(index.status).toBe(200);
+        expect(await index.text()).toContain('Pixifact Editor');
+    });
+
+    it('writes a scene only when the expected version still matches', async () => {
+        const fixture = createFixture();
+        const service = createEditorProjectService(fixture);
+        const sceneUrl = 'http://localhost/api/scene?path=src%2Fscenes%2FMenu.scene';
+        const opened = await json(await service.fetch(new Request(sceneUrl)));
+        const nextSource = '<Scene name="Menu">\n  <Text id="title" x="48" text="开始" />\n</Scene>\n';
+
+        const savedResponse = await service.fetch(new Request(sceneUrl, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                source: nextSource,
+                expectedVersion: opened.version,
+            }),
+        }));
+        const saved = await json(savedResponse);
+        const conflictResponse = await service.fetch(new Request(sceneUrl, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                source: '<Scene name="Menu"></Scene>\n',
+                expectedVersion: opened.version,
+            }),
+        }));
+
+        expect(savedResponse.status).toBe(200);
+        expect(saved.version).not.toBe(opened.version);
+        expect(conflictResponse.status).toBe(409);
+        expect(await json(conflictResponse)).toMatchObject({
+            ok: false,
+            error: 'Scene file version changed.',
+        });
+        expect(fs.readFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.scene'), 'utf8')).toBe(nextSource);
+    });
+
+    it('rejects file access outside the bound project root', async () => {
+        const fixture = createFixture();
+        const service = createEditorProjectService(fixture);
+
+        const response = await service.fetch(new Request('http://localhost/api/file?path=..%2Foutside.scene'));
+
+        expect(response.status).toBe(400);
+        expect(await json(response)).toMatchObject({
+            ok: false,
+            error: 'Project path must stay inside the project root.',
+        });
+    });
+});

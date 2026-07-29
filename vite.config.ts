@@ -1,8 +1,10 @@
 import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
 
 const pixifactSrc = new URL('./packages/pixifact/src', import.meta.url).pathname;
 
 export default defineConfig({
+    plugins: [vue()],
     resolve: {
         alias: [
             {
@@ -14,5 +16,9 @@ export default defineConfig({
                 replacement: `${pixifactSrc}/index.ts`,
             },
         ],
+    },
+    build: {
+        outDir: '../../packages/pixifact-cli/editor',
+        emptyOutDir: true,
     },
 });

@@ -966,93 +966,6 @@ describe('Editor workbench UI', () => {
         }
     });
 
-    it('wires compiler viewport toolbar controls to visible state', async () => {
-        const view = await renderEditorApp();
-        try {
-            await act(async () => {
-                await Promise.resolve();
-                await Promise.resolve();
-            });
-            const viewport = view.container.querySelector('[data-testid="viewport-stage"]');
-            const actions = view.container.querySelector('.viewportActions');
-            const fitButton = [...(actions?.querySelectorAll('button') ?? [])]
-                .find((button) => button.textContent === '适配');
-            const gridButton = [...(actions?.querySelectorAll('button') ?? [])]
-                .find((button) => button.textContent === '网格');
-            const diagnosticsButton = [...(actions?.querySelectorAll('button') ?? [])]
-                .find((button) => button.textContent === '诊断');
-            const actualSizeButton = [...(actions?.querySelectorAll('button') ?? [])]
-                .find((button) => button.textContent === '100%');
-
-            expect(viewport).toBeTruthy();
-            expect(actualSizeButton).toBeTruthy();
-            expect(fitButton).toBeTruthy();
-            expect(gridButton).toBeTruthy();
-            expect(diagnosticsButton).toBeTruthy();
-            expect(textContent(view.container)).toContain('640x1136');
-            expect(fitButton?.getAttribute('aria-pressed')).toBe('true');
-            expect(gridButton?.getAttribute('aria-pressed')).toBe('true');
-            expect(diagnosticsButton?.getAttribute('aria-pressed')).toBe('false');
-            const grid = view.container.querySelector('.compilerSceneGrid');
-            const bounds = view.container.querySelector('.compilerSceneBounds');
-            const resolutionBounds = view.container.querySelector('.compilerSceneResolutionBounds');
-            expect(grid).toBeTruthy();
-            expect(bounds).toBeTruthy();
-            expect(resolutionBounds).toBeTruthy();
-            expect(view.container.querySelectorAll('.compilerSceneResizeHandle')).toHaveLength(0);
-            expect(resolutionBounds?.getAttribute('x')).toBe(bounds?.getAttribute('x'));
-            expect(resolutionBounds?.getAttribute('y')).toBe(bounds?.getAttribute('y'));
-            expect(resolutionBounds?.getAttribute('width')).toBe(bounds?.getAttribute('width'));
-            expect(resolutionBounds?.getAttribute('height')).toBe(bounds?.getAttribute('height'));
-            const editorStyles = readFileSync('apps/editor/src/styles.css', 'utf8');
-            expect(editorStyles).toContain('.canvasWrap {\n    display: flex;\n    min-height: 0;\n    align-items: stretch;\n    justify-content: stretch;\n    background: var(--panel-subtle);\n    padding: 10px;');
-            expect(editorStyles).toContain('.compilerSceneGrid {\n    position: absolute;\n    top: 0;\n    left: 0;\n    z-index: 0;');
-            expect(editorStyles).toContain('.pixifactCanvas {\n    position: relative;\n    z-index: 1;');
-            expect(editorStyles).toContain('.compilerSceneCanvas {\n    pointer-events: none;\n}');
-            expect(editorStyles).toContain('.compilerSceneOverlay {\n    position: absolute;\n    inset: 0;\n    z-index: 2;');
-            expect(editorStyles).toContain('.compilerSceneBounds,\n.compilerSceneResolutionBounds,\n.compilerSceneSelection {\n    pointer-events: none;\n}');
-            expect(editorStyles).toContain('.compilerSceneResolutionBounds {');
-            expect(editorStyles).toContain('.compilerSceneResizeHandle {');
-            expect(editorStyles).toContain('    pointer-events: all;');
-            expect(editorStyles).toContain('cursor: ew-resize;');
-            expect(editorStyles).toContain('cursor: ns-resize;');
-            expect(editorStyles).toContain('cursor: nwse-resize;');
-            expect(editorStyles).toContain('cursor: nesw-resize;');
-            expect(editorStyles).toContain('.compilerSceneProfilerPanel {\n    position: absolute;');
-            expect(editorStyles).toContain('pointer-events: none;');
-
-            await act(async () => {
-                click(diagnosticsButton!);
-            });
-
-            expect(diagnosticsButton?.getAttribute('aria-pressed')).toBe('true');
-            expect(view.container.querySelector('.compilerSceneProfilerPanel')).toBeTruthy();
-            expect(textContent(view.container)).toContain('Scene View 诊断');
-            expect(textContent(view.container)).toContain('拖动已选中节点后显示耗时。');
-
-            await act(async () => {
-                click(gridButton!);
-            });
-
-            expect(gridButton?.getAttribute('aria-pressed')).toBe('false');
-            expect(view.container.querySelector('.compilerSceneGrid')).toBeFalsy();
-
-            await act(async () => {
-                click(actualSizeButton!);
-            });
-
-            expect(fitButton?.getAttribute('aria-pressed')).toBe('false');
-
-            await act(async () => {
-                click(fitButton!);
-            });
-
-            expect(fitButton?.getAttribute('aria-pressed')).toBe('true');
-        } finally {
-            await view.cleanup();
-        }
-    });
-
     it('keeps non-entry compiler scenes on their natural preview size', async () => {
         host.files.set('GameProject/pixifact.project.json', JSON.stringify({
             version: 1,
@@ -1611,19 +1524,4 @@ describe('Editor workbench UI', () => {
         }
     });
 
-    it('uses real Dockview sash boxes for resize cursor hit areas', () => {
-        const styles = readFileSync('apps/editor/src/styles.css', 'utf8');
-        expect(styles).toContain('--dv-active-sash-color');
-        expect(styles).toContain('.dv-split-view-container.dv-horizontal > .dv-sash-container > .dv-sash:not(.dv-disabled)');
-        expect(styles).toContain('.dv-split-view-container.dv-vertical > .dv-sash-container > .dv-sash:not(.dv-disabled)');
-        expect(styles).toContain('width: 8px');
-        expect(styles).toContain('height: 8px');
-        expect(styles).toContain('margin-left: -2px');
-        expect(styles).toContain('margin-top: -2px');
-        expect(styles).toContain('cursor: col-resize');
-        expect(styles).toContain('cursor: row-resize');
-        expect(styles).not.toContain('cursor: inherit');
-        expect(styles).not.toContain('.dv-sash:not(.dv-disabled)::before');
-        expect(styles).not.toContain('.dv-resize-container');
-    });
 });

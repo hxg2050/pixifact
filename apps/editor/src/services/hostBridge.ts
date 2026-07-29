@@ -1,3 +1,5 @@
+import { readEditorProjectFile } from './editorApi';
+
 export interface HostProjectFileTreeNode {
     id: string;
     name: string;
@@ -78,21 +80,20 @@ export async function watchHostProjectFiles(projectRootPath: string) {
 }
 
 export async function readHostProjectFileText(projectRootPath: string, filePath: string) {
-    return invokeHost<string>('read_project_file_text', { projectRootPath, filePath });
+    return (await readEditorProjectFile(projectRelativeHostPath(projectRootPath, filePath))).text();
 }
 
 export async function readHostProjectFileBytes(projectRootPath: string, filePath: string) {
-    const bytes = await invokeHost<number[] | ArrayBuffer | Uint8Array>('read_project_file_bytes', {
-        projectRootPath,
-        filePath,
-    });
-    if (bytes instanceof Uint8Array) {
-        return bytes;
-    }
-    if (bytes instanceof ArrayBuffer) {
-        return new Uint8Array(bytes);
-    }
-    return new Uint8Array(bytes);
+    return new Uint8Array(await (await readEditorProjectFile(projectRelativeHostPath(projectRootPath, filePath))).arrayBuffer());
+}
+
+function projectRelativeHostPath(projectRootPath: string, filePath: string) {
+    const normalizedRoot = projectRootPath.replaceAll('\\', '/');
+    const rootName = normalizedRoot.split('/').at(-1)!;
+    const normalizedPath = filePath.replaceAll('\\', '/');
+    return normalizedPath.startsWith(`${rootName}/`)
+        ? normalizedPath.slice(rootName.length + 1)
+        : normalizedPath;
 }
 
 export async function writeHostProjectFileText(projectRootPath: string, filePath: string, content: string) {

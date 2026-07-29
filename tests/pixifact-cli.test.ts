@@ -249,6 +249,7 @@ describe('Pixifact CLI', () => {
                 'scene validate --all',
             ],
             auxiliaryCommands: [
+                'editor',
                 'scene create --scene <scene-path> --name <SceneName>',
                 'node inspect --scene <scene-path> --node <locator>',
             ],
@@ -260,6 +261,22 @@ describe('Pixifact CLI', () => {
             defaults: {
                 projectRoot: 'current working directory',
             },
+        });
+    });
+
+    it('starts the browser editor for the current project', async () => {
+        const projectRoot = createTempProject();
+        const startEditor = vi.fn(async () => ({ url: 'http://127.0.0.1:43120' }));
+
+        const result = await executePixifactCli(['editor', '--project-root', projectRoot], { startEditor });
+        const parsed = JSON.parse(result.stdout);
+
+        expect(result.exitCode).toBe(0);
+        expect(startEditor).toHaveBeenCalledWith({ projectRoot });
+        expect(parsed).toEqual({
+            ok: true,
+            projectRoot,
+            url: 'http://127.0.0.1:43120',
         });
     });
 

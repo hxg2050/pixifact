@@ -22,7 +22,7 @@ Agent authoring 方向见 [Agent Scene Authoring](../../docs/zh/agent-scene-auth
 - Compiler `.scene` 源文件是外部 Agent 和 editor 共享的 source of truth。
 - 外部 Agent 默认直接编辑 `.scene`，然后运行 `scene validate`、`compile-scenes` 和项目最小相关验证。
 - Editor live bridge 只提供 summary、scene get、node inspect 等只读上下文能力。
-- Zustand 只保存 UI 状态，不保存 `.scene` 模板副本作为项目数据源。
+- Pinia 只保存 UI 状态，不保存 `.scene` 模板副本作为项目数据源。
 - 不为旧 API、旧路径、旧协议或旧数据格式新增兼容测试。
 
 常用验证：
@@ -34,7 +34,7 @@ bun run test
 编辑器相关改动：
 
 ```bash
-bunx --no-install tsc -p apps/editor/tsconfig.json
+bun run editor:typecheck
 bun run editor:frontend:build
 ```
 

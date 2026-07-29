@@ -25,6 +25,7 @@ test-results/
 **/.pixifact/
 apps/editor/src-tauri/gen/
 apps/editor/src-tauri/target/
+packages/pixifact-cli/editor/
 *.local
 *.local.*
 

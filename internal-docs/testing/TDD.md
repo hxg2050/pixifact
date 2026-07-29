@@ -10,7 +10,7 @@
 - 测试公共语义层：优先覆盖 `pixifact` public exports、compiler `.scene` parser / validator、editor services 和 CLI entrypoint。
 - 不为旧 API 写兼容测试：项目处于开发阶段，不新增 legacy path、alias、fallback 或 deprecation shim。
 - 不测试静默默认值：除非需求明确，测试应让错误自然暴露，并断言真实失败原因。
-- 不让 UI state 成为项目数据源：测试必须确认项目数据来自 `.scene` 文件或 compiler scene document，而不是 Zustand 副本。
+- 不让 UI state 成为项目数据源：测试必须确认项目数据来自 `.scene` 文件或 `SceneDocument`，而不是 Pinia 副本。
 - 行为测试用稳定 locator：compiler scene 节点用 hierarchy locator / `id`，文件用 project-relative path。
 - 先最小验证，再扩大范围：每次改动优先运行最小相关测试，跨边界改动再运行完整 `bun run test` 和构建。
 
@@ -18,7 +18,9 @@
 
 | 文件 | 责任边界 | 当前覆盖重点 |
 | --- | --- | --- |
-| `tests/editor-store.test.ts` | editor UI store | Zustand 只持久化轻量偏好，不保存 project data / secrets |
+| `tests/editor-vue-ui.test.ts` | Vue Editor UI / Pinia | Inspector preview / commit 与 Pinia 项目数据边界 |
+| `tests/editor-scene-document.test.ts` | vNext `SceneDocument` | versioned auto-save、Undo / Redo、文件通知协调 |
+| `tests/editor-server.test.ts` | 浏览器 Editor 本地服务 | 项目索引、Scene versioned write、project root guard |
 | `tests/project-file-tree.test.ts` | desktop project file service | compiler `.scene` 创建保存、文件树分类、重命名、删除、绑定刷新 |
 | `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
 | `tests/editor-run-service.test.ts` | editor run service / host bridge | 运行状态、spawn 参数、stdout / stderr 摘要、停止 session、失败状态 |
@@ -46,7 +48,7 @@
    - editor 文件树 / host service：`tests/project-file-tree.test.ts`
    - project run config：`tests/project-run-config.test.ts`
    - editor run service：`tests/editor-run-service.test.ts`
-   - editor store：`tests/editor-store.test.ts`
+- Vue editor store / Inspector：`tests/editor-vue-ui.test.ts`
    - CLI / Agent live context：`tests/pixifact-cli.test.ts`
 
 3. Red
@@ -176,15 +178,15 @@ bun run build
 
 - 数据流写入 compiler scene document。
 - 节点类型专属 display 字段过滤正确。
-- Zustand 只保存 UI 偏好。
+- Pinia 只保存 UI 偏好。
 - 纯图标按钮有 `aria-label` 和 `title`。
 - 中文文案符合 `AGENTS.md` 的中英混用规则。
 
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/editor-store.test.ts tests/project-file-tree.test.ts tests/editor-workbench-ui.test.ts
-bunx --no-install tsc -p apps/editor/tsconfig.json
+bunx --no-install vitest run tests/editor-vue-ui.test.ts tests/editor-scene-document.test.ts
+bun run editor:typecheck
 bun run editor:frontend:build
 ```
 
@@ -213,7 +215,7 @@ bun run build
 - 关键失败路径有测试，尤其是 invalid scene、path guard、asset/contract validation。
 - 外部 Agent 修改路径是 `.scene` direct edit + validation。
 - Editor live context 是只读增强，不写项目文件。
-- editor UI 没有保存 `.scene` source 或 compiler scene document 副本到 Zustand。
+- editor UI 没有保存 `.scene` source 或 `SceneDocument` 副本到 Pinia。
 - 相关最小验证通过。
 - 涉及 editor 前端时，TypeScript strict check 和 `editor:frontend:build` 通过。
 - 涉及 runtime / public exports 时，`bun run build` 通过。

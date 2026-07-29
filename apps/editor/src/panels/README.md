@@ -1,11 +1,11 @@
 # Editor Panels
 
-正式 editor 当前按固定 Scene workbench 组织核心区域：
+浏览器 Editor 当前按固定三栏组织核心区域：
 
-- `ProjectShelf.tsx`：底部项目资源架，统一展示 folder / Scene / asset / script；Scene 可拖到层级树，具体资源双击系统默认程序打开，脚本外部编辑器打开。
-- `HierarchyPanel.tsx`：只展示当前打开 Scene 的节点树。
-- `ViewportPanel.tsx`：运行时 preview。
-- `InspectorPanel.tsx`：Compiler `.scene` 选中对象属性编辑、Scene 文件信息、脚本绑定和公开契约摘要。
-- `SummaryBar.tsx` / `common.tsx`：共享展示和树遍历辅助。
+- `HierarchyPanel.vue`：左栏当前 Scene 节点树。
+- `AssetsPanel.vue`：左栏项目内已有 Scene 与图片索引。
+- `SceneCanvas.vue`：中央长驻 Pixi Application / Canvas 与运行时节点增量更新。
+- `InspectorPanel.vue`：右栏 schema-driven 属性编辑，输入 preview，失焦或 Enter 提交。
+- `EditorApp.vue`：顶层文档绑定、Scene 打开、Undo / Redo 和同步状态。
 
-不再保留早期工作台中的独立 Component Palette、Action、Logic、Memory、Project tab。项目数据以 compiler `.scene` 文件为 source of truth，UI 状态只保存轻量偏好；外部 AI 通过 CLI 调用 Pixifact 的 Scene inspect、validate、compile、preview 和 diagnostics 能力。Git、Agent 编排、任务管理和 CI 由外部工具负责。
+项目数据以 compiler `.scene` 文件为 source of truth，Pinia 只保存轻量 UI 状态。目录中旧 `.tsx` 面板属于待删除迁移代码，不是当前 Vite 入口，也不应继续扩展。

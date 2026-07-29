@@ -32,8 +32,9 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 - `packages/pixifact/src/project/`：`pixifact.project.json` 解析、默认开发分辨率和项目摘要。
 - `packages/pixifact/src/compiler/`：compiler `.scene` 解析、校验、生成。
 - `packages/pixifact-cli/`：Pixifact CLI，依赖 `pixifact`，不依赖桌面编辑器。
-- `apps/editor/`：Pixifact 桌面编辑器产品应用。
-- `apps/editor/src-tauri/`：Tauri desktop host。
+- `apps/editor/`：Pixifact 浏览器 Editor 的 Vue / Vite 前端。
+- `packages/pixifact-cli/src/editorServer.ts`：`pixifact editor` 使用的本地 Bun 服务。
+- `apps/editor/src-tauri/`：待 vNext 迁移完成后删除的旧 Tauri host，不是当前 Editor 入口。
 - `tests/`：单元测试、编辑器测试、CLI 测试。
 - `sample-projects/wechat-minigame-demo/`：Web / 微信小游戏共享 Scene 和逻辑的多目标示例。
 
@@ -65,7 +66,7 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 ## 核心架构规则
 
 - Compiler `.scene` 源文件是外部 Agent 和 editor 共享的 source of truth。
-- Zustand 只保存 UI 状态，不保存 `.scene` 模板副本作为项目数据源。
+- Pinia 只保存 UI 状态，不保存 `.scene` 模板副本作为项目数据源。
 - Compiler `.scene` 的默认 Agent 路径是直接编辑 `.scene` 源文件，然后运行 Pixifact CLI 的 `scene validate`、`compile-scenes` 和项目最小相关验证。
 - Editor live bridge 只提供 summary、scene get、node inspect 等 compiler scene 上下文能力，不提供 mutation 入口。
 - JSON 是资产格式，不作为主要编辑入口。
@@ -117,10 +118,7 @@ Pixifact 主要面向中国用户。默认 Editor 界面、README 主文档、CL
 - 纯图标按钮必须提供 `aria-label` 和 `title`。
 - 图标服务于扫描效率，不替代关键语义。
 
-当前按钮组件：
-
-- `apps/editor/src/components/IconButton.tsx`
-- `apps/editor/src/components/ActionButton.tsx`
+- Vue 工具按钮使用 `lucide-vue-next` 图标，并遵守上述可访问性规则。
 
 ## 目录约定
 
@@ -130,7 +128,7 @@ Editor 产品目录固定为：
 apps/editor/
 ```
 
-`apps/editor/src/EditorApp.tsx` 只负责顶层组合和文档订阅。
+`apps/editor/src/EditorApp.vue` 只负责顶层组合和文档订阅。
 
 面板放在：
 
@@ -150,7 +148,7 @@ apps/editor/src/services/
 apps/editor/src/preview/
 ```
 
-公共 React 控件放在：
+公共 Vue 控件放在：
 
 ```txt
 apps/editor/src/components/
@@ -167,7 +165,7 @@ bun run test
 编辑器相关改动常用：
 
 ```bash
-bunx --no-install tsc -p apps/editor/tsconfig.json
+bun run editor:typecheck
 bun run editor:frontend:build
 ```
 
@@ -178,25 +176,13 @@ bun run build
 bun run example:build
 ```
 
-本地启动 Tauri 桌面版：
+从当前项目启动浏览器 Editor：
 
 ```bash
 bun run editor
 ```
 
-`bun run editor` 是桌面入口别名，不启动或维护独立浏览器版。Tauri dev 内部使用的 Vite server 只服务桌面 WebView。
-
-等价命令：
-
-```bash
-bun run desktop
-```
-
-打包 Tauri 桌面版：
-
-```bash
-bun run desktop:build
-```
+仓库脚本会先构建 Vue 前端，再运行 `pixifact editor`。下游项目安装 CLI 后直接在项目根目录运行 `pixifact editor`。
 
 ## 工作方式
 
@@ -204,8 +190,8 @@ bun run desktop:build
 - 后续需求必须朝最终目标一步到位：实现前先明确完整交互、数据流、边界状态和验证方式，不要先交付半成品再依赖后续反复补齐。
 - 不要重写 unrelated 文件。
 - 不要 revert 用户已有改动。
-- 不要把 React state 变成项目数据源。
+- 不要把 Pinia state 变成项目数据源。
 - 不要为了 UI 美化破坏 Alpha 核心流程测试。
 - 新增面板或服务时，优先复用现有 `.scene` parser、serializer、validator 和 compiler scene document。
-- 运行测试或构建后，避免提交 `apps/editor/dist`、`packages/pixifact/dist`、`test-results`、`apps/editor/src-tauri/target` 等临时产物。
+- 运行测试或构建后，避免提交 `packages/pixifact-cli/editor`、`apps/editor/dist`、`packages/pixifact/dist`、`test-results`、`apps/editor/src-tauri/target` 等临时产物。
 - 每次代码或文档改动完成并通过相关验证后，自动提交 tracked 变动；不要提交未跟踪文件，除非用户明确要求。

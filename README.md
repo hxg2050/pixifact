@@ -2,7 +2,7 @@
 
 Pixifact 是面向 AI 完整游戏开发的 Scene / UI / 轻场景与项目资产管理层。PixiJS 是底层渲染实现，Pixifact 对外提供 `.scene` 源文件、校验、编译、预览和运行时加载能力。
 
-Codex、Claude Code 等外部 coding agent 是主要 AI 入口。Pixifact CLI 帮助 Agent 理解、修改、校验和编译 Scene；桌面编辑器位于 `apps/editor/`，用于预览、资产浏览、live context、校验反馈和人工微调。
+Codex、Claude Code 等外部 coding agent 是主要 AI 入口。Pixifact CLI 帮助 Agent 理解、修改、校验和编译 Scene；浏览器 Editor 位于 `apps/editor/`，用于预览、资产浏览、Inspector 和人工微调。
 
 Pixifact 只专注提供 AI 可操作的 Scene 能力。Agent 编排、Git 分支 / commit / revert、任务管理、CI、PR 和长期项目管理交给外部专业工具。
 
@@ -45,6 +45,7 @@ bun add -d pixifact-cli
 ```bash
 pixifact scene validate --all
 pixifact compile-scenes
+pixifact editor
 ```
 
 构建微信小游戏：
@@ -121,32 +122,28 @@ PixiJS 原生 `Container` 语义保持不变，尤其是 `width` / `height` 的 
 
 ## Editor
 
-桌面编辑器负责预览、资产浏览、Scene 层级、Inspector、布局微调和 live context。它不取代代码编辑器，也不把 React state 变成项目数据源。
+浏览器 Editor 由 `pixifact editor` 启动。CLI 在当前项目上启动仅绑定 `127.0.0.1` 的 Bun 服务并打开系统浏览器；`.scene` 始终是 source of truth，Pinia 只保存 UI 状态。
 
-当前布局编辑体验：
+当前第一条可用闭环：
 
-- Scene View 支持选择、拖动和 8 个方向 resize handle。
-- 对已有 layout 节点拖动或 resize 时，会保持同一轴的 layout 语义，而不是偷偷改成 `x/y`。
-- Inspector 的 Layout 区使用类似 Cocos Widget 的对齐编辑：横向 `None / Left / Center / Right / Stretch`，纵向 `None / Top / Middle / Bottom / Stretch`。
-- 切换布局模式时，会根据当前可见位置计算 layout 数值，尽量保持画面不跳。
-- `width` / `height` 仍在 Transform 区编辑，不放进 Layout 区。
+- 固定三栏展示当前 Scene 的层级、长驻 Pixi Canvas 和 schema-driven Inspector。
+- Inspector 输入时原地更新运行时节点，不重建 Pixi Application 或 Canvas。
+- 失焦或 Enter 后自动写回 `.scene`，Undo / Redo 后也会自动保存。
+- 写入携带文件版本；外部修改导致版本不一致时显示同步冲突，不静默覆盖。
+- 资产面板只索引项目内已有的 `.scene` 和图片，不提供图片导入或源资源编辑。
 
-启动桌面编辑器：
+在目标项目根目录启动：
+
+```bash
+pixifact editor
+```
+
+维护本仓库时使用：
 
 ```bash
 bun install
-bun run desktop
+bun run editor
 ```
-
-`bun run editor` 是 `bun run desktop` 的别名。项目不提供独立浏览器版编辑器入口；Tauri 开发模式内部启动的 Vite server 只服务桌面 WebView。
-
-打包桌面版：
-
-```bash
-bun run desktop:build
-```
-
-开发和打包桌面版需要 Rust / Cargo。最终安装桌面 App 的用户不需要配置 Bun 或 Rust 环境。
 
 ## CLI
 
@@ -205,9 +202,8 @@ packages/pixifact/src/scene/    Scene 运行时公开入口
 packages/pixifact/src/platform/ 游戏目标平台 runtime
 packages/pixifact/src/project/  pixifact.project.json 解析和项目摘要
 packages/pixifact/src/compiler/ compiler .scene 解析、校验、生成
-packages/pixifact-cli/          Pixifact CLI，依赖 pixifact，不依赖桌面编辑器
-apps/editor/                    Pixifact 桌面编辑器 React / Vite 前端
-apps/editor/src-tauri/          Tauri desktop host
+packages/pixifact-cli/          Pixifact CLI 与浏览器 Editor 本地服务
+apps/editor/                    Pixifact 浏览器 Editor Vue / Vite 前端
 tests/                          单元测试、编辑器测试、CLI 测试
 skills/                         本仓库维护的 Codex skills
 ```
@@ -223,7 +219,7 @@ bun run test
 编辑器相关改动：
 
 ```bash
-bunx --no-install tsc -p apps/editor/tsconfig.json
+bun run editor:typecheck
 bun run editor:frontend:build
 ```
 
