@@ -16,8 +16,12 @@ import {
     type SceneTemplateNode,
 } from 'pixifact/compiler';
 import { builtinSceneScriptSources } from '../preview/builtinSceneScriptSources';
-import { readHostProjectFileText } from './hostBridge';
-import type { ProjectFileTreeNode } from './projectFileTree';
+import {
+    findFileByPath,
+    projectFileRelativePath,
+    readProjectFileText,
+    type ProjectFileTreeNode,
+} from './projectFileTree';
 
 export interface CompilerSceneBinding {
     scenePath: string;
@@ -203,36 +207,4 @@ function collectSceneInstancePaths(
         }
     }
     return paths;
-}
-
-function ensureProjectRootPath(projectTree: ProjectFileTreeNode) {
-    const path = projectTree.projectRootPath ?? projectTree.systemPath;
-    if (!path) {
-        throw new Error('当前项目缺少本机路径，请使用桌面版重新打开项目。');
-    }
-    return path;
-}
-
-async function readProjectFileText(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
-    return readHostProjectFileText(ensureProjectRootPath(projectTree), file.path);
-}
-
-function projectFileRelativePath(projectTree: ProjectFileTreeNode, file: ProjectFileTreeNode) {
-    if (file.path === projectTree.path) {
-        return '';
-    }
-    return file.path.slice(projectTree.path.length + 1);
-}
-
-function findFileByPath(node: ProjectFileTreeNode, path: string): ProjectFileTreeNode | undefined {
-    if (node.path === path) {
-        return node;
-    }
-    for (const child of node.children ?? []) {
-        const match = findFileByPath(child, path);
-        if (match) {
-            return match;
-        }
-    }
-    return undefined;
 }

@@ -63,11 +63,8 @@ async function rebuildPreview() {
     try {
         const next = await createCompilerSceneRuntimePreview({
             document: {
-                scenePath: `${projectTree.path}/${document.path}`,
                 template: document.template,
                 sceneInterfaces: {},
-                selection: { type: 'scene' },
-                dirty: false,
             },
             projectTree,
             scenePath: document.path,

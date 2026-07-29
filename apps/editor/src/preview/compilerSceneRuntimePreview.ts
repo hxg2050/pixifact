@@ -10,6 +10,7 @@ import {
     builtinSceneInterface,
     builtinSceneInterfaces,
     builtinSceneNameFromAssetId,
+    compilerSceneNodeLocator,
     isBuiltinSceneAssetId,
     normalizeSceneAssetId,
     pairedSceneScriptPath,
@@ -20,8 +21,6 @@ import {
 } from 'pixifact/compiler';
 import type { PixifactProjectResolution } from 'pixifact';
 import type { SceneTemplate, SceneTemplateInterface, SceneTemplateNode } from 'pixifact/compiler';
-import { compilerSceneNodeLocator } from '../document/compilerSceneDocumentController';
-import type { CompilerSceneDocument } from '../document/compilerSceneDocumentController';
 import { builtinSceneScriptSources } from './builtinSceneScriptSources';
 import {
     findFileByPath,
@@ -33,10 +32,15 @@ import type { CompilerSceneBindingIndex } from '../services/sceneBindingIndex';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
 
 interface CreateCompilerSceneRuntimePreviewOptions {
-    document: CompilerSceneDocument;
+    document: CompilerScenePreviewDocument;
     projectResolution?: PixifactProjectResolution;
     projectTree: ProjectFileTreeNode;
     scenePath: string;
+}
+
+interface CompilerScenePreviewDocument {
+    template: SceneTemplate;
+    sceneInterfaces: Record<string, SceneTemplateInterface>;
 }
 
 export interface CompilerSceneRuntimePreview {
@@ -517,7 +521,7 @@ function createGeneratedSceneModule(
 async function collectPreviewModules(
     context: PreviewRuntimeContext,
     bindingIndex: CompilerSceneBindingIndex,
-    document: CompilerSceneDocument,
+    document: CompilerScenePreviewDocument,
 ) {
     const scenePaths = new Set<string>();
 

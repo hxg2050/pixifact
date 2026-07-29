@@ -31,10 +31,9 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 - `packages/pixifact/src/platform/wechat/`：微信小游戏 PixiJS adapter、输入、生命周期和资源访问。
 - `packages/pixifact/src/project/`：`pixifact.project.json` 解析、默认开发分辨率和项目摘要。
 - `packages/pixifact/src/compiler/`：compiler `.scene` 解析、校验、生成。
-- `packages/pixifact-cli/`：Pixifact CLI，依赖 `pixifact`，不依赖桌面编辑器。
+- `packages/pixifact-cli/`：Pixifact CLI 与浏览器 Editor 本地服务，依赖 `pixifact`。
 - `apps/editor/`：Pixifact 浏览器 Editor 的 Vue / Vite 前端。
 - `packages/pixifact-cli/src/editorServer.ts`：`pixifact editor` 使用的本地 Bun 服务。
-- `apps/editor/src-tauri/`：待 vNext 迁移完成后删除的旧 Tauri host，不是当前 Editor 入口。
 - `tests/`：单元测试、编辑器测试、CLI 测试。
 - `sample-projects/wechat-minigame-demo/`：Web / 微信小游戏共享 Scene 和逻辑的多目标示例。
 
@@ -193,5 +192,5 @@ bun run editor
 - 不要把 Pinia state 变成项目数据源。
 - 不要为了 UI 美化破坏 Alpha 核心流程测试。
 - 新增面板或服务时，优先复用现有 `.scene` parser、serializer、validator 和 compiler scene document。
-- 运行测试或构建后，避免提交 `packages/pixifact-cli/editor`、`apps/editor/dist`、`packages/pixifact/dist`、`test-results`、`apps/editor/src-tauri/target` 等临时产物。
+- 运行测试或构建后，避免提交 `packages/pixifact-cli/editor`、`apps/editor/dist`、`packages/pixifact/dist`、`test-results` 等临时产物。
 - 每次代码或文档改动完成并通过相关验证后，自动提交 tracked 变动；不要提交未跟踪文件，除非用户明确要求。

@@ -148,7 +148,7 @@ rtk bun run pixifact -- editor
 - [x] 实现 SceneDocument、自动保存、Undo / Redo、版本冲突和文件通知协调。
 - [x] 实现长驻 ScenePreview 与普通属性增量更新。
 - [x] 实现新版固定三栏 UI 的首个可用版本。
-- [ ] 删除旧 Tauri / Dockview / 运行服务并迁移对外文档。
+- [x] 删除旧 Tauri / Dockview / 运行服务并迁移对外文档。
 
 ## Resume Protocol
 
@@ -170,10 +170,12 @@ Done:
 - Inspector 输入原地更新运行时节点，失焦或 Enter 后保存；提交后的 draft 不再被旧 revision 回跳。
 - 浏览器验收完成 `120 -> 130 -> Undo 120 -> 恢复 54`，全过程 Canvas 数量为 1，sample Scene 最终无 diff。
 - 新增 Editor server、SceneDocument 和 Vue Inspector / Pinia 回归测试。
+- 完全删除旧 Tauri host、React / React Aria / Dockview / Zustand UI、运行服务、旧 live bridge、对应测试和依赖。
+- runtime preview 与 Scene binding 已迁移到浏览器 `/api/file`，不再依赖旧 host bridge 或 document controller。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
-- 旧 React / Zustand / Dockview / Tauri 源码和依赖仍在仓库，但不再是 `bun run editor` 与 Vite 的入口。
+- 仓库只保留 Vue 浏览器 Editor，不存在旧桌面入口或兼容层。
 - vNext 还没有重新接通 read-only live context，也没有实现层级结构编辑、画布拖动 / resize 和完整资产交互。
 - 当前浏览器主包约 4.5 MB，原因是 runtime preview 将 TypeScript compiler 一并打包；第一闭环可接受，后续应把脚本编译迁到 Bun 服务。
 
@@ -183,4 +185,4 @@ Currently Failing:
 Next:
 1. 重新接通浏览器 Editor 的 read-only live context 与外部 `.scene` 变化集成测试。
 2. 按已确认范围实现层级结构 Command 和画布移动 / resize，不扩展成自由工作台。
-3. vNext 覆盖旧入口后删除 React、Zustand、Dockview、Tauri 源码、脚本和依赖。
+3. 继续补齐本地服务的图片访问、系统程序调用和外部变更集成测试。

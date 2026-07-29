@@ -85,8 +85,6 @@ export function createEditorProjectTree(project: EditorProject): ProjectFileTree
         path: project.name,
         kind: 'folder',
         depth: 0,
-        systemPath: project.root,
-        projectRootPath: project.root,
         children: [],
     };
     const folders = new Map<string, ProjectFileTreeNode>([[root.path, root]]);
@@ -105,8 +103,6 @@ export function createEditorProjectTree(project: EditorProject): ProjectFileTree
                     path: currentPath,
                     kind: projectFileKind(file.kind),
                     depth: index + 1,
-                    systemPath: `${project.root}/${file.path}`,
-                    projectRootPath: project.root,
                 });
                 continue;
             }
@@ -118,8 +114,6 @@ export function createEditorProjectTree(project: EditorProject): ProjectFileTree
                     path: currentPath,
                     kind: 'folder',
                     depth: index + 1,
-                    systemPath: `${project.root}/${segments.slice(0, index + 1).join('/')}`,
-                    projectRootPath: project.root,
                     children: [],
                 };
                 folders.set(currentPath, folder);

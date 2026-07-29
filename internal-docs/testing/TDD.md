@@ -21,14 +21,12 @@
 | `tests/editor-vue-ui.test.ts` | Vue Editor UI / Pinia | Inspector preview / commit 与 Pinia 项目数据边界 |
 | `tests/editor-scene-document.test.ts` | vNext `SceneDocument` | versioned auto-save、Undo / Redo、文件通知协调 |
 | `tests/editor-server.test.ts` | 浏览器 Editor 本地服务 | 项目索引、Scene versioned write、project root guard |
-| `tests/project-file-tree.test.ts` | desktop project file service | compiler `.scene` 创建保存、文件树分类、重命名、删除、绑定刷新 |
+| `tests/project-file-tree.test.ts` | 浏览器 Editor 项目树与 runtime preview | 浏览器文件读取、Scene binding、Pixi 节点布局和图片 parser |
 | `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
-| `tests/editor-run-service.test.ts` | editor run service / host bridge | 运行状态、spawn 参数、stdout / stderr 摘要、停止 session、失败状态 |
 | `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、path guard、read-only live context、exit code |
 | `tests/scene-script-interface.test.ts` | compiler Scene script contract | `@scene` / `@prop` / `@event` / `@slot` / `@part` 提取，primitive 和 structured prop contract |
 | `tests/scene-compiler.test.ts` | compiler `.scene` parser / serializer / validator / codegen | scene source canonicalization、scene instance contract、structured prop dot-path、generated TypeScript |
 | `tests/compiler-scene-commands.test.ts` | compiler scene internal commands | node prop 更新、nested prop path、undo/redo inverse |
-| `tests/editor-live-context-ui.test.ts` | Editor live context UI | external compiler scene refresh state |
 
 新增测试应先落到这些既有边界；只有当行为无法归入现有边界时，才新增测试文件。
 
@@ -43,12 +41,11 @@
 2. 选测试边界
 
    - compiler `.scene` parser / validator：`tests/scene-compiler.test.ts`、`tests/pixifact-cli.test.ts`
-   - compiler scene command / undo：`tests/compiler-scene-commands.test.ts`、`tests/compiler-scene-document-controller.test.ts`
+   - compiler scene command / undo：`tests/compiler-scene-commands.test.ts`、`tests/editor-scene-document.test.ts`
    - runtime `Group` / compiler output：`tests/scene-compiler.test.ts` 和 sample project build
-   - editor 文件树 / host service：`tests/project-file-tree.test.ts`
+   - editor 本地服务 / runtime preview：`tests/editor-server.test.ts`、`tests/project-file-tree.test.ts`
    - project run config：`tests/project-run-config.test.ts`
-   - editor run service：`tests/editor-run-service.test.ts`
-- Vue editor store / Inspector：`tests/editor-vue-ui.test.ts`
+   - Vue editor store / Inspector：`tests/editor-vue-ui.test.ts`
    - CLI / Agent live context：`tests/pixifact-cli.test.ts`
 
 3. Red
@@ -121,7 +118,7 @@ bunx --no-install vitest run tests/scene-script-interface.test.ts tests/scene-co
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/scene-script-interface.test.ts tests/scene-compiler.test.ts tests/compiler-scene-commands.test.ts tests/project-file-tree.test.ts tests/editor-workbench-ui.test.ts
+bunx --no-install vitest run tests/scene-script-interface.test.ts tests/scene-compiler.test.ts tests/compiler-scene-commands.test.ts tests/editor-scene-document.test.ts tests/editor-vue-ui.test.ts
 bun run editor:frontend:build
 ```
 
@@ -153,7 +150,7 @@ bunx --no-install vitest run tests/pixifact-cli.test.ts
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/compiler-scene-commands.test.ts tests/compiler-scene-document-controller.test.ts tests/pixifact-cli.test.ts
+bunx --no-install vitest run tests/compiler-scene-commands.test.ts tests/editor-scene-document.test.ts tests/pixifact-cli.test.ts
 ```
 
 ### 新增 compiler Scene primitive 或 runtime 能力
@@ -168,7 +165,7 @@ bunx --no-install vitest run tests/compiler-scene-commands.test.ts tests/compile
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/scene-compiler.test.ts tests/editor-workbench-ui.test.ts
+bunx --no-install vitest run tests/scene-compiler.test.ts tests/project-file-tree.test.ts tests/editor-vue-ui.test.ts
 bun run build
 ```
 
@@ -219,7 +216,7 @@ bun run build
 - 相关最小验证通过。
 - 涉及 editor 前端时，TypeScript strict check 和 `editor:frontend:build` 通过。
 - 涉及 runtime / public exports 时，`bun run build` 通过。
-- 不提交 `apps/editor/dist`、`packages/pixifact/dist`、`test-results`、`apps/editor/src-tauri/target` 等产物。
+- 不提交 `packages/pixifact-cli/editor`、`apps/editor/dist`、`packages/pixifact/dist`、`test-results` 等产物。
 
 ## 6. 最小验证速查
 
@@ -228,7 +225,7 @@ bun run build
 bun run test
 
 # Editor 类型检查
-bunx --no-install tsc -p apps/editor/tsconfig.json
+bun run editor:typecheck
 
 # Editor 前端构建
 bun run editor:frontend:build

@@ -85,7 +85,7 @@ Scenario: User edits a structured field
   And saving writes "rectTransform.width" as a dot-path attribute
 ```
 
-TDD 入口：`tests/project-file-tree.test.ts`、`tests/editor-workbench-ui.test.ts`。
+TDD 入口：`tests/compiler-scene-commands.test.ts`、`tests/editor-scene-document.test.ts`、`tests/editor-vue-ui.test.ts`。
 
 ## 3. Editor
 
@@ -101,7 +101,7 @@ Scenario: External agent changes the opened .scene file
   And the viewport reflects the new source
 ```
 
-TDD 入口：`tests/project-file-tree.test.ts`、`tests/editor-live-context-ui.test.ts`。
+TDD 入口：`tests/editor-server.test.ts`、`tests/editor-scene-document.test.ts`、浏览器验收。
 
 ### BDD-EDITOR-002 资产浏览不编辑源资源
 
@@ -115,7 +115,7 @@ Scenario: User opens a source asset
   And Pixifact does not edit the asset bytes
 ```
 
-TDD 入口：`tests/project-file-tree.test.ts`。
+TDD 入口：`tests/editor-server.test.ts`；系统程序调用仍需补自动化覆盖。
 
 ### BDD-EDITOR-003 Pinia 不保存项目数据
 
@@ -159,7 +159,7 @@ Scenario: User opens a Scene from the asset list
   And the Inspector displays fields for the selected node
 ```
 
-TDD 入口：`tests/editor-scene-document.test.ts`、Editor 前端构建与浏览器验收。
+TDD 入口：`tests/editor-scene-document.test.ts`、`tests/project-file-tree.test.ts`、Editor 前端构建与浏览器验收。
 
 ### BDD-EDITOR-006 Inspector 属性增量预览并自动保存
 
