@@ -21,6 +21,16 @@
 - 外部 Agent 通过 Pixifact CLI 读取只读 live context，并直接修改 `.scene` 与配对脚本；Editor live bridge 不提供 mutation 入口。
 - `.scene` 始终是人、Agent、Editor 和 compiler 共享的 source of truth。
 
+### 技术栈
+
+- 浏览器 UI 使用 Vue 3、TypeScript、Composition API 与 `<script setup>`，继续使用 Vite 构建。
+- PixiJS 8 负责 Scene authoring 画布；Vue 只组合工作区 UI，不接管 Pixi DisplayObject 生命周期。
+- Pinia 只保存当前 Scene、selection、左侧 Tab、面板宽度和画布视图等 UI 状态。
+- `SceneDocument`、Command、compiler 集成和文件版本模型使用与 Vue 解耦的纯 TypeScript 实现。
+- 本地项目服务使用 Bun，直接提供 HTTP、WebSocket、文件监听与系统程序调用，不引入额外后端框架。
+- 界面使用普通 CSS、CSS Variables 和 CSS Grid；图标使用 Vue 版本的 Lucide，不引入完整 UI 组件框架。
+- vNext 不保留 React 实现或兼容层；完成迁移后直接删除 React、React Aria、Zustand、Dockview React 和对应依赖。
+
 ### 编辑模型
 
 - Editor 没有手动保存和“未保存 Scene”产品语义；有效操作提交后自动写入 `.scene`。
@@ -65,8 +75,8 @@
 ### 数据所有权与预览
 
 - 本地服务只负责项目根、文件读写与版本、递归监听、图片 URL、系统程序调用和 WebSocket 通知，不执行 Scene mutation。
-- `SceneDocument` 负责当前 template、文件版本、Command Stack、自动保存状态和同步状态，不放入 Zustand。
-- Zustand 只保存当前 Scene、selection、左侧 Tab、面板宽度和画布视图等 UI 状态。
+- `SceneDocument` 负责当前 template、文件版本、Command Stack、自动保存状态和同步状态，不放入 Pinia。
+- Pinia 不保存 `.scene` template、副本或可序列化项目数据。
 - `ScenePreview` 负责长驻 Pixi Application、Canvas、Scene root 和 locator 节点索引，不读取或写入项目文件。
 - UI 只能向 `SceneDocument` 提交明确 Command，不能通过替换整个 template 驱动 Preview 生命周期。
 - 普通属性 Command 原地更新 locator 对应的运行时节点，不重建 Scene。
@@ -101,10 +111,10 @@
 
 - 在 `packages/pixifact-cli/` 增加 Editor 启动入口与本地项目服务。
 - 用 Bun / Node 标准能力实现受项目根约束的文件读写、版本检查、监听、图片访问、系统程序调用和 WebSocket 通知。
-- 重建 `apps/editor/` 浏览器 UI、SceneDocument、Command 流程和长驻 ScenePreview。
+- 用 Vue 3、TypeScript、Vite 和 Pinia 重建 `apps/editor/` 浏览器 UI，并实现 SceneDocument、Command 流程和长驻 ScenePreview。
 - 建立固定三栏、单 Scene 导航、层级、只读资产索引、画布和 schema-driven Inspector。
 - 接通自动保存、Undo / Redo、外部变化同步和只读 live context。
-- vNext 完成后删除 Tauri host、Dockview、旧运行服务和不再使用的旧 Editor 实现。
+- vNext 完成后删除 Tauri host、Dockview、React、Zustand、旧运行服务和不再使用的旧 Editor 实现及依赖。
 - 实现完成后更新 README、中文与英文 Editor 对外文档和相关脚本。
 
 ## Test Plan
@@ -113,14 +123,14 @@
 - [ ] 为受项目根约束的文件读取、版本写入、文件监听和图片访问补服务测试。
 - [ ] 为 SceneDocument Command、Undo / Redo、自动保存和同步冲突补单元测试。
 - [ ] 为普通属性不重建 Canvas、结构变化原子替换 Scene root 补 Preview 测试。
-- [ ] 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试。
+- [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试。
 - [ ] 为外部 `.scene` / 脚本 / 图片变化和只读 live context 补集成测试。
 - [ ] 在桌面浏览器视口完成布局、无重叠、拖拽与 Inspector 实时反馈的人工验证。
 
 ## Verification
 
 ```bash
-rtk bunx --no-install tsc -p apps/editor/tsconfig.json
+rtk bunx --no-install vue-tsc --noEmit -p apps/editor/tsconfig.json
 rtk bun run editor:frontend:build
 rtk bun run test
 rtk bun run pixifact -- editor
@@ -155,6 +165,7 @@ Done:
 - 完成 Editor vNext 产品、交互、数据流、技术边界和视觉方向讨论。
 - 明确浏览器 UI + 本地 Bun 服务、单项目、单 Scene、自动保存、外部 Agent direct edit 和固定三栏。
 - 明确第一版不做 Tauri、Dockview、运行进程、图片导入和集中式问题收集。
+- 明确 vNext 前端使用 Vue 3、TypeScript、Vite 与 Pinia，不保留 React 兼容层。
 
 Current State:
 - 设计决策已确认，尚未开始正式 BDD 或代码实现。
