@@ -8,7 +8,11 @@
 
 ## 当前计划
 
-当前没有活跃计划。需要续作时，先从下方对应计划的 `Resume Notes` 读取历史上下文；新的实现任务另开计划。
+| 文档 | 负责什么 |
+| --- | --- |
+| [editor-vnext.md](./editor-vnext.md) | 浏览器 Editor vNext 的产品边界、数据流、实现范围和续作记录 |
+
+继续 Editor vNext 时，先读取对应计划的 `Resume Notes`，不要从旧 Tauri Editor 或归档工作台方案重新推导产品边界。
 
 ## 已完成计划
 
