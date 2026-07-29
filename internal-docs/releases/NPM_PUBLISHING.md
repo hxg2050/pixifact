@@ -10,10 +10,10 @@ Pixifact 发布三个公开 npm 包：
 
 ## 当前发布状态
 
-当前 npm 最新版本和 git tag 均为 `0.2.0`：
+当前 npm 最新版本和 git tag 均为 `0.4.0`：
 
-- npm packages: `0.2.0`
-- git tag: `v0.2.0`
+- npm packages: `0.4.0`
+- git tag: `v0.4.0`
 - changelog sources: [`pixifact`](../../packages/pixifact/CHANGELOG.md)、[`pixifact-cli`](../../packages/pixifact-cli/CHANGELOG.md)、[`create-pixifact`](../../packages/create-pixifact/CHANGELOG.md)
 
 首个 npm 发布记录见 [`v0.1.3.md`](./v0.1.3.md)。
