@@ -28,7 +28,8 @@
 - Pinia 只保存当前 Scene、selection、左侧 Tab、面板宽度和画布视图等 UI 状态。
 - `SceneDocument`、Command、compiler 集成和文件版本模型使用与 Vue 解耦的纯 TypeScript 实现。
 - 本地项目服务使用 Bun，直接提供 HTTP、WebSocket、文件监听与系统程序调用，不引入额外后端框架。
-- 界面使用普通 CSS、CSS Variables 和 CSS Grid；图标使用 Vue 版本的 Lucide，不引入完整 UI 组件框架。
+- 使用 `reka-ui` 提供 Dialog、Menu、Select、Popover、Tooltip、Tabs 和 Checkbox 等无样式交互原语；层级树、Inspector 与画布工具使用 Editor 专用组件。
+- 界面使用普通 CSS、CSS Variables 和 CSS Grid，图标使用 `lucide-vue-next`；不引入带完整视觉主题的 UI 组件框架。
 - vNext 不保留 React 实现或兼容层；完成迁移后直接删除 React、React Aria、Zustand、Dockview React 和对应依赖。
 
 ### 编辑模型
@@ -111,7 +112,7 @@
 
 - 在 `packages/pixifact-cli/` 增加 Editor 启动入口与本地项目服务。
 - 用 Bun / Node 标准能力实现受项目根约束的文件读写、版本检查、监听、图片访问、系统程序调用和 WebSocket 通知。
-- 用 Vue 3、TypeScript、Vite 和 Pinia 重建 `apps/editor/` 浏览器 UI，并实现 SceneDocument、Command 流程和长驻 ScenePreview。
+- 用 Vue 3、TypeScript、Vite、Pinia 和 Reka UI 重建 `apps/editor/` 浏览器 UI，并实现 SceneDocument、Command 流程和长驻 ScenePreview。
 - 建立固定三栏、单 Scene 导航、层级、只读资产索引、画布和 schema-driven Inspector。
 - 接通自动保存、Undo / Redo、外部变化同步和只读 live context。
 - vNext 完成后删除 Tauri host、Dockview、React、Zustand、旧运行服务和不再使用的旧 Editor 实现及依赖。
@@ -166,6 +167,7 @@ Done:
 - 明确浏览器 UI + 本地 Bun 服务、单项目、单 Scene、自动保存、外部 Agent direct edit 和固定三栏。
 - 明确第一版不做 Tauri、Dockview、运行进程、图片导入和集中式问题收集。
 - 明确 vNext 前端使用 Vue 3、TypeScript、Vite 与 Pinia，不保留 React 兼容层。
+- 明确使用 Reka UI 的无样式交互原语和项目自有 CSS，不引入完整视觉组件框架。
 
 Current State:
 - 设计决策已确认，尚未开始正式 BDD 或代码实现。
