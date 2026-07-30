@@ -18,7 +18,7 @@ export interface SceneFileApi {
 
 export type SceneDocumentEvent =
     | { type: 'nodePropPreview'; locator: string; prop: string; value?: SceneTemplateValue }
-    | { type: 'commandApplied'; command: CompilerSceneCommand }
+    | { type: 'commandApplied'; command: CompilerSceneCommand; inverse: CompilerSceneCommand }
     | { type: 'syncStateChanged'; state: SceneDocumentSyncState };
 
 type SceneDocumentListener = (event: SceneDocumentEvent) => void;
@@ -83,7 +83,7 @@ export class SceneDocument {
         if (!result.ok) {
             throw new Error(result.error);
         }
-        this.#emit({ type: 'commandApplied', command });
+        this.#emit({ type: 'commandApplied', command: result.command, inverse: result.inverse });
         await this.#queueSave();
     }
 
@@ -92,7 +92,7 @@ export class SceneDocument {
         if (!result?.ok) {
             return;
         }
-        this.#emit({ type: 'commandApplied', command: result.command });
+        this.#emit({ type: 'commandApplied', command: result.command, inverse: result.inverse });
         await this.#queueSave();
     }
 
@@ -101,7 +101,7 @@ export class SceneDocument {
         if (!result?.ok) {
             return;
         }
-        this.#emit({ type: 'commandApplied', command: result.command });
+        this.#emit({ type: 'commandApplied', command: result.command, inverse: result.inverse });
         await this.#queueSave();
     }
 

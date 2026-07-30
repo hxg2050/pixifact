@@ -150,7 +150,18 @@ Scenario: Editor opens a Scene with runtime behavior
   And changing an Inspector value updates the existing bound Pixi node without replacing the Scene root
 ```
 
-TDD 入口：`tests/project-file-tree.test.ts`、`tests/editor-vue-ui.test.ts`、Editor 前端构建。
+```gherkin
+Scenario: User inspects and detaches a bound node property
+  Given a node property is bound to a Scene Prop or Variant field
+  When the user selects that node
+  Then the Inspector displays the resolved value as read-only
+  And it displays the semantic Binding source
+  When the user explicitly detaches the Binding
+  Then the current resolved value is saved as a literal .scene property
+  And Undo restores the original Binding
+```
+
+TDD 入口：`tests/project-file-tree.test.ts`、`tests/editor-scene-document.test.ts`、`tests/editor-vue-ui.test.ts`、Editor 前端构建。
 
 ### BDD-EDITOR-003 资产浏览不编辑源资源
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RotateCcw } from 'lucide-vue-next';
+import { Link2, RotateCcw, Unlink2 } from 'lucide-vue-next';
 import {
     isSceneTemplateBindingValue,
     isPixiSceneNodeType,
@@ -10,14 +10,17 @@ import {
     pixiSceneTransformProps,
     resolveSceneReference,
     type PixiSceneFieldType,
+    type SceneTemplateBindingValue,
     type SceneTemplateInterface,
     type SceneTemplatePropContract,
+    type SceneTemplateScalarValue,
 } from 'pixifact/compiler';
 import { computed, nextTick, reactive, watch } from 'vue';
 import type { SceneDocument } from '../document/SceneDocument';
 import { findSceneNodeByLocator } from '../document/sceneTree';
 
 interface InspectorField {
+    binding?: SceneTemplateBindingValue;
     explicit: boolean;
     key: string;
     options?: readonly (string | number)[];
@@ -58,6 +61,9 @@ const selectedInterface = computed(() => {
     if (!props.document || node?.kind !== 'sceneInstance') return undefined;
     return props.sceneInterfaces?.[resolveSceneReference(props.document.path, node.scene)];
 });
+const ownerInterface = computed(() => (
+    props.document ? props.sceneInterfaces?.[props.document.path] : undefined
+));
 
 const commonDefaults: Record<string, string | number | boolean> = {
     x: 0,
@@ -80,6 +86,7 @@ const commonDefaults: Record<string, string | number | boolean> = {
 };
 
 const fields = computed<InspectorField[]>(() => {
+    void props.revision;
     const node = selectedNode.value;
     if (!node || node.kind === 'slotOutlet') {
         return [];
@@ -99,14 +106,15 @@ const fields = computed<InspectorField[]>(() => {
         const contract = selectedInterface.value?.props[key];
         const schema = contract ? scenePropSchema(contract) : pixiSceneFieldSchema(key);
         const explicitValue = node.props[key];
-        if (isSceneTemplateBindingValue(explicitValue)) {
-            return [];
-        }
-        const value = explicitValue ?? (contract ? scenePropDefault(contract) : defaults[key]);
+        const binding = isSceneTemplateBindingValue(explicitValue) ? explicitValue : undefined;
+        const value = binding
+            ? resolvedBindingValue(binding, schema?.type, defaults[key])
+            : explicitValue ?? (contract ? scenePropDefault(contract) : defaults[key]);
         if (!schema || value === undefined || typeof value === 'object') {
             return [];
         }
         return [{
+            binding,
             explicit: explicitValue !== undefined,
             key,
             type: schema.type,
@@ -133,6 +141,31 @@ function scenePropDefault(contract: SceneTemplatePropContract) {
     if (contract.type === 'number') return 0;
     if (contract.type === 'boolean') return false;
     return '';
+}
+
+function resolvedBindingValue(
+    binding: SceneTemplateBindingValue,
+    targetType: PixiSceneFieldType | undefined,
+    targetDefault: unknown,
+): SceneTemplateScalarValue | undefined {
+    const [prop, field] = binding.path;
+    const contract = ownerInterface.value?.props[prop];
+    let value: SceneTemplateScalarValue | undefined;
+    if (field && contract?.type === 'variant') {
+        value = contract.variants[contract.default]?.[field];
+    } else if (!field && contract && contract.type !== 'struct') {
+        value = scenePropDefault(contract);
+    }
+    if (value === undefined && ['string', 'number', 'boolean'].includes(typeof targetDefault)) {
+        value = targetDefault as SceneTemplateScalarValue;
+    }
+    if (targetType === 'color' && typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value)) {
+        return Number.parseInt(value.slice(1), 16);
+    }
+    if (targetType === 'string') {
+        return String(value ?? '');
+    }
+    return value;
 }
 
 watch([() => props.selected, () => props.revision, fields], () => {
@@ -188,6 +221,16 @@ async function reset(field: InspectorField) {
         error.message = cause instanceof Error ? cause.message : String(cause);
     }
 }
+
+async function unbind(field: InspectorField) {
+    if (!props.document || !props.selected || !field.binding) return;
+    error.message = '';
+    try {
+        await props.document.commitNodeProp(props.selected, field.key, field.value);
+    } catch (cause) {
+        error.message = cause instanceof Error ? cause.message : String(cause);
+    }
+}
 </script>
 
 <template>
@@ -207,10 +250,12 @@ async function reset(field: InspectorField) {
       <label v-for="field in fields" :key="field.key" class="property-row">
         <span :class="{ inherited: !field.explicit }">{{ field.key }}</span>
         <div class="property-control">
+          <div class="property-value">
           <input
             v-if="field.type === 'number'"
             :data-prop="field.key"
             v-model="drafts[field.key]"
+            :disabled="!!field.binding"
             type="number"
             step="any"
             @input="preview(field)"
@@ -222,6 +267,7 @@ async function reset(field: InspectorField) {
             v-else-if="field.type === 'color'"
             :data-prop="field.key"
             v-model="drafts[field.key]"
+            :disabled="!!field.binding"
             type="color"
             @input="preview(field)"
             @change="commit(field)"
@@ -231,6 +277,7 @@ async function reset(field: InspectorField) {
             v-else-if="field.type === 'boolean'"
             :data-prop="field.key"
             v-model="drafts[field.key]"
+            :disabled="!!field.binding"
             type="checkbox"
             @change="preview(field); commit(field)"
           >
@@ -238,6 +285,7 @@ async function reset(field: InspectorField) {
             v-else-if="field.type === 'enum'"
             :data-prop="field.key"
             v-model="drafts[field.key]"
+            :disabled="!!field.binding"
             @change="preview(field); commit(field)"
           >
             <option v-for="option in field.options" :key="option" :value="option">{{ option }}</option>
@@ -246,13 +294,34 @@ async function reset(field: InspectorField) {
             v-else
             :data-prop="field.key"
             v-model="drafts[field.key]"
+            :disabled="!!field.binding"
             type="text"
             @input="preview(field)"
             @change="commit(field)"
             @blur="commit(field)"
             @keydown.enter="commit(field); ($event.currentTarget as HTMLInputElement).blur()"
           >
+          <span
+            v-if="field.binding"
+            class="binding-source"
+            :data-binding-source="field.key"
+          >
+            <Link2 :size="11" />绑定：{{ field.binding.path.join('.') }}
+          </span>
+          </div>
           <button
+            v-if="field.binding"
+            class="reset-button"
+            type="button"
+            :data-unbind-prop="field.key"
+            :title="`解除 ${field.key} 的绑定`"
+            :aria-label="`解除 ${field.key} 的绑定`"
+            @click="unbind(field)"
+          >
+            <Unlink2 :size="13" />
+          </button>
+          <button
+            v-else
             class="reset-button"
             :disabled="!field.explicit"
             type="button"

@@ -6,6 +6,7 @@ import {
     setFrameLayout,
 } from 'pixifact/runtime';
 import {
+    isSceneTemplateBindingValue,
     isPixiSceneNodeType,
     pixiSceneNodeDefaults,
     resolveSceneReference,
@@ -175,13 +176,26 @@ function redrawGraphics(locator: string, target: Container) {
     }
 }
 
-function applyCommand(command: CompilerSceneCommand) {
+function commandChangesBinding(command: CompilerSceneCommand) {
+    if (command.op === 'setNodeProp') {
+        return isSceneTemplateBindingValue(command.value);
+    }
+    return command.op === 'batch' && command.commands.some(commandChangesBinding);
+}
+
+function applyCommand(command: CompilerSceneCommand, inverse: CompilerSceneCommand) {
+    if (commandChangesBinding(command) || commandChangesBinding(inverse)) {
+        void rebuildPreview();
+        return;
+    }
     if (command.op === 'setNodeProp') {
         applyNodeProp(command.node, command.prop, command.value);
         return;
     }
     if (command.op === 'batch' && command.commands.every((child) => child.op === 'setNodeProp')) {
-        for (const child of command.commands) applyCommand(child);
+        for (const child of command.commands) {
+            applyNodeProp(child.node, child.prop, child.value);
+        }
         return;
     }
     void rebuildPreview();
@@ -191,7 +205,7 @@ function handleDocumentEvent(event: SceneDocumentEvent) {
     if (event.type === 'nodePropPreview') {
         applyNodeProp(event.locator, event.prop, event.value);
     } else if (event.type === 'commandApplied') {
-        applyCommand(event.command);
+        applyCommand(event.command, event.inverse);
     }
 }
 

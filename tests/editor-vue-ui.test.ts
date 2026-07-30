@@ -181,4 +181,85 @@ describe('Editor Vue UI', () => {
         });
         wrapper.unmount();
     });
+
+    it('shows resolved Binding targets as read-only and detaches them to literal values', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Button.scene',
+            source: [
+                '<Scene name="Button">',
+                '  <Rect id="background" fillColor="{tone.background}" />',
+                '  <Text id="labelText" text="{label}" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Button.scene', api));
+        const revision = ref(0);
+        document.subscribe((event) => {
+            if (event.type === 'commandApplied') {
+                revision.value += 1;
+            }
+        });
+        const sceneInterfaces: Record<string, SceneTemplateInterface> = {
+            'src/scenes/Button.scene': {
+                props: {
+                    label: { type: 'string', default: 'Button' },
+                    tone: {
+                        type: 'variant',
+                        default: 'primary',
+                        variants: {
+                            primary: { background: '#24456f' },
+                            danger: { background: '#713044' },
+                        },
+                    },
+                },
+                events: {},
+                slots: {},
+            },
+        };
+        const selected = ref('1:labelText');
+        const wrapper = mount(defineComponent({
+            setup() {
+                return () => h(InspectorPanel, {
+                    document,
+                    revision: revision.value,
+                    sceneInterfaces,
+                    selected: selected.value,
+                });
+            },
+        }));
+
+        const text = wrapper.get('input[data-prop="text"]');
+        expect((text.element as HTMLInputElement).value).toBe('Button');
+        expect((text.element as HTMLInputElement).disabled).toBe(true);
+        expect(wrapper.get('[data-binding-source="text"]').text()).toBe('绑定：label');
+
+        selected.value = '0:background';
+        await flushPromises();
+
+        const fillColor = wrapper.get('input[data-prop="fillColor"]');
+        expect((fillColor.element as HTMLInputElement).value).toBe('#24456f');
+        expect((fillColor.element as HTMLInputElement).disabled).toBe(true);
+        expect(wrapper.get('[data-binding-source="fillColor"]').text()).toBe('绑定：tone.background');
+
+        await wrapper.get('button[data-unbind-prop="fillColor"]').trigger('click');
+        await flushPromises();
+
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
+        expect(api.writeScene.mock.calls[0]?.[1]).toContain('fillColor="#24456f"');
+        expect(document.source).not.toContain('fillColor="{tone.background}"');
+        expect(wrapper.find('[data-binding-source="fillColor"]').exists()).toBe(false);
+        expect((wrapper.get('input[data-prop="fillColor"]').element as HTMLInputElement).disabled).toBe(false);
+
+        await document.undo();
+        await flushPromises();
+
+        expect(document.source).toContain('fillColor="{tone.background}"');
+        expect(api.writeScene).toHaveBeenCalledTimes(2);
+        expect(wrapper.get('[data-binding-source="fillColor"]').text()).toBe('绑定：tone.background');
+        expect((wrapper.get('input[data-prop="fillColor"]').element as HTMLInputElement).disabled).toBe(true);
+        wrapper.unmount();
+    });
 });

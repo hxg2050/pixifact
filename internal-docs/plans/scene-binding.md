@@ -21,6 +21,8 @@
 - 构造 API 为 `new SceneClass(initialProps?)`。框架在挂载节点前合并默认值与构造参数，使用最终值创建节点，挂载完成后才调用运行时 `onMounted()`。
 - Editor Authoring 不导入配对脚本、不运行模块顶层、构造函数、生命周期、setter、事件、网络或定时器。它使用静态接口与 `.scene` 递归创建 authoring-safe Pixi 节点。
 - 被 Scene Binding 控制的节点属性只有一个写入来源；用户 TypeScript 不应再修改这些属性。
+- Editor Inspector 按值的所有者编辑：普通节点属性和 Scene Instance Prop 可直接编辑；Binding 目标只读显示解析值和语义化来源。
+- 解除 Binding 时把当前解析值固化为普通 `.scene` 属性，并作为一个可 Undo / Redo 的 Scene Command；不增加 Binding 图、表达式编辑器或隐式覆盖。
 - 本计划覆盖 [scene-constructor-boundary.md](./scene-constructor-boundary.md) 中“Scene 禁止构造参数”和“Editor 运行 onMounted”的旧决策，不提供旧行为兼容层。
 
 ## Non-Goals
@@ -63,6 +65,8 @@ button.tone = 'danger';
 - 初始 Prop 在首次节点创建时生效，不出现默认值闪烁或二次刷新。
 - 修改 `label` 只更新 `labelText.text`；修改 `tone` 只更新绑定的样式属性。
 - Editor Inspector 修改绑定值时原地更新预览；不会重新挂载 Scene。
+- Editor Inspector 不允许直接覆盖 Binding 目标；它显示当前解析值与 `label`、`tone.background` 等来源。
+- 用户明确解除 Binding 后，当前解析值成为普通显式值；Undo 恢复原 Binding。
 
 ## Implementation Scope
 
@@ -71,6 +75,7 @@ button.tone = 'danger';
 - 将 Editor runtime preview 替换为不执行项目脚本的 Authoring renderer，并移除浏览器 TypeScript compiler 依赖链。
 - 迁移仓库示例、内置 Scene、测试 fixture 和对外中英文 Scene 文档。
 - 更新旧 constructor boundary 与 Editor vNext 计划中的现状说明。
+- 补齐 Editor Inspector 的 Binding 来源展示、只读状态和解除 Binding Command。
 
 ## Test Plan
 
@@ -81,6 +86,7 @@ button.tone = 'danger';
 - [x] runtime 验证构造参数、默认值、后续赋值、生命周期顺序和无用户 setter。
 - [x] Editor 验证项目 TypeScript 不被执行，Authoring 仍能正确显示默认值、实例值和 Variant。
 - [x] Editor 验证 Scene Instance Inspector 修改通过生成访问器原地更新，不替换 Scene root。
+- [x] Editor 验证 Binding 目标只读显示解析值与来源，解除后固化当前值，Undo 恢复 Binding。
 - [x] sample projects 编译、Editor typecheck、Editor build、package build 和全量测试通过。
 
 ## Verification
@@ -105,6 +111,7 @@ rtk bun run test
 - [x] 实现无脚本 Editor Authoring preview。
 - [x] 迁移示例和文档。
 - [x] 完成验证与提交。
+- [x] 补齐 Binding Inspector 展示、解除和 Undo / Redo。
 
 ## Resume Protocol
 
@@ -123,12 +130,13 @@ Done:
 - `compileScenes` 和 CLI `scene validate` 都会用当前 Scene 的配对脚本 contract 校验 owner Binding。
 - Editor Host 静态提取配对脚本 interface；浏览器 Authoring renderer 不导入或执行项目 TypeScript。
 - Scene Instance Inspector 支持 primitive Prop 与 Variant，Binding 原始对象不作为普通字段显示。
+- Binding 目标在 Inspector 显示只读解析值和语义化来源；解除后固化当前值，Undo 恢复 Binding。
 - adventure-ui-demo 与中英文 authoring 文档、下游 skill reference 已迁移。
 
 Current State:
-- Editor typecheck、Editor production build、package build 和全量 175 个测试通过。
+- Editor typecheck、Editor production build 和全量 177 个测试通过。
 - Editor 浏览器主包约 795 KB，整个构建约 804 KB，不包含 TypeScript compiler。
-- 浏览器验收确认 Scene Instance Prop / Variant 原地更新，Canvas 数量保持 1，页面无 console error。
+- 浏览器验收确认 Scene Instance Prop / Variant 原地更新，Binding 解除与 Undo 正常，Canvas 数量保持 1，页面无 console error。
 
 Currently Failing:
 - None。

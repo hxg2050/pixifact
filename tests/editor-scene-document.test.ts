@@ -114,4 +114,25 @@ describe('SceneDocument', () => {
         expect(reloaded?.canUndo).toBe(false);
         expect(document.source).toBe(source);
     });
+
+    it('replaces a Binding with its resolved literal and restores the Binding on undo', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Button.scene',
+            source: [
+                '<Scene name="Button">',
+                '  <Text id="label" text="{label}" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = await SceneDocument.open('src/scenes/Button.scene', api);
+
+        await document.commitNodeProp('0:label', 'text', 'Button');
+
+        expect(document.source).toContain('text="Button"');
+        await document.undo();
+        expect(document.source).toContain('text="{label}"');
+    });
 });
