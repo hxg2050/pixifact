@@ -253,8 +253,8 @@ import { Group } from 'pixifact/runtime';
                 @part()
                 protected declare labelText: Text;
 
-                @prop({ type: String, default: 'Button' })
-                accessor label = 'Button';
+                @prop({ default: 'Button' })
+                declare label: string;
             }
         `);
 
@@ -279,8 +279,8 @@ import { Group } from 'pixifact/runtime';
             '',
             '@scene()',
             'export class BaseControl extends Group {',
-            '  @prop({ type: Number, default: 8 })',
-            '  accessor padding = 8;',
+            '  @prop({ default: 8 })',
+            '  declare padding: number;',
             '',
             '  @slot()',
             '  default!: unknown;',
@@ -293,8 +293,8 @@ import { Group } from 'pixifact/runtime';
             '',
             '@scene()',
             'export class Button extends BaseControl {',
-            '  @prop({ type: String, default: "Button" })',
-            '  accessor label = "Button";',
+            '  @prop({ default: "Button" })',
+            '  declare label: string;',
             '}',
             '',
         ].join('\n'), 'utf8');
@@ -375,6 +375,38 @@ import { Group } from 'pixifact/runtime';
                 name: 'Button',
                 nodeCount: 1,
             },
+        });
+    });
+
+    it('validates bindings against the paired owner Scene contract', async () => {
+        const projectRoot = createCompilerSceneProject();
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.scene'), [
+            '<Scene name="Button">',
+            '  <Text id="label" text="{missing}" />',
+            '</Scene>',
+            '',
+        ].join('\n'), 'utf8');
+
+        const result = await runCli([
+            'scene',
+            'validate',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'src/scenes/Button.scene',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            scene: 'src/scenes/Button.scene',
+            error: 'Scene validation failed.',
+            diagnostics: [{
+                path: '0:label',
+                prop: 'text',
+                expected: 'Scene Prop declared by the paired script',
+                actual: 'unknown binding prop',
+            }],
         });
     });
 
@@ -600,8 +632,8 @@ import { Group } from 'pixifact/runtime';
             '',
             '@scene()',
             'export class Button extends Group {',
-            '  @prop({ type: String, default: "Button" })',
-            '  accessor label = "Button";',
+            '  @prop({ default: "Button" })',
+            '  declare label: string;',
             '}',
             '',
         ].join('\n'), 'utf8');
@@ -920,8 +952,8 @@ import { Group } from 'pixifact/runtime';
             '',
             '@scene()',
             'export class PrimaryButton extends Group {',
-            '  @prop({ type: String, default: "Button" })',
-            '  accessor label = "Button";',
+            '  @prop({ default: "Button" })',
+            '  declare label: string;',
             '}',
             '',
         ].join('\n'), 'utf8');

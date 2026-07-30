@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia';
 import { Redo2, Undo2 } from 'lucide-vue-next';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { computed, markRaw, onBeforeUnmount, onMounted, ref } from 'vue';
+import type { SceneTemplateInterface } from 'pixifact/compiler';
 import AssetsPanel from './panels/AssetsPanel.vue';
 import HierarchyPanel from './panels/HierarchyPanel.vue';
 import InspectorPanel from './panels/InspectorPanel.vue';
@@ -11,6 +12,7 @@ import { SceneDocument } from './document/SceneDocument';
 import {
     createEditorProjectTree,
     editorSceneFileApi,
+    readEditorSceneBindings,
     readEditorProject,
     watchEditorProject,
     type EditorProject,
@@ -22,6 +24,7 @@ const ui = useEditorUiStore();
 const { activeLeftTab, currentScenePath, selectedLocator, syncState } = storeToRefs(ui);
 const project = ref<EditorProject>();
 const projectTree = ref<ProjectFileTreeNode>();
+const sceneInterfaces = ref<Record<string, SceneTemplateInterface>>({});
 const document = ref<SceneDocument>();
 const documentRevision = ref(0);
 const error = ref('');
@@ -62,6 +65,13 @@ async function openScene(path: string) {
     }
 }
 
+async function refreshSceneInterfaces() {
+    const descriptors = await readEditorSceneBindings();
+    sceneInterfaces.value = Object.fromEntries(
+        Object.entries(descriptors).map(([scenePath, descriptor]) => [scenePath, descriptor.interface]),
+    );
+}
+
 async function refreshOpenedScene(path: string) {
     const current = document.value;
     if (!current || current.path !== path) return;
@@ -91,7 +101,11 @@ async function redo() {
 
 onMounted(async () => {
     try {
-        project.value = await readEditorProject();
+        const [nextProject] = await Promise.all([
+            readEditorProject(),
+            refreshSceneInterfaces(),
+        ]);
+        project.value = nextProject;
         projectTree.value = createEditorProjectTree(project.value);
         if (project.value.scenes[0]) {
             await openScene(project.value.scenes[0]);
@@ -100,6 +114,9 @@ onMounted(async () => {
             window.setTimeout(async () => {
                 try {
                     await refreshOpenedScene(path);
+                    if (path.endsWith('.ts')) {
+                        await refreshSceneInterfaces();
+                    }
                 } catch (cause) {
                     error.value = cause instanceof Error ? cause.message : String(cause);
                 }
@@ -160,6 +177,7 @@ onBeforeUnmount(() => {
         <SceneCanvas
           :document="document"
           :project-tree="projectTree"
+          :scene-interfaces="sceneInterfaces"
           :selected="selectedLocator"
           @select="selectedLocator = $event"
         />
@@ -170,6 +188,7 @@ onBeforeUnmount(() => {
         <InspectorPanel
           :document="document"
           :revision="documentRevision"
+          :scene-interfaces="sceneInterfaces"
           :selected="selectedLocator"
         />
       </aside>

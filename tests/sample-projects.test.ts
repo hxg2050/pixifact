@@ -2,7 +2,7 @@ import { access, readFile, readdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { cwd } from 'node:process';
 import { describe, expect, it } from 'vitest';
-import { compileScenes } from 'pixifact/compiler-node';
+import { compileScenes, extractSceneScriptInterfaces } from 'pixifact/compiler-node';
 import { validateSceneContent } from 'pixifact/compiler';
 
 const repoRoot = cwd();
@@ -97,13 +97,20 @@ describe('sample projects', () => {
 
     it('validates and compiles the adventure UI demo scenes', async () => {
         const existingAssets = new Set(await collectFiles(sampleRoot, '.svg'));
+        const descriptors = extractSceneScriptInterfaces(await Promise.all(sceneNames.map(async (sceneName) => ({
+            scene: `src/scenes/${sceneName}.scene`,
+            fileName: join(sampleRoot, 'src', 'scenes', `${sceneName}.ts`),
+            source: await readFile(join(sampleRoot, 'src', 'scenes', `${sceneName}.ts`), 'utf8'),
+        }))));
 
         for (const sceneName of sceneNames) {
-            const scenePath = join(sampleRoot, 'src', 'scenes', `${sceneName}.scene`);
-            const content = await readFile(scenePath, 'utf8');
+            const scene = `src/scenes/${sceneName}.scene`;
+            const content = await readFile(join(sampleRoot, scene), 'utf8');
             const result = validateSceneContent({
+                scene,
                 content,
                 existingAssets,
+                sceneInterface: descriptors[scene].interface,
             });
             expect(result.ok, sceneName).toBe(true);
         }

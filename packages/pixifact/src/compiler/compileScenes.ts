@@ -24,8 +24,9 @@ import {
     readBuiltinSceneScriptSources,
     readBuiltinSceneSource,
 } from '../compiler-node/builtinSceneAssets';
-import { extractSceneScriptInterfaces } from './scriptInterfaceExtractor';
+import { extractSceneScriptInterfaces } from '../compiler-node/scriptInterfaceExtractor';
 import { findMissingScenePartReferences } from './scenePartValidation';
+import { validateSceneContent, type SceneValidationDiagnostic } from './sceneValidation';
 import { parseSceneTemplate } from './templateParser';
 import { compileSceneTemplateToTs } from './typescriptCompiler';
 import {
@@ -47,6 +48,7 @@ export class CompileSceneError extends Error {
         message: string,
         public readonly scene: string,
         public readonly source?: string,
+        public readonly diagnostics?: SceneValidationDiagnostic[],
     ) {
         super(message);
         this.name = 'CompileSceneError';
@@ -101,6 +103,33 @@ export async function compileScenes(options: CompileScenesOptions) {
             template.interface = bindSceneScriptInterface(scenePath, template, sceneScriptDescriptors[scenePath]).interface;
         } catch (error) {
             throw new CompileSceneError(error instanceof Error ? error.message : String(error), scenePath, sceneSources.get(scenePath));
+        }
+    }
+
+    for (const record of sceneRecords) {
+        const { scenePath } = record;
+        const template = templates.get(scenePath);
+        const source = sceneSources.get(scenePath);
+        if (!template || source === undefined) {
+            throw new Error(`Missing bound template for ${scenePath}.`);
+        }
+        try {
+            const result = validateSceneContent({
+                scene: scenePath,
+                bindingsOnly: true,
+                content: source,
+                sceneInterface: template.interface,
+                sceneInterfaces: sceneInterfacesFor(template, templates),
+                normalizeSceneReference: (scene) => resolveSceneReference(scenePath, scene),
+            });
+            if (!result.ok) {
+                throw new CompileSceneError(result.error, scenePath, source, result.diagnostics);
+            }
+        } catch (error) {
+            if (error instanceof CompileSceneError) {
+                throw error;
+            }
+            throw new CompileSceneError(error instanceof Error ? error.message : String(error), scenePath, source);
         }
     }
 

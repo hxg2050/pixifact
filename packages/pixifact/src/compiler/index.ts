@@ -2,7 +2,6 @@ export * from './commands';
 export * from './builtinScenes';
 export * from './pixiNodeSchema';
 export * from './spec';
-export * from './scriptInterfaceExtractor';
 export * from './sceneAssetPair';
 export * from './scenePartValidation';
 export * from './sceneValidation';

@@ -2,6 +2,7 @@ import type {
     CompileSceneTemplateOptions,
     PixiTemplateNode,
     SceneInstanceTemplateNode,
+    SceneTemplateBindingValue,
     SceneTemplate,
     SceneTemplateNode,
     SceneTemplatePrimitiveType,
@@ -28,6 +29,10 @@ const rectProps = new Set<string>(pixiSceneRectProps);
 const textStyleProps = new Set<string>(pixiSceneTextStyleProps);
 const runtimeNodeTypes = new Set<SceneTemplatePrimitiveType>(['Group', 'GridContainer', 'HBoxContainer', 'ScrollContainer', 'VBoxContainer', 'Rect', 'Image', 'NineImage', 'TileImage']);
 const runtimeNodeProps = new Set<string>(['columns', 'gap', 'gapX', 'gapY', 'alignX', 'alignY', 'justify', 'direction', 'scrollX', 'scrollY']);
+
+function isSceneBindingValue(value: SceneTemplateValue | undefined): value is SceneTemplateBindingValue {
+    return !!value && typeof value === 'object' && value.kind === 'binding';
+}
 
 export function compileSceneTemplateToTs(template: SceneTemplate, options: CompileSceneTemplateOptions = {}) {
     const context = new CompileContext(template, options);
@@ -261,7 +266,8 @@ class CompileContext {
         const variable = node.id || this.#anonymousName(node.type);
         const locator = compilerSceneNodeLocator(node, path);
         const constructorName = this.#sceneConstructorName(node);
-        this.#lines.push(`  const ${variable} = new ${constructorName}();`);
+        const constructorArgs = this.#sceneInstanceConstructorArgs(variable, node);
+        this.#lines.push(`  const ${variable} = new ${constructorName}(${constructorArgs});`);
         this.#applyPixiProps(variable, node.props, true, node);
         for (const [name, action] of Object.entries(node.events)) {
             this.#runtimeImports.add('connectSceneEvent');
@@ -292,7 +298,8 @@ class CompileContext {
             const variable = node.id || this.#anonymousName(node.type);
             const locator = compilerSceneNodeLocator(node, path);
             const constructorName = this.#sceneConstructorName(node);
-            this.#lines.push(`  const ${variable} = new ${constructorName}();`);
+            const constructorArgs = this.#sceneInstanceConstructorArgs(variable, node);
+            this.#lines.push(`  const ${variable} = new ${constructorName}(${constructorArgs});`);
             this.#applyPixiProps(variable, node.props, true, node);
             for (const [name, action] of Object.entries(node.events)) {
                 this.#runtimeImports.add('connectSceneEvent');
@@ -328,7 +335,7 @@ class CompileContext {
 
     #constructPixiNode(node: PixiTemplateNode) {
         if (node.type === 'Text' || node.type === 'BitmapText' || node.type === 'HTMLText') {
-            const text = this.#stringValue(node.props.text ?? '');
+            const text = this.#stringValue(isSceneBindingValue(node.props.text) ? '' : node.props.text ?? '');
             const style = this.#styleObject(node.props);
             return `new ${node.type}({ text: ${text}${style ? `, style: ${style}` : ''} })`;
         }
@@ -354,6 +361,32 @@ class CompileContext {
 
     #sceneConstructorName(node: SceneInstanceTemplateNode) {
         return this.options.sceneClassAliases?.[node.scene] ?? node.type;
+    }
+
+    #sceneInstanceConstructorArgs(variable: string, node: SceneInstanceTemplateNode) {
+        const sceneInterface = this.options.sceneInterfaces?.[node.scene];
+        if (!sceneInterface) {
+            return '';
+        }
+        const entries: string[] = [];
+        for (const [key, value] of Object.entries(node.props)) {
+            const contract = sceneInterface.props[key];
+            if (!contract) {
+                continue;
+            }
+            if (isSceneBindingValue(value)) {
+                this.#runtimeImports.add('readSceneBindingValue');
+                entries.push(`${key}: readSceneBindingValue(root, ${JSON.stringify(value)})`);
+                continue;
+            }
+            if (contract.type === 'struct' && value && typeof value === 'object') {
+                const structVariable = this.#createStructValue(variable, key, value, contract);
+                entries.push(`${key}: ${structVariable}`);
+                continue;
+            }
+            entries.push(`${key}: ${this.#value(value)}`);
+        }
+        return entries.length > 0 ? `{ ${entries.join(', ')} }` : '';
     }
 
     #sceneStructImports(sceneImport: NonNullable<CompileSceneTemplateOptions['sceneImports']>[number]) {
@@ -439,6 +472,20 @@ class CompileContext {
         sceneInstance?: SceneInstanceTemplateNode,
         pixiType?: SceneTemplatePrimitiveType,
     ) {
+        const publicProps = new Set(Object.keys(sceneInstance ? this.options.sceneInterfaces?.[sceneInstance.scene]?.props ?? {} : {}));
+        const bindingEntries = Object.entries(props).filter((entry): entry is [string, SceneTemplateBindingValue] => (
+            isSceneBindingValue(entry[1]) && !publicProps.has(entry[0])
+        ));
+        props = Object.fromEntries(Object.entries(props).filter(([, value]) => !isSceneBindingValue(value)));
+        if (sceneInstance) {
+            props = Object.fromEntries(Object.entries(props).filter(([key]) => !publicProps.has(key)));
+            for (const [key, value] of Object.entries(sceneInstance.props)) {
+                if (publicProps.has(key) && isSceneBindingValue(value)) {
+                    this.#runtimeImports.add('bindSceneNodeProp');
+                    this.#lines.push(`  bindSceneNodeProp(root, ${JSON.stringify(value)}, ${variable}, ${JSON.stringify(key)});`);
+                }
+            }
+        }
         const x = props.x;
         const y = props.y;
         if (x !== undefined || y !== undefined) {
@@ -497,13 +544,17 @@ class CompileContext {
             if (instance && layoutProps.has(key)) {
                 continue;
             }
-            if (instance && value && typeof value === 'object') {
+            if (instance && value && typeof value === 'object' && !isSceneBindingValue(value)) {
                 this.#applyStructProp(variable, key, value, sceneInstance);
                 continue;
             }
             if (instance || pixiProps.has(key)) {
                 this.#lines.push(`  ${variable}.${key} = ${this.#value(value)};`);
             }
+        }
+        for (const [key, binding] of bindingEntries) {
+            this.#runtimeImports.add('bindSceneNodeProp');
+            this.#lines.push(`  bindSceneNodeProp(root, ${JSON.stringify(binding)}, ${variable}, ${JSON.stringify(key)});`);
         }
     }
 
@@ -538,12 +589,22 @@ class CompileContext {
             this.#lines.push(`  ${variable}.${key} = ${this.#value(value)};`);
             return;
         }
+        const structVariable = this.#createStructValue(variable, key, value, contract);
+        this.#lines.push(`  ${variable}.${key} = ${structVariable};`);
+    }
+
+    #createStructValue(
+        variable: string,
+        key: string,
+        value: Record<string, string | number | boolean>,
+        contract: SceneTemplateStructPropContract,
+    ) {
         const structVariable = `${variable}${key.charAt(0).toUpperCase()}${key.slice(1)}`;
         this.#lines.push(`  const ${structVariable} = new ${contract.struct}();`);
         for (const [field, fieldValue] of Object.entries(value)) {
             this.#lines.push(`  ${structVariable}.${field} = ${this.#value(fieldValue)};`);
         }
-        this.#lines.push(`  ${variable}.${key} = ${structVariable};`);
+        return structVariable;
     }
 
     #sceneInstanceStructContract(sceneInstance: SceneInstanceTemplateNode | undefined, key: string) {
@@ -621,7 +682,7 @@ class CompileContext {
         const entries: string[] = [];
         for (const key of pixiSceneTextStyleProps) {
             const value = props[key];
-            if (value !== undefined) {
+            if (value !== undefined && !isSceneBindingValue(value)) {
                 entries.push(`${key}: ${key === 'fontWeight' ? JSON.stringify(String(value)) : this.#value(value)}`);
             }
         }
@@ -687,6 +748,9 @@ class CompileContext {
     #value(value: SceneTemplateValue): string {
         if (typeof value === 'string') {
             return JSON.stringify(value);
+        }
+        if (isSceneBindingValue(value)) {
+            throw new Error(`Scene binding ${value.path.join('.')} must be compiled as a binding target.`);
         }
         if (value && typeof value === 'object') {
             return `{ ${Object.entries(value).map(([key, fieldValue]) => `${key}: ${this.#scalarValue(fieldValue)}`).join(', ')} }`;

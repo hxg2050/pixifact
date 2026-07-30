@@ -7,7 +7,6 @@ import { tmpdir } from 'node:os';
 import {
     compileSceneTemplateToTs,
     createSceneRevision,
-    builtinSceneInterfaces,
     generatedSceneModuleImport,
     generatedSceneModulePath,
     normalizeSceneAssetId,
@@ -16,15 +15,16 @@ import {
     resolveSceneReference,
     serializeSceneTemplate,
     inspectSceneTemplate,
-    extractSceneScriptInterfaces,
     sceneClassAlias,
     sceneLocalName,
     validateSceneContent,
     type BuiltinSceneScriptSources,
 } from 'pixifact/compiler';
 import {
+    bindSceneNodeProp,
     connectSceneEvent,
     createEvent,
+    defineVariants,
     event,
     getSceneNode,
     mount,
@@ -38,7 +38,13 @@ import {
     scene,
     slot,
 } from 'pixifact/scene';
-import { compileScenes, generatedSceneAssetsFileName, pixifactScenesPlugin } from 'pixifact/compiler-node';
+import {
+    builtinSceneInterfaces,
+    compileScenes,
+    extractSceneScriptInterfaces,
+    generatedSceneAssetsFileName,
+    pixifactScenesPlugin,
+} from 'pixifact/compiler-node';
 
 const builtinSceneScriptSources: BuiltinSceneScriptSources = {};
 
@@ -63,6 +69,143 @@ function tickSharedTicker(frames: number) {
 }
 
 describe('Pixifact scene compiler spike', () => {
+    it('parses and serializes direct Scene Prop and Variant field bindings', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="Button" width="220" height="64">
+              <Rect id="background" fillColor="{tone.background}" strokeColor="{tone.border}" />
+              <Text id="labelText" text="{label}" fill="{tone.text}" />
+            </Scene>
+        `);
+
+        expect(template.children[0]).toMatchObject({
+            kind: 'pixi',
+            props: {
+                fillColor: { kind: 'binding', path: ['tone', 'background'] },
+                strokeColor: { kind: 'binding', path: ['tone', 'border'] },
+            },
+        });
+        expect(template.children[1]).toMatchObject({
+            kind: 'pixi',
+            props: {
+                text: { kind: 'binding', path: ['label'] },
+                fill: { kind: 'binding', path: ['tone', 'text'] },
+            },
+        });
+        expect(serializeSceneTemplate(template)).toContain(
+            '<Rect id="background" fillColor="{tone.background}" strokeColor="{tone.border}" />',
+        );
+        expect(serializeSceneTemplate(template)).toContain(
+            '<Text id="labelText" text="{label}" fill="{tone.text}" />',
+        );
+
+        template.interface = {
+            props: {
+                label: { type: 'string', default: 'Button' },
+                tone: {
+                    type: 'variant',
+                    default: 'primary',
+                    variants: {
+                        primary: { background: '#24456f', border: '#f2ce76', text: '#fff3cf' },
+                        danger: { background: '#713044', border: '#ff9eb2', text: '#fff0f4' },
+                    },
+                },
+            },
+            events: {},
+            slots: {},
+        };
+        const code = compileSceneTemplateToTs(template);
+        expect(code).toContain("import { bindSceneNodeProp } from 'pixifact/scene';");
+        expect(code).toContain('bindSceneNodeProp(root, {"kind":"binding","path":["tone","background"]}, background, "fillColor");');
+        expect(code).toContain('bindSceneNodeProp(root, {"kind":"binding","path":["label"]}, labelText, "text");');
+    });
+
+    it('validates Scene bindings against the owner Prop interface and target field type', () => {
+        const sceneInterface = {
+            props: {
+                label: { type: 'string', default: 'Button' },
+                tone: {
+                    type: 'variant',
+                    default: 'primary',
+                    variants: {
+                        primary: { background: '#24456f' },
+                        danger: { background: '#713044' },
+                    },
+                },
+            },
+            events: {},
+            slots: {},
+        } satisfies import('../packages/pixifact/src/compiler/spec').SceneTemplateInterface;
+
+        expect(validateSceneContent({
+            scene: 'src/scenes/Button.scene',
+            content: '<Scene name="Button"><Rect fillColor="{tone.background}" /><Text text="{label}" /></Scene>',
+            sceneInterface,
+        })).toMatchObject({ ok: true });
+
+        expect(validateSceneContent({
+            scene: 'src/scenes/Button.scene',
+            content: '<Scene name="Button"><Rect x="{label}" fillColor="{tone.missing}" /><Text text="{unknown}" /></Scene>',
+            sceneInterface,
+        })).toMatchObject({
+            ok: false,
+            diagnostics: [
+                { prop: 'x', expected: 'number', actual: 'string binding' },
+                { prop: 'fillColor', expected: 'Variant field declared by tone', actual: 'unknown binding field' },
+                { prop: 'text', expected: 'Scene Prop declared by the paired script', actual: 'unknown binding prop' },
+            ],
+        });
+    });
+
+    it('passes Scene Instance public Props into construction and keeps parent bindings live', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="Toolbar">
+              <Button id="inventory" scene="./Button.scene" label="{buttonLabel}" tone="danger" />
+            </Scene>
+        `);
+        template.interface = {
+            props: {
+                buttonLabel: { type: 'string', default: '背包' },
+            },
+            events: {},
+            slots: {},
+        };
+        const code = compileSceneTemplateToTs(template, {
+            sceneImports: [{
+                exportName: 'Button',
+                localName: 'Button',
+                source: './Button',
+            }],
+            sceneClassAliases: {
+                './Button.scene': 'Button',
+            },
+            sceneInterfaces: {
+                './Button.scene': {
+                    props: {
+                        label: { type: 'string', default: 'Button' },
+                        tone: {
+                            type: 'variant',
+                            default: 'primary',
+                            variants: {
+                                primary: { background: '#24456f' },
+                                danger: { background: '#713044' },
+                            },
+                        },
+                    },
+                    events: {},
+                    slots: {},
+                },
+            },
+        });
+
+        expect(code).toContain(
+            'const inventory = new Button({ label: readSceneBindingValue(root, {"kind":"binding","path":["buttonLabel"]}), tone: "danger" });',
+        );
+        expect(code).toContain(
+            'bindSceneNodeProp(root, {"kind":"binding","path":["buttonLabel"]}, inventory, "label");',
+        );
+        expect(code).not.toContain('inventory.tone = "danger";');
+    });
+
     it('keeps Group width and height as Pixifact box size without scaling', () => {
         const group = new Group({ width: 100, height: 50 });
 
@@ -881,8 +1024,8 @@ describe('Pixifact scene compiler spike', () => {
                 source: `
                     @scene()
                     export class BaseControl {
-                        @prop({ type: Number, default: 8 })
-                        accessor padding = 8;
+                        @prop({ default: 8 })
+                        declare padding: number;
 
                         @slot()
                         default!: unknown;
@@ -895,8 +1038,8 @@ describe('Pixifact scene compiler spike', () => {
                 source: `
                     @scene()
                     export class Button extends BaseControl {
-                        @prop({ type: String, default: 'primary' })
-                        accessor tone = 'primary';
+                        @prop({ default: 'primary' })
+                        declare tone: string;
                     }
                 `,
             },
@@ -1213,14 +1356,14 @@ import { Group } from 'pixifact/runtime';`);
         });
 
         expect(code).toContain('import { Button, RectTransform } from "../src/scenes/Button";');
-        expect(code).toContain('const startButton = new Button();');
-        expect(code).toContain('startButton.text = "Restart";');
         expect(code).toContain('const startButtonRectTransform = new RectTransform();');
         expect(code).toContain('startButtonRectTransform.x = 150;');
         expect(code).toContain('startButtonRectTransform.y = 692;');
         expect(code).toContain('startButtonRectTransform.width = 420;');
         expect(code).toContain('startButtonRectTransform.height = 92;');
-        expect(code).toContain('startButton.rectTransform = startButtonRectTransform;');
+        expect(code).toContain('const startButton = new Button({ text: "Restart", rectTransform: startButtonRectTransform });');
+        expect(code).not.toContain('startButton.text = "Restart";');
+        expect(code).not.toContain('startButton.rectTransform = startButtonRectTransform;');
         expect(code).not.toContain('startButton.rectTransform = {');
 
         const anonymousCode = compileSceneTemplateToTs(parseSceneTemplate(`
@@ -1241,7 +1384,8 @@ import { Group } from 'pixifact/runtime';`);
 
         expect(anonymousCode).toContain('const button1RectTransform = new RectTransform();');
         expect(anonymousCode).toContain('button1RectTransform.width = 420;');
-        expect(anonymousCode).toContain('button1.rectTransform = button1RectTransform;');
+        expect(anonymousCode).toContain('const button1 = new Button({ rectTransform: button1RectTransform });');
+        expect(anonymousCode).not.toContain('button1.rectTransform = button1RectTransform;');
         expect(anonymousCode).not.toContain('button1.rectTransform = {');
     });
 
@@ -1260,8 +1404,8 @@ import { Group } from 'pixifact/runtime';`);
 
                     @scene()
                     export class BasePanel {
-                        @prop({ type: RectTransform })
-                        set rectTransform(value: RectTransform) {}
+                        @prop({})
+                        declare rectTransform: RectTransform;
                     }
                 `,
             },
@@ -1271,8 +1415,8 @@ import { Group } from 'pixifact/runtime';`);
                 source: `
                     @scene()
                     export class Button extends BasePanel {
-                        @prop({ type: String, default: 'Start' })
-                        accessor label = 'Start';
+                        @prop({ default: 'Start' })
+                        declare label: string;
                     }
                 `,
             },
@@ -1323,7 +1467,8 @@ import { Group } from 'pixifact/runtime';`);
         expect(code).toContain('import { RectTransform } from "../src/ui/BasePanel";');
         expect(code).toContain('import { Button } from "../src/ui/Button";');
         expect(code).toContain('const button1RectTransform = new RectTransform();');
-        expect(code).toContain('button1.rectTransform = button1RectTransform;');
+        expect(code).toContain('const button1 = new Button({ rectTransform: button1RectTransform, label: "Play" });');
+        expect(code).not.toContain('button1.rectTransform = button1RectTransform;');
         expect(code).not.toContain('import { BasePanel } from "../src/ui/BasePanel";');
         expect(code).not.toContain('import { Button, RectTransform } from "../src/ui/Button";');
     });
@@ -1401,13 +1546,21 @@ import { Group } from 'pixifact/runtime';`);
         expect(code).toContain('const richText = new HTMLText({ text: "<b>Ready</b>", style: { fontSize: 18, fill: 16711680 } })');
     });
 
-    it('mounts prepared scene content through runtime decorators in plain TypeScript', async () => {
+    it('mounts prepared Scene Binding values before onMounted and updates them in place', async () => {
         let RuntimeButton: typeof Container;
+
+        const tones = defineVariants({
+            primary: { background: '#24456f' },
+            danger: { background: '#713044' },
+        });
 
         @scene()
         class RuntimeButtonScene extends Group {
             @part()
             declare protected labelText: Text;
+
+            @part()
+            declare protected background: Rect;
 
             @slot()
             declare readonly icon: Container;
@@ -1416,14 +1569,17 @@ import { Group } from 'pixifact/runtime';`);
             readonly click = createEvent();
 
             readyText = '';
+            readyColor = 0;
 
-            @prop({ type: String, default: 'Play' })
-            set labelTextValue(value: string) {
-                this.labelText.text = value;
-            }
+            @prop({ default: 'Play' })
+            declare label: string;
+
+            @prop({ default: 'primary', variants: tones })
+            declare tone: keyof typeof tones;
 
             onMounted() {
                 this.readyText = this.labelText.text;
+                this.readyColor = this.background.fillColor;
             }
         }
 
@@ -1433,9 +1589,14 @@ import { Group } from 'pixifact/runtime';`);
             assets: [],
             dependencies: [],
             mount(root) {
+                const background = new Rect();
+                root.addChild(background);
+                bindSceneNodeProp(root, { kind: 'binding', path: ['tone', 'background'] }, background, 'fillColor');
+
                 const labelText = new Text({ text: 'Button' });
                 labelText.label = 'labelText';
                 root.addChild(labelText);
+                bindSceneNodeProp(root, { kind: 'binding', path: ['label'] }, labelText, 'text');
 
                 const iconHost = new Container();
                 root.addChild(iconHost);
@@ -1444,12 +1605,14 @@ import { Group } from 'pixifact/runtime';`);
                 return {
                     root,
                     parts: {
+                        background,
                         labelText,
                         iconHost,
                     },
                     nodes: {
-                        '0:labelText': labelText,
-                        '1:iconHost': iconHost,
+                        '0:background': background,
+                        '1:labelText': labelText,
+                        '2:iconHost': iconHost,
                     },
                     slots: {
                         icon: iconHost,
@@ -1463,7 +1626,10 @@ import { Group } from 'pixifact/runtime';`);
         expect(() => new RuntimeButton())
             .toThrow('Scene "scenes/RuntimeButton.scene" must be prepared before it is instantiated.');
         await prepareSceneClass(RuntimeButton);
-        const button = new RuntimeButton();
+        const button = new RuntimeButton({
+            label: '背包',
+            tone: 'danger',
+        } as never) as RuntimeButtonScene;
         let clicked = false;
         button.click.connect(() => {
             clicked = true;
@@ -1473,13 +1639,20 @@ import { Group } from 'pixifact/runtime';`);
         const icon = new Container();
         mount(button, icon, 'icon');
 
-        expect(button.children).toHaveLength(2);
-        expect(button.readyText).toBe('Play');
+        expect(button.children).toHaveLength(3);
+        expect(button.readyText).toBe('背包');
+        expect(button.readyColor).toBe(0x713044);
         expect(clicked).toBe(true);
-        expect((button.children[0] as Text).text).toBe('Play');
+        expect((button.children[1] as Text).text).toBe('背包');
+        const mountedLabel = button.children[1] as Text;
+        button.label = '仓库';
+        expect(button.children[1]).toBe(mountedLabel);
+        expect(mountedLabel.text).toBe('仓库');
+        button.tone = 'primary';
+        expect((button.children[0] as Rect).fillColor).toBe(0x24456f);
         expect(button.icon.children[0]).toBe(icon);
-        expect(getSceneNode(button, '0:labelText')).toBe(button.children[0]);
-        expect(getSceneNode(button, '1:iconHost')).toBe(button.icon);
+        expect(getSceneNode(button, '1:labelText')).toBe(button.children[1]);
+        expect(getSceneNode(button, '2:iconHost')).toBe(button.icon);
         expect(getSceneNode(button, '0:missing')).toBeUndefined();
     });
 
@@ -2180,8 +2353,8 @@ import { Group } from 'pixifact/runtime';
                     @part()
                     protected declare labelText: Text;
 
-                    @prop({ type: String, default: 'Button' })
-                    accessor label = 'Button';
+                    @prop({ default: 'Button' })
+                    declare label: string;
 
                     @event()
                     readonly click = createEvent();
@@ -2237,7 +2410,7 @@ import { Group } from 'pixifact/runtime';
             expect(mainGenerated).toContain('import { Button as SceneClass_src_menu_Button } from "../../../../src/menu/Button";');
             expect(mainGenerated).toContain('import { Button as SceneClass_src_ui_Button } from "../../../../src/ui/Button";');
             expect(mainGenerated).toContain('root.setSize(720, 1280);');
-            expect(mainGenerated).toContain('const uiButton = new SceneClass_src_ui_Button();');
+            expect(mainGenerated).toContain('const uiButton = new SceneClass_src_ui_Button({ label: "Primary" });');
             expect(mainGenerated).toContain('const menuButton = new SceneClass_src_menu_Button();');
             expect(mainGenerated).toContain('dependencies: ["src/menu/Button.scene","src/ui/Button.scene"]');
             expect(uiGenerated).toContain('root.setSize(120, 40);');
@@ -2341,6 +2514,41 @@ import { Group } from 'pixifact/runtime';
             await writeFile(join(root, 'src', 'ui', 'Button.scene'), '<Scene name="Button" />');
             await expect(compileScenes({ projectRoot: root }))
                 .rejects.toThrow('Scene "src/ui/Button.scene" requires paired script "src/ui/Button.ts".');
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
+    });
+
+    it('rejects invalid owner Scene bindings before generating modules', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'pixifact-scenes-'));
+        try {
+            await mkdir(join(root, 'src', 'ui'), { recursive: true });
+            await writeFile(join(root, 'src', 'ui', 'Button.scene'), [
+                '<Scene name="Button">',
+                '  <Rect x="{label}" />',
+                '</Scene>',
+                '',
+            ].join('\n'));
+            await writeFile(join(root, 'src', 'ui', 'Button.ts'), `
+                import { Group } from 'pixifact/runtime';
+                import { prop, scene } from 'pixifact/scene';
+
+                @scene()
+                export class Button extends Group {
+                    @prop({ default: 'Button' })
+                    declare label: string;
+                }
+            `);
+
+            await expect(compileScenes({ projectRoot: root })).rejects.toMatchObject({
+                scene: 'src/ui/Button.scene',
+                diagnostics: [{
+                    path: '0:pixi',
+                    prop: 'x',
+                    expected: 'number',
+                    actual: 'string binding',
+                }],
+            });
         } finally {
             await rm(root, { recursive: true, force: true });
         }

@@ -8,7 +8,9 @@ import {
 import {
     isPixiSceneNodeType,
     pixiSceneNodeDefaults,
+    resolveSceneReference,
     type CompilerSceneCommand,
+    type SceneTemplateInterface,
     type SceneTemplateValue,
 } from 'pixifact/compiler';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -24,6 +26,7 @@ import {
 const props = defineProps<{
     document?: SceneDocument;
     projectTree?: ProjectFileTreeNode;
+    sceneInterfaces?: Record<string, SceneTemplateInterface>;
     selected?: string;
 }>();
 const emit = defineEmits<{ select: [locator: string] }>();
@@ -64,7 +67,7 @@ async function rebuildPreview() {
         const next = await createCompilerSceneRuntimePreview({
             document: {
                 template: document.template,
-                sceneInterfaces: {},
+                sceneInterfaces: props.sceneInterfaces ?? {},
             },
             projectTree,
             scenePath: document.path,
@@ -95,6 +98,14 @@ function effectiveValue(locator: string, prop: string, value?: SceneTemplateValu
     const node = findSceneNodeByLocator(props.document.template.children, locator);
     if (node?.kind === 'pixi' && isPixiSceneNodeType(node.type)) {
         return pixiSceneNodeDefaults(node.type)[prop] ?? defaultRuntimeValue(prop);
+    }
+    if (node?.kind === 'sceneInstance') {
+        const contract = props.sceneInterfaces?.[
+            resolveSceneReference(props.document.path, node.scene)
+        ]?.props[prop];
+        if (contract) {
+            return contract.type === 'struct' ? undefined : contract.default;
+        }
     }
     return defaultRuntimeValue(prop);
 }
@@ -191,6 +202,7 @@ watch(() => props.document, (document) => {
 }, { immediate: true });
 
 watch(() => props.projectTree, () => void rebuildPreview());
+watch(() => props.sceneInterfaces, () => void rebuildPreview());
 
 onMounted(async () => {
     app = new Application();

@@ -61,9 +61,10 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 - `<Group>` 用于有明确宽高或 frame layout 的普通盒子容器；`Container` 保持 Pixi 原生 bounds / scale 尺寸语义。
 - Scene 脚本类必须继承 `Group`，并使用 `@scene()` 标记。
 - Scene decorator、event、slot 和异步 Scene 准备 API 从 `pixifact/scene` 导入，不要从 `pixifact/compiler` 导入运行时 API。
-- Scene 脚本类不能声明构造参数；构造函数和 `onMounted()` 只处理节点树与本地 UI 状态，运行数据通过显式方法在构造后传入。
+- Scene 脚本类不能声明自定义构造参数；构造时第一个对象保留给 initial Props，其他运行依赖通过显式方法传入。
 - `@part()` 绑定 `.scene` 中稳定 `id` 节点；`@prop()`、`@event()`、`@slot()` 暴露公开契约。
-- `@prop()` 类型使用 `String` / `Number` / `Boolean` 或导出的 structured prop class；不要使用旧字符串类型。
+- `@prop()` 只能装饰无 initializer 的 `declare` property，类型由 TypeScript 声明推断；不要写 setter、accessor 或 `type` option。
+- `.scene` 只使用完整值 `{prop}` / `{variant.field}` Binding，不写表达式、插值、watch 或双向绑定。
 - `.scene` 中的事件属性如 `@clicked="handlePause"` 绑定 action name；运行时连接 external actions 或当前 root 脚本同名方法。不要把它写成全局函数或生成文件逻辑。
 - 不要在 `.scene` 文件中添加 `script="..."`。
 - 不要给 `@scene()` 添加 template path。

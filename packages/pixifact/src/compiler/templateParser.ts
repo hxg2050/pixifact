@@ -2,6 +2,7 @@ import type {
     PixiTemplateNode,
     SceneInstanceTemplateNode,
     SceneTemplate,
+    SceneTemplateBindingValue,
     SceneTemplateNode,
     SceneTemplatePrimitiveType,
     SceneTemplateValue,
@@ -185,6 +186,10 @@ function isEventAttribute(name: string) {
 }
 
 function parseAttributeValue(name: string, value: string): SceneTemplateValue {
+    const binding = parseBindingValue(value);
+    if (binding) {
+        return binding;
+    }
     if (pixiSceneFieldSchema(name)?.type === 'string') {
         return value;
     }
@@ -193,6 +198,20 @@ function parseAttributeValue(name: string, value: string): SceneTemplateValue {
     if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
     if (/^#[0-9a-fA-F]{6}$/.test(value)) return Number.parseInt(value.slice(1), 16);
     return value;
+}
+
+function parseBindingValue(value: string): SceneTemplateBindingValue | undefined {
+    const match = /^\{([A-Za-z_$][\w$]*)(?:\.([A-Za-z_$][\w$]*))?\}$/.exec(value);
+    if (!match) {
+        if (value.startsWith('{') || value.endsWith('}')) {
+            throw new Error(`Unsupported Scene binding "${value}". Use {prop} or {variant.field}.`);
+        }
+        return undefined;
+    }
+    return {
+        kind: 'binding',
+        path: match[2] ? [match[1], match[2]] : [match[1]],
+    };
 }
 
 function removeAttribute(element: XmlElement, name: string): XmlElement {

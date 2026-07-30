@@ -98,6 +98,15 @@ function isFailedResult(value: unknown): value is CliJsonResult {
 function compileScenesFailure(error: unknown): CliJsonResult {
     const message = error instanceof Error ? error.message : String(error);
     if (error instanceof CompileSceneError) {
+        if (error.diagnostics) {
+            return {
+                ok: false,
+                scene: error.scene,
+                error: 'Scene compile failed.',
+                diagnostics: error.diagnostics,
+                hint: 'Fix the listed diagnostics, then run compile-scenes again.',
+            };
+        }
         const sourceDiagnostic = sourceDiagnosticFromMessage(error.source ?? '', message);
         if (sourceDiagnostic) {
             return {

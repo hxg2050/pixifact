@@ -11,6 +11,7 @@
 | 文档 | 负责什么 |
 | --- | --- |
 | [editor-vnext.md](./editor-vnext.md) | 浏览器 Editor vNext 的产品边界、数据流、实现范围和续作记录 |
+| [scene-binding.md](./scene-binding.md) | Scene 静态 Prop、Variant、声明式绑定、Runtime 构造与 Editor Authoring 预览 |
 
 继续 Editor vNext 时，先读取对应计划的 `Resume Notes`，不要从旧 Tauri Editor 或归档工作台方案重新推导产品边界。
 

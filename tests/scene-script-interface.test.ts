@@ -3,7 +3,7 @@ import {
     emitSceneScriptInterfaceDescriptor,
     extractSceneScriptInterfaces,
     extractSceneScriptInterface,
-} from 'pixifact/compiler';
+} from 'pixifact/compiler-node';
 import {
     event,
     part,
@@ -13,6 +13,82 @@ import {
 } from 'pixifact/scene';
 
 describe('scene script interface extractor', () => {
+    it('extracts declare props and static variants without executing TypeScript', () => {
+        const contract = extractSceneScriptInterface(`
+            import { Group } from 'pixifact/runtime';
+            import { defineVariants, prop, scene } from 'pixifact/scene';
+
+            const buttonTones = defineVariants({
+                primary: {
+                    background: '#24456f',
+                    border: '#f2ce76',
+                    text: '#fff3cf',
+                },
+                danger: {
+                    background: '#713044',
+                    border: '#ff9eb2',
+                    text: '#fff0f4',
+                },
+            });
+
+            @scene()
+            export class Button extends Group {
+                @prop({ default: 'Button' })
+                declare label: string;
+
+                @prop({ default: 'primary', variants: buttonTones })
+                declare tone: keyof typeof buttonTones;
+            }
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' });
+
+        expect(contract.interface.props).toEqual({
+            label: {
+                type: 'string',
+                default: 'Button',
+            },
+            tone: {
+                type: 'variant',
+                default: 'primary',
+                variants: {
+                    primary: {
+                        background: '#24456f',
+                        border: '#f2ce76',
+                        text: '#fff3cf',
+                    },
+                    danger: {
+                        background: '#713044',
+                        border: '#ff9eb2',
+                        text: '#fff0f4',
+                    },
+                },
+            },
+        });
+    });
+
+    it('rejects executable prop members and dynamic variants', () => {
+        expect(() => extractSceneScriptInterface(`
+            @scene()
+            export class Button {
+                @prop({ default: 'Button' })
+                set label(value: string) {}
+            }
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow(
+            '@prop "label" must decorate a declare property without an initializer.',
+        );
+
+        expect(() => extractSceneScriptInterface(`
+            const buttonTones = defineVariants(loadTheme());
+
+            @scene()
+            export class Button {
+                @prop({ default: 'primary', variants: buttonTones })
+                declare tone: keyof typeof buttonTones;
+            }
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow(
+            'defineVariants argument must be an object literal.',
+        );
+    });
+
     it('extracts scene public contract from narrow TypeScript decorators', () => {
         const contract = extractSceneScriptInterface(`
             import { Text } from 'pixi.js';
@@ -21,11 +97,11 @@ import { Group } from 'pixifact/runtime';
 
             @scene()
             export class Button extends Group {
-                @prop({ type: String, default: 'Button' })
-                accessor label = 'Button';
+                @prop({ default: 'Button' })
+                declare label: string;
 
-                @prop({ type: Boolean, default: false })
-                accessor disabled = false;
+                @prop({ default: false })
+                declare disabled: boolean;
 
                 @event()
                 readonly click = createEvent();
@@ -101,11 +177,11 @@ import { Group } from 'pixifact/runtime';
                 source: `
                     @scene()
                     export class BaseControl {
-                        @prop({ type: String, default: 'base' })
-                        accessor tone = 'base';
+                        @prop({ default: 'base' })
+                        declare tone: string;
 
-                        @prop({ type: Number, default: 8 })
-                        accessor padding = 8;
+                        @prop({ default: 8 })
+                        declare padding: number;
 
                         @event()
                         readonly press = createEvent();
@@ -121,11 +197,11 @@ import { Group } from 'pixifact/runtime';
                 source: `
                     @scene()
                     export class Button extends BaseControl {
-                        @prop({ type: String, default: 'primary' })
-                        accessor tone = 'primary';
+                        @prop({ default: 'primary' })
+                        declare tone: string;
 
-                        @prop({ type: Boolean, default: false })
-                        accessor disabled = false;
+                        @prop({ default: false })
+                        declare disabled: boolean;
                     }
                 `,
             },
@@ -165,8 +241,8 @@ import { Group } from 'pixifact/runtime';
                 source: `
                     @scene()
                     export class BasePanel {
-                        @prop({ type: Number, default: 8 })
-                        accessor padding = 8;
+                        @prop({ default: 8 })
+                        declare padding: number;
                     }
                 `,
             },
@@ -176,8 +252,8 @@ import { Group } from 'pixifact/runtime';
                 source: `
                     @scene()
                     export class BasePanel {
-                        @prop({ type: Number, default: 99 })
-                        accessor padding = 99;
+                        @prop({ default: 99 })
+                        declare padding: number;
                     }
                 `,
             },
@@ -189,8 +265,8 @@ import { Group } from 'pixifact/runtime';
 
                     @scene()
                     export class Button extends BasePanel {
-                        @prop({ type: String, default: 'primary' })
-                        accessor tone = 'primary';
+                        @prop({ default: 'primary' })
+                        declare tone: string;
                     }
                 `,
             },
@@ -216,8 +292,8 @@ import { Group } from 'pixifact/runtime';
                 source: `
                     @scene()
                     export class BasePanel {
-                        @prop({ type: Number, default: 8 })
-                        accessor padding = 8;
+                        @prop({ default: 8 })
+                        declare padding: number;
                     }
                 `,
             },
@@ -227,8 +303,8 @@ import { Group } from 'pixifact/runtime';
                 source: `
                     @scene()
                     export class BasePanel {
-                        @prop({ type: Number, default: 99 })
-                        accessor padding = 99;
+                        @prop({ default: 99 })
+                        declare padding: number;
                     }
                 `,
             },
@@ -248,8 +324,8 @@ import { Group } from 'pixifact/runtime';
         const descriptor = emitSceneScriptInterfaceDescriptor(`
             @scene()
             export class Button {
-                @prop({ type: String, default: 'Button' })
-                accessor label = 'Button';
+                @prop({ default: 'Button' })
+                declare label: string;
 
                 @event()
                 readonly click = createEvent();
@@ -287,31 +363,31 @@ import { Group } from 'pixifact/runtime';
         expect(typeof scene()).toBe('function');
         expect(typeof part()).toBe('function');
         expect(typeof part({ id: 'labelText' })).toBe('function');
-        expect(typeof prop({ type: String, default: 'Button' })).toBe('function');
+        expect(typeof prop({ default: 'Button' })).toBe('function');
         expect(typeof event()).toBe('function');
         expect(typeof slot()).toBe('function');
     });
 
     it('rejects non-literal decorator options', () => {
         expect(() => extractSceneScriptInterface(`
-            const defaults = { type: String };
+            const defaults = { default: 'Button' };
 
             @scene()
             export class Button {
                 @prop(defaults)
-                accessor label = 'Button';
+                declare label: string;
             }
         `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('@prop argument must be an object literal.');
     });
 
-    it('rejects legacy string prop type declarations', () => {
+    it('rejects explicit prop type options because TypeScript owns the type', () => {
         expect(() => extractSceneScriptInterface(`
             @scene()
             export class Button {
                 @prop({ type: 'string', default: 'Button' })
-                accessor label = 'Button';
+                declare label: string;
             }
-        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('@prop type must be String, Number, Boolean, or a struct class.');
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('@prop type is inferred from the TypeScript property declaration; remove the type option.');
     });
 
     it('extracts RectTransform struct props from constructor type declarations', () => {
@@ -329,8 +405,8 @@ import { Group } from 'pixifact/runtime';
 
             @scene()
             export class Button {
-                @prop({ type: RectTransform })
-                set rectTransform(value: RectTransform) {}
+                @prop({})
+                declare rectTransform: RectTransform;
             }
         `, 'Button.ts', { scene: 'src/scenes/Button.scene' });
 
@@ -357,8 +433,8 @@ import { Group } from 'pixifact/runtime';
 
             @scene()
             export class Button {
-                @prop({ type: RectTransform })
-                set rectTransform(value: RectTransform) {}
+                @prop({})
+                declare rectTransform: RectTransform;
             }
         `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('Struct prop type RectTransform must be constructable with no required parameters.');
     });
@@ -371,8 +447,8 @@ import { Group } from 'pixifact/runtime';
 
             @scene()
             export class Button {
-                @prop({ type: RectTransform })
-                set rectTransform(value: RectTransform) {}
+                @prop({})
+                declare rectTransform: RectTransform;
             }
         `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('Struct prop type RectTransform must be exported.');
     });
@@ -385,8 +461,8 @@ import { Group } from 'pixifact/runtime';
 
             @scene()
             export class Button {
-                @prop({ type: RectTransform, default: 0 })
-                set rectTransform(value: RectTransform) {}
+                @prop({ default: 0 })
+                declare rectTransform: RectTransform;
             }
         `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('@prop default is only supported for primitive props.');
     });

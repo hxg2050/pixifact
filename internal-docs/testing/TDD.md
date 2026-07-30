@@ -85,8 +85,10 @@ bunx --no-install vitest run tests/pixifact-cli.test.ts tests/scene-compiler.tes
 
 必须先覆盖：
 
-- `@prop({ type: String | Number | Boolean })` 提取为 primitive contract。
-- 旧字符串类型写法被拒绝，不新增兼容层。
+- `@prop({ default }) declare property: primitive` 从 TypeScript property type 提取 primitive contract。
+- `@prop` 拒绝 setter、getter、accessor、method、field initializer 和动态 default。
+- `defineVariants({...})` 只提取同文件静态对象，并校验 case 字段集合与类型一致。
+- Variant default 必须引用已有 case，动态函数调用或运行时值必须被拒绝。
 - struct prop 使用导出的同文件 class，例如 `RectTransform`。
 - struct class 必须可无参构造。
 - struct fields 只支持带 primitive initializer 的字段。
@@ -102,6 +104,24 @@ bunx --no-install vitest run tests/pixifact-cli.test.ts tests/scene-compiler.tes
 
 ```bash
 bunx --no-install vitest run tests/scene-script-interface.test.ts tests/scene-compiler.test.ts tests/pixifact-cli.test.ts
+```
+
+### 修改 Scene Binding
+
+必须先覆盖：
+
+- parser / serializer 往返保留 `{prop}` 与 `{variant.field}`，不把绑定误解析成普通字符串或颜色。
+- validator 拒绝未知 Prop、未知 Variant field、非法 binding path 和目标类型不匹配。
+- compiler 在 Scene 挂载前合并默认值与构造参数。
+- Prop 后续赋值只执行依赖该 Prop 的生成更新函数，不重新挂载 Scene。
+- 绑定属性只有一个框架写入来源，不调用用户 setter。
+- 第一版不接受表达式、字符串插值、双向绑定或深层对象 mutation。
+
+验证命令：
+
+```bash
+bunx --no-install vitest run tests/scene-script-interface.test.ts tests/scene-compiler.test.ts tests/project-file-tree.test.ts
+bun run build
 ```
 
 ### 修改 structured Scene props
@@ -183,6 +203,24 @@ bun run build
 
 ```bash
 bunx --no-install vitest run tests/editor-vue-ui.test.ts tests/editor-scene-document.test.ts
+bun run editor:typecheck
+bun run editor:frontend:build
+```
+
+### 修改 Editor Authoring preview
+
+必须先覆盖：
+
+- Editor 读取 Host 提供的静态 Scene interface，不在浏览器编译或执行项目 TypeScript。
+- 模块顶层、constructor、setter、onMounted、事件、timer 和网络代码均不在 Authoring 中运行。
+- `.scene` 直接绑定与 Variant 绑定能显示默认值和 Scene Instance 初始值。
+- Inspector 连续输入原地更新绑定节点，不替换 Pixi Application、Canvas 或当前 Scene root。
+- Scene Instance 保持 opaque；父 Scene 只编辑公开 Props、Events 和 slot children。
+
+验证命令：
+
+```bash
+bunx --no-install vitest run tests/project-file-tree.test.ts tests/editor-vue-ui.test.ts tests/editor-scene-document.test.ts
 bun run editor:typecheck
 bun run editor:frontend:build
 ```

@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent, h, markRaw, ref } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
+import type { SceneTemplateInterface } from 'pixifact/compiler';
 import InspectorPanel from '../apps/editor/src/panels/InspectorPanel.vue';
 import { SceneDocument } from '../apps/editor/src/document/SceneDocument';
 import { useEditorUiStore } from '../apps/editor/src/stores/editorUi';
@@ -120,6 +121,64 @@ describe('Editor Vue UI', () => {
         await flushPromises();
 
         expect((wrapper.get('input[data-prop="x"]').element as HTMLInputElement).value).toBe('56');
+        wrapper.unmount();
+    });
+
+    it('edits primitive and Variant Props declared by a Scene Instance contract', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Toolbar.scene',
+            source: [
+                '<Scene name="Toolbar">',
+                '  <Button id="inventory" scene="./Button.scene" label="背包" tone="danger" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Toolbar.scene', api));
+        const events: unknown[] = [];
+        document.subscribe((event) => events.push(event));
+        const sceneInterfaces: Record<string, SceneTemplateInterface> = {
+            'src/scenes/Button.scene': {
+                props: {
+                    label: { type: 'string', default: 'Button' },
+                    tone: {
+                        type: 'variant',
+                        default: 'primary',
+                        variants: {
+                            primary: { background: '#24456f' },
+                            danger: { background: '#713044' },
+                        },
+                    },
+                },
+                events: {},
+                slots: {},
+            },
+        };
+        const wrapper = mount(InspectorPanel, {
+            props: {
+                document,
+                revision: 0,
+                sceneInterfaces,
+                selected: '0:inventory',
+            },
+        });
+
+        const label = wrapper.get('input[data-prop="label"]');
+        const tone = wrapper.get('select[data-prop="tone"]');
+        expect((label.element as HTMLInputElement).value).toBe('背包');
+        expect((tone.element as HTMLSelectElement).value).toBe('danger');
+        expect(tone.findAll('option').map((option) => option.text())).toEqual(['primary', 'danger']);
+
+        (label.element as HTMLInputElement).value = '仓库';
+        await label.trigger('input');
+        expect(events).toContainEqual({
+            type: 'nodePropPreview',
+            locator: '0:inventory',
+            prop: 'label',
+            value: '仓库',
+        });
         wrapper.unmount();
     });
 });

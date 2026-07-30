@@ -5,7 +5,6 @@ import {
     builtinSceneAssetIds,
     builtinSceneNameFromAssetId,
     defaultSceneSourceRoots,
-    extractSceneScriptInterfaces,
     findMissingScenePartReferences,
     inspectSceneTemplate,
     isIgnoredSceneSourceDirectory,
@@ -17,7 +16,7 @@ import {
     toPosixPath,
     validateSceneContent,
 } from 'pixifact/compiler';
-import { readBuiltinSceneScriptSourcesSync } from 'pixifact/compiler-node';
+import { extractSceneScriptInterfaces, readBuiltinSceneScriptSourcesSync } from 'pixifact/compiler-node';
 import {
     parsePixifactProjectConfig,
     pixifactProjectConfigFileName,
@@ -398,19 +397,29 @@ function validateCompilerSceneFile(root: string, scenePath: string) {
     if (sourceRootFailure) {
         return sourceRootFailure;
     }
+    let template: SceneTemplate;
+    try {
+        template = parseSceneTemplate(content);
+    } catch {
+        return validateSceneContent({
+            scene: scenePath,
+            content,
+        });
+    }
+    const pair = readCompilerScenePairContract(root, scenePath, template);
+    if (pair.diagnostics.length > 0 || !pair.sceneInterface) {
+        return compilerSceneValidationFailure(scenePath, content, pair.diagnostics);
+    }
     const result = validateSceneContent({
         scene: scenePath,
         content,
         existingAssets: collectProjectAssets(root),
         sceneInterfaces: collectCompilerSceneInterfaces(root, scenePath),
+        sceneInterface: pair.sceneInterface,
         normalizeSceneReference: normalizeCompilerSceneReference(scenePath),
     });
     if (!result.ok) {
         return result;
-    }
-    const pair = readCompilerScenePairContract(root, scenePath, parseSceneTemplate(content));
-    if (pair.diagnostics.length > 0) {
-        return compilerSceneValidationFailure(scenePath, content, pair.diagnostics);
     }
     return {
         ...result,

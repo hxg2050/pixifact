@@ -43,7 +43,7 @@ Pixifact = validation and compile boundary
 
 compiler Scene asset 是同目录同 basename 的一对文件。例如 `src/scenes/Hud.scene` 负责视觉结构、层级、布局、文字、图片、子 Scene 实例、slot 和事件绑定；`src/scenes/Hud.ts` 负责行为、运行时状态更新、公开 props/events/slots 和 `@part` 访问。不要在 `.scene` 里添加 `script="..."`，也不要给 `@scene()` 添加模板路径。
 
-`@scene()` 类必须可以无参构造，不能声明构造参数。构造函数和 `onMounted()` 只处理节点树与本地 UI 状态；关卡数据、服务、Ticker 和回调等运行依赖在构造后通过显式方法传入。
+`@scene()` 类不能声明自定义构造参数。Pixifact 把构造时的第一个对象作为 initial Props，并在创建节点前合并默认值；`onMounted()` 在节点和 Binding 都准备好后运行。关卡数据、服务、Ticker 和回调等非 Prop 依赖仍通过显式方法传入。
 
 Agent 不应该编辑 `.pixifact/generated` 或生成 TypeScript。生成代码包含 renderer 细节、资源加载细节、临时变量和 compiler 结构，不代表用户意图。
 
@@ -72,21 +72,48 @@ Pixifact 不决定何时 commit 或开 PR。它的责任是让 `.scene` 编辑�
 
 ## Scene 脚本契约
 
-Scene 脚本暴露父 `.scene` 和 Editor Inspector 使用的公开契约。公开 prop 必须使用 runtime constructor types：
+Scene 脚本暴露父 `.scene`、Compiler 和 Editor Inspector 使用的公开契约。Primitive Prop 的类型从 TypeScript property type 推断，默认值写在 `@prop` 上：
+
+```ts
+@prop({ default: 'Button' })
+declare label: string;
+
+@prop({ default: 0 })
+declare count: number;
+
+@prop({ default: false })
+declare disabled: boolean;
+```
+
+`@prop` 只能装饰没有 initializer 的 `declare` property。不要写 `type` option、field initializer、accessor、getter、setter 或 method：
 
 ```ts
 @prop({ type: String, default: 'Button' })
-@prop({ type: Number, default: 0 })
-@prop({ type: Boolean, default: false })
+accessor label = 'Button';
 ```
 
-旧的字符串类型不支持：
+可复用的样式分支用同文件静态 `defineVariants()` 声明。每个 case 必须包含相同字段和字段类型：
 
 ```ts
-@prop({ type: 'string' })
+const buttonTones = defineVariants({
+    primary: { background: '#24456f', text: '#fff3cf' },
+    danger: { background: '#713044', text: '#fff0f4' },
+});
+
+@prop({ default: 'primary', variants: buttonTones })
+declare tone: keyof typeof buttonTones;
 ```
 
-结构化 prop 使用同文件导出的 class 作为类型。这个 class 必须可以无参构造，并且 public fields 必须有 primitive initializers：
+`.scene` 使用完整属性值 Binding，不支持表达式或字符串插值：
+
+```xml
+<Rect id="background" fillColor="{tone.background}" />
+<Text id="labelText" text="{label}" fill="{tone.text}" />
+```
+
+运行时构造 `new Button({ label: '背包', tone: 'danger' })` 时，initial Props 在节点挂载前生效。后续 `button.label = '仓库'` 只更新依赖 `{label}` 的节点，不重建 Scene，也不调用用户 setter。
+
+结构化 Prop 使用同文件导出的 class 作为 TypeScript 类型。这个 class 必须可以无参构造，并且 public fields 必须有 primitive initializers：
 
 ```ts
 export class RectTransform {
@@ -98,16 +125,12 @@ export class RectTransform {
 
 @scene()
 export class Button extends Group {
-    @prop({ type: RectTransform })
-    set rectTransform(value: RectTransform) {
-        this.position.set(value.x, value.y);
-        this.width = value.width;
-        this.height = value.height;
-    }
+    @prop({})
+    declare rectTransform: RectTransform;
 }
 ```
 
-primitive prop defaults 写在 `@prop` 上。structured prop defaults 来自 struct class 的 field initializers；`@prop({ type: RectTransform, default: ... })` 无效。
+Primitive Prop defaults 写在 `@prop` 上。Structured Prop defaults 来自 struct class 的 field initializers；不要给 structured Prop 写 `type` 或 `default` option。
 
 父 Scene 用 dot-path attributes 设置结构化字段：
 
@@ -131,10 +154,10 @@ restartButtonRectTransform.x = 150;
 restartButtonRectTransform.y = 692;
 restartButtonRectTransform.width = 420;
 restartButtonRectTransform.height = 92;
-restartButton.rectTransform = restartButtonRectTransform;
+const restartButton = new Button({ rectTransform: restartButtonRectTransform });
 ```
 
-它不会把 plain object 或 JSON string 传给 setter。`.scene` 中省略的字段保留 class initializer 的值。
+它不会把 plain object 或 JSON string 传给用户 setter。`.scene` 中省略的字段保留 class initializer 的值。
 
 ### 契约继承
 
@@ -160,9 +183,10 @@ Pixifact 把编辑后的 `.scene` source 视为不可信，直到它通过 valid
 3. Validate compiler scene syntax and AST invariants。
 4. Validate prop names and prop value types。
 5. Validate asset references against project assets。
-6. Validate scene instance props against referenced scene contract。
-7. Recompile generated TypeScript。
-8. Editor 运行时刷新 preview。
+6. Validate owner Scene Bindings against its paired script contract。
+7. Validate scene instance props against referenced scene contract。
+8. Recompile generated TypeScript。
+9. Editor 刷新 authoring preview。
 
 Validation errors 应足够明确，便于 Agent repair loop。错误应指出 node、prop、expected type、actual value，并尽量给出短 correction hint。
 
@@ -171,14 +195,15 @@ Validation errors 应足够明确，便于 Agent repair loop。错误应指出 n
 - `.scene` files 是 compiler scenes 唯一 Agent-editable source。
 - `.scene` paths 是项目相对路径，例如 `src/scenes/Hud.scene`。
 - Scene scripts 按同目录同 basename 配对。
-- `@scene()` 类不能声明构造参数。
+- `@scene()` 类不能声明自定义构造参数；构造时第一个对象保留给 initial Props。
 - 不要在 `.scene` 中添加 `script="..."`。
 - 引用其他 Scenes 时使用 `.scene` paths，不要使用 bare names。
 - `.pixifact/generated` 永远不是 Agent editing target。
 - Scene 脚本的 decorator、event、slot 和异步准备 API 从 `pixifact/scene` 导入；`pixifact/compiler` 只用于解析、校验和生成 API。
 - 每个 editable node 必须有 stable ID。
 - 官方基础对象和属性以 [Scene Objects](./scene-objects.md) 为准。
-- Scene script props 必须使用 `String` / `Number` / `Boolean` 或 exported struct class type。
+- `@prop()` 只能装饰无 initializer 的 `declare` property，类型由 TypeScript 声明推断。
+- `.scene` Binding 只写完整值 `{prop}` 或 `{variant.field}`，不写表达式、插值、watch 或双向绑定。
 - Structured scene props 必须使用 dot-path `.scene` attributes，不要用 JSON strings。
 - Public Scene contracts 通过 same-file parents 或 relative named imports 继承。
 - Built-in Scene contracts 来自 decorator extraction，不来自手写 prop tables。

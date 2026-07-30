@@ -494,8 +494,8 @@ import { createEvent, event, prop, scene, slot } from 'pixifact/scene';
 
 @scene()
 export class PrimaryButton extends Group {
-    @prop({ type: String, default: 'Button' })
-    text = 'Button';
+    @prop({ default: 'Button' })
+    declare text: string;
 
     @event()
     readonly click = createEvent();
@@ -504,6 +504,14 @@ export class PrimaryButton extends Group {
     readonly icon!: Container;
 }
 ```
+
+公开 Prop 必须是无 initializer 的 `declare` property，类型由 TypeScript 声明推断。子 Scene 在自己的 `.scene` 中用完整值 Binding 消费它：
+
+```xml
+<Text id="labelText" text="{text}" />
+```
+
+可复用样式使用 `defineVariants()` 声明，并通过 `{tone.field}` 绑定；不支持表达式、插值或用户 getter/setter。
 
 父 Scene 填充 slot：
 

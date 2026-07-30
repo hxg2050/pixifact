@@ -494,8 +494,8 @@ import { createEvent, event, prop, scene, slot } from 'pixifact/scene';
 
 @scene()
 export class PrimaryButton extends Group {
-    @prop({ type: String, default: 'Button' })
-    text = 'Button';
+    @prop({ default: 'Button' })
+    declare text: string;
 
     @event()
     readonly click = createEvent();
@@ -504,6 +504,14 @@ export class PrimaryButton extends Group {
     readonly icon!: Container;
 }
 ```
+
+Public Props must be `declare` properties with no initializer, and their types are inferred from TypeScript. The child Scene consumes them with whole-value bindings in its own `.scene`:
+
+```xml
+<Text id="labelText" text="{text}" />
+```
+
+Use `defineVariants()` for reusable style branches and bind them through `{tone.field}`. Expressions, interpolation, and user getters/setters are not supported.
 
 Parent Scene filling a slot:
 

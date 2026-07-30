@@ -1,4 +1,14 @@
-import type { SceneInstanceTemplateNode, SceneTemplate, SceneTemplateInterface, SceneTemplateNode, SceneTemplatePropContract, SceneTemplateValue } from './spec';
+import {
+    isSceneTemplateBindingValue,
+    type SceneInstanceTemplateNode,
+    type SceneTemplate,
+    type SceneTemplateBindingValue,
+    type SceneTemplateInterface,
+    type SceneTemplateNode,
+    type SceneTemplatePropContract,
+    type SceneTemplateScalarValue,
+    type SceneTemplateValue,
+} from './spec';
 import {
     isPixiSceneNodeType,
     pixiSceneFieldSchema,
@@ -101,12 +111,16 @@ export interface ValidateSceneContentOptions {
     content: string;
     existingAssets?: ReadonlySet<string>;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
+    sceneInterface?: SceneTemplateInterface;
+    bindingsOnly?: boolean;
     normalizeSceneReference?: (scene: string) => string;
 }
 
 interface SceneValidationContext {
     existingAssets?: ReadonlySet<string>;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
+    sceneInterface?: SceneTemplateInterface;
+    bindingsOnly?: boolean;
     normalizeSceneReference?: (scene: string) => string;
 }
 
@@ -130,6 +144,9 @@ export type SceneContentValidationResult =
 export function validateSceneContent(options: ValidateSceneContentOptions): SceneContentValidationResult {
     try {
         const template = parseSceneTemplate(options.content);
+        if (options.sceneInterface) {
+            template.interface = options.sceneInterface;
+        }
         const diagnostics = validateSceneTemplate(template, options);
         const revision = createSceneRevision(options.content);
         if (diagnostics.length > 0) {
@@ -211,7 +228,7 @@ function validateSceneNode(
 
     if (node.kind === 'pixi') {
         return [
-            ...validatePixiNode(node, path, context.existingAssets),
+            ...validatePixiNode(node, path, context),
             ...node.children.flatMap((child, index) => validateSceneNode(
                 child,
                 `${path}/${nodePathSegment(index, child)}`,
@@ -233,7 +250,7 @@ function validateSceneNode(
 function validatePixiNode(
     node: Exclude<SceneTemplateNode, SceneInstanceTemplateNode | { kind: 'slotOutlet' }>,
     path: string,
-    existingAssets: ReadonlySet<string> | undefined,
+    context: SceneValidationContext,
 ): SceneValidationDiagnostic[] {
     if (!isPixiSceneNodeType(node.type)) {
         return [{
@@ -262,6 +279,9 @@ function validatePixiNode(
         ...pixiSceneNodePropKeys(node.type),
     ]);
     for (const [prop, value] of Object.entries(node.props)) {
+        if (context.bindingsOnly && !isSceneTemplateBindingValue(value)) {
+            continue;
+        }
         if (!knownProps.has(prop)) {
             diagnostics.push({
                 path,
@@ -274,6 +294,10 @@ function validatePixiNode(
         }
 
         const schema = pixiSceneFieldSchema(prop);
+        if (isSceneTemplateBindingValue(value)) {
+            diagnostics.push(...validateSceneBinding(path, prop, value, context.sceneInterface, schema?.type, schema?.options));
+            continue;
+        }
         if (schema && !sceneValueMatchesFieldType(value, schema.type, schema.options)) {
             diagnostics.push({
                 path,
@@ -287,7 +311,7 @@ function validatePixiNode(
 
     const texture = node.props.texture;
     if (typeof texture === 'string') {
-        const assetDiagnostic = validateTextureReference(path, texture, existingAssets);
+        const assetDiagnostic = validateTextureReference(path, texture, context.existingAssets);
         if (assetDiagnostic) {
             diagnostics.push(assetDiagnostic);
         }
@@ -335,6 +359,9 @@ function validateSceneInstanceNode(
         ...Object.keys(sceneInterface.props),
     ]);
     for (const [prop, value] of Object.entries(node.props)) {
+        if (context.bindingsOnly && !isSceneTemplateBindingValue(value)) {
+            continue;
+        }
         if (!allowedProps.has(prop)) {
             diagnostics.push({
                 path,
@@ -348,11 +375,33 @@ function validateSceneInstanceNode(
 
         const schema = pixiSceneFieldSchema(prop);
         const contract = sceneInterface.props[prop];
+        if (isSceneTemplateBindingValue(value)) {
+            const expectedType = contract?.type === 'variant' ? 'string' : contract?.type ?? schema?.type;
+            diagnostics.push(...validateSceneBinding(
+                path,
+                prop,
+                value,
+                context.sceneInterface,
+                expectedType,
+                schema?.options,
+            ));
+            continue;
+        }
         if (contract?.type === 'struct') {
             diagnostics.push(...validateSceneInstanceStructProp(node, path, prop, value, contract));
             continue;
         }
         const expectedType = contract?.type ?? schema?.type;
+        if (contract?.type === 'variant' && typeof value === 'string' && !contract.variants[value]) {
+            diagnostics.push({
+                path,
+                prop,
+                expected: `one of ${Object.keys(contract.variants).map((name) => JSON.stringify(name)).join(', ')}`,
+                actual: JSON.stringify(value),
+                hint: `Set ${node.type}.${prop} to a declared Variant case.`,
+            });
+            continue;
+        }
         if (expectedType && !sceneValueMatchesContractType(value, expectedType, schema?.options)) {
             diagnostics.push({
                 path,
@@ -364,7 +413,7 @@ function validateSceneInstanceNode(
         }
     }
 
-    for (const eventName of Object.keys(node.events)) {
+    for (const eventName of context.bindingsOnly ? [] : Object.keys(node.events)) {
         if (!sceneInterface.events[eventName]) {
             diagnostics.push({
                 path,
@@ -376,7 +425,7 @@ function validateSceneInstanceNode(
         }
     }
 
-    for (const slot of Object.keys(node.slots)) {
+    for (const slot of context.bindingsOnly ? [] : Object.keys(node.slots)) {
         if (!sceneInterface.slots[slot]) {
             diagnostics.push({
                 path: `${path}/slot:${slot}`,
@@ -389,6 +438,91 @@ function validateSceneInstanceNode(
     }
 
     return diagnostics;
+}
+
+function validateSceneBinding(
+    path: string,
+    targetProp: string,
+    binding: SceneTemplateBindingValue,
+    sceneInterface: SceneTemplateInterface | undefined,
+    expectedType?: string,
+    options?: readonly (string | number)[],
+): SceneValidationDiagnostic[] {
+    const [prop, field] = binding.path;
+    const contract = sceneInterface?.props[prop];
+    if (!contract) {
+        return [{
+            path,
+            prop: targetProp,
+            expected: `Scene Prop declared by ${sceneInterface ? 'the paired script' : 'the owner Scene'}`,
+            actual: 'unknown binding prop',
+            hint: `Declare @prop "${prop}" in the paired Scene script.`,
+        }];
+    }
+
+    let sourceType: string;
+    let sourceValues: SceneTemplateScalarValue[] | undefined;
+    if (field) {
+        if (contract.type !== 'variant') {
+            return [{
+                path,
+                prop: targetProp,
+                expected: `Variant Prop for binding field "${field}"`,
+                actual: `${contract.type} binding`,
+                hint: `Use {${prop}} or declare ${prop} with defineVariants().`,
+            }];
+        }
+        sourceValues = Object.values(contract.variants).map((variant) => variant[field]).filter((value) => value !== undefined);
+        if (sourceValues.length !== Object.keys(contract.variants).length) {
+            return [{
+                path,
+                prop: targetProp,
+                expected: `Variant field declared by ${prop}`,
+                actual: 'unknown binding field',
+                hint: `Use one of ${Object.keys(Object.values(contract.variants)[0] ?? {}).map((name) => JSON.stringify(name)).join(', ')}.`,
+            }];
+        }
+        sourceType = typeof sourceValues[0];
+    } else if (contract.type === 'struct') {
+        sourceType = 'object';
+    } else if (contract.type === 'variant') {
+        sourceType = 'string';
+        sourceValues = Object.keys(contract.variants);
+    } else {
+        sourceType = contract.type;
+        if (contract.default !== undefined) {
+            sourceValues = [contract.default];
+        }
+    }
+
+    const textAcceptsScalar = targetProp === 'text' && ['string', 'number', 'boolean'].includes(sourceType);
+    if (expectedType && !textAcceptsScalar && !bindingSourceMatchesTarget(sourceType, sourceValues, expectedType, options)) {
+        return [{
+            path,
+            prop: targetProp,
+            expected: expectedType,
+            actual: `${sourceType} binding`,
+            hint: `Bind ${targetProp} to a Scene Prop with a compatible value type.`,
+        }];
+    }
+    return [];
+}
+
+function bindingSourceMatchesTarget(
+    sourceType: string,
+    values: readonly SceneTemplateScalarValue[] | undefined,
+    expectedType: string,
+    options?: readonly (string | number)[],
+) {
+    if (expectedType === 'color') {
+        return sourceType === 'number' || (sourceType === 'string' && values?.every((value) => (
+            typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value)
+        )) === true);
+    }
+    if (expectedType === 'enum') {
+        return !!values && values.every((value) => options?.includes(value as string | number));
+    }
+    return sourceType === expectedType;
 }
 
 function validateSceneInstanceStructProp(

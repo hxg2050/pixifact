@@ -6,9 +6,9 @@ import type {
     SceneTemplatePrimitivePropType,
     SceneTemplatePropContract,
     SceneTemplateScalarValue,
+    SceneTemplateVariants,
     SceneTemplateSlotContract,
-    SceneTemplateValue,
-} from './spec';
+} from '../compiler/spec';
 
 export interface ExtractSceneScriptInterfaceOptions {
     scene: string;
@@ -62,6 +62,7 @@ function extractSceneScriptClasses(
     const sourceId = normalizeScriptSourceId(fileName);
     const imports = collectNamedImports(sourceFile, sourceId);
     const structClasses = collectStructClasses(sourceFile);
+    const variantDeclarations = collectVariantDeclarations(sourceFile);
     const classes: ExtractedSceneScriptClass[] = [];
 
     for (const statement of sourceFile.statements) {
@@ -93,7 +94,8 @@ function extractSceneScriptClasses(
 
             const prop = memberDecoratorOptions(member, 'prop');
             if (prop) {
-                props[name] = propContract(prop, structClasses);
+                assertStaticPropMember(member, name);
+                props[name] = propContract(prop, member, structClasses, variantDeclarations);
             }
 
             const event = memberDecoratorOptions(member, 'event');
@@ -424,7 +426,7 @@ interface DecoratorObjectValue {
     [key: string]: DecoratorValue;
 }
 
-type DecoratorValue = SceneTemplateValue | ts.Identifier;
+type DecoratorValue = SceneTemplateScalarValue | ts.Identifier;
 
 interface StructClassInfo {
     exported: boolean;
@@ -437,6 +439,98 @@ interface StructContractInfo {
         default: SceneTemplateScalarValue;
     }>;
     hasRequiredConstructorParameters: boolean;
+}
+
+function collectVariantDeclarations(sourceFile: ts.SourceFile) {
+    const variants = new Map<string, SceneTemplateVariants>();
+    for (const statement of sourceFile.statements) {
+        if (!ts.isVariableStatement(statement)) {
+            continue;
+        }
+        for (const declaration of statement.declarationList.declarations) {
+            if (!ts.isIdentifier(declaration.name) || !declaration.initializer) {
+                continue;
+            }
+            const initializer = unwrapExpression(declaration.initializer);
+            if (
+                !ts.isCallExpression(initializer)
+                || !ts.isIdentifier(initializer.expression)
+                || initializer.expression.text !== 'defineVariants'
+            ) {
+                continue;
+            }
+            if (initializer.arguments.length !== 1) {
+                throw new Error('defineVariants accepts exactly one argument.');
+            }
+            variants.set(
+                declaration.name.text,
+                variantObjectValue(initializer.arguments[0], 'defineVariants argument'),
+            );
+        }
+    }
+    return variants;
+}
+
+function variantObjectValue(expression: ts.Expression, label: string): SceneTemplateVariants {
+    const object = unwrapExpression(expression);
+    if (!ts.isObjectLiteralExpression(object)) {
+        throw new Error(`${label} must be an object literal.`);
+    }
+    const variants: SceneTemplateVariants = {};
+    let expectedFields: Record<string, string> | undefined;
+    for (const property of object.properties) {
+        if (!ts.isPropertyAssignment(property)) {
+            throw new Error(`${label} only supports property assignments.`);
+        }
+        const name = memberName(property.name);
+        if (!name) {
+            throw new Error(`${label} only supports literal case names.`);
+        }
+        const caseExpression = unwrapExpression(property.initializer);
+        if (!ts.isObjectLiteralExpression(caseExpression)) {
+            throw new Error(`${label}.${name} must be an object literal.`);
+        }
+        const fields: Record<string, SceneTemplateScalarValue> = {};
+        for (const field of caseExpression.properties) {
+            if (!ts.isPropertyAssignment(field)) {
+                throw new Error(`${label}.${name} only supports property assignments.`);
+            }
+            const fieldName = memberName(field.name);
+            if (!fieldName) {
+                throw new Error(`${label}.${name} only supports literal field names.`);
+            }
+            fields[fieldName] = literalValue(field.initializer, `${label}.${name}.${fieldName}`);
+        }
+        const fieldTypes = Object.fromEntries(Object.entries(fields).map(([field, value]) => [field, typeof value]));
+        if (!expectedFields) {
+            expectedFields = fieldTypes;
+        } else if (!sameFieldTypes(expectedFields, fieldTypes)) {
+            throw new Error(`defineVariants case "${name}" must contain the same fields and field types as the first case.`);
+        }
+        variants[name] = fields;
+    }
+    if (Object.keys(variants).length === 0) {
+        throw new Error('defineVariants requires at least one case.');
+    }
+    return variants;
+}
+
+function sameFieldTypes(left: Record<string, string>, right: Record<string, string>) {
+    const leftEntries = Object.entries(left);
+    return leftEntries.length === Object.keys(right).length
+        && leftEntries.every(([name, type]) => right[name] === type);
+}
+
+function unwrapExpression(expression: ts.Expression): ts.Expression {
+    if (
+        ts.isAsExpression(expression)
+        || ts.isTypeAssertionExpression(expression)
+        || ts.isSatisfiesExpression(expression)
+        || ts.isParenthesizedExpression(expression)
+    ) {
+        return unwrapExpression(expression.expression);
+    }
+    return expression;
 }
 
 function collectStructClasses(sourceFile: ts.SourceFile) {
@@ -478,19 +572,57 @@ function structFields(node: ts.ClassDeclaration) {
     return fields;
 }
 
-function propContract(prop: DecoratorObjectValue, structClasses: ReadonlyMap<string, StructClassInfo>): SceneTemplatePropContract {
-    const type = prop.type;
+function assertStaticPropMember(member: ts.ClassElement, name: string) {
+    const isDeclareProperty = ts.isPropertyDeclaration(member)
+        && member.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DeclareKeyword)
+        && !member.modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.AccessorKeyword)
+        && !member.initializer;
+    if (!isDeclareProperty) {
+        throw new Error(`@prop "${name}" must decorate a declare property without an initializer.`);
+    }
+    if (!member.type) {
+        throw new Error(`@prop "${name}" requires an explicit TypeScript property type.`);
+    }
+}
+
+function propContract(
+    prop: DecoratorObjectValue,
+    member: ts.ClassElement,
+    structClasses: ReadonlyMap<string, StructClassInfo>,
+    variantDeclarations: ReadonlyMap<string, SceneTemplateVariants>,
+): SceneTemplatePropContract {
+    if (!ts.isPropertyDeclaration(member) || !member.type) {
+        throw new Error('@prop requires a typed declare property.');
+    }
+    if (prop.type !== undefined) {
+        throw new Error('@prop type is inferred from the TypeScript property declaration; remove the type option.');
+    }
+
     const defaultValue = prop.default;
-    if (type === 'string' || type === 'number' || type === 'boolean') {
-        throw new Error('@prop type must be String, Number, Boolean, or a struct class.');
+    const variantsReference = prop.variants;
+    if (variantsReference !== undefined) {
+        if (!isIdentifierValue(variantsReference)) {
+            throw new Error('@prop variants must reference a local defineVariants declaration.');
+        }
+        const variants = variantDeclarations.get(variantsReference.text);
+        if (!variants) {
+            throw new Error(`@prop variants "${variantsReference.text}" must reference a local defineVariants declaration.`);
+        }
+        if (typeof defaultValue !== 'string' || !variants[defaultValue]) {
+            throw new Error('@prop Variant default must name an existing defineVariants case.');
+        }
+        assertVariantPropertyType(member.type, variantsReference.text);
+        return {
+            type: 'variant',
+            default: defaultValue,
+            variants,
+        };
     }
-    if (!isIdentifierValue(type)) {
-        throw new Error('@prop type must be String, Number, Boolean, or a struct class.');
-    }
-    const primitiveType = primitiveConstructorType(type.text);
+
+    const primitiveType = primitivePropertyType(member.type);
     if (primitiveType) {
         if (defaultValue !== undefined && (!isSceneTemplateScalarValue(defaultValue) || sceneTemplateScalarType(defaultValue) !== primitiveType)) {
-            throw new Error(`@prop default for ${type.text} must be a ${primitiveType} literal.`);
+            throw new Error(`@prop default must be a ${primitiveType} literal.`);
         }
         return {
             type: primitiveType,
@@ -498,25 +630,61 @@ function propContract(prop: DecoratorObjectValue, structClasses: ReadonlyMap<str
         };
     }
 
-    const structClass = structClasses.get(type.text);
+    const structName = typeReferenceName(member.type);
+    if (!structName) {
+        throw new Error('@prop type must be string, number, boolean, a local struct class, or keyof a local defineVariants declaration.');
+    }
+
+    const structClass = structClasses.get(structName);
     if (!structClass) {
-        throw new Error(`Struct prop type ${type.text} was not found.`);
+        throw new Error(`Struct prop type ${structName} was not found.`);
     }
     if (!structClass.exported) {
-        throw new Error(`Struct prop type ${type.text} must be exported.`);
+        throw new Error(`Struct prop type ${structName} must be exported.`);
     }
     if (defaultValue !== undefined) {
         throw new Error('@prop default is only supported for primitive props.');
     }
     const struct = structContractInfo(structClass.node);
     if (struct.hasRequiredConstructorParameters) {
-        throw new Error(`Struct prop type ${type.text} must be constructable with no required parameters.`);
+        throw new Error(`Struct prop type ${structName} must be constructable with no required parameters.`);
     }
     return {
         type: 'struct',
-        struct: type.text,
+        struct: structName,
         fields: struct.fields,
     };
+}
+
+function assertVariantPropertyType(type: ts.TypeNode, variantsName: string) {
+    if (
+        !ts.isTypeOperatorNode(type)
+        || type.operator !== ts.SyntaxKind.KeyOfKeyword
+        || !ts.isTypeQueryNode(type.type)
+        || !ts.isIdentifier(type.type.exprName)
+        || type.type.exprName.text !== variantsName
+    ) {
+        throw new Error(`@prop Variant type must be "keyof typeof ${variantsName}".`);
+    }
+}
+
+function primitivePropertyType(type: ts.TypeNode): SceneTemplatePrimitivePropType | undefined {
+    if (type.kind === ts.SyntaxKind.StringKeyword) {
+        return 'string';
+    }
+    if (type.kind === ts.SyntaxKind.NumberKeyword) {
+        return 'number';
+    }
+    if (type.kind === ts.SyntaxKind.BooleanKeyword) {
+        return 'boolean';
+    }
+    return undefined;
+}
+
+function typeReferenceName(type: ts.TypeNode) {
+    return ts.isTypeReferenceNode(type) && ts.isIdentifier(type.typeName)
+        ? type.typeName.text
+        : undefined;
 }
 
 function structContractInfo(node: ts.ClassDeclaration): StructContractInfo {
@@ -526,21 +694,8 @@ function structContractInfo(node: ts.ClassDeclaration): StructContractInfo {
     };
 }
 
-function primitiveConstructorType(name: string): SceneTemplatePrimitivePropType | undefined {
-    if (name === 'String') {
-        return 'string';
-    }
-    if (name === 'Number') {
-        return 'number';
-    }
-    if (name === 'Boolean') {
-        return 'boolean';
-    }
-    return undefined;
-}
-
 function isIdentifierValue(value: DecoratorValue): value is ts.Identifier {
-    return ts.isIdentifier(value as ts.Node);
+    return typeof value === 'object' && ts.isIdentifier(value as ts.Node);
 }
 
 function isSceneTemplateScalarValue(value: DecoratorValue): value is SceneTemplateScalarValue {
@@ -582,7 +737,7 @@ function decoratorValue(expression: ts.Expression, label: string): DecoratorValu
     return literalValue(expression, label);
 }
 
-function literalValue(expression: ts.Expression, label: string): SceneTemplateValue {
+function literalValue(expression: ts.Expression, label: string): SceneTemplateScalarValue {
     if (ts.isStringLiteral(expression) || ts.isNoSubstitutionTemplateLiteral(expression)) {
         return expression.text;
     }

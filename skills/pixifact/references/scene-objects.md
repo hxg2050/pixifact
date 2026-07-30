@@ -425,8 +425,8 @@ import { createEvent, event, prop, scene, slot } from 'pixifact/scene';
 
 @scene()
 export class PrimaryButton extends Group {
-    @prop({ type: String, default: 'Button' })
-    text = 'Button';
+    @prop({ default: 'Button' })
+    declare text: string;
 
     @event()
     readonly click = createEvent();
@@ -436,20 +436,28 @@ export class PrimaryButton extends Group {
 }
 ```
 
-Primitive public props 必须用 runtime constructor types：
+Primitive public Props 的类型从 TypeScript property type 推断，默认值写在 `@prop` 上：
 
 ```ts
-@prop({ type: String, default: 'Button' })
-text = 'Button';
+@prop({ default: 'Button' })
+declare text: string;
 
-@prop({ type: Number, default: 0 })
-count = 0;
+@prop({ default: 0 })
+declare count: number;
 
-@prop({ type: Boolean, default: false })
-disabled = false;
+@prop({ default: false })
+declare disabled: boolean;
 ```
 
-不要写旧字符串类型，例如 `@prop({ type: 'string' })`。
+`@prop` 只能装饰无 initializer 的 `declare` property。不要写 `type` option、field initializer、accessor、getter 或 setter。
+
+子 Scene 在自己的 `.scene` 中用完整值 Binding 消费公开 Prop：
+
+```xml
+<Text id="labelText" text="{text}" />
+```
+
+可复用样式使用 `defineVariants()`，并通过 `{tone.field}` 绑定。不支持表达式、字符串插值或双向绑定。
 
 父 Scene 填充 slot：
 
@@ -512,8 +520,8 @@ export class RectTransform {
 
 @scene()
 export class RewardCard extends Group {
-    @prop({ type: RectTransform })
-    rectTransform = new RectTransform();
+    @prop({})
+    declare rectTransform: RectTransform;
 }
 ```
 

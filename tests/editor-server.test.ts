@@ -18,7 +18,17 @@ function createFixture() {
         '</Scene>',
         '',
     ].join('\n'));
-    fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Menu.ts'), 'export class Menu {}\n');
+    fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Menu.ts'), [
+        "import { Group } from 'pixifact/runtime';",
+        "import { prop, scene } from 'pixifact/scene';",
+        '',
+        '@scene()',
+        'export class Menu extends Group {',
+        "  @prop({ default: '开始' })",
+        '  declare title: string;',
+        '}',
+        '',
+    ].join('\n'));
     fs.writeFileSync(path.join(projectRoot, 'assets', 'button.png'), 'png');
     fs.writeFileSync(path.join(staticRoot, 'index.html'), '<main>Pixifact Editor</main>');
     return { projectRoot, staticRoot };
@@ -88,6 +98,25 @@ describe('Editor project service', () => {
             error: 'Scene file version changed.',
         });
         expect(fs.readFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.scene'), 'utf8')).toBe(nextSource);
+    });
+
+    it('extracts paired Scene interfaces on the Host without executing project scripts', async () => {
+        const fixture = createFixture();
+        const service = createEditorProjectService(fixture);
+
+        const response = await service.fetch(new Request('http://localhost/api/scene-bindings'));
+        const bindings = await json(response);
+
+        expect(bindings).toMatchObject({
+            'src/scenes/Menu.scene': {
+                className: 'Menu',
+                interface: {
+                    props: {
+                        title: { type: 'string', default: '开始' },
+                    },
+                },
+            },
+        });
     });
 
     it('rejects file access outside the bound project root', async () => {

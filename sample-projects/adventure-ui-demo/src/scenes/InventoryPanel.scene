@@ -5,7 +5,7 @@
   <Rect id="divider" x="42" y="88" width="606" height="2" fillColor="#f2ce76" fillAlpha="0.38" />
   <ScrollContainer id="slotScroll" x="42" y="126" width="606" height="372" direction="vertical">
     <GridContainer id="slotGrid" columns="5" gapX="18" gapY="18">
-      <ItemSlot id="firstSlot" scene="./ItemSlot.scene" itemName="治疗药水" quantity="6" selected="true" />
+      <ItemSlot id="firstSlot" scene="./ItemSlot.scene" itemName="治疗药水" quantity="6" state="selected" />
       <ItemSlot id="secondSlot" scene="./ItemSlot.scene" itemName="月石碎片" quantity="12" />
       <ItemSlot id="thirdSlot" scene="./ItemSlot.scene" itemName="古旧钥匙" quantity="1" />
       <ItemSlot id="fourthSlot" scene="./ItemSlot.scene" itemName="火把" quantity="4" />

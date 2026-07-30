@@ -43,7 +43,7 @@ Pixifact = validation and compile boundary
 
 A compiler Scene asset is a pair of colocated files with the same basename. For example, `src/scenes/Hud.scene` owns visual structure, hierarchy, layout, text, images, child Scene instances, slots, and event wiring; `src/scenes/Hud.ts` owns behavior, runtime state updates, public props/events/slots, and `@part` access. Do not add `script="..."` to `.scene` files, and do not add template paths to `@scene()`.
 
-An `@scene()` class must be constructable without arguments and must not declare constructor parameters. Its constructor and `onMounted()` only handle the node tree and local UI state; runtime dependencies such as level data, services, tickers, and callbacks enter through explicit methods after construction.
+An `@scene()` class must not declare custom constructor parameters. Pixifact treats the first construction object as initial Props and merges it with defaults before creating nodes; `onMounted()` runs after nodes and bindings are ready. Non-Prop runtime dependencies such as level data, services, tickers, and callbacks still enter through explicit methods.
 
 Agents should not edit `.pixifact/generated` or generated TypeScript, because generated code contains renderer details, resource loading details, temporary variables, and compiler structure that are not the user's intent.
 
@@ -72,21 +72,48 @@ Pixifact does not decide when to commit or open a PR. Its responsibility is to m
 
 ## Scene Script Contracts
 
-Scene scripts expose the public contract consumed by parent `.scene` files and by the Editor Inspector. A public prop must use runtime constructor types:
+Scene scripts expose the public contract consumed by parent `.scene` files, the compiler, and the Editor Inspector. Primitive Prop types are inferred from TypeScript property declarations, while defaults are declared on `@prop`:
+
+```ts
+@prop({ default: 'Button' })
+declare label: string;
+
+@prop({ default: 0 })
+declare count: number;
+
+@prop({ default: false })
+declare disabled: boolean;
+```
+
+`@prop` may only decorate a `declare` property with no initializer. Do not use a `type` option, field initializer, accessor, getter, setter, or method:
 
 ```ts
 @prop({ type: String, default: 'Button' })
-@prop({ type: Number, default: 0 })
-@prop({ type: Boolean, default: false })
+accessor label = 'Button';
 ```
 
-The old string form is not supported:
+Reusable style branches use a static same-file `defineVariants()` declaration. Every case must have the same fields and field types:
 
 ```ts
-@prop({ type: 'string' })
+const buttonTones = defineVariants({
+    primary: { background: '#24456f', text: '#fff3cf' },
+    danger: { background: '#713044', text: '#fff0f4' },
+});
+
+@prop({ default: 'primary', variants: buttonTones })
+declare tone: keyof typeof buttonTones;
 ```
 
-Structured props use an exported, same-file class as the prop type. The class must be constructable with no required constructor parameters, and its public fields must have primitive initializers:
+`.scene` uses whole-value bindings only. Expressions and string interpolation are not supported:
+
+```xml
+<Rect id="background" fillColor="{tone.background}" />
+<Text id="labelText" text="{label}" fill="{tone.text}" />
+```
+
+For `new Button({ label: 'Inventory', tone: 'danger' })`, initial Props take effect before nodes mount. A later `button.label = 'Storage'` only updates nodes depending on `{label}`; it does not rebuild the Scene or invoke a user setter.
+
+Structured Props use an exported, same-file class as the TypeScript type. The class must be constructable with no required constructor parameters, and its public fields must have primitive initializers:
 
 ```ts
 export class RectTransform {
@@ -98,16 +125,12 @@ export class RectTransform {
 
 @scene()
 export class Button extends Group {
-    @prop({ type: RectTransform })
-    set rectTransform(value: RectTransform) {
-        this.position.set(value.x, value.y);
-        this.width = value.width;
-        this.height = value.height;
-    }
+    @prop({})
+    declare rectTransform: RectTransform;
 }
 ```
 
-Primitive prop defaults are declared on `@prop`. Structured prop defaults come from the struct class field initializers; `@prop({ type: RectTransform, default: ... })` is not valid.
+Primitive Prop defaults are declared on `@prop`. Structured Prop defaults come from the struct class field initializers; do not add `type` or `default` options to a structured Prop.
 
 Parent scenes set structured fields with dot-path attributes:
 
@@ -131,10 +154,10 @@ restartButtonRectTransform.x = 150;
 restartButtonRectTransform.y = 692;
 restartButtonRectTransform.width = 420;
 restartButtonRectTransform.height = 92;
-restartButton.rectTransform = restartButtonRectTransform;
+const restartButton = new Button({ rectTransform: restartButtonRectTransform });
 ```
 
-It does not pass a plain object or JSON string to the setter. Fields omitted from `.scene` keep the class initializer value.
+It does not pass a plain object or JSON string to a user setter. Fields omitted from `.scene` keep the class initializer value.
 
 ### Contract Inheritance
 
@@ -160,9 +183,10 @@ Pixifact treats edited `.scene` source as untrusted until it passes validation a
 3. Validate compiler scene syntax and AST invariants.
 4. Validate prop names and prop value types.
 5. Validate asset references against project assets.
-6. Validate scene instance props against the referenced scene contract.
-7. Recompile generated TypeScript.
-8. Refresh editor preview when the Editor is running.
+6. Validate owner Scene bindings against its paired script contract.
+7. Validate scene instance props against the referenced scene contract.
+8. Recompile generated TypeScript.
+9. Refresh the Editor authoring preview when the Editor is running.
 
 Validation errors should be explicit enough for agent repair loops. The error should point to the node, prop, expected type, actual value, and a short correction hint when available.
 
@@ -171,14 +195,15 @@ Validation errors should be explicit enough for agent repair loops. The error sh
 - `.scene` files are the only agent-editable source for compiler scenes.
 - `.scene` paths are project-relative, such as `src/scenes/Hud.scene`.
 - Scene scripts are paired by same directory and same basename.
-- `@scene()` classes must not declare constructor parameters.
+- `@scene()` classes must not declare custom constructor parameters; the first construction object is reserved for initial Props.
 - Do not add `script="..."` to `.scene` files.
 - Reference other Scenes with `.scene` paths, never bare names.
 - `.pixifact/generated` is never an agent editing target.
 - Import Scene decorators, events, slots, and async preparation APIs from `pixifact/scene`; `pixifact/compiler` is only for parsing, validation, and generation APIs.
 - Every editable node must have a stable ID.
 - Official base objects and props belong to [Scene Objects](./scene-objects.md).
-- Scene script props must use `String` / `Number` / `Boolean` or an exported struct class type.
+- `@prop()` may only decorate a `declare` property with no initializer, and its type is inferred from TypeScript.
+- `.scene` bindings are whole values such as `{prop}` or `{variant.field}`; do not use expressions, interpolation, watch, or two-way binding.
 - Structured scene props must use dot-path `.scene` attributes, not JSON strings.
 - Public Scene contracts are inherited through same-file parents or relative named imports.
 - Built-in Scene contracts come from decorator extraction, not hand-written prop tables.

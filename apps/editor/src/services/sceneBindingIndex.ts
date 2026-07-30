@@ -1,9 +1,5 @@
 import {
-    builtinSceneAssetIds,
-    builtinSceneInterfaces,
-    builtinSceneNameFromAssetId,
     defaultSceneSourceRoots,
-    extractSceneScriptInterfaces,
     isIgnoredSceneSourceDirectory,
     normalizeSceneAssetId,
     pairedSceneScriptPath,
@@ -15,7 +11,7 @@ import {
     type SceneTemplateInterface,
     type SceneTemplateNode,
 } from 'pixifact/compiler';
-import { builtinSceneScriptSources } from '../preview/builtinSceneScriptSources';
+import { readEditorSceneBindings } from './editorApi';
 import {
     findFileByPath,
     projectFileRelativePath,
@@ -66,7 +62,6 @@ interface CompilerSceneBindingSource {
     file: ProjectFileTreeNode;
     scriptFile: ProjectFileTreeNode;
     template: SceneTemplate;
-    scriptSource: string;
 }
 
 async function readCompilerSceneBindings(
@@ -78,21 +73,7 @@ async function readCompilerSceneBindings(
         sources.push(await readCompilerSceneBindingSource(projectTree, file, templateOverride));
     }
 
-    const descriptors = extractSceneScriptInterfaces([
-        ...builtinSceneAssetIds().map((scene) => {
-            const name = builtinSceneNameFromAssetId(scene);
-            return {
-                scene,
-                fileName: `${name}.ts`,
-                source: builtinSceneScriptSources[name],
-            };
-        }),
-        ...sources.map((source) => ({
-            scene: source.scenePath,
-            fileName: source.scriptFile.path,
-            source: source.scriptSource,
-        })),
-    ]);
+    const descriptors = await readEditorSceneBindings();
 
     return Object.fromEntries(sources.map((source) => {
         const descriptor = descriptors[source.scenePath];
@@ -139,7 +120,6 @@ async function readCompilerSceneBindingSource(
         template: templateOverride?.file.path === file.path
             ? templateOverride.template
             : parseSceneTemplate(await readProjectFileText(projectTree, file)),
-        scriptSource: await readProjectFileText(projectTree, scriptFile),
     };
 }
 
@@ -149,7 +129,6 @@ export function sceneInterfacesForCompilerTemplate(
     ownerScenePath?: string,
 ) {
     return {
-        ...builtinSceneInterfaces(builtinSceneScriptSources),
         ...Object.fromEntries([...collectSceneInstancePaths(nodes, new Set(), ownerScenePath)]
             .filter((scenePath) => index[scenePath])
             .map((scenePath) => [scenePath, index[scenePath].interface])),

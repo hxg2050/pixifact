@@ -1,5 +1,6 @@
 import type {
     SceneInstanceTemplateNode,
+    SceneTemplateBindingValue,
     SceneTemplate,
     SceneTemplateNode,
     SceneTemplateValue,
@@ -107,7 +108,7 @@ function serializeAttributes(attributes: TemplateAttribute[]) {
 
 function flattenAttributes(attributes: TemplateAttribute[]) {
     return attributes.flatMap(([name, value]) => {
-        if (!value || typeof value !== 'object') {
+        if (!value || typeof value !== 'object' || isBindingValue(value)) {
             return [[name, value] as const];
         }
         return Object.entries(value).map(([field, fieldValue]) => [`${name}.${field}`, fieldValue] as const);
@@ -115,10 +116,17 @@ function flattenAttributes(attributes: TemplateAttribute[]) {
 }
 
 function formatAttributeValue(name: string, value: SceneTemplateValue) {
+    if (isBindingValue(value)) {
+        return `{${value.path.join('.')}}`;
+    }
     if (typeof value === 'number' && colorPropNames.has(name)) {
         return `#${value.toString(16).padStart(6, '0').slice(-6)}`;
     }
     return String(value);
+}
+
+function isBindingValue(value: SceneTemplateValue): value is SceneTemplateBindingValue {
+    return typeof value === 'object' && value.kind === 'binding';
 }
 
 function escapeAttribute(value: string) {

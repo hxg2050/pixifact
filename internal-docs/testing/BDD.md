@@ -39,22 +39,55 @@ TDD 入口：`tests/pixifact-cli.test.ts`。
 
 ## 2. Compiler Scene Props
 
-### BDD-PROP-001 Scene script prop types use constructors
+### BDD-PROP-001 Scene script props are static declarations
 
 Feature: Scene script public props
 
 ```gherkin
 Scenario: Script exposes primitive props
-  Given a Scene script declares "@prop({ type: String, default: \"Button\" })"
-  And declares Number and Boolean public props
+  Given a Scene script declares "@prop({ default: \"Button\" }) declare label: string"
+  And declares number and boolean Props with static defaults
   When Pixifact extracts the Scene script interface
   Then the contract contains string, number, and boolean prop types
-  And the old string type form is rejected
+  And a setter, accessor, field initializer, or dynamic default is rejected
 ```
 
 TDD 入口：`tests/scene-script-interface.test.ts`。
 
-### BDD-PROP-002 Structured props compile to real class instances
+### BDD-PROP-002 Static variants expose reactive style values
+
+Feature: Scene Prop variants
+
+```gherkin
+Scenario: Button tone selects a static style case
+  Given a Scene script declares a local "defineVariants" object
+  And "@prop" exposes its keys as the tone Prop
+  And Button.scene binds "{tone.background}" and "{tone.text}"
+  When Pixifact extracts and compiles the Scene pair
+  Then the contract contains every static Variant case and field
+  And changing tone updates only the bound node properties
+  And no user setter is executed
+```
+
+TDD 入口：`tests/scene-script-interface.test.ts`、`tests/scene-compiler.test.ts`。
+
+### BDD-PROP-003 Scene props initialize before mount
+
+Feature: Scene Prop construction
+
+```gherkin
+Scenario: Parent constructs a child Scene with initial Props
+  Given Button has default label "Button"
+  And a parent Scene declares "<Button label=\"背包\" />"
+  When the generated parent Scene constructs Button
+  Then "背包" is available before Button nodes are mounted
+  And the first rendered label is "背包"
+  And onMounted runs only after the final initial values and parts are ready
+```
+
+TDD 入口：`tests/scene-compiler.test.ts`、runtime integration tests。
+
+### BDD-PROP-004 Structured props compile to real class instances
 
 Feature: Structured Scene props
 
@@ -66,12 +99,12 @@ Scenario: Parent scene sets a RectTransform prop
   Then Pixifact validates the field against the child Scene contract
   And serialized source keeps dot-path attributes
   And generated TypeScript constructs "new RectTransform()"
-  And the setter receives the RectTransform instance rather than a plain object
+  And the generated Prop state receives the RectTransform instance rather than a plain object
 ```
 
 TDD 入口：`tests/scene-script-interface.test.ts`、`tests/scene-compiler.test.ts`、`tests/compiler-scene-commands.test.ts`。
 
-### BDD-PROP-003 Inspector edits structured fields
+### BDD-PROP-005 Inspector edits structured fields
 
 Feature: Inspector structured prop editing
 
@@ -103,7 +136,23 @@ Scenario: External agent changes the opened .scene file
 
 TDD 入口：`tests/editor-server.test.ts`、`tests/editor-scene-document.test.ts`、浏览器验收。
 
-### BDD-EDITOR-002 资产浏览不编辑源资源
+### BDD-EDITOR-002 Authoring preview does not execute project scripts
+
+Feature: Safe Scene authoring preview
+
+```gherkin
+Scenario: Editor opens a Scene with runtime behavior
+  Given the paired TypeScript has module-level code, a constructor, and onMounted
+  And the Scene declares static Props and bindings
+  When the user opens the Scene in Editor
+  Then the Editor renders the bound initial visual state
+  And it does not execute module-level code, the constructor, onMounted, events, timers, or network calls
+  And changing an Inspector value updates the existing bound Pixi node without replacing the Scene root
+```
+
+TDD 入口：`tests/project-file-tree.test.ts`、`tests/editor-vue-ui.test.ts`、Editor 前端构建。
+
+### BDD-EDITOR-003 资产浏览不编辑源资源
 
 Feature: Project asset browsing
 
@@ -117,7 +166,7 @@ Scenario: User opens a source asset
 
 TDD 入口：`tests/editor-server.test.ts`；系统程序调用仍需补自动化覆盖。
 
-### BDD-EDITOR-003 Pinia 不保存项目数据
+### BDD-EDITOR-004 Pinia 不保存项目数据
 
 Feature: UI store persistence boundary
 
@@ -131,7 +180,7 @@ Scenario: Editor UI preferences are persisted
 
 TDD 入口：`tests/editor-vue-ui.test.ts`。
 
-### BDD-EDITOR-004 从当前项目启动浏览器 Editor
+### BDD-EDITOR-005 从当前项目启动浏览器 Editor
 
 Feature: Browser Editor startup
 
@@ -146,7 +195,7 @@ Scenario: User starts Editor from a Pixifact project
 
 TDD 入口：`tests/pixifact-cli.test.ts`、`tests/editor-server.test.ts`。
 
-### BDD-EDITOR-005 打开一个 compiler Scene
+### BDD-EDITOR-006 打开一个 compiler Scene
 
 Feature: Single Scene authoring workspace
 
@@ -161,7 +210,7 @@ Scenario: User opens a Scene from the asset list
 
 TDD 入口：`tests/editor-scene-document.test.ts`、`tests/project-file-tree.test.ts`、Editor 前端构建与浏览器验收。
 
-### BDD-EDITOR-006 Inspector 属性增量预览并自动保存
+### BDD-EDITOR-007 Inspector 属性增量预览并自动保存
 
 Feature: Incremental Inspector editing
 
@@ -179,7 +228,7 @@ Scenario: User changes a numeric node property
 
 TDD 入口：`tests/editor-scene-document.test.ts`、`tests/editor-vue-ui.test.ts`。
 
-### BDD-EDITOR-007 外部修改不能被静默覆盖
+### BDD-EDITOR-008 外部修改不能被静默覆盖
 
 Feature: Versioned Scene writes
 

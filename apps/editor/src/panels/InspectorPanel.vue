@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { RotateCcw } from 'lucide-vue-next';
 import {
+    isSceneTemplateBindingValue,
     isPixiSceneNodeType,
     pixiSceneDisplayProps,
     pixiSceneFieldSchema,
     pixiSceneNodeDefaults,
     pixiSceneNodePropKeys,
     pixiSceneTransformProps,
+    resolveSceneReference,
     type PixiSceneFieldType,
+    type SceneTemplateInterface,
+    type SceneTemplatePropContract,
 } from 'pixifact/compiler';
 import { computed, nextTick, reactive, watch } from 'vue';
 import type { SceneDocument } from '../document/SceneDocument';
@@ -24,6 +28,7 @@ interface InspectorField {
 const props = defineProps<{
     document?: SceneDocument;
     revision: number;
+    sceneInterfaces?: Record<string, SceneTemplateInterface>;
     selected?: string;
 }>();
 
@@ -47,6 +52,11 @@ const selectedType = computed(() => {
     if (!node) return 'Scene';
     if (node.kind === 'slotOutlet') return 'Slot';
     return node.kind === 'sceneInstance' ? `Scene · ${node.type}` : node.type;
+});
+const selectedInterface = computed(() => {
+    const node = selectedNode.value;
+    if (!props.document || node?.kind !== 'sceneInstance') return undefined;
+    return props.sceneInterfaces?.[resolveSceneReference(props.document.path, node.scene)];
 });
 
 const commonDefaults: Record<string, string | number | boolean> = {
@@ -79,11 +89,20 @@ const fields = computed<InspectorField[]>(() => {
         : commonDefaults;
     const keys = node.kind === 'pixi' && isPixiSceneNodeType(node.type)
         ? [...new Set([...pixiSceneTransformProps, ...pixiSceneDisplayProps, ...pixiSceneNodePropKeys(node.type)])]
-        : Object.keys(node.props);
+        : [...new Set([
+            ...pixiSceneTransformProps,
+            ...pixiSceneDisplayProps,
+            ...Object.keys(selectedInterface.value?.props ?? {}),
+            ...Object.keys(node.props),
+        ])];
     return keys.flatMap((key) => {
-        const schema = pixiSceneFieldSchema(key);
+        const contract = selectedInterface.value?.props[key];
+        const schema = contract ? scenePropSchema(contract) : pixiSceneFieldSchema(key);
         const explicitValue = node.props[key];
-        const value = explicitValue ?? defaults[key];
+        if (isSceneTemplateBindingValue(explicitValue)) {
+            return [];
+        }
+        const value = explicitValue ?? (contract ? scenePropDefault(contract) : defaults[key]);
         if (!schema || value === undefined || typeof value === 'object') {
             return [];
         }
@@ -96,6 +115,25 @@ const fields = computed<InspectorField[]>(() => {
         }];
     });
 });
+
+function scenePropSchema(contract: SceneTemplatePropContract) {
+    if (contract.type === 'struct') return undefined;
+    if (contract.type === 'variant') {
+        return {
+            type: 'enum' as const,
+            options: Object.keys(contract.variants),
+        };
+    }
+    return { type: contract.type };
+}
+
+function scenePropDefault(contract: SceneTemplatePropContract) {
+    if (contract.type === 'struct') return undefined;
+    if (contract.default !== undefined) return contract.default;
+    if (contract.type === 'number') return 0;
+    if (contract.type === 'boolean') return false;
+    return '';
+}
 
 watch([() => props.selected, () => props.revision, fields], () => {
     for (const key of Object.keys(drafts)) {

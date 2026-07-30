@@ -64,13 +64,13 @@ export class Hud extends Group {}
 ```ts
 import type { Container, Text } from 'pixi.js';
 import { Group, type Rect } from 'pixifact/runtime';
-import { createEvent, event, part, prop, scene, slot } from 'pixifact/scene';
+import { createEvent, defineVariants, event, part, prop, scene, slot } from 'pixifact/scene';
 ```
 
 原则：
 
 - `Group`、`Rect`、`Image`、`NineImage`、`TileImage` 等 runtime 类型来自 `pixifact/runtime`。
-- `scene`、`part`、`prop`、`event`、`slot`、`createEvent` 来自 `pixifact/scene`。
+- `scene`、`part`、`prop`、`defineVariants`、`event`、`slot`、`createEvent` 来自 `pixifact/scene`。
 - Pixi 节点类型如 `Container`、`Text`、`Graphics` 来自 `pixi.js`。
 - 只用于类型标注时使用 `import type` 或 named type import。
 
@@ -97,67 +97,39 @@ export class StatusBadge extends Group {}
 
 如果只是静态 UI，不需要为了节点存在而添加 `@part()`。
 
-## `@part()` + `@prop()` 更新文本
+## `@prop()` + Binding 更新文本
 
 `Hud.scene`：
 
 ```xml
 <Scene name="Hud" width="750" height="160">
-  <Text id="playerNameText" text="Player" left="24" top="24" fontSize="28" fontWeight="700" fill="#ffffff" />
-  <Text id="coinText" text="0" right="24" top="24" fontSize="28" fontWeight="700" fill="#ffd166" />
+  <Text id="playerNameText" text="{playerName}" left="24" top="24" fontSize="28" fontWeight="700" fill="#ffffff" />
+  <Text id="coinText" text="{coins}" right="24" top="24" fontSize="28" fontWeight="700" fill="#ffd166" />
 </Scene>
 ```
 
 `Hud.ts`：
 
 ```ts
-import type { Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
-import { part, prop, scene } from 'pixifact/scene';
+import { prop, scene } from 'pixifact/scene';
 
 @scene()
 export class Hud extends Group {
-    #playerName = 'Player';
-    #coins = 0;
+    @prop({ default: 'Player' })
+    declare playerName: string;
 
-    @part()
-    protected declare playerNameText: Text;
-
-    @part()
-    protected declare coinText: Text;
-
-    @prop({ type: String, default: 'Player' })
-    set playerName(value: string) {
-        this.#playerName = value;
-        this.playerNameText.text = value;
-    }
-
-    get playerName() {
-        return this.#playerName;
-    }
-
-    @prop({ type: Number, default: 0 })
-    set coins(value: number) {
-        this.#coins = value;
-        this.coinText.text = String(value);
-    }
-
-    get coins() {
-        return this.#coins;
-    }
-
-    onMounted() {
-        this.playerNameText.text = this.#playerName;
-        this.coinText.text = String(this.#coins);
-    }
+    @prop({ default: 0 })
+    declare coins: number;
 }
 ```
 
 注意：
 
-- `@part()` 默认绑定同名 `id`；如果属性名不同，使用 `@part({ id: 'playerNameText' })`。
-- 不要为了缺失 `@part` 写静默 fallback。缺失节点应由 `scene validate` 或运行时暴露出来。
-- `@prop` 默认值写在 decorator 上；setter 负责同步 runtime state。
+- `@prop` 只能装饰无 initializer 的 `declare` property，类型从 TypeScript 声明推断。
+- `{playerName}` 和 `{coins}` 是完整值 Binding；数字绑定到 `Text.text` 时会做标准字符串转换。
+- 修改 `hud.coins` 只更新依赖 `{coins}` 的节点，不重建 Scene。
+- 不支持表达式、字符串插值、watch、computed 或双向绑定。
 
 ## Button：slot + event
 
@@ -165,10 +137,10 @@ export class Hud extends Group {
 
 ```xml
 <Scene name="PrimaryButton" width="360" height="80">
-  <Rect id="background" left="0" right="0" top="0" bottom="0" radius="18" fillColor="#2563eb" />
+  <Rect id="background" left="0" right="0" top="0" bottom="0" radius="18" fillColor="{tone.background}" />
   <HBoxContainer id="content" horizontal="0" vertical="0" gap="12" alignY="center">
     <slot name="icon" />
-    <Text id="labelText" text="Button" fontSize="26" fontWeight="700" fill="#ffffff" />
+    <Text id="labelText" text="{label}" fontSize="26" fontWeight="700" fill="{tone.text}" />
   </HBoxContainer>
 </Scene>
 ```
@@ -176,38 +148,33 @@ export class Hud extends Group {
 `PrimaryButton.ts`：
 
 ```ts
-import type { Container, Text } from 'pixi.js';
+import type { Container } from 'pixi.js';
 import { Group, type Rect } from 'pixifact/runtime';
-import { createEvent, event, part, prop, scene, slot } from 'pixifact/scene';
+import { createEvent, defineVariants, event, part, prop, scene, slot } from 'pixifact/scene';
+
+const buttonTones = defineVariants({
+    primary: { background: '#2563eb', text: '#ffffff' },
+    danger: { background: '#b4233c', text: '#fff0f4' },
+});
 
 @scene()
 export class PrimaryButton extends Group {
-    #label = 'Button';
-
     @part()
     protected declare background: Rect;
-
-    @part()
-    protected declare labelText: Text;
 
     @slot({ name: 'icon' })
     readonly icon!: Container;
 
-    @prop({ type: String, default: 'Button' })
-    set label(value: string) {
-        this.#label = value;
-        this.labelText.text = value;
-    }
+    @prop({ default: 'Button' })
+    declare label: string;
 
-    get label() {
-        return this.#label;
-    }
+    @prop({ default: 'primary', variants: buttonTones })
+    declare tone: keyof typeof buttonTones;
 
     @event()
     readonly click = createEvent();
 
     onMounted() {
-        this.labelText.text = this.#label;
         this.background.eventMode = 'static';
         this.background.cursor = 'pointer';
         this.background.on('pointertap', () => {
@@ -220,7 +187,7 @@ export class PrimaryButton extends Group {
 父 Scene 填充 slot 并绑定事件：
 
 ```xml
-<PrimaryButton id="startButton" scene="./PrimaryButton.scene" label="开始游戏" @click="startGame">
+<PrimaryButton id="startButton" scene="./PrimaryButton.scene" label="开始游戏" tone="primary" @click="startGame">
   <Image slot="icon" id="startIcon" texture="assets/icons/play.png" width="32" height="32" fit="contain" />
 </PrimaryButton>
 ```
@@ -273,13 +240,8 @@ export class RectTransform {
 
 @scene()
 export class RewardCard extends Group {
-    @prop({ type: RectTransform })
-    set rectTransform(value: RectTransform) {
-        this.x = value.x;
-        this.y = value.y;
-        this.width = value.width;
-        this.height = value.height;
-    }
+    @prop({})
+    declare rectTransform: RectTransform;
 }
 ```
 
@@ -305,8 +267,8 @@ export class PrimaryButton extends Group {}
 ```
 
 ```ts
-@prop({ type: 'string' })
-label = 'Button';
+@prop({ type: String, default: 'Button' })
+accessor label = 'Button';
 ```
 
 ```ts

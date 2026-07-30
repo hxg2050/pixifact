@@ -1,4 +1,5 @@
 import { pixiSceneNodeAcceptsChildren } from '../pixiNodeSchema';
+import { isSceneTemplateBindingValue } from '../spec';
 import type {
     SceneInstanceTemplateNode,
     SceneTemplate,
@@ -336,7 +337,7 @@ function getPropPathValue(props: Record<string, SceneTemplateValue>, prop: strin
         return props[prop];
     }
     const value = props[root];
-    return value && typeof value === 'object' ? value[field] : undefined;
+    return value && typeof value === 'object' && !isSceneTemplateBindingValue(value) ? value[field] : undefined;
 }
 
 function setPropPathValue(props: Record<string, SceneTemplateValue>, prop: string, value: SceneTemplateValue | undefined) {
@@ -350,7 +351,7 @@ function setPropPathValue(props: Record<string, SceneTemplateValue>, prop: strin
         return;
     }
     const current = props[root];
-    const objectValue = current && typeof current === 'object'
+    const objectValue = current && typeof current === 'object' && !isSceneTemplateBindingValue(current)
         ? { ...current }
         : {};
     if (value === undefined) {

@@ -2,6 +2,8 @@
 
 Status: Complete
 
+Superseded in part by [Scene Binding](./scene-binding.md). The parameterized user-constructor prohibition remains; the old zero-argument runtime construction and Editor lifecycle-preview decisions do not.
+
 ## Goal
 
 Require every `@scene()` class to be constructable without arguments while preserving normal Editor lifecycle preview.
@@ -12,23 +14,23 @@ Require every `@scene()` class to be constructable without arguments while prese
 - `@scene()` classes must not declare constructor parameters.
 - `onMounted()` may rely only on the Scene's mounted node tree and local UI state.
 - Runtime data, services, controllers, and callbacks enter through explicit methods after construction.
-- Editor continues to run `onMounted()` for valid Scenes; it does not suppress lifecycle hooks.
+- Runtime accepts an initial Props object through the framework-generated Scene wrapper while user `@scene()` classes still declare no constructor parameters.
+- Editor Authoring does not import project scripts or run constructors and lifecycle hooks.
 
 ## Non-Goals
 
-- Add constructor argument injection, preview factories, or a dependency injection container.
-- Change the `@prop`, `@event`, or `@slot` contracts.
+- Add arbitrary dependency injection, preview factories, or a dependency injection container.
 
 ## Implementation Scope
 
 - Reject parameterized `@scene()` constructors during script interface extraction.
-- Restore Editor preview lifecycle behavior.
+- Editor lifecycle preview was removed by the later static Authoring renderer.
 - Document the Scene construction rule for downstream authors.
 
 ## Test Plan
 
 - Assert that script interface extraction rejects an `@scene()` constructor with parameters.
-- Assert that Editor preview runs `onMounted()` for a zero-argument Scene.
+- The superseding Scene Binding tests assert runtime lifecycle order and that Editor Authoring does not execute project TypeScript.
 
 ## Verification
 
@@ -41,7 +43,7 @@ rtk bun run editor:frontend:build
 ## Progress
 
 - [x] Reject parameterized Scene constructors.
-- [x] Restore Editor lifecycle preview.
+- [x] Replaced Editor lifecycle preview with static Authoring preview under Scene Binding.
 - [x] Update authoring documentation.
 
 ## Resume Protocol
@@ -56,7 +58,7 @@ Last updated: 2026-07-11
 
 Done:
 - Script interface extraction rejects parameterized `@scene()` constructors.
-- Editor preview runs `onMounted()` for valid zero-argument Scenes.
+- Runtime runs `onMounted()` after initial Props and bindings; Editor Authoring does not run it.
 - Chinese and English authoring documents define the construction boundary.
 
 Next:

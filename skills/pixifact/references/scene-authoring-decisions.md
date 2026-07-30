@@ -17,7 +17,7 @@
 ```md
 Decision:
 - Source of truth: edit `src/scenes/Hud.scene`
-- Script needed: yes, expose `@prop({ type: Number }) coins`
+- Script needed: yes, expose `@prop({ default: 0 }) declare coins: number`
 - Hierarchy: `HBoxContainer#resourceRow` groups icon + text
 - Validation: validate Hud.scene, compile-scenes, then build
 ```
@@ -28,7 +28,7 @@ Decision:
 | --- | --- |
 | 改位置、尺寸、颜色、图片、字体、静态文案 | `.scene` |
 | 调整父子层级、分组、布局容器、slot 填充 | `.scene` |
-| 运行时改变文字、显隐、颜色、数值 | `.ts` 通过 `@part()` 和 `@prop()` / 方法更新 |
+| 运行时改变由公开 Prop 控制的文字、显隐、颜色、数值 | `.ts` 声明 `@prop()`，`.scene` 用 Binding 指向目标属性 |
 | 点击、拖拽、输入、动画、计时器、状态切换 | `.ts` |
 | 父 Scene 给子 Scene 传值 | 子 `.ts` 暴露 `@prop()`，父 `.scene` 写属性 |
 | 子 Scene 通知父 Scene | 子 `.ts` 暴露 `@event()`，父 `.scene` 写 `@eventName="actionName"` |
@@ -52,7 +52,8 @@ Decision:
 | 需要 | 用法 |
 | --- | --- |
 | 脚本访问 `.scene` 节点 | 节点写稳定 `id`，脚本写 `@part()` |
-| 父 Scene 设置子 Scene 单个值 | `@prop({ type: String / Number / Boolean })` |
+| 父 Scene 设置子 Scene 单个值 | `@prop({ default: ... }) declare name: string / number / boolean` |
+| 一个 Prop 切换一组样式 | `defineVariants()` + `@prop({ variants })` + `{variant.field}` Binding |
 | 父 Scene 设置一组相关字段 | exported structured prop class + dot-path attributes |
 | 子 Scene 发出动作 | `@event()` + `createEvent()` |
 | 父 Scene 填充子内容 | 子 `.scene` 写 `<slot name="..."/>`，脚本写 `@slot()` |
@@ -62,7 +63,8 @@ Decision:
 ```txt
 需要改变显示文字？
 - 静态文案：改 <Text text="...">
-- 运行时可变：Text 写 id，脚本 @part()，公开 @prop() 或方法更新
+- 运行时可变且属于公开契约：脚本声明 `@prop()`，`.scene` 写 `<Text text="{propName}">`
+- 仅内部行为更新：Text 写稳定 id，脚本用 `@part()` 或显式方法更新
 
 需要按钮点击？
 - 子 Scene 暴露 @event() readonly click = createEvent()
@@ -100,7 +102,8 @@ Decision:
 - 不要猜不存在的 `.scene` 标签或属性。
 - 不要为缺失 `@part()`、未知 prop、未知 event 写静默 fallback。
 - 不要为了单次使用过早拆子 Scene。
-- 不要用旧字符串 prop 类型，例如 `@prop({ type: 'string' })`。
+- 不要给 `@prop()` 写 `type` option、initializer、accessor、getter 或 setter。
+- 不要在 `.scene` Binding 中写表达式、插值、watch 或双向绑定。
 
 ## 验证选择
 

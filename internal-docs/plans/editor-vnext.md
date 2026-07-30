@@ -68,6 +68,7 @@
 - 画布直接操作必须保持已有 frame layout 语义，不能把 layout 节点偷偷改成自由 `x / y`。
 - 第一版不做多选、智能吸附、旋转控制柄、动画时间轴、游戏输入模拟和 Runtime Profiler。
 - authoring 预览不触发 Scene 的游戏生命周期和交互事件。
+- authoring 预览不导入或执行项目 TypeScript；Bun Host 静态提取配对脚本契约，浏览器只解释 `.scene` 与只读 interface。
 - Inspector 由 Pixi 节点 schema 和 Scene interface 驱动，负责 Scene 根、节点、Scene Instance props 和 events。
 - Slot 内容通过层级树编辑；Inspector 只显示 slot 名称与节点数量。
 - 属性控件区分显式值与 schema 默认值；重置操作从 `.scene` 删除显式属性。
@@ -172,12 +173,14 @@ Done:
 - 新增 Editor server、SceneDocument 和 Vue Inspector / Pinia 回归测试。
 - 完全删除旧 Tauri host、React / React Aria / Dockview / Zustand UI、运行服务、旧 live bridge、对应测试和依赖。
 - runtime preview 与 Scene binding 已迁移到浏览器 `/api/file`，不再依赖旧 host bridge 或 document controller。
+- 配对脚本 contract extraction 已迁到 Bun Host 的 `/api/scene-bindings`；浏览器包不含 TypeScript compiler，也不执行项目脚本。
+- Scene Instance primitive Props 与 Variant 已接入 Inspector，连续修改通过生成访问器原地更新内部 Binding。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
 - 仓库只保留 Vue 浏览器 Editor，不存在旧桌面入口或兼容层。
 - vNext 还没有重新接通 read-only live context，也没有实现层级结构编辑、画布拖动 / resize 和完整资产交互。
-- 当前浏览器主包约 4.5 MB，原因是 runtime preview 将 TypeScript compiler 一并打包；第一闭环可接受，后续应把脚本编译迁到 Bun 服务。
+- 当前浏览器主包约 795 KB，整个 Editor 构建约 804 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
 
 Currently Failing:
 - None。

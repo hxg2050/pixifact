@@ -5,6 +5,7 @@ import {
     type CompilerSceneCommand,
     type SceneTemplate,
     type SceneTemplateValue,
+    isSceneTemplateBindingValue,
 } from 'pixifact/compiler';
 import { findSceneNodeByLocator } from './sceneTree';
 
@@ -167,5 +168,5 @@ function scenePropValue(props: Record<string, SceneTemplateValue>, prop: string)
         return props[prop];
     }
     const value = props[root];
-    return value && typeof value === 'object' ? value[field] : undefined;
+    return value && typeof value === 'object' && !isSceneTemplateBindingValue(value) ? value[field] : undefined;
 }

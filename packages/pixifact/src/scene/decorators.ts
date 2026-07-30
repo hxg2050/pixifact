@@ -6,8 +6,10 @@ import type {
     ScenePartDecoratorOptions,
     ScenePropDecoratorOptions,
     SceneSlotDecoratorOptions,
+    SceneVariants,
 } from '../compiler/spec';
 import { mountSceneClass } from './sceneRuntime';
+import { initializeSceneProps } from './sceneBindingRuntime';
 
 type SceneConstructor = new (...args: unknown[]) => object;
 
@@ -23,14 +25,18 @@ export function scene(): SceneClassDecorator {
     return ((constructor: SceneConstructor) => {
         const SceneClass = class extends constructor {
             constructor(...args: unknown[]) {
-                super(...args);
+                super();
 
                 if (new.target !== SceneClass) {
                     return;
                 }
 
-                const result = mountSceneClass(this as object as Group, SceneClass);
                 const metadata = sceneMetadata(constructor);
+                const initialProps = args[0] && typeof args[0] === 'object'
+                    ? args[0] as Record<string, unknown>
+                    : {};
+                initializeSceneProps(this, metadata.props, initialProps);
+                const result = mountSceneClass(this as object as Group, SceneClass);
                 for (const [property, id] of metadata.parts) {
                     Object.defineProperty(this, property, {
                         configurable: true,
@@ -47,11 +53,6 @@ export function scene(): SceneClassDecorator {
                         writable: false,
                     });
                 }
-                for (const [property, propOptions] of metadata.props) {
-                    if (propOptions.default !== undefined) {
-                        (this as Record<string, unknown>)[property] = propOptions.default;
-                    }
-                }
                 const ready = (this as { onMounted?: () => void }).onMounted;
                 if (ready) {
                     ready.call(this);
@@ -67,6 +68,10 @@ export function prop(options: ScenePropDecoratorOptions): SceneMemberDecorator {
     return ((target: object, propertyKey: string | symbol) => {
         sceneMetadata(target.constructor).props.set(memberName(propertyKey), options);
     }) as SceneMemberDecorator;
+}
+
+export function defineVariants<const TVariants extends SceneVariants>(variants: TVariants): TVariants {
+    return variants;
 }
 
 export function event(_options: SceneEventDecoratorOptions = {}): SceneMemberDecorator {

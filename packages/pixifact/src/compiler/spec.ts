@@ -21,7 +21,15 @@ export type SceneTemplatePrimitiveType =
 
 export type SceneTemplateScalarValue = string | number | boolean;
 export type SceneTemplateStructValue = Record<string, SceneTemplateScalarValue>;
-export type SceneTemplateValue = SceneTemplateScalarValue | SceneTemplateStructValue;
+export interface SceneTemplateBindingValue {
+    kind: 'binding';
+    path: [string] | [string, string];
+}
+export type SceneTemplateValue = SceneTemplateScalarValue | SceneTemplateStructValue | SceneTemplateBindingValue;
+
+export function isSceneTemplateBindingValue(value: SceneTemplateValue | undefined): value is SceneTemplateBindingValue {
+    return !!value && typeof value === 'object' && value.kind === 'binding';
+}
 
 export type SceneTemplatePrimitivePropType = 'string' | 'number' | 'boolean';
 
@@ -42,9 +50,19 @@ export interface SceneTemplateStructPropContract {
     fields: Record<string, SceneTemplateStructFieldContract>;
 }
 
+export type SceneTemplateVariantFields = Record<string, SceneTemplateScalarValue>;
+export type SceneTemplateVariants = Record<string, SceneTemplateVariantFields>;
+
+export interface SceneTemplateVariantPropContract {
+    type: 'variant';
+    default: string;
+    variants: SceneTemplateVariants;
+}
+
 export type SceneTemplatePropContract =
     | SceneTemplatePrimitivePropContract
-    | SceneTemplateStructPropContract;
+    | SceneTemplateStructPropContract
+    | SceneTemplateVariantPropContract;
 
 export interface SceneTemplateEventContract {
     type: 'action';
@@ -126,12 +144,11 @@ export interface SceneScriptInterface {
 
 export type SceneClassDecorator = ClassDecorator;
 export type SceneMemberDecorator = PropertyDecorator & MethodDecorator;
-export type SceneStructConstructor = new () => object;
-export type ScenePropType = StringConstructor | NumberConstructor | BooleanConstructor | SceneStructConstructor;
+export type SceneVariants = Record<string, Record<string, SceneTemplateScalarValue>>;
 
 export interface ScenePropDecoratorOptions {
-    type: ScenePropType;
-    default?: SceneTemplateValue;
+    default?: SceneTemplateScalarValue;
+    variants?: SceneVariants;
 }
 
 export interface SceneEventDecoratorOptions {

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as Pixi from 'pixi.js';
+import { Group, Rect } from 'pixifact/runtime';
 import {
     createCompilerSceneRuntimePreview,
 } from '../apps/editor/src/preview/compilerSceneRuntimePreview';
@@ -8,6 +9,7 @@ import {
     readCompilerSceneBindingIndex,
     sceneInterfacesForCompilerTemplate,
 } from '../apps/editor/src/services/sceneBindingIndex';
+import type { SceneScriptInterface } from 'pixifact/compiler';
 
 type ProjectFileContent = string | Uint8Array;
 
@@ -22,7 +24,10 @@ function sceneScript(className: string) {
     ].join('\n');
 }
 
-function createProject(files: Record<string, ProjectFileContent>) {
+function createProject(
+    files: Record<string, ProjectFileContent>,
+    sceneBindings: Record<string, SceneScriptInterface> = {},
+) {
     const fileEntries = Object.keys(files).map((path) => ({
         kind: path.endsWith('.scene')
             ? 'scene' as const
@@ -40,9 +45,24 @@ function createProject(files: Record<string, ProjectFileContent>) {
         root: '/tmp/GameProject',
         scenes: fileEntries.filter((file) => file.kind === 'scene').map((file) => file.path),
     });
+    const bindings = {
+        ...Object.fromEntries(fileEntries.filter((file) => file.kind === 'scene').map((file) => {
+            const className = file.path.split('/').at(-1)!.replace(/\.scene$/, '');
+            return [file.path, {
+                scene: file.path,
+                className,
+                interface: { props: {}, events: {}, slots: {} },
+                parts: {},
+            } satisfies SceneScriptInterface];
+        })),
+        ...sceneBindings,
+    };
 
     vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
         const url = new URL(typeof input === 'string' ? input : input instanceof URL ? input.href : input.url, 'http://localhost');
+        if (url.pathname === '/api/scene-bindings') {
+            return Response.json(bindings);
+        }
         const path = url.searchParams.get('path') ?? '';
         const content = files[path];
         return content === undefined
@@ -82,17 +102,18 @@ describe('browser Editor runtime preview', () => {
     it('derives Scene bindings from files served by the browser project API', async () => {
         const projectTree = createProject({
             'src/scenes/Button.scene': '<Scene name="Button" />\n',
-            'src/scenes/Button.ts': [
-                "import { Group } from 'pixifact/runtime';",
-                "import { prop, scene } from 'pixifact/scene';",
-                '',
-                '@scene()',
-                'export class Button extends Group {',
-                "  @prop({ type: String, default: 'Button' })",
-                "  accessor label = 'Button';",
-                '}',
-                '',
-            ].join('\n'),
+            'src/scenes/Button.ts': 'throw new Error("Editor must not execute project scripts");\n',
+        }, {
+            'src/scenes/Button.scene': {
+                scene: 'src/scenes/Button.scene',
+                className: 'Button',
+                interface: {
+                    props: { label: { type: 'string', default: 'Button' } },
+                    events: {},
+                    slots: {},
+                },
+                parts: {},
+            },
         });
 
         const index = await readCompilerSceneBindingIndex(projectTree);
@@ -103,6 +124,7 @@ describe('browser Editor runtime preview', () => {
         });
         expect(index['src/scenes/Button.scene'].interface.props.label.default).toBe('Button');
         expect(fetch).toHaveBeenCalledWith('/api/file?path=src%2Fscenes%2FButton.scene');
+        expect(fetch).not.toHaveBeenCalledWith('/api/file?path=src%2Fscenes%2FButton.ts');
     });
 
     it('renders Pixifact nodes and layout from the current Scene document', async () => {
@@ -128,6 +150,64 @@ describe('browser Editor runtime preview', () => {
             fillColor: 0x111827,
             radius: 12,
         });
+        preview.dispose();
+    });
+
+    it('renders Scene Instance Props and Variants through static Authoring bindings', async () => {
+        const projectTree = createProject({
+            'src/scenes/Button.scene': [
+                '<Scene name="Button" width="220" height="64">',
+                '  <Rect id="background" fillColor="{tone.background}" />',
+                '  <Text id="labelText" text="{label}" fill="{tone.text}" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            'src/scenes/Button.ts': 'throw new Error("Authoring must not execute this module");\n',
+            'src/scenes/Toolbar.scene': [
+                '<Scene name="Toolbar">',
+                '  <Button id="inventory" scene="./Button.scene" label="背包" tone="danger" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            'src/scenes/Toolbar.ts': sceneScript('Toolbar'),
+        }, {
+            'src/scenes/Button.scene': {
+                scene: 'src/scenes/Button.scene',
+                className: 'Button',
+                interface: {
+                    props: {
+                        label: { type: 'string', default: 'Button' },
+                        tone: {
+                            type: 'variant',
+                            default: 'primary',
+                            variants: {
+                                primary: { background: '#24456f', text: '#fff3cf' },
+                                danger: { background: '#713044', text: '#fff0f4' },
+                            },
+                        },
+                    },
+                    events: {},
+                    slots: {},
+                },
+                parts: {},
+            },
+        });
+
+        const preview = await createPreview(projectTree, 'src/scenes/Toolbar.scene');
+        const inventory = preview.nodes.get('0:inventory') as Group & { label: string; tone: string };
+        const background = inventory.children[0] as Rect;
+        const label = inventory.children[1] as Pixi.Text;
+
+        expect(preview.nodes.has('0:inventory/0:background')).toBe(false);
+        expect(background.fillColor).toBe(0x713044);
+        expect(label.text).toBe('背包');
+
+        inventory.label = '仓库';
+        inventory.tone = 'primary';
+
+        expect(label.text).toBe('仓库');
+        expect(background.fillColor).toBe(0x24456f);
+        expect(fetch).not.toHaveBeenCalledWith('/api/file?path=src%2Fscenes%2FButton.ts');
         preview.dispose();
     });
 

@@ -2,6 +2,11 @@ import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import {
+    normalizeSceneAssetId,
+    pairedSceneScriptPath,
+} from 'pixifact/compiler';
+import { extractSceneScriptInterfaces } from 'pixifact/compiler-node';
 
 export interface EditorProjectServiceOptions {
     projectRoot: string;
@@ -117,6 +122,20 @@ function listProjectFiles(projectRoot: string) {
     return files.sort((left, right) => left.path.localeCompare(right.path));
 }
 
+function readProjectSceneBindings(projectRoot: string) {
+    const scenePaths = listProjectFiles(projectRoot)
+        .filter((file) => file.kind === 'scene')
+        .map((file) => normalizeSceneAssetId(file.path));
+    return extractSceneScriptInterfaces(scenePaths.map((scene) => {
+        const scriptPath = pairedSceneScriptPath(scene);
+        return {
+            scene,
+            fileName: path.resolve(projectRoot, scriptPath),
+            source: fs.readFileSync(resolveInsideRoot(projectRoot, scriptPath), 'utf8'),
+        };
+    }));
+}
+
 function resolveInsideRoot(root: string, requestedPath: string) {
     if (!requestedPath || path.isAbsolute(requestedPath)) {
         throw new EditorRequestError(400, 'Project path must stay inside the project root.');
@@ -185,6 +204,9 @@ export function createEditorProjectService(options: EditorProjectServiceOptions)
                 }
                 const source = fs.readFileSync(resolveInsideRoot(projectRoot, scenePath), 'utf8');
                 return jsonResponse({ path: scenePath, source, version: sceneVersion(source) });
+            }
+            if (url.pathname === '/api/scene-bindings' && request.method === 'GET') {
+                return jsonResponse(readProjectSceneBindings(projectRoot));
             }
             if (url.pathname === '/api/scene' && request.method === 'PUT') {
                 const scenePath = requestPath(url);

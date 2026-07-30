@@ -1,35 +1,43 @@
-/// <reference path="../vite-env.d.ts" />
-
-import ts from 'typescript';
 import * as Pixi from 'pixi.js';
-import { Container } from 'pixi.js';
-import { Control, GridContainer, Group, HBoxContainer, Image, NineImage, Rect, ScrollContainer, TileImage, VBoxContainer, applyPixifactViewportLayout, calculatePixifactViewportLayout, getFrameLayout, layoutFrameChildren, requestFrameLayout, setFrameLayout } from 'pixifact/runtime';
-import * as sceneRuntime from 'pixifact/scene';
+import { Container, Graphics, Texture } from 'pixi.js';
 import {
-    compileSceneTemplateToTs,
-    builtinSceneInterface,
-    builtinSceneInterfaces,
-    builtinSceneNameFromAssetId,
+    GridContainer,
+    Group,
+    HBoxContainer,
+    Image,
+    NineImage,
+    Rect,
+    ScrollContainer,
+    TileImage,
+    VBoxContainer,
+    layoutFrameChildren,
+} from 'pixifact/runtime';
+import {
+    applySceneNodeProp,
+    bindSceneNodeProp,
+    initializeScenePropsFromInterface,
+    readSceneBindingValue,
+} from 'pixifact/scene';
+import {
     compilerSceneNodeLocator,
-    isBuiltinSceneAssetId,
+    isSceneTemplateBindingValue,
     normalizeSceneAssetId,
-    pairedSceneScriptPath,
     resolveSceneReference,
-    sceneClassAlias,
-    toPosixPath,
-    parseSceneTemplate,
+    type PixiTemplateNode,
+    type SceneInstanceTemplateNode,
+    type SceneTemplate,
+    type SceneTemplateInterface,
+    type SceneTemplateNode,
+    type SceneTemplatePrimitiveType,
+    type SceneTemplateValue,
 } from 'pixifact/compiler';
 import type { PixifactProjectResolution } from 'pixifact';
-import type { SceneTemplate, SceneTemplateInterface, SceneTemplateNode } from 'pixifact/compiler';
-import { builtinSceneScriptSources } from './builtinSceneScriptSources';
 import {
     findFileByPath,
     readProjectFileBytes,
-    readProjectFileText,
+    type ProjectFileTreeNode,
 } from '../services/projectFileTree';
 import { readCompilerSceneBindingIndex } from '../services/sceneBindingIndex';
-import type { CompilerSceneBindingIndex } from '../services/sceneBindingIndex';
-import type { ProjectFileTreeNode } from '../services/projectFileTree';
 
 interface CreateCompilerSceneRuntimePreviewOptions {
     document: CompilerScenePreviewDocument;
@@ -51,37 +59,23 @@ export interface CompilerSceneRuntimePreview {
     dispose: () => void;
 }
 
-interface PreviewModule {
-    id: string;
-    kind: 'generated' | 'project' | 'builtin';
-    source: string;
-}
-
-interface PreviewModuleRecord {
-    exports: Record<string, unknown>;
-    loaded: boolean;
-}
-
-type PreviewSceneConstructor = new () => unknown;
-
-interface PreviewRuntimeContext {
+interface AuthoringContext {
+    interfaces: Record<string, SceneTemplateInterface>;
+    nodes: Map<string, Container>;
+    objectUrls: string[];
     projectResolution?: PixifactProjectResolution;
     projectTree: ProjectFileTreeNode;
-    scenePath: string;
     templates: Map<string, SceneTemplate>;
-    sceneInterfaces: Record<string, SceneTemplateInterface>;
-    slotsByTarget: WeakMap<Container, Map<string, Container>>;
-    mountedChildrenByTarget: WeakMap<Container, Map<string, Container[]>>;
-    objectUrls: string[];
+    textures: Map<string, Texture>;
 }
 
-const sceneModuleId = 'pixifact/scene';
-const runtimeModuleId = 'pixifact/runtime';
-const pixiModuleId = 'pixi.js';
-const projectModulePrefix = 'pixifact-preview:project:';
-const builtinModulePrefix = 'pixifact-preview:builtin:';
-const generatedModulePrefix = 'pixifact-preview:generated:';
-const projectScriptExtensions = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'] as const;
+interface RenderScope {
+    bindingRoot: Group;
+    collectNodes: boolean;
+    scenePath: string;
+    slots: Map<string, Container>;
+}
+
 const assetMimeTypes: Record<string, string> = {
     '.gif': 'image/gif',
     '.jpg': 'image/jpeg',
@@ -99,7 +93,15 @@ const assetParsers: Record<string, string> = {
     '.webp': 'texture',
 };
 
-const builtinPreviewSources: Record<string, string> = {};
+const graphicsProps = new Set([
+    'shape',
+    'radius',
+    'fill',
+    'fillAlpha',
+    'strokeColor',
+    'strokeWidth',
+    'strokeAlpha',
+]);
 
 function numericProp(value: unknown, defaultValue: number) {
     return typeof value === 'number' ? value : defaultValue;
@@ -113,65 +115,8 @@ function sceneSize(template: SceneTemplate, defaultSize?: PixifactProjectResolut
     };
 }
 
-function sceneScriptModuleId(scenePath: string) {
-    return isBuiltinSceneAssetId(scenePath)
-        ? builtinModuleId(`${builtinSceneNameFromAssetId(scenePath)}.ts`)
-        : projectModuleId(pairedSceneScriptPath(scenePath));
-}
-
-function sceneGeneratedModuleId(scenePath: string) {
-    return `${generatedModulePrefix}${scenePath}`;
-}
-
-function builtinSceneSource(scenePath: string) {
-    return builtinPreviewSources[`${builtinSceneNameFromAssetId(scenePath)}.scene`];
-}
-
 function projectAbsolutePath(projectTree: ProjectFileTreeNode, relativePath: string) {
     return `${projectTree.path}/${relativePath}`;
-}
-
-function projectModuleId(projectPath: string) {
-    return `${projectModulePrefix}${normalizeProjectPath(projectPath)}`;
-}
-
-function projectModulePath(moduleId: string) {
-    return moduleId.startsWith(projectModulePrefix)
-        ? moduleId.slice(projectModulePrefix.length)
-        : undefined;
-}
-
-function builtinModuleId(modulePath: string) {
-    return `${builtinModulePrefix}${normalizeProjectPath(modulePath)}`;
-}
-
-function builtinModulePath(moduleId: string) {
-    return moduleId.startsWith(builtinModulePrefix)
-        ? moduleId.slice(builtinModulePrefix.length)
-        : undefined;
-}
-
-function normalizeProjectPath(value: string) {
-    const segments: string[] = [];
-    for (const segment of toPosixPath(value).split('/')) {
-        if (!segment || segment === '.') {
-            continue;
-        }
-        if (segment === '..') {
-            if (segments.length === 0) {
-                throw new Error(`项目模块路径不能离开项目根目录：${value}`);
-            }
-            segments.pop();
-            continue;
-        }
-        segments.push(segment);
-    }
-    return segments.join('/');
-}
-
-function projectDirname(projectPath: string) {
-    const index = projectPath.lastIndexOf('/');
-    return index >= 0 ? projectPath.slice(0, index) : '';
 }
 
 function projectExtension(projectPath: string) {
@@ -180,675 +125,303 @@ function projectExtension(projectPath: string) {
     return index >= 0 ? fileName.slice(index).toLowerCase() : '';
 }
 
-function projectJoin(...parts: string[]) {
-    return normalizeProjectPath(parts.filter(Boolean).join('/'));
+function sceneInterface(context: AuthoringContext, scenePath: string) {
+    return context.interfaces[scenePath] ?? { props: {}, events: {}, slots: {} };
 }
 
-function isRelativeModuleSpecifier(value: string) {
-    return value.startsWith('./') || value.startsWith('../') || value.startsWith('/');
-}
-
-function projectModuleCandidates(projectPath: string) {
-    if (
-        projectScriptExtensions.includes(projectExtension(projectPath) as typeof projectScriptExtensions[number])
-        || assetMimeTypes[projectExtension(projectPath)]
-    ) {
-        return [projectPath];
-    }
-    return [
-        ...projectScriptExtensions.map((extension) => `${projectPath}${extension}`),
-        ...projectScriptExtensions.map((extension) => `${projectPath}/index${extension}`),
-    ];
-}
-
-function resolveProjectModulePath(projectTree: ProjectFileTreeNode, importerPath: string, source: string) {
-    const basePath = source.startsWith('/')
-        ? normalizeProjectPath(source)
-        : projectJoin(projectDirname(importerPath), source);
-    for (const candidate of projectModuleCandidates(basePath)) {
-        if (findFileByPath(projectTree, projectAbsolutePath(projectTree, candidate))) {
-            return candidate;
+function applyRootProps(root: Group, template: SceneTemplate, defaultSize?: PixifactProjectResolution) {
+    const size = sceneSize(template, defaultSize);
+    root.setSize(size.width, size.height);
+    for (const [prop, value] of Object.entries(template.props)) {
+        if (prop !== 'width' && prop !== 'height' && !isSceneTemplateBindingValue(value)) {
+            applySceneNodeProp(root, prop, value);
         }
     }
-    throw new Error(`找不到项目模块：${source}（来自 ${importerPath}）`);
 }
 
-function moduleIdFromImport(context: PreviewRuntimeContext, importerId: string, source: string) {
-    if (
-        source === pixiModuleId
-        || source === sceneModuleId
-        || source === runtimeModuleId
-        || source.startsWith(projectModulePrefix)
-        || source.startsWith(builtinModulePrefix)
-        || source.startsWith(generatedModulePrefix)
-    ) {
-        return source;
+function createPrimitive(context: AuthoringContext, node: PixiTemplateNode): Container {
+    const texture = typeof node.props.texture === 'string'
+        ? context.textures.get(node.props.texture) ?? Texture.EMPTY
+        : Texture.EMPTY;
+    const text = isSceneTemplateBindingValue(node.props.text) ? '' : String(node.props.text ?? '');
+    const style = Object.fromEntries(['fontSize', 'fontFamily', 'fontWeight', 'fill']
+        .flatMap((prop) => {
+            const value = node.props[prop];
+            return value === undefined || isSceneTemplateBindingValue(value) ? [] : [[prop, value]];
+        }));
+
+    switch (node.type) {
+        case 'Group': return new Group();
+        case 'GridContainer': return new GridContainer();
+        case 'HBoxContainer': return new HBoxContainer();
+        case 'ScrollContainer': return new ScrollContainer();
+        case 'VBoxContainer': return new VBoxContainer();
+        case 'Rect': return new Rect();
+        case 'Image': return new Image({ texture });
+        case 'NineImage': return new NineImage({ texture });
+        case 'TileImage': return new TileImage({ texture });
+        case 'Container': return new Pixi.Container();
+        case 'Sprite': return new Pixi.Sprite({ texture });
+        case 'Text': return new Pixi.Text({ text, style });
+        case 'BitmapText': return new Pixi.BitmapText({ text, style });
+        case 'HTMLText': return new Pixi.HTMLText({ text, style });
+        case 'Graphics': return new Pixi.Graphics();
+        case 'NineSliceSprite': return new Pixi.NineSliceSprite({ texture });
+        case 'TilingSprite': return new Pixi.TilingSprite({ texture });
+        default: return createAuthoringAdapter(node.type);
     }
-    if (isRelativeModuleSpecifier(source)) {
-        const importerPath = projectModulePath(importerId);
-        const builtinImporterPath = builtinModulePath(importerId);
-        if (builtinImporterPath) {
-            return builtinModuleId(resolveBuiltinModulePath(builtinImporterPath, source));
-        }
-        if (!importerPath) {
-            throw new Error(`预览模块 ${importerId} 不能使用相对导入 ${source}。`);
-        }
-        return projectModuleId(resolveProjectModulePath(context.projectTree, importerPath, source));
-    }
-    return source;
 }
 
-function resolveBuiltinModulePath(importerPath: string, source: string) {
-    const basePath = source.startsWith('/')
-        ? normalizeProjectPath(source)
-        : projectJoin(projectDirname(importerPath), source);
-    for (const candidate of projectModuleCandidates(basePath)) {
-        if (builtinPreviewSources[candidate]) {
-            return candidate;
-        }
-    }
-    throw new Error(`找不到内置模块：${source}（来自 ${importerPath}）`);
+function createAuthoringAdapter(_type: SceneTemplatePrimitiveType) {
+    return new Container();
 }
 
-function transpilePreviewModule(source: string) {
-    return ts.transpileModule(source, {
-        compilerOptions: {
-            esModuleInterop: true,
-            experimentalDecorators: true,
-            importHelpers: false,
-            module: ts.ModuleKind.CommonJS,
-            target: ts.ScriptTarget.ES2022,
-            useDefineForClassFields: true,
-        },
-    }).outputText;
-}
-
-function collectStaticModuleSpecifiers(source: string) {
-    const specifiers = new Set<string>();
-    const sourceFile = ts.createSourceFile('pixifact-preview.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
-
-    function addModuleSpecifier(moduleSpecifier: ts.Expression | undefined) {
-        if (moduleSpecifier && ts.isStringLiteralLike(moduleSpecifier)) {
-            specifiers.add(moduleSpecifier.text);
-        }
+function applyPrimitiveProps(scope: RenderScope, node: PixiTemplateNode, target: Container) {
+    if (node.id) {
+        target.label = node.id;
     }
-
-    function visit(node: ts.Node) {
-        if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
-            addModuleSpecifier(node.moduleSpecifier);
-            return;
-        }
-        if (
-            ts.isImportEqualsDeclaration(node)
-            && ts.isExternalModuleReference(node.moduleReference)
-        ) {
-            addModuleSpecifier(node.moduleReference.expression);
-            return;
-        }
-        if (
-            ts.isCallExpression(node)
-            && ts.isIdentifier(node.expression)
-            && node.expression.text === 'require'
-        ) {
-            addModuleSpecifier(node.arguments[0]);
-            return;
-        }
-        ts.forEachChild(node, visit);
-    }
-
-    visit(sourceFile);
-    return [...specifiers];
-}
-
-function collectSceneInstancePaths(
-    scenePath: string,
-    nodes: readonly SceneTemplateNode[],
-    paths = new Set<string>(),
-) {
-    for (const node of nodes) {
-        if (node.kind === 'slotOutlet') {
+    for (const [prop, value] of Object.entries(node.props)) {
+        if (isSceneTemplateBindingValue(value)) {
+            bindSceneNodeProp(scope.bindingRoot, value, target, prop);
             continue;
         }
-        if (node.kind === 'pixi') {
-            collectSceneInstancePaths(scenePath, node.children, paths);
+        if (prop === 'texture' || (node.type === 'Graphics' && graphicsProps.has(prop))) {
             continue;
         }
-        const resolved = resolveSceneReference(scenePath, node.scene);
-        paths.add(resolved);
-        for (const children of Object.values(node.slots)) {
-            collectSceneInstancePaths(scenePath, children, paths);
-        }
+        applySceneNodeProp(target, prop, value);
     }
-    return paths;
+    if (node.type === 'Graphics' && target instanceof Graphics) {
+        drawGraphics(target, node.props);
+    }
 }
 
-function sceneImportsFor(scenePath: string, template: SceneTemplate, templates: Map<string, SceneTemplate>) {
-    return [...collectSceneImportPaths(scenePath, template, templates)]
-        .sort()
-        .map((referencedScenePath) => {
-            const sceneTemplate = templates.get(referencedScenePath);
-            if (!sceneTemplate) {
-                throw new Error(`Scene "${scenePath}" references unknown Scene "${referencedScenePath}".`);
-            }
-            return {
-                scene: referencedScenePath,
-                exportName: sceneTemplate.name,
-                localName: sceneClassAlias(referencedScenePath),
-                source: sceneScriptModuleId(referencedScenePath),
-            };
+function drawGraphics(target: Graphics, props: Record<string, SceneTemplateValue>) {
+    const width = Number(props.width ?? 0);
+    const height = Number(props.height ?? 0);
+    const radius = Number(props.radius ?? 0);
+    target.clear();
+    if (props.shape === 'rect') {
+        target.rect(0, 0, width, height);
+    } else if (props.shape === 'roundRect') {
+        target.roundRect(0, 0, width, height, radius);
+    } else {
+        return;
+    }
+    target.fill({ color: Number(props.fill ?? 0xffffff), alpha: Number(props.fillAlpha ?? 1) });
+    if (Number(props.strokeWidth ?? 0) > 0) {
+        target.stroke({
+            width: Number(props.strokeWidth),
+            color: Number(props.strokeColor ?? 0),
+            alpha: Number(props.strokeAlpha ?? 1),
         });
+    }
 }
 
-function collectSceneImportPaths(scenePath: string, template: SceneTemplate, templates: Map<string, SceneTemplate>) {
-    const scenePaths = collectSceneInstancePaths(scenePath, template.children);
-    collectSceneStructSourcePaths(scenePath, template.children, templates, scenePaths);
-    return scenePaths;
+function sceneInstanceInitialProps(
+    scope: RenderScope,
+    node: SceneInstanceTemplateNode,
+    childInterface: SceneTemplateInterface,
+) {
+    return Object.fromEntries(Object.entries(node.props).flatMap(([prop, value]) => {
+        if (!childInterface.props[prop]) {
+            return [];
+        }
+        return [[
+            prop,
+            isSceneTemplateBindingValue(value)
+                ? readSceneBindingValue(scope.bindingRoot, value)
+                : value,
+        ]];
+    }));
 }
 
-function collectSceneStructSourcePaths(
-    scenePath: string,
+function applySceneInstanceProps(
+    scope: RenderScope,
+    node: SceneInstanceTemplateNode,
+    target: Group,
+    childInterface: SceneTemplateInterface,
+) {
+    for (const [prop, value] of Object.entries(node.props)) {
+        if (childInterface.props[prop]) {
+            if (isSceneTemplateBindingValue(value)) {
+                bindSceneNodeProp(scope.bindingRoot, value, target, prop);
+            }
+            continue;
+        }
+        if (isSceneTemplateBindingValue(value)) {
+            bindSceneNodeProp(scope.bindingRoot, value, target, prop);
+        } else {
+            applySceneNodeProp(target, prop, value);
+        }
+    }
+}
+
+function renderNodes(
+    context: AuthoringContext,
+    scope: RenderScope,
+    parent: Container,
     nodes: readonly SceneTemplateNode[],
-    templates: Map<string, SceneTemplate>,
-    scenePaths: Set<string>,
+    locatorPrefix = '',
 ) {
-    for (const node of nodes) {
+    for (const [index, node] of nodes.entries()) {
         if (node.kind === 'slotOutlet') {
+            scope.slots.set(node.name, parent);
             continue;
         }
+        const path = locatorPrefix ? `${locatorPrefix}/${index}` : String(index);
+        const locator = compilerSceneNodeLocator(node, path);
         if (node.kind === 'pixi') {
-            collectSceneStructSourcePaths(scenePath, node.children, templates, scenePaths);
+            const target = createPrimitive(context, node);
+            applyPrimitiveProps(scope, node, target);
+            if (node.props.zIndex !== undefined) {
+                parent.sortableChildren = true;
+            }
+            parent.addChild(target);
+            if (scope.collectNodes) {
+                context.nodes.set(locator, target);
+            }
+            renderNodes(context, scope, target, node.children, locator);
             continue;
         }
-        const resolvedScenePath = resolveSceneReference(scenePath, node.scene);
-        const sceneInterface = templates.get(resolvedScenePath)?.interface;
-        for (const [key, value] of Object.entries(node.props)) {
-            const contract = value && typeof value === 'object' ? sceneInterface?.props[key] : undefined;
-            if (contract?.type === 'struct' && contract.sourceScene) {
-                scenePaths.add(contract.sourceScene);
-            }
-        }
-        for (const children of Object.values(node.slots)) {
-            collectSceneStructSourcePaths(scenePath, children, templates, scenePaths);
-        }
+        renderSceneInstance(context, scope, parent, node, locator);
     }
 }
 
-function sceneClassAliasesFor(scenePath: string, template: SceneTemplate) {
-    const aliases: Record<string, string> = {};
+function renderSceneInstance(
+    context: AuthoringContext,
+    scope: RenderScope,
+    parent: Container,
+    node: SceneInstanceTemplateNode,
+    locator: string,
+) {
+    const referencedPath = resolveSceneReference(scope.scenePath, node.scene);
+    const template = context.templates.get(referencedPath);
+    if (!template) {
+        throw new Error(`找不到 Scene：${referencedPath}`);
+    }
+    const childInterface = sceneInterface(context, referencedPath);
+    const target = new Group();
+    initializeScenePropsFromInterface(target, childInterface, sceneInstanceInitialProps(scope, node, childInterface));
+    applyRootProps(target, template);
+    const childScope: RenderScope = {
+        bindingRoot: target,
+        collectNodes: false,
+        scenePath: referencedPath,
+        slots: new Map(),
+    };
+    renderNodes(context, childScope, target, template.children);
+    applySceneInstanceProps(scope, node, target, childInterface);
+    if (node.id && !childInterface.props.label) {
+        target.label = node.id;
+    }
+    if (node.props.zIndex !== undefined) {
+        parent.sortableChildren = true;
+    }
+    parent.addChild(target);
+    if (scope.collectNodes) {
+        context.nodes.set(locator, target);
+    }
+
+    for (const [slot, children] of Object.entries(node.slots)) {
+        const host = childScope.slots.get(slot);
+        if (!host) {
+            continue;
+        }
+        renderNodes(context, scope, host, children, `${locator}/slot:${slot}`);
+    }
+    layoutFrameChildren(target);
+}
+
+function collectTextureReferences(template: SceneTemplate, textures: Set<string>) {
     function visit(nodes: readonly SceneTemplateNode[]) {
         for (const node of nodes) {
             if (node.kind === 'slotOutlet') {
                 continue;
             }
+            if (typeof node.props.texture === 'string') {
+                textures.add(node.props.texture);
+            }
             if (node.kind === 'pixi') {
                 visit(node.children);
-                continue;
-            }
-            const referencedScenePath = resolveSceneReference(scenePath, node.scene);
-            aliases[node.scene] = sceneClassAlias(referencedScenePath);
-            aliases[referencedScenePath] = sceneClassAlias(referencedScenePath);
-            for (const children of Object.values(node.slots)) {
-                visit(children);
+            } else {
+                for (const children of Object.values(node.slots)) {
+                    visit(children);
+                }
             }
         }
     }
     visit(template.children);
-    return aliases;
 }
 
-function sceneInterfacesFor(scenePath: string, template: SceneTemplate, sceneInterfaces: Record<string, SceneTemplateInterface>) {
-    const interfaces: Record<string, SceneTemplateInterface> = {};
-    function visit(nodes: readonly SceneTemplateNode[]) {
-        for (const node of nodes) {
-            if (node.kind === 'slotOutlet') {
-                continue;
-            }
-            if (node.kind === 'pixi') {
-                visit(node.children);
-                continue;
-            }
-            const referencedScenePath = resolveSceneReference(scenePath, node.scene);
-            const sceneInterface = sceneInterfaces[referencedScenePath];
-            if (sceneInterface) {
-                interfaces[node.scene] = sceneInterface;
-                interfaces[referencedScenePath] = sceneInterface;
-            }
-            for (const children of Object.values(node.slots)) {
-                visit(children);
-            }
-        }
+async function loadTextures(context: AuthoringContext) {
+    const references = new Set<string>();
+    for (const template of context.templates.values()) {
+        collectTextureReferences(template, references);
     }
-    visit(template.children);
-    return interfaces;
+    await Promise.all([...references].map(async (reference) => {
+        context.textures.set(reference, await loadPreviewAsset(context, reference));
+    }));
 }
 
-async function readProjectModule(
-    context: PreviewRuntimeContext,
-    projectPath: string,
-    modulesById: Map<string, PreviewModule>,
-): Promise<PreviewModule> {
-    const { projectTree } = context;
-    const normalizedPath = normalizeProjectPath(projectPath);
-    const id = projectModuleId(normalizedPath);
-    const existing = modulesById.get(id);
-    if (existing) {
-        return existing;
-    }
-
-    const file = findFileByPath(projectTree, projectAbsolutePath(projectTree, normalizedPath));
-    if (!file) {
-        throw new Error(`找不到项目脚本：${normalizedPath}`);
-    }
-    const module: PreviewModule = {
-        id,
-        kind: 'project',
-        source: assetMimeTypes[projectExtension(normalizedPath)]
-            ? `export default ${JSON.stringify(await createProjectAssetObjectUrl(context, normalizedPath, file))};`
-            : await readProjectFileText(projectTree, file),
-    };
-    modulesById.set(id, module);
-
-    for (const source of collectStaticModuleSpecifiers(transpilePreviewModule(module.source))) {
-        if (isRelativeModuleSpecifier(source)) {
-            await readProjectModule(
-                context,
-                resolveProjectModulePath(projectTree, normalizedPath, source),
-                modulesById,
-            );
-        }
-    }
-
-    return module;
-}
-
-async function readBuiltinModule(
-    modulePath: string,
-    modulesById: Map<string, PreviewModule>,
-) {
-    const normalizedPath = normalizeProjectPath(modulePath);
-    const id = builtinModuleId(normalizedPath);
-    const existing = modulesById.get(id);
-    if (existing) {
-        return existing;
-    }
-
-    const source = builtinPreviewSources[normalizedPath];
-    if (!source) {
-        throw new Error(`找不到内置脚本：${normalizedPath}`);
-    }
-    const module: PreviewModule = {
-        id,
-        kind: 'builtin',
-        source,
-    };
-    modulesById.set(id, module);
-
-    for (const dependency of collectStaticModuleSpecifiers(transpilePreviewModule(source))) {
-        if (isRelativeModuleSpecifier(dependency)) {
-            await readBuiltinModule(resolveBuiltinModulePath(normalizedPath, dependency), modulesById);
-        }
-    }
-
-    return module;
-}
-
-function createGeneratedSceneModule(
-    scenePath: string,
-    template: SceneTemplate,
-    templates: Map<string, SceneTemplate>,
-    sceneInterfaces: Record<string, SceneTemplateInterface>,
-    defaultRootSize?: PixifactProjectResolution,
-): PreviewModule {
-    return {
-        id: sceneGeneratedModuleId(scenePath),
-        kind: 'generated',
-        source: compileSceneTemplateToTs(template, {
-            registrationPath: scenePath,
-            defaultRootSize,
-            scriptImport: {
-                exportName: template.name,
-                localName: sceneClassAlias(scenePath),
-                source: sceneScriptModuleId(scenePath),
-            },
-            sceneImports: sceneImportsFor(scenePath, template, templates),
-            sceneClassAliases: sceneClassAliasesFor(scenePath, template),
-            sceneDependencies: [...collectSceneInstancePaths(scenePath, template.children)].sort(),
-            sceneInterfaces: sceneInterfacesFor(scenePath, template, sceneInterfaces),
-        }),
-    };
-}
-
-async function collectPreviewModules(
-    context: PreviewRuntimeContext,
-    bindingIndex: CompilerSceneBindingIndex,
-    document: CompilerScenePreviewDocument,
-) {
-    const scenePaths = new Set<string>();
-
-    function includeScene(scenePath: string) {
-        if (scenePaths.has(scenePath)) {
-            return;
-        }
-        scenePaths.add(scenePath);
-        if (scenePath === context.scenePath) {
-            context.templates.set(scenePath, document.template);
-        } else if (isBuiltinSceneAssetId(scenePath)) {
-            const source = builtinSceneSource(scenePath);
-            if (!source) {
-                throw new Error(`找不到内置 Scene：${scenePath}`);
-            }
-            const template = parseSceneTemplate(source);
-            template.interface = builtinSceneInterface(scenePath, builtinSceneScriptSources);
-            context.templates.set(scenePath, template);
-            context.sceneInterfaces[scenePath] = template.interface;
-        } else {
-            const binding = bindingIndex[scenePath];
-            if (!binding) {
-                throw new Error(`找不到 Scene：${scenePath}`);
-            }
-            context.templates.set(scenePath, binding.template);
-            context.sceneInterfaces[scenePath] = binding.interface;
-        }
-        const template = context.templates.get(scenePath)!;
-        for (const referencedScenePath of collectSceneInstancePaths(scenePath, template.children)) {
-            includeScene(referencedScenePath);
-        }
-        for (const referencedScenePath of collectSceneImportPaths(scenePath, template, context.templates)) {
-            includeScene(referencedScenePath);
-        }
-    }
-
-    includeScene(context.scenePath);
-
-    const modulesById = new Map<string, PreviewModule>();
-    for (const scenePath of [...scenePaths].sort()) {
-        if (isBuiltinSceneAssetId(scenePath)) {
-            await readBuiltinModule(`${builtinSceneNameFromAssetId(scenePath)}.ts`, modulesById);
-        } else {
-            await readProjectModule(context, pairedSceneScriptPath(scenePath), modulesById);
-        }
-    }
-    for (const scenePath of [...scenePaths].sort()) {
-        const module = createGeneratedSceneModule(
-            scenePath,
-            context.templates.get(scenePath)!,
-            context.templates,
-            context.sceneInterfaces,
-            scenePath === context.scenePath ? context.projectResolution : undefined,
-        );
-        modulesById.set(module.id, module);
-    }
-    return [...modulesById.values()];
-}
-
-function createPreviewSceneRuntime(context: PreviewRuntimeContext) {
-    return {
-        ...sceneRuntime,
-        loadSceneTexture: (source: string) => loadPreviewAsset(context, source),
-        registerSlot(target: Container, name: string, host: Container) {
-            sceneRuntime.registerSlot(target, name, host);
-            let slots = context.slotsByTarget.get(target);
-            if (!slots) {
-                slots = new Map();
-                context.slotsByTarget.set(target, slots);
-            }
-            slots.set(name, host);
-        },
-        mount<T extends Container>(target: Container, child: T, slot = 'default') {
-            const mounted = sceneRuntime.mount(target, child, slot);
-            let slots = context.mountedChildrenByTarget.get(target);
-            if (!slots) {
-                slots = new Map();
-                context.mountedChildrenByTarget.set(target, slots);
-            }
-            const children = slots.get(slot) ?? [];
-            children.push(child);
-            slots.set(slot, children);
-            return mounted;
-        },
-    };
-}
-
-function createModuleLoader(context: PreviewRuntimeContext, modules: PreviewModule[]) {
-    const moduleSources = new Map(modules.map((module) => [module.id, transpilePreviewModule(module.source)]));
-    const records = new Map<string, PreviewModuleRecord>();
-    const runtime = createPreviewSceneRuntime(context);
-    const pixiRuntime = createPreviewPixiRuntime(context);
-
-    function requireModule(id: string, importerId?: string): Record<string, unknown> {
-        const resolvedId = importerId ? moduleIdFromImport(context, importerId, id) : id;
-        if (resolvedId === pixiModuleId) {
-            return pixiRuntime as unknown as Record<string, unknown>;
-        }
-        if (resolvedId === sceneModuleId) {
-            return runtime as unknown as Record<string, unknown>;
-        }
-        if (resolvedId === runtimeModuleId) {
-            return {
-                Control,
-                GridContainer,
-                Group,
-                HBoxContainer,
-                Image,
-                NineImage,
-                Rect,
-                ScrollContainer,
-                TileImage,
-                VBoxContainer,
-                applyPixifactViewportLayout,
-                calculatePixifactViewportLayout,
-                getFrameLayout,
-                layoutFrameChildren,
-                requestFrameLayout,
-                setFrameLayout,
-            };
-        }
-
-        const existing = records.get(resolvedId);
-        if (existing) {
-            return existing.exports;
-        }
-
-        const source = moduleSources.get(resolvedId);
-        if (!source) {
-            throw new Error(`预览暂不支持导入模块：${resolvedId}`);
-        }
-
-        const record = { exports: {}, loaded: false };
-        records.set(resolvedId, record);
-        const module = { exports: record.exports };
-        const execute = new Function('exports', 'require', 'module', source);
-        execute(record.exports, (source: string) => requireModule(source, resolvedId), module);
-        record.exports = module.exports as Record<string, unknown>;
-        record.loaded = true;
-        records.set(resolvedId, record);
-        return record.exports;
-    }
-
-    async function loadModule(id: string) {
-        const existing = records.get(id);
-        if (existing?.loaded) {
-            return existing.exports;
-        }
-        const source = moduleSources.get(id);
-        if (!source) {
-            throw new Error(`预览暂不支持导入模块：${id}`);
-        }
-
-        const record = existing ?? { exports: {}, loaded: false };
-        records.set(id, record);
-        const module = { exports: record.exports };
-        const execute = new Function('exports', 'require', 'module', `return (async () => {\n${source}\n})();`);
-        await execute(record.exports, (source: string) => requireModule(source, id), module);
-        record.exports = module.exports as Record<string, unknown>;
-        record.loaded = true;
-        records.set(id, record);
-        return record.exports;
-    }
-
-    return {
-        loadModule,
-        prepareSceneClass: runtime.prepareSceneClass,
-        requireModule,
-    };
-}
-
-function createPreviewPixiRuntime(context: PreviewRuntimeContext) {
-    return {
-        ...Pixi,
-        Assets: {
-            ...Pixi.Assets,
-            load: (source: unknown) => loadPreviewAsset(context, source),
-        },
-    };
-}
-
-async function loadPreviewAsset(context: PreviewRuntimeContext, source: unknown) {
-    if (typeof source !== 'string' || !isProjectAssetReference(source)) {
-        return Pixi.Assets.load(source as Parameters<typeof Pixi.Assets.load>[0]);
-    }
-
-    const assetPath = normalizeProjectPath(source);
-    const file = findFileByPath(context.projectTree, projectAbsolutePath(context.projectTree, assetPath));
+async function loadPreviewAsset(context: AuthoringContext, source: string) {
+    const file = findFileByPath(context.projectTree, projectAbsolutePath(context.projectTree, source));
     if (!file) {
         return Pixi.Assets.load(source);
     }
-
-    const objectUrl = await createProjectAssetObjectUrl(context, assetPath, file);
+    const bytes = await readProjectFileBytes(context.projectTree, file);
+    const objectUrl = URL.createObjectURL(new Blob([bytes as BlobPart], { type: assetMimeType(source) }));
+    context.objectUrls.push(objectUrl);
     return Pixi.Assets.load({
         src: objectUrl,
-        parser: assetParser(assetPath),
+        parser: assetParsers[projectExtension(source)],
     });
-}
-
-async function createProjectAssetObjectUrl(
-    context: PreviewRuntimeContext,
-    assetPath: string,
-    file: ProjectFileTreeNode,
-) {
-    const bytes = await readProjectFileBytes(context.projectTree, file);
-    const objectUrl = URL.createObjectURL(new Blob([bytes as BlobPart], { type: assetMimeType(assetPath) }));
-    context.objectUrls.push(objectUrl);
-    return objectUrl;
-}
-
-function isProjectAssetReference(source: string) {
-    return source.trim() !== ''
-        && !source.startsWith('/')
-        && !source.startsWith('./')
-        && !source.includes('\\')
-        && !source.split('/').includes('..')
-        && !/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(source);
 }
 
 function assetMimeType(projectPath: string) {
     return assetMimeTypes[projectExtension(projectPath)] ?? 'application/octet-stream';
 }
 
-function assetParser(projectPath: string) {
-    return assetParsers[projectExtension(projectPath)];
-}
-
-function directRenderedChildren(parent: Container, expectedCount: number) {
-    return parent.children.slice(0, expectedCount).filter((child): child is Container => child instanceof Container);
-}
-
-function authoredRenderedChildren(parent: Container, expectedCount: number) {
-    return parent instanceof ScrollContainer
-        ? directRenderedChildren(parent.contentLayer, expectedCount)
-        : directRenderedChildren(parent, expectedCount);
-}
-
-function mapRenderedNodes(
-    context: PreviewRuntimeContext,
-    scenePath: string,
-    parent: Container,
-    nodes: readonly SceneTemplateNode[],
-    locatorPath: string,
-    output: Map<string, Container>,
-    providedChildren?: readonly Container[],
-) {
-    const visibleNodes = nodes.filter((node) => node.kind !== 'slotOutlet');
-    const renderedChildren = providedChildren ?? authoredRenderedChildren(parent, visibleNodes.length);
-    let renderedIndex = 0;
-
-    for (const [index, node] of nodes.entries()) {
-        if (node.kind === 'slotOutlet') {
-            continue;
-        }
-        const rendered = renderedChildren[renderedIndex];
-        renderedIndex += 1;
-        if (!rendered) {
-            continue;
-        }
-
-        const path = locatorPath ? `${locatorPath}/${index}` : String(index);
-        const locator = compilerSceneNodeLocator(node, path);
-        output.set(locator, rendered);
-
-        if (node.kind === 'pixi') {
-            mapRenderedNodes(context, scenePath, rendered, node.children, locator, output);
-            continue;
-        }
-
-        for (const [slot, children] of Object.entries(node.slots)) {
-            const mountedChildren = context.mountedChildrenByTarget.get(rendered)?.get(slot) ?? [];
-            mapRenderedNodes(
-                context,
-                resolveSceneReference(scenePath, node.scene),
-                rendered,
-                children,
-                `${locator}/slot:${slot}`,
-                output,
-                mountedChildren,
-            );
-        }
-    }
-}
-
-export async function createCompilerSceneRuntimePreview(options: CreateCompilerSceneRuntimePreviewOptions): Promise<CompilerSceneRuntimePreview> {
+export async function createCompilerSceneRuntimePreview(
+    options: CreateCompilerSceneRuntimePreviewOptions,
+): Promise<CompilerSceneRuntimePreview> {
     const bindingIndex = await readCompilerSceneBindingIndex(options.projectTree);
-    const context: PreviewRuntimeContext = {
+    const scenePath = normalizeSceneAssetId(options.scenePath);
+    const currentBinding = bindingIndex[scenePath];
+    if (!currentBinding) {
+        throw new Error(`找不到 Scene 绑定：${scenePath}`);
+    }
+    const templates = new Map(Object.values(bindingIndex).map((binding) => [binding.scenePath, binding.template]));
+    templates.set(scenePath, options.document.template);
+    const interfaces = {
+        ...Object.fromEntries(Object.values(bindingIndex).map((binding) => [binding.scenePath, binding.interface])),
+        ...options.document.sceneInterfaces,
+    };
+    const context: AuthoringContext = {
+        interfaces,
+        nodes: new Map(),
+        objectUrls: [],
         projectResolution: options.projectResolution,
         projectTree: options.projectTree,
-        scenePath: normalizeSceneAssetId(options.scenePath),
-        templates: new Map([[normalizeSceneAssetId(options.scenePath), options.document.template]]),
-        sceneInterfaces: {
-            ...builtinSceneInterfaces(builtinSceneScriptSources),
-            ...options.document.sceneInterfaces,
-            [normalizeSceneAssetId(options.scenePath)]: options.document.template.interface,
-        },
-        slotsByTarget: new WeakMap(),
-        mountedChildrenByTarget: new WeakMap(),
-        objectUrls: [],
+        templates,
+        textures: new Map(),
     };
-    const modules = await collectPreviewModules(context, bindingIndex, options.document);
-    const loader = createModuleLoader(context, modules);
+    await loadTextures(context);
 
-    for (const module of modules.filter((module) => module.kind === 'project' || module.kind === 'builtin')) {
-        loader.requireModule(module.id);
-    }
-    for (const module of modules.filter((module) => module.kind === 'generated')) {
-        await loader.loadModule(module.id);
-    }
+    const root = new Group();
+    initializeScenePropsFromInterface(root, interfaces[scenePath] ?? currentBinding.interface);
+    applyRootProps(root, options.document.template, context.projectResolution);
+    renderNodes(context, {
+        bindingRoot: root,
+        collectNodes: true,
+        scenePath,
+        slots: new Map(),
+    }, root, options.document.template.children);
+    layoutFrameChildren(root);
 
-    const scriptExports = loader.requireModule(sceneScriptModuleId(context.scenePath));
-    const SceneClass = scriptExports[options.document.template.name];
-    if (typeof SceneClass !== 'function') {
-        throw new Error(`Scene 脚本没有导出 ${options.document.template.name}。`);
-    }
-    await loader.prepareSceneClass(SceneClass);
-    const root = new (SceneClass as PreviewSceneConstructor)();
-    if (!(root instanceof Group)) {
-        throw new Error(`Scene 脚本 ${options.document.template.name} 必须继承 Group。`);
-    }
-
-    const nodes = new Map<string, Container>();
-    mapRenderedNodes(context, context.scenePath, root, options.document.template.children, '', nodes);
     const size = sceneSize(options.document.template, context.projectResolution);
     return {
         root,
-        nodes,
+        nodes: context.nodes,
         width: size.width,
         height: size.height,
         dispose: () => {

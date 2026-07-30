@@ -1,4 +1,5 @@
 import type { ProjectFileTreeNode, ProjectFileKind } from './projectFileTree';
+import type { SceneScriptInterface } from 'pixifact/compiler';
 
 export interface EditorProjectFile {
     kind: 'image' | 'scene' | 'script' | 'file';
@@ -41,6 +42,11 @@ export async function readEditorProject() {
 export async function readEditorScene(path: string) {
     const response = await checkedResponse(await fetch(`/api/scene?path=${encodeURIComponent(path)}`));
     return response.json() as Promise<EditorSceneFile>;
+}
+
+export async function readEditorSceneBindings() {
+    const response = await checkedResponse(await fetch('/api/scene-bindings'));
+    return response.json() as Promise<Record<string, SceneScriptInterface>>;
 }
 
 export async function writeEditorScene(path: string, source: string, expectedVersion: string) {
