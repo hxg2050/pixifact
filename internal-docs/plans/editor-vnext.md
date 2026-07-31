@@ -151,6 +151,7 @@ rtk bun run pixifact -- editor
 - [x] 实现新版固定三栏 UI 的首个可用版本。
 - [x] 删除旧 Tauri / Dockview / 运行服务并迁移对外文档。
 - [x] 实现层级结构添加、复制、删除、同级排序和更换父节点。
+- [x] 实现画布节点选择、连续移动与八方向 resize，并保持 frame layout 约束和栈布局所有权。
 
 ## Resume Protocol
 
@@ -178,6 +179,8 @@ Done:
 - Scene Instance primitive Props 与 Variant 已接入 Inspector，连续修改通过生成访问器原地更新内部 Binding。
 - 层级已接通 Compiler `insertNode`、`deleteNode` 和 `moveNode` Command，支持添加、复制、删除、同级排序和更换父节点。
 - 层级拖拽从节点整行启动并使用 Pointer Events，不依赖浏览器原生 Drag and Drop。
+- 画布直接操作使用长驻 Pixi authoring preview 的 Pointer Events；移动和 resize 期间只 preview，释放后提交一个 Scene Command。
+- 画布不会把 frame layout 转换成自由 `x / y`；`HBoxContainer`、`VBoxContainer` 和 `GridContainer` 的直接子节点只允许选择。
 - 新建节点写入 schema defaults，复制子树递归生成全 Scene 唯一 ID；每个结构操作自动保存并可 Undo / Redo。
 - Compiler `moveNode` 已覆盖同级首尾边界，并能通过 inverse 精确恢复原顺序。
 - 结构 Command、Undo 和 Redo 只重建 Scene preview root；桌面浏览器验收中 Canvas 始终只有一个，临时添加节点经 Undo 后示例 Scene 无 diff。
@@ -185,14 +188,13 @@ Done:
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
 - 仓库只保留 Vue 浏览器 Editor，不存在旧桌面入口或兼容层。
-- vNext 还没有重新接通 read-only live context，也没有实现画布拖动 / resize 和完整资产交互。
-- 当前浏览器主包约 795 KB，整个 Editor 构建约 804 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
+- vNext 尚未实现完整资产拖入交互和 read-only live context。
+- 当前浏览器主包约 812 KB，整个 Editor 构建约 821 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
 - 层级结构编辑直接复用 Compiler Command，不存在第二套树 mutation 模型。
 
 Currently Failing:
 - None。
 
 Next:
-1. 继续完善画布选择、移动和 resize，并保持 frame layout 语义。
-2. 补齐图片拖入画布或层级创建 `Image`、Scene 拖入创建 Scene Instance 的资产交互。
-3. 重新接通 read-only live context。
+1. 补齐图片拖入画布或层级创建 `Image`、Scene 拖入创建 Scene Instance 的资产交互。
+2. 重新接通 read-only live context。

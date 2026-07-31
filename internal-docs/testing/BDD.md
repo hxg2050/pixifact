@@ -332,6 +332,38 @@ Scenario: Structural command replaces only the Scene preview root
 
 TDD 入口：`tests/editor-scene-document.test.ts`、`tests/editor-vue-ui.test.ts`、`tests/project-file-tree.test.ts` 与浏览器验收。
 
+### BDD-EDITOR-010 画布直接编辑
+
+Feature: Canvas direct manipulation
+
+```gherkin
+Scenario: User selects, moves, and resizes a Scene node on the canvas
+  Given a compiler Scene is open in the Editor authoring canvas
+  When the user selects a node on the canvas
+  Then the hierarchy and Inspector select the same stable locator
+  And the canvas shows one selection outline with eight resize handles
+  When the user drags the selected node
+  Then the runtime node follows the pointer without rebuilding the Scene root
+  And pointer release commits one undoable Scene Command and automatically saves the .scene file
+  When the user drags a resize handle
+  Then the runtime node resizes continuously
+  And pointer release commits one undoable Scene Command and automatically saves the .scene file
+```
+
+```gherkin
+Scenario: Canvas editing preserves layout ownership
+  Given a node uses frame layout constraints
+  When the user moves or resizes it on the canvas
+  Then the Editor changes its existing left, right, top, bottom, horizontal, or vertical values
+  And the Editor does not replace those constraints with free x or y properties
+  Given a node is arranged by an HBoxContainer, VBoxContainer, or GridContainer
+  When the user selects it on the canvas
+  Then the node can be inspected
+  But the canvas does not offer move or resize controls for that node
+```
+
+TDD 入口：`tests/editor-scene-canvas.test.ts`、`tests/editor-scene-document.test.ts` 与浏览器验收。
+
 ## 5. CLI
 
 ### BDD-CLI-001 Inspect and validate compiler scenes

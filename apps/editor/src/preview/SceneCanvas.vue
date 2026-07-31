@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Application, Container, Graphics } from 'pixi.js';
+import { Application, Container, Graphics, type FederatedPointerEvent } from 'pixi.js';
 import {
     getFrameLayout,
     requestFrameLayout,
@@ -22,6 +22,15 @@ import {
     destroyCompilerSceneRuntimePreview,
     type CompilerSceneRuntimePreview,
 } from './compilerSceneRuntimePreview';
+import {
+    moveSceneCanvasGeometry,
+    resizeSceneCanvasGeometry,
+    sceneCanvasNodeIsLayoutManaged,
+    type SceneCanvasGeometry,
+    type SceneCanvasPropChange,
+    type SceneCanvasResizeHandle,
+} from './sceneCanvasGeometry';
+import { graphicsDrawingProps, redrawSceneCanvasGraphics } from './sceneCanvasGraphics';
 import { incrementalScenePreviewCommands } from './scenePreviewCommands';
 
 const props = defineProps<{
@@ -38,6 +47,35 @@ let preview: CompilerSceneRuntimePreview | undefined;
 let resizeObserver: ResizeObserver | undefined;
 let unsubscribeDocument: (() => void) | undefined;
 let buildRevision = 0;
+let selectionLayer: Container | undefined;
+let selectionOutline: Graphics | undefined;
+let interaction: CanvasInteraction | undefined;
+const selectionHandles = new Map<SceneCanvasResizeHandle, Graphics>();
+const resizeHandles: SceneCanvasResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+const resizeCursors: Record<SceneCanvasResizeHandle, string> = {
+    n: 'ns-resize',
+    ne: 'nesw-resize',
+    e: 'ew-resize',
+    se: 'nwse-resize',
+    s: 'ns-resize',
+    sw: 'nesw-resize',
+    w: 'ew-resize',
+    nw: 'nwse-resize',
+};
+
+interface CanvasInteraction {
+    changes: SceneCanvasPropChange[];
+    document: SceneDocument;
+    geometry: SceneCanvasGeometry;
+    handle?: SceneCanvasResizeHandle;
+    locator: string;
+    mode: 'move' | 'resize';
+    parent: Container;
+    pointerId: number;
+    previewed: Set<string>;
+    props: Record<string, SceneTemplateValue>;
+    start: { x: number; y: number };
+}
 
 function hostSize() {
     const bounds = host.value!.getBoundingClientRect();
@@ -56,6 +94,7 @@ function fitPreview() {
         (viewport.width - preview.width * scale) / 2,
         (viewport.height - preview.height * scale) / 2,
     );
+    updateSelectionOverlay();
 }
 
 async function rebuildPreview() {
@@ -84,10 +123,13 @@ async function rebuildPreview() {
         preview = next;
         for (const [locator, target] of preview.nodes) {
             target.eventMode = 'static';
-            target.on('pointertap', () => emit('select', locator));
+            target.cursor = nodeCanMove(locator, target) ? 'move' : 'default';
+            target.on('pointerdown', (event) => beginMove(locator, event));
         }
         app.stage.addChild(preview.root);
+        if (selectionLayer) app.stage.addChild(selectionLayer);
         fitPreview();
+        updateSelectionOverlay();
         status.value = '';
     } catch (error) {
         status.value = error instanceof Error ? error.message : String(error);
@@ -123,7 +165,17 @@ function applyNodeProp(locator: string, prop: string, sourceValue?: SceneTemplat
     const target = preview?.nodes.get(locator);
     if (!target) return;
     const value = effectiveValue(locator, prop, sourceValue);
-    if (prop === 'x' || prop === 'y') {
+    const node = props.document
+        ? findSceneNodeByLocator(props.document.template.children, locator)
+        : undefined;
+    if (
+        target instanceof Graphics
+        && node?.kind === 'pixi'
+        && node.type === 'Graphics'
+        && graphicsDrawingProps.has(prop)
+    ) {
+        redrawSceneCanvasGraphics(target, node.props, { [prop]: value as SceneTemplateValue });
+    } else if (prop === 'x' || prop === 'y') {
         target.position[prop] = Number(value);
     } else if (prop === 'scaleX' || prop === 'scaleY') {
         target.scale[prop === 'scaleX' ? 'x' : 'y'] = Number(value);
@@ -149,31 +201,7 @@ function applyNodeProp(locator: string, prop: string, sourceValue?: SceneTemplat
         (target as unknown as Record<string, unknown>)[prop] = value;
     }
     if (target.parent) requestFrameLayout(target.parent);
-    redrawGraphics(locator, target);
-}
-
-function redrawGraphics(locator: string, target: Container) {
-    if (!(target instanceof Graphics) || !props.document) return;
-    const node = findSceneNodeByLocator(props.document.template.children, locator);
-    if (node?.kind !== 'pixi' || node.type !== 'Graphics') return;
-    const defaults = isPixiSceneNodeType(node.type) ? pixiSceneNodeDefaults(node.type) : {};
-    const values = { ...defaults, ...node.props };
-    const width = Number(values.width ?? 100);
-    const height = Number(values.height ?? 60);
-    target.clear();
-    if (values.shape === 'rect') {
-        target.rect(0, 0, width, height);
-    } else {
-        target.roundRect(0, 0, width, height, Number(values.radius ?? 0));
-    }
-    target.fill({ color: Number(values.fill ?? 0xe5e7eb), alpha: Number(values.fillAlpha ?? 1) });
-    if (Number(values.strokeWidth ?? 0) > 0) {
-        target.stroke({
-            color: Number(values.strokeColor ?? 0),
-            alpha: Number(values.strokeAlpha ?? 1),
-            width: Number(values.strokeWidth),
-        });
-    }
+    updateSelectionOverlay();
 }
 
 function applyCommand(command: CompilerSceneCommand, inverse: CompilerSceneCommand) {
@@ -195,7 +223,235 @@ function handleDocumentEvent(event: SceneDocumentEvent) {
     }
 }
 
+function selectedTarget(locator = props.selected) {
+    return locator ? preview?.nodes.get(locator) : undefined;
+}
+
+function selectedNode(locator = props.selected) {
+    return props.document && locator
+        ? findSceneNodeByLocator(props.document.template.children, locator)
+        : undefined;
+}
+
+function targetGeometry(target: Container): SceneCanvasGeometry {
+    return {
+        x: target.x,
+        y: target.y,
+        width: target.width,
+        height: target.height,
+    };
+}
+
+function nodeCanMove(locator: string, target: Container) {
+    const node = selectedNode(locator);
+    if (!props.document || !node || node.kind === 'slotOutlet') return false;
+    if (sceneCanvasNodeIsLayoutManaged(props.document.template, locator)) return false;
+    return moveSceneCanvasGeometry(node.props, targetGeometry(target), { x: 1, y: 1 }) !== undefined;
+}
+
+function nodeCanResize(locator: string, target: Container, handle: SceneCanvasResizeHandle) {
+    const node = selectedNode(locator);
+    if (!props.document || !node || node.kind === 'slotOutlet') return false;
+    if (sceneCanvasNodeIsLayoutManaged(props.document.template, locator)) return false;
+    if (target.rotation !== 0 || target.skew.x !== 0 || target.skew.y !== 0) return false;
+    const delta = {
+        x: handle.includes('w') || handle.includes('e') ? 1 : 0,
+        y: handle.includes('n') || handle.includes('s') ? 1 : 0,
+    };
+    return resizeSceneCanvasGeometry(node.props, targetGeometry(target), handle, delta) !== undefined;
+}
+
+function beginMove(locator: string, event: FederatedPointerEvent) {
+    event.stopPropagation();
+    if (event.button !== 0) return;
+    emit('select', locator);
+    const target = selectedTarget(locator);
+    if (!target || !nodeCanMove(locator, target)) {
+        updateSelectionOverlay(locator);
+        return;
+    }
+    beginInteraction(locator, target, event, 'move');
+}
+
+function beginResize(handle: SceneCanvasResizeHandle, event: FederatedPointerEvent) {
+    event.stopPropagation();
+    if (event.button !== 0 || !props.selected) return;
+    const target = selectedTarget();
+    if (!target || !nodeCanResize(props.selected, target, handle)) return;
+    beginInteraction(props.selected, target, event, 'resize', handle);
+}
+
+function beginInteraction(
+    locator: string,
+    target: Container,
+    event: FederatedPointerEvent,
+    mode: CanvasInteraction['mode'],
+    handle?: SceneCanvasResizeHandle,
+) {
+    const document = props.document;
+    const node = selectedNode(locator);
+    if (!document || !node || node.kind === 'slotOutlet' || !target.parent || !app) return;
+    cancelInteraction();
+    const start = target.parent.toLocal(event.global);
+    interaction = {
+        changes: [],
+        document,
+        geometry: targetGeometry(target),
+        handle,
+        locator,
+        mode,
+        parent: target.parent,
+        pointerId: event.pointerId,
+        previewed: new Set(),
+        props: { ...node.props },
+        start: { x: start.x, y: start.y },
+    };
+    app.canvas.style.cursor = mode === 'move' ? 'move' : resizeCursors[handle!];
+}
+
+function moveInteraction(event: FederatedPointerEvent) {
+    const current = interaction;
+    if (!current || event.pointerId !== current.pointerId) return;
+    const point = current.parent.toLocal(event.global);
+    const delta = {
+        x: point.x - current.start.x,
+        y: point.y - current.start.y,
+    };
+    const changes = current.mode === 'move'
+        ? moveSceneCanvasGeometry(current.props, current.geometry, delta)
+        : resizeSceneCanvasGeometry(current.props, current.geometry, current.handle!, delta);
+    if (!changes) return;
+    previewInteractionChanges(current, changes);
+}
+
+function previewInteractionChanges(current: CanvasInteraction, changes: SceneCanvasPropChange[]) {
+    const nextProps = new Set(changes.map((change) => change.prop));
+    for (const prop of current.previewed) {
+        if (!nextProps.has(prop)) {
+            current.document.previewNodeProp(current.locator, prop, originalPreviewValue(current, prop));
+        }
+    }
+    for (const change of changes) {
+        current.document.previewNodeProp(current.locator, change.prop, change.value);
+    }
+    current.previewed = nextProps;
+    current.changes = changes;
+    updateSelectionOverlay(current.locator);
+}
+
+function originalPreviewValue(current: CanvasInteraction, prop: string) {
+    const source = current.props[prop];
+    if (source !== undefined) return source;
+    if (prop === 'x') return current.geometry.x;
+    if (prop === 'y') return current.geometry.y;
+    if (prop === 'width') return current.geometry.width;
+    if (prop === 'height') return current.geometry.height;
+    return undefined;
+}
+
+async function finishInteraction() {
+    const current = interaction;
+    if (!current) return;
+    interaction = undefined;
+    resetCanvasCursor();
+    if (current.changes.length === 0) return;
+    const commands = current.changes.map((change) => ({
+        op: 'setNodeProp' as const,
+        node: current.locator,
+        prop: change.prop,
+        value: change.value,
+    }));
+    const command: CompilerSceneCommand = commands.length === 1
+        ? commands[0]
+        : { op: 'batch', commands };
+    try {
+        await current.document.commitCommand(command);
+    } catch (error) {
+        status.value = error instanceof Error ? error.message : String(error);
+    }
+}
+
+function cancelInteraction() {
+    const current = interaction;
+    if (!current) return;
+    interaction = undefined;
+    for (const prop of current.previewed) {
+        current.document.previewNodeProp(current.locator, prop, originalPreviewValue(current, prop));
+    }
+    resetCanvasCursor();
+    updateSelectionOverlay();
+}
+
+function resetCanvasCursor() {
+    if (app) app.canvas.style.cursor = '';
+}
+
+function handleWindowPointerUp(event: PointerEvent) {
+    if (event.pointerId === interaction?.pointerId) void finishInteraction();
+}
+
+function handleWindowPointerCancel(event: PointerEvent) {
+    if (event.pointerId === interaction?.pointerId) cancelInteraction();
+}
+
+function createSelectionOverlay() {
+    selectionLayer = new Container();
+    selectionLayer.eventMode = 'passive';
+    selectionOutline = new Graphics();
+    selectionOutline.eventMode = 'none';
+    selectionLayer.addChild(selectionOutline);
+    for (const handle of resizeHandles) {
+        const graphic = new Graphics()
+            .rect(-4, -4, 8, 8)
+            .fill(0x0d0f13)
+            .stroke({ color: 0x4c8dff, width: 1 });
+        graphic.eventMode = 'static';
+        graphic.cursor = resizeCursors[handle];
+        graphic.visible = false;
+        graphic.on('pointerdown', (event) => beginResize(handle, event));
+        selectionHandles.set(handle, graphic);
+        selectionLayer.addChild(graphic);
+    }
+    app!.stage.addChild(selectionLayer);
+}
+
+function updateSelectionOverlay(locator = props.selected) {
+    if (!selectionOutline) return;
+    const target = selectedTarget(locator);
+    if (!target || !locator || target.destroyed) {
+        selectionOutline.visible = false;
+        for (const handle of selectionHandles.values()) handle.visible = false;
+        return;
+    }
+    const bounds = target.getBounds();
+    const x = bounds.minX;
+    const y = bounds.minY;
+    const width = bounds.maxX - bounds.minX;
+    const height = bounds.maxY - bounds.minY;
+    if (![x, y, width, height].every(Number.isFinite)) return;
+    selectionOutline
+        .clear()
+        .rect(x, y, width, height)
+        .stroke({ color: 0x4c8dff, width: 1 });
+    selectionOutline.visible = true;
+    const positions: Record<SceneCanvasResizeHandle, { x: number; y: number }> = {
+        nw: { x, y },
+        n: { x: x + width / 2, y },
+        ne: { x: x + width, y },
+        e: { x: x + width, y: y + height / 2 },
+        se: { x: x + width, y: y + height },
+        s: { x: x + width / 2, y: y + height },
+        sw: { x, y: y + height },
+        w: { x, y: y + height / 2 },
+    };
+    for (const [handle, graphic] of selectionHandles) {
+        graphic.position.copyFrom(positions[handle]);
+        graphic.visible = nodeCanResize(locator, target, handle);
+    }
+}
+
 watch(() => props.document, (document) => {
+    cancelInteraction();
     unsubscribeDocument?.();
     unsubscribeDocument = document?.subscribe(handleDocumentEvent);
     void rebuildPreview();
@@ -203,6 +459,7 @@ watch(() => props.document, (document) => {
 
 watch(() => props.projectTree, () => void rebuildPreview());
 watch(() => props.sceneInterfaces, () => void rebuildPreview());
+watch(() => props.selected, () => updateSelectionOverlay());
 
 onMounted(async () => {
     app = new Application();
@@ -217,10 +474,18 @@ onMounted(async () => {
     });
     app.canvas.className = 'scene-canvas';
     host.value!.appendChild(app.canvas);
+    app.renderer.events.features.globalMove = true;
+    app.stage.eventMode = 'static';
+    app.stage.hitArea = app.screen;
+    app.stage.on('globalpointermove', moveInteraction);
+    createSelectionOverlay();
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener('pointercancel', handleWindowPointerCancel);
     resizeObserver = new ResizeObserver(() => {
         if (!app) return;
         const next = hostSize();
         app.renderer.resize(next.width, next.height);
+        app.stage.hitArea = app.screen;
         fitPreview();
     });
     resizeObserver.observe(host.value!);
@@ -229,6 +494,9 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     buildRevision += 1;
+    interaction = undefined;
+    window.removeEventListener('pointerup', handleWindowPointerUp);
+    window.removeEventListener('pointercancel', handleWindowPointerCancel);
     unsubscribeDocument?.();
     resizeObserver?.disconnect();
     if (preview) destroyCompilerSceneRuntimePreview(preview);
