@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown, ChevronRight, Component, GripVertical, Image, Layers3, Type } from 'lucide-vue-next';
+import { ChevronDown, ChevronRight, Component, Image, Layers3, Type } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import type { SceneTreeDropTarget, SceneTreeEntry } from '../document/sceneTree';
 
@@ -53,7 +53,8 @@ function calculateDropTarget(event: PointerEvent): SceneTreeDropTarget {
     };
 }
 
-function handlePointerDown() {
+function handlePointerDown(event: PointerEvent) {
+    if (event.button !== 0) return;
     emit('dragStart', props.entry.locator);
 }
 
@@ -77,20 +78,14 @@ function handlePointerMove(event: PointerEvent) {
       :style="{ paddingLeft: `${8 + level * 16}px` }"
       type="button"
       @click="emit('select', entry.locator)"
+      @pointerdown="handlePointerDown"
       @pointermove.stop="handlePointerMove"
     >
-      <span
-        class="tree-drag-handle"
-        data-drag-handle
-        title="拖动节点"
-        @pointerdown.stop.prevent="handlePointerDown"
-      >
-        <GripVertical :size="12" />
-      </span>
       <span
         class="tree-disclosure"
         :class="{ empty: !hasChildren }"
         @click.stop="hasChildren && (expanded = !expanded)"
+        @pointerdown.stop
       >
         <ChevronDown v-if="hasChildren && expanded" :size="13" />
         <ChevronRight v-else-if="hasChildren" :size="13" />

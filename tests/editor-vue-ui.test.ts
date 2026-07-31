@@ -378,6 +378,8 @@ describe('Editor Vue UI', () => {
             },
         }));
 
+        expect(wrapper.find('[data-drag-handle]').exists()).toBe(false);
+
         await wrapper.get('select[aria-label="节点类型"]').setValue('Rect');
         await wrapper.get('button[aria-label="添加节点"]').trigger('click');
         await flushPromises();
@@ -397,7 +399,7 @@ describe('Editor Vue UI', () => {
         expect(document.source).not.toContain('id="rect2"');
         expect(selected.value).toBe('0:panel');
 
-        await wrapper.get('button[data-locator="1:footer"] [data-drag-handle]').trigger('pointerdown');
+        await wrapper.get('button[data-locator="1:footer"]').trigger('pointerdown');
         const panelRow = wrapper.get('button[data-locator="0:panel"]');
         await panelRow.trigger('pointermove', { clientY: 13 });
         expect(panelRow.classes()).toContain('drop-inside');
@@ -406,7 +408,7 @@ describe('Editor Vue UI', () => {
 
         expect(document.source.indexOf('id="footer"')).toBeLessThan(document.source.indexOf('</Group>'));
 
-        await wrapper.get('button[data-locator="0:panel/2:footer"] [data-drag-handle]').trigger('pointerdown');
+        await wrapper.get('button[data-locator="0:panel/2:footer"]').trigger('pointerdown');
         const titleRow = wrapper.get('button[data-locator="0:panel/0:title"]');
         await titleRow.trigger('pointermove', { clientY: 1 });
         expect(titleRow.classes()).toContain('drop-before');
@@ -415,7 +417,7 @@ describe('Editor Vue UI', () => {
 
         expect(document.source.indexOf('id="footer"')).toBeLessThan(document.source.indexOf('id="title"'));
 
-        await wrapper.get('button[data-locator="0:panel"] [data-drag-handle]').trigger('pointerdown');
+        await wrapper.get('button[data-locator="0:panel"]').trigger('pointerdown');
         const rectRow = wrapper.get('button[data-locator="0:panel/2:rect"]');
         await rectRow.trigger('pointermove', { clientY: 1 });
         expect(rectRow.classes()).not.toContain('drop-before');

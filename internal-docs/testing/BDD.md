@@ -314,7 +314,7 @@ Scenario: User adds, duplicates, deletes, and reorders Scene nodes
   And the new node receives a unique id and schema defaults
   When the user duplicates or deletes a selected node
   Then ids remain unique and the resulting parent is selected after deletion
-  When the user drags a node from its hierarchy handle before, inside, or after another hierarchy row
+  When the user drags a hierarchy node row before, inside, or after another hierarchy row
   Then the hierarchy shows the exact drop position
   And invalid cycles or leaf parents are rejected
   And the .scene child order matches the hierarchy order

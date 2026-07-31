@@ -129,7 +129,7 @@ PixiJS 原生 `Container` 语义保持不变，尤其是 `width` / `height` 的 
 当前第一条可用闭环：
 
 - 固定三栏展示当前 Scene 的可编辑层级、长驻 Pixi Canvas 和 schema-driven Inspector。
-- 层级支持添加、复制、删除，以及通过节点左侧把手拖拽调整同级顺序或更换父节点；每次操作自动保存并可 Undo / Redo。
+- 层级支持添加、复制、删除，以及拖拽节点行调整同级顺序或更换父节点；每次操作自动保存并可 Undo / Redo。
 - 结构变化只替换 Scene 预览 root，Pixi Application 和 Canvas 保持长驻。
 - Inspector 输入时原地更新运行时节点，不重建 Pixi Application 或 Canvas。
 - 失焦或 Enter 后自动写回 `.scene`，Undo / Redo 后也会自动保存。
