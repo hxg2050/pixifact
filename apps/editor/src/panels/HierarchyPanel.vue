@@ -161,7 +161,7 @@ onBeforeUnmount(endDrag);
 </script>
 
 <template>
-  <div v-if="document" class="hierarchy-panel">
+  <div v-if="document" class="hierarchy-panel" :class="{ 'is-dragging': !!draggedLocator }">
     <div class="hierarchy-toolbar">
       <select v-model="addType" aria-label="节点类型" title="节点类型">
         <optgroup v-for="group in addGroups" :key="group.label" :label="group.label">

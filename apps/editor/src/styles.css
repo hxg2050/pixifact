@@ -311,10 +311,10 @@ button:disabled {
     background: transparent;
     color: var(--text);
     text-align: left;
-    cursor: grab;
+    cursor: default;
 }
 
-.tree-row:active {
+.hierarchy-panel.is-dragging .tree-row {
     cursor: grabbing;
 }
 

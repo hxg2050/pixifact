@@ -399,13 +399,17 @@ describe('Editor Vue UI', () => {
         expect(document.source).not.toContain('id="rect2"');
         expect(selected.value).toBe('0:panel');
 
+        const hierarchy = wrapper.get('.hierarchy-panel');
+        expect(hierarchy.classes()).not.toContain('is-dragging');
         await wrapper.get('button[data-locator="1:footer"]').trigger('pointerdown');
+        expect(hierarchy.classes()).toContain('is-dragging');
         const panelRow = wrapper.get('button[data-locator="0:panel"]');
         await panelRow.trigger('pointermove', { clientY: 13 });
         expect(panelRow.classes()).toContain('drop-inside');
         window.dispatchEvent(new Event('pointerup'));
         await flushPromises();
 
+        expect(hierarchy.classes()).not.toContain('is-dragging');
         expect(document.source.indexOf('id="footer"')).toBeLessThan(document.source.indexOf('</Group>'));
 
         await wrapper.get('button[data-locator="0:panel/2:footer"]').trigger('pointerdown');
