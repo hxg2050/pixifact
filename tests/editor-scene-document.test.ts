@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { SceneDocument } from '../apps/editor/src/document/SceneDocument';
+import type { SceneTemplateNode } from 'pixifact/compiler';
 
 const source = [
     '<Scene name="Menu">',
@@ -134,5 +135,64 @@ describe('SceneDocument', () => {
         expect(document.source).toContain('text="Button"');
         await document.undo();
         expect(document.source).toContain('text="{label}"');
+    });
+
+    it('commits structural commands with selection, automatic save, undo, and redo', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: [
+                '<Scene name="Menu">',
+                '  <Group id="panel">',
+                '    <Text id="title" text="开始" />',
+                '  </Group>',
+                '  <Text id="footer" text="Footer" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = await SceneDocument.open('src/scenes/Menu.scene', api);
+        const events: unknown[] = [];
+        document.subscribe((event) => events.push(event));
+        const rect = {
+            kind: 'pixi',
+            type: 'Rect',
+            id: 'background',
+            props: { width: 100, height: 60 },
+            children: [],
+        } satisfies SceneTemplateNode;
+
+        await document.commitCommand({
+            op: 'insertNode',
+            parent: '0:panel',
+            index: 1,
+            node: rect,
+        });
+
+        expect(document.source).toContain('<Rect id="background" width="100" height="60" />');
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
+        expect(events).toContainEqual(expect.objectContaining({
+            type: 'commandApplied',
+            selection: { type: 'node', node: '0:panel/1:background' },
+        }));
+
+        await document.commitCommand({
+            op: 'moveNode',
+            node: '1:footer',
+            parent: '0:panel',
+            index: 1,
+        });
+
+        expect(document.source.indexOf('id="footer"')).toBeLessThan(document.source.indexOf('id="background"'));
+        expect(api.writeScene).toHaveBeenCalledTimes(2);
+
+        await document.undo();
+        expect(document.source.indexOf('</Group>')).toBeLessThan(document.source.indexOf('id="footer"'));
+        expect(api.writeScene).toHaveBeenCalledTimes(3);
+
+        await document.redo();
+        expect(document.source.indexOf('id="footer"')).toBeLessThan(document.source.indexOf('id="background"'));
+        expect(api.writeScene).toHaveBeenCalledTimes(4);
     });
 });

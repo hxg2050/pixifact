@@ -245,10 +245,60 @@ button:disabled {
 }
 
 .hierarchy-panel {
-    padding: 6px 0;
+    min-height: 100%;
+    padding: 0 0 6px;
+}
+
+.hierarchy-toolbar {
+    position: sticky;
+    z-index: 2;
+    top: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 27px 27px 27px;
+    align-items: center;
+    gap: 2px;
+    height: 35px;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+}
+
+.hierarchy-toolbar select {
+    width: 100%;
+    height: 25px;
+    min-width: 0;
+    padding: 0 5px;
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    outline: none;
+    background: var(--control);
+    color: var(--text);
+    font-size: 10px;
+}
+
+.hierarchy-toolbar select:focus {
+    border-color: var(--focus);
+}
+
+.hierarchy-toolbar button {
+    display: grid;
+    place-items: center;
+    width: 27px;
+    height: 27px;
+    padding: 0;
+    border-radius: 3px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.hierarchy-toolbar button:hover:not(:disabled) {
+    background: var(--panel-raised);
+    color: var(--text);
 }
 
 .tree-row {
+    position: relative;
     display: grid;
     grid-template-columns: 15px 16px minmax(0, 1fr) auto;
     align-items: center;
@@ -262,6 +312,31 @@ button:disabled {
     color: var(--text);
     text-align: left;
     cursor: default;
+}
+
+.tree-row.drop-inside {
+    background: #26364d;
+    box-shadow: inset 0 0 0 1px var(--focus);
+}
+
+.tree-row.drop-before::before,
+.tree-row.drop-after::after {
+    position: absolute;
+    right: 5px;
+    left: 5px;
+    z-index: 1;
+    height: 2px;
+    background: var(--focus);
+    content: "";
+    pointer-events: none;
+}
+
+.tree-row.drop-before::before {
+    top: -1px;
+}
+
+.tree-row.drop-after::after {
+    bottom: -1px;
 }
 
 .tree-row:hover {

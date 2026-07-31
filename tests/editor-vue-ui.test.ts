@@ -2,9 +2,11 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent, h, markRaw, ref } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
-import type { SceneTemplateInterface } from 'pixifact/compiler';
+import { parseSceneTemplate, type SceneTemplateInterface } from 'pixifact/compiler';
+import HierarchyPanel from '../apps/editor/src/panels/HierarchyPanel.vue';
 import InspectorPanel from '../apps/editor/src/panels/InspectorPanel.vue';
 import { SceneDocument } from '../apps/editor/src/document/SceneDocument';
+import { duplicateSceneNode } from '../apps/editor/src/document/sceneTree';
 import { useEditorUiStore } from '../apps/editor/src/stores/editorUi';
 
 const source = [
@@ -29,6 +31,21 @@ function createApi() {
 }
 
 describe('Editor Vue UI', () => {
+    it('assigns unique ids throughout a duplicated subtree', () => {
+        const template = parseSceneTemplate([
+            '<Scene name="Menu">',
+            '  <Group id="panel"><Text id="title" /></Group>',
+            '</Scene>',
+        ].join('\n'));
+
+        const copy = duplicateSceneNode(template, template.children[0]);
+
+        expect(copy).toMatchObject({
+            id: 'panel2',
+            children: [{ id: 'title2' }],
+        });
+    });
+
     it('keeps only UI state in Pinia', () => {
         setActivePinia(createPinia());
 
@@ -325,6 +342,87 @@ describe('Editor Vue UI', () => {
         expect(api.writeScene).toHaveBeenCalledTimes(2);
         expect(wrapper.get('[data-binding-source="fillColor"]').text()).toBe('绑定：tone.background');
         expect((wrapper.get('input[data-prop="fillColor"]').element as HTMLInputElement).disabled).toBe(true);
+        wrapper.unmount();
+    });
+
+    it('adds, duplicates, deletes, and reparents nodes from the hierarchy', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: [
+                '<Scene name="Menu">',
+                '  <Group id="panel" width="320" height="180">',
+                '    <Text id="title" text="开始" />',
+                '  </Group>',
+                '  <Text id="footer" text="Footer" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const revision = ref(0);
+        const selected = ref<string | undefined>('0:panel/0:title');
+        document.subscribe((event) => {
+            if (event.type !== 'commandApplied') return;
+            revision.value += 1;
+            selected.value = event.selection?.type === 'node' ? event.selection.node : undefined;
+        });
+        const wrapper = mount(defineComponent({
+            setup() {
+                return () => h(HierarchyPanel, {
+                    document,
+                    revision: revision.value,
+                    selected: selected.value,
+                });
+            },
+        }));
+
+        await wrapper.get('select[aria-label="节点类型"]').setValue('Rect');
+        await wrapper.get('button[aria-label="添加节点"]').trigger('click');
+        await flushPromises();
+
+        expect(document.source).toContain('<Rect id="rect"');
+        expect(selected.value).toBe('0:panel/1:rect');
+
+        await wrapper.get('button[aria-label="复制节点"]').trigger('click');
+        await flushPromises();
+
+        expect(document.source).toContain('<Rect id="rect2"');
+        expect(selected.value).toBe('0:panel/2:rect2');
+
+        await wrapper.get('button[aria-label="删除节点"]').trigger('click');
+        await flushPromises();
+
+        expect(document.source).not.toContain('id="rect2"');
+        expect(selected.value).toBe('0:panel');
+
+        await wrapper.get('button[data-locator="1:footer"]').trigger('dragstart');
+        const panelRow = wrapper.get('button[data-locator="0:panel"]');
+        await panelRow.trigger('dragover', { clientY: 13 });
+        expect(panelRow.classes()).toContain('drop-inside');
+        await panelRow.trigger('drop');
+        await flushPromises();
+
+        expect(document.source.indexOf('id="footer"')).toBeLessThan(document.source.indexOf('</Group>'));
+
+        await wrapper.get('button[data-locator="0:panel/2:footer"]').trigger('dragstart');
+        const titleRow = wrapper.get('button[data-locator="0:panel/0:title"]');
+        await titleRow.trigger('dragover', { clientY: 1 });
+        expect(titleRow.classes()).toContain('drop-before');
+        await titleRow.trigger('drop');
+        await flushPromises();
+
+        expect(document.source.indexOf('id="footer"')).toBeLessThan(document.source.indexOf('id="title"'));
+
+        await wrapper.get('button[data-locator="0:panel"]').trigger('dragstart');
+        const rectRow = wrapper.get('button[data-locator="0:panel/2:rect"]');
+        await rectRow.trigger('dragover', { clientY: 1 });
+        expect(rectRow.classes()).not.toContain('drop-before');
+        await rectRow.trigger('drop');
+        await flushPromises();
+
+        expect(api.writeScene).toHaveBeenCalledTimes(5);
         wrapper.unmount();
     });
 });

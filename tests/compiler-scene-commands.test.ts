@@ -234,6 +234,47 @@ describe('compiler scene commands', () => {
         expect(document.children.map((node) => node.kind !== 'slotOutlet' ? node.id : node.name)).toEqual(['panel', 'footer']);
     });
 
+    it('moves siblings across the full list and restores their exact order', () => {
+        const document = template();
+        const panel = document.children[0] as Extract<SceneTemplateNode, { kind: 'pixi' }>;
+        const childNames = () => panel.children.map((node) => node.kind !== 'slotOutlet' ? node.id : node.name);
+
+        const moveFirstToEnd = applyCompilerSceneCommand(document, {
+            op: 'moveNode',
+            node: '0:panel/0:title',
+            parent: '0:panel',
+            index: 3,
+        });
+
+        expect(moveFirstToEnd).toMatchObject({
+            ok: true,
+            selection: { type: 'node', node: '0:panel/2:title' },
+        });
+        expect(childNames()).toEqual(['button', 'badge', 'title']);
+
+        const undoFirstToEnd = moveFirstToEnd.ok
+            ? applyCompilerSceneCommand(document, moveFirstToEnd.inverse)
+            : undefined;
+        expect(undoFirstToEnd?.ok).toBe(true);
+        expect(childNames()).toEqual(['title', 'button', 'badge']);
+
+        const moveLastToStart = applyCompilerSceneCommand(document, {
+            op: 'moveNode',
+            node: '0:panel/2:slot:badge',
+            parent: '0:panel',
+            index: 0,
+        });
+
+        expect(moveLastToStart?.ok).toBe(true);
+        expect(childNames()).toEqual(['badge', 'title', 'button']);
+
+        const undoLastToStart = moveLastToStart.ok
+            ? applyCompilerSceneCommand(document, moveLastToStart.inverse)
+            : undefined;
+        expect(undoLastToStart?.ok).toBe(true);
+        expect(childNames()).toEqual(['title', 'button', 'badge']);
+    });
+
     it('rolls back applied child commands when a batch command fails', () => {
         const document = template();
 

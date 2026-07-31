@@ -6,7 +6,6 @@ import {
     setFrameLayout,
 } from 'pixifact/runtime';
 import {
-    isSceneTemplateBindingValue,
     isPixiSceneNodeType,
     pixiSceneNodeDefaults,
     resolveSceneReference,
@@ -23,6 +22,7 @@ import {
     destroyCompilerSceneRuntimePreview,
     type CompilerSceneRuntimePreview,
 } from './compilerSceneRuntimePreview';
+import { incrementalScenePreviewCommands } from './scenePreviewCommands';
 
 const props = defineProps<{
     document?: SceneDocument;
@@ -176,29 +176,15 @@ function redrawGraphics(locator: string, target: Container) {
     }
 }
 
-function commandChangesBinding(command: CompilerSceneCommand) {
-    if (command.op === 'setNodeProp') {
-        return isSceneTemplateBindingValue(command.value);
-    }
-    return command.op === 'batch' && command.commands.some(commandChangesBinding);
-}
-
 function applyCommand(command: CompilerSceneCommand, inverse: CompilerSceneCommand) {
-    if (commandChangesBinding(command) || commandChangesBinding(inverse)) {
+    const commands = incrementalScenePreviewCommands(command, inverse);
+    if (!commands) {
         void rebuildPreview();
         return;
     }
-    if (command.op === 'setNodeProp') {
-        applyNodeProp(command.node, command.prop, command.value);
-        return;
+    for (const child of commands) {
+        applyNodeProp(child.node, child.prop, child.value);
     }
-    if (command.op === 'batch' && command.commands.every((child) => child.op === 'setNodeProp')) {
-        for (const child of command.commands) {
-            applyNodeProp(child.node, child.prop, child.value);
-        }
-        return;
-    }
-    void rebuildPreview();
 }
 
 function handleDocumentEvent(event: SceneDocumentEvent) {

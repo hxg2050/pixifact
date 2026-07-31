@@ -124,10 +124,10 @@
 - [ ] 为 `pixifact editor` 启动、项目根绑定、本机地址限制和会话发现补 CLI / 服务测试。
 - [ ] 为受项目根约束的文件读取、版本写入、文件监听和图片访问补服务测试。
 - [x] 为 SceneDocument Command、Undo / Redo、自动保存和同步冲突补单元测试。
-- [ ] 为普通属性不重建 Canvas、结构变化原子替换 Scene root 补 Preview 测试。
-- [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试；当前已覆盖 Pinia 边界与 Inspector preview / commit。
+- [x] 为普通属性增量更新、结构变化替换 Scene root 补 Preview Command 分类测试，并完成人工 Canvas 长驻验收。
+- [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试；当前已覆盖 Pinia 边界、层级结构操作与 Inspector preview / commit。
 - [ ] 为外部 `.scene` / 脚本 / 图片变化和只读 live context 补集成测试。
-- [ ] 在桌面浏览器视口完成布局、无重叠、拖拽与 Inspector 实时反馈的人工验证；当前已完成固定三栏、Canvas 非空、属性实时反馈、自动保存和 Undo 验收。
+- [ ] 在桌面浏览器视口完成布局、无重叠、拖拽与 Inspector 实时反馈的人工验证；当前已完成固定三栏、Canvas 非空、属性实时反馈、层级添加、自动保存和 Undo 验收。
 
 ## Verification
 
@@ -150,6 +150,7 @@ rtk bun run pixifact -- editor
 - [x] 实现长驻 ScenePreview 与普通属性增量更新。
 - [x] 实现新版固定三栏 UI 的首个可用版本。
 - [x] 删除旧 Tauri / Dockview / 运行服务并迁移对外文档。
+- [x] 实现层级结构添加、复制、删除、同级排序和更换父节点。
 
 ## Resume Protocol
 
@@ -161,7 +162,7 @@ rtk bun run pixifact -- editor
 
 ## Resume Notes
 
-Last updated: 2026-07-29
+Last updated: 2026-07-31
 
 Done:
 - 完成 `pixifact editor` 本地 Bun 服务、127.0.0.1 绑定、系统浏览器启动、项目索引、受 project root 约束的文件读取和 versioned Scene write。
@@ -175,17 +176,22 @@ Done:
 - runtime preview 与 Scene binding 已迁移到浏览器 `/api/file`，不再依赖旧 host bridge 或 document controller。
 - 配对脚本 contract extraction 已迁到 Bun Host 的 `/api/scene-bindings`；浏览器包不含 TypeScript compiler，也不执行项目脚本。
 - Scene Instance primitive Props 与 Variant 已接入 Inspector，连续修改通过生成访问器原地更新内部 Binding。
+- 层级已接通 Compiler `insertNode`、`deleteNode` 和 `moveNode` Command，支持添加、复制、删除、同级排序和更换父节点。
+- 新建节点写入 schema defaults，复制子树递归生成全 Scene 唯一 ID；每个结构操作自动保存并可 Undo / Redo。
+- Compiler `moveNode` 已覆盖同级首尾边界，并能通过 inverse 精确恢复原顺序。
+- 结构 Command、Undo 和 Redo 只重建 Scene preview root；桌面浏览器验收中 Canvas 始终只有一个，临时添加节点经 Undo 后示例 Scene 无 diff。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
 - 仓库只保留 Vue 浏览器 Editor，不存在旧桌面入口或兼容层。
-- vNext 还没有重新接通 read-only live context，也没有实现层级结构编辑、画布拖动 / resize 和完整资产交互。
+- vNext 还没有重新接通 read-only live context，也没有实现画布拖动 / resize 和完整资产交互。
 - 当前浏览器主包约 795 KB，整个 Editor 构建约 804 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
+- 层级结构编辑直接复用 Compiler Command，不存在第二套树 mutation 模型。
 
 Currently Failing:
 - None。
 
 Next:
-1. 重新接通浏览器 Editor 的 read-only live context 与外部 `.scene` 变化集成测试。
-2. 按已确认范围实现层级结构 Command 和画布移动 / resize，不扩展成自由工作台。
-3. 继续补齐本地服务的图片访问、系统程序调用和外部变更集成测试。
+1. 继续完善画布选择、移动和 resize，并保持 frame layout 语义。
+2. 补齐图片拖入画布或层级创建 `Image`、Scene 拖入创建 Scene Instance 的资产交互。
+3. 重新接通 read-only live context。

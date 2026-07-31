@@ -302,6 +302,36 @@ Scenario: Scene changes after the Editor reads it
 
 TDD 入口：`tests/editor-server.test.ts`、`tests/editor-scene-document.test.ts`。
 
+### BDD-EDITOR-009 层级结构编辑
+
+Feature: Hierarchy structure editing
+
+```gherkin
+Scenario: User adds, duplicates, deletes, and reorders Scene nodes
+  Given a compiler Scene is open in the Editor
+  When the user adds a node from the hierarchy toolbar
+  Then the node is inserted beside the selection or inside the selected container
+  And the new node receives a unique id and schema defaults
+  When the user duplicates or deletes a selected node
+  Then ids remain unique and the resulting parent is selected after deletion
+  When the user drags a node before, inside, or after another hierarchy row
+  Then the hierarchy shows the exact drop position
+  And invalid cycles or leaf parents are rejected
+  And the .scene child order matches the hierarchy order
+  And each completed action is one undoable Scene Command and is automatically saved
+```
+
+```gherkin
+Scenario: Structural command replaces only the Scene preview root
+  Given the Editor has a long-lived Pixi Application and Canvas
+  When a hierarchy structure Command is committed, undone, or redone
+  Then the Editor prepares a new authoring Scene root
+  And atomically replaces the previous Scene root
+  And the Pixi Application and Canvas remain the same instances
+```
+
+TDD 入口：`tests/editor-scene-document.test.ts`、`tests/editor-vue-ui.test.ts`、`tests/project-file-tree.test.ts` 与浏览器验收。
+
 ## 5. CLI
 
 ### BDD-CLI-001 Inspect and validate compiler scenes

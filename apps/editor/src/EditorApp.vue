@@ -52,6 +52,9 @@ function bindDocument(next: SceneDocument) {
         }
         if (event.type === 'commandApplied') {
             documentRevision.value += 1;
+            selectedLocator.value = event.selection?.type === 'node'
+                ? event.selection.node
+                : undefined;
         }
     });
 }

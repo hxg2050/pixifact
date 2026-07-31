@@ -3,6 +3,8 @@ import {
     parseSceneTemplate,
     serializeSceneTemplate,
     type CompilerSceneCommand,
+    type CompilerSceneCommandContext,
+    type CompilerSceneSelection,
     type SceneTemplate,
     type SceneTemplateValue,
     isSceneTemplateBindingValue,
@@ -18,7 +20,12 @@ export interface SceneFileApi {
 
 export type SceneDocumentEvent =
     | { type: 'nodePropPreview'; locator: string; prop: string; value?: SceneTemplateValue }
-    | { type: 'commandApplied'; command: CompilerSceneCommand; inverse: CompilerSceneCommand }
+    | {
+        type: 'commandApplied';
+        command: CompilerSceneCommand;
+        inverse: CompilerSceneCommand;
+        selection?: CompilerSceneSelection;
+    }
     | { type: 'syncStateChanged'; state: SceneDocumentSyncState };
 
 type SceneDocumentListener = (event: SceneDocumentEvent) => void;
@@ -79,12 +86,22 @@ export class SceneDocument {
             return;
         }
         const command = { op: 'setNodeProp', node: locator, prop, value } satisfies CompilerSceneCommand;
-        const result = this.#commandStack.execute(this.template, command);
+        await this.commitCommand(command);
+    }
+
+    async commitCommand(command: CompilerSceneCommand, context: CompilerSceneCommandContext = {}) {
+        const result = this.#commandStack.execute(this.template, command, {}, context);
         if (!result.ok) {
             throw new Error(result.error);
         }
-        this.#emit({ type: 'commandApplied', command: result.command, inverse: result.inverse });
+        this.#emit({
+            type: 'commandApplied',
+            command: result.command,
+            inverse: result.inverse,
+            selection: result.selection,
+        });
         await this.#queueSave();
+        return result.selection;
     }
 
     async undo() {
@@ -92,7 +109,12 @@ export class SceneDocument {
         if (!result?.ok) {
             return;
         }
-        this.#emit({ type: 'commandApplied', command: result.command, inverse: result.inverse });
+        this.#emit({
+            type: 'commandApplied',
+            command: result.command,
+            inverse: result.inverse,
+            selection: result.selection,
+        });
         await this.#queueSave();
     }
 
@@ -101,7 +123,12 @@ export class SceneDocument {
         if (!result?.ok) {
             return;
         }
-        this.#emit({ type: 'commandApplied', command: result.command, inverse: result.inverse });
+        this.#emit({
+            type: 'commandApplied',
+            command: result.command,
+            inverse: result.inverse,
+            selection: result.selection,
+        });
         await this.#queueSave();
     }
 

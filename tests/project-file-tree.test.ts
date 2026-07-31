@@ -4,6 +4,7 @@ import { BitmapLabel, Group, Label, Rect, ScrollContainer } from 'pixifact/runti
 import {
     createCompilerSceneRuntimePreview,
 } from '../apps/editor/src/preview/compilerSceneRuntimePreview';
+import { incrementalScenePreviewCommands } from '../apps/editor/src/preview/scenePreviewCommands';
 import { createEditorProjectTree } from '../apps/editor/src/services/editorApi';
 import {
     readCompilerSceneBindingIndex,
@@ -99,6 +100,47 @@ afterEach(() => {
 });
 
 describe('browser Editor runtime preview', () => {
+    it('rebuilds the Scene root for structure and Binding commands only', () => {
+        expect(incrementalScenePreviewCommands({
+            op: 'setNodeProp',
+            node: '0:title',
+            prop: 'x',
+            value: 48,
+        }, {
+            op: 'setNodeProp',
+            node: '0:title',
+            prop: 'x',
+            value: 20,
+        })).toEqual([{
+            op: 'setNodeProp',
+            node: '0:title',
+            prop: 'x',
+            value: 48,
+        }]);
+
+        expect(incrementalScenePreviewCommands({
+            op: 'deleteNode',
+            node: '0:title',
+        }, {
+            op: 'insertNode',
+            parent: '__scene__',
+            index: 0,
+            node: { kind: 'pixi', type: 'Text', id: 'title', props: {}, children: [] },
+        })).toBeUndefined();
+
+        expect(incrementalScenePreviewCommands({
+            op: 'setNodeProp',
+            node: '0:title',
+            prop: 'text',
+            value: 'Button',
+        }, {
+            op: 'setNodeProp',
+            node: '0:title',
+            prop: 'text',
+            value: { kind: 'binding', path: ['label'] },
+        })).toBeUndefined();
+    });
+
     it('derives Scene bindings from files served by the browser project API', async () => {
         const projectTree = createProject({
             'src/scenes/Button.scene': '<Scene name="Button" />\n',

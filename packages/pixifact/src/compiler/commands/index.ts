@@ -481,11 +481,13 @@ function moveNode(
         return { ok: false, command, error: 'Target cannot contain this node.' };
     }
 
+    const sameChildList = source.nodes === target.nodes;
     const [node] = source.nodes.splice(source.index, 1);
-    let index = Math.max(0, Math.min(command.index, target.nodes.length));
-    if (source.nodes === target.nodes && source.index < index) {
+    let index = command.index;
+    if (sameChildList && source.index < index) {
         index -= 1;
     }
+    index = Math.max(0, Math.min(index, target.nodes.length));
     target.nodes.splice(index, 0, node);
     const locator = findCompilerSceneNodeLocator(template.children, node);
     if (!locator) {
@@ -499,7 +501,7 @@ function moveNode(
             op: 'moveNode',
             node: locator,
             parent: source.parentLocator,
-            index: source.index,
+            index: sameChildList && index < source.index ? source.index + 1 : source.index,
         },
         selection: { type: 'node', node: locator },
     };
