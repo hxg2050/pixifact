@@ -4,7 +4,7 @@ import {
     pixiSceneAddableNodeTypes,
     type PixiSceneNodeType,
 } from 'pixifact/compiler';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import HierarchyNode from '../components/HierarchyNode.vue';
 import type { SceneDocument } from '../document/SceneDocument';
 import {
@@ -82,9 +82,13 @@ async function deleteNode() {
 }
 
 function startDrag(locator: string) {
+    endDrag();
     draggedLocator.value = locator;
     dropTarget.value = undefined;
     emit('select', locator);
+    window.addEventListener('pointermove', clearDropTargetOutsideHierarchy);
+    window.addEventListener('pointerup', finishDrag, { once: true });
+    window.addEventListener('pointercancel', endDrag, { once: true });
 }
 
 function updateDropTarget(target: SceneTreeDropTarget) {
@@ -120,8 +124,27 @@ async function dropNode(target: SceneTreeDropTarget) {
 }
 
 function endDrag() {
+    window.removeEventListener('pointermove', clearDropTargetOutsideHierarchy);
+    window.removeEventListener('pointerup', finishDrag);
+    window.removeEventListener('pointercancel', endDrag);
     draggedLocator.value = undefined;
     dropTarget.value = undefined;
+}
+
+function clearDropTargetOutsideHierarchy(event: PointerEvent) {
+    const target = event.target;
+    if (!(target instanceof Element) || !target.closest('.hierarchy-panel [data-locator]')) {
+        dropTarget.value = undefined;
+    }
+}
+
+function finishDrag() {
+    const target = dropTarget.value;
+    if (!target) {
+        endDrag();
+        return;
+    }
+    void dropNode(target);
 }
 
 async function commit(command: Parameters<SceneDocument['commitCommand']>[0]) {
@@ -133,6 +156,8 @@ async function commit(command: Parameters<SceneDocument['commitCommand']>[0]) {
         error.value = cause instanceof Error ? cause.message : String(cause);
     }
 }
+
+onBeforeUnmount(endDrag);
 </script>
 
 <template>
@@ -162,8 +187,7 @@ async function commit(command: Parameters<SceneDocument['commitCommand']>[0]) {
       data-locator="__scene__"
       type="button"
       @click="emit('select', undefined)"
-      @dragover.prevent="updateDropTarget({ parent: '__scene__', index: entries.length, locator: '__scene__', mode: 'inside' })"
-      @drop.prevent="dropTarget && dropNode(dropTarget)"
+      @pointermove.stop="draggedLocator && updateDropTarget({ parent: '__scene__', index: entries.length, locator: '__scene__', mode: 'inside' })"
     >
       <span class="tree-disclosure empty" />
       <span class="scene-mark">S</span>
@@ -177,11 +201,10 @@ async function commit(command: Parameters<SceneDocument['commitCommand']>[0]) {
         :entry="entry"
         :level="0"
         :drop-target="dropTarget"
+        :dragging="!!draggedLocator"
         :selected="selected"
-        @drag-end="endDrag"
         @drag-over="updateDropTarget"
         @drag-start="startDrag"
-        @drop="dropNode"
         @select="emit('select', $event)"
       />
     </ul>

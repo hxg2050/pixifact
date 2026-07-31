@@ -9,4 +9,4 @@
 - `EditorApp.vue`：顶层文档绑定、Scene 打开、Undo / Redo 和同步状态。
 
 项目数据以 compiler `.scene` 文件为 source of truth，Pinia 只保存轻量 UI 状态。
-层级操作直接提交 Compiler Scene Command，自动保存并进入 Undo / Redo；结构变化由预览层替换 Scene root，不重建 Pixi Application 或 Canvas。
+层级操作直接提交 Compiler Scene Command，自动保存并进入 Undo / Redo；节点通过左侧把手和 Pointer Events 拖动，不依赖浏览器原生 Drag and Drop。结构变化由预览层替换 Scene root，不重建 Pixi Application 或 Canvas。

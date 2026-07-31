@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronDown, ChevronRight, Component, Image, Layers3, Type } from 'lucide-vue-next';
+import { ChevronDown, ChevronRight, Component, GripVertical, Image, Layers3, Type } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import type { SceneTreeDropTarget, SceneTreeEntry } from '../document/sceneTree';
 
@@ -7,13 +7,12 @@ const props = defineProps<{
     entry: SceneTreeEntry;
     level: number;
     dropTarget?: SceneTreeDropTarget;
+    dragging?: boolean;
     selected?: string;
 }>();
 const emit = defineEmits<{
-    dragEnd: [];
     dragOver: [target: SceneTreeDropTarget];
     dragStart: [locator: string];
-    drop: [target: SceneTreeDropTarget];
     select: [locator: string];
 }>();
 const expanded = ref(true);
@@ -33,7 +32,7 @@ const icon = computed(() => {
     return Layers3;
 });
 
-function calculateDropTarget(event: DragEvent): SceneTreeDropTarget {
+function calculateDropTarget(event: PointerEvent): SceneTreeDropTarget {
     const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const height = bounds.height || 27;
     const ratio = (event.clientY - bounds.top) / height;
@@ -54,23 +53,13 @@ function calculateDropTarget(event: DragEvent): SceneTreeDropTarget {
     };
 }
 
-function handleDragStart(event: DragEvent) {
-    if (event.dataTransfer) {
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', props.entry.locator);
-    }
+function handlePointerDown() {
     emit('dragStart', props.entry.locator);
 }
 
-function handleDragOver(event: DragEvent) {
+function handlePointerMove(event: PointerEvent) {
+    if (!props.dragging) return;
     emit('dragOver', calculateDropTarget(event));
-}
-
-function handleDrop(event: DragEvent) {
-    const target = props.dropTarget?.locator === props.entry.locator
-        ? props.dropTarget
-        : calculateDropTarget(event);
-    emit('drop', target);
 }
 </script>
 
@@ -85,15 +74,19 @@ function handleDrop(event: DragEvent) {
         'drop-after': props.dropTarget?.locator === entry.locator && props.dropTarget.mode === 'after',
       }"
       :data-locator="entry.locator"
-      draggable="true"
       :style="{ paddingLeft: `${8 + level * 16}px` }"
       type="button"
       @click="emit('select', entry.locator)"
-      @dragend="emit('dragEnd')"
-      @dragover.prevent.stop="handleDragOver"
-      @dragstart="handleDragStart"
-      @drop.prevent.stop="handleDrop"
+      @pointermove.stop="handlePointerMove"
     >
+      <span
+        class="tree-drag-handle"
+        data-drag-handle
+        title="拖动节点"
+        @pointerdown.stop.prevent="handlePointerDown"
+      >
+        <GripVertical :size="12" />
+      </span>
       <span
         class="tree-disclosure"
         :class="{ empty: !hasChildren }"
@@ -113,11 +106,10 @@ function handleDrop(event: DragEvent) {
         :entry="child"
         :level="level + 1"
         :drop-target="props.dropTarget"
+        :dragging="props.dragging"
         :selected="selected"
-        @drag-end="emit('dragEnd')"
         @drag-over="emit('dragOver', $event)"
         @drag-start="emit('dragStart', $event)"
-        @drop="emit('drop', $event)"
         @select="emit('select', $event)"
       />
     </ul>

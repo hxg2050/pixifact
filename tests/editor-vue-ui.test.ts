@@ -397,29 +397,29 @@ describe('Editor Vue UI', () => {
         expect(document.source).not.toContain('id="rect2"');
         expect(selected.value).toBe('0:panel');
 
-        await wrapper.get('button[data-locator="1:footer"]').trigger('dragstart');
+        await wrapper.get('button[data-locator="1:footer"] [data-drag-handle]').trigger('pointerdown');
         const panelRow = wrapper.get('button[data-locator="0:panel"]');
-        await panelRow.trigger('dragover', { clientY: 13 });
+        await panelRow.trigger('pointermove', { clientY: 13 });
         expect(panelRow.classes()).toContain('drop-inside');
-        await panelRow.trigger('drop');
+        window.dispatchEvent(new Event('pointerup'));
         await flushPromises();
 
         expect(document.source.indexOf('id="footer"')).toBeLessThan(document.source.indexOf('</Group>'));
 
-        await wrapper.get('button[data-locator="0:panel/2:footer"]').trigger('dragstart');
+        await wrapper.get('button[data-locator="0:panel/2:footer"] [data-drag-handle]').trigger('pointerdown');
         const titleRow = wrapper.get('button[data-locator="0:panel/0:title"]');
-        await titleRow.trigger('dragover', { clientY: 1 });
+        await titleRow.trigger('pointermove', { clientY: 1 });
         expect(titleRow.classes()).toContain('drop-before');
-        await titleRow.trigger('drop');
+        window.dispatchEvent(new Event('pointerup'));
         await flushPromises();
 
         expect(document.source.indexOf('id="footer"')).toBeLessThan(document.source.indexOf('id="title"'));
 
-        await wrapper.get('button[data-locator="0:panel"]').trigger('dragstart');
+        await wrapper.get('button[data-locator="0:panel"] [data-drag-handle]').trigger('pointerdown');
         const rectRow = wrapper.get('button[data-locator="0:panel/2:rect"]');
-        await rectRow.trigger('dragover', { clientY: 1 });
+        await rectRow.trigger('pointermove', { clientY: 1 });
         expect(rectRow.classes()).not.toContain('drop-before');
-        await rectRow.trigger('drop');
+        window.dispatchEvent(new Event('pointerup'));
         await flushPromises();
 
         expect(api.writeScene).toHaveBeenCalledTimes(5);

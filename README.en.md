@@ -96,7 +96,7 @@ Run the Editor from the target project root:
 pixifact editor
 ```
 
-When maintaining this repository, run `bun run editor`; it builds the Vue frontend, starts a local Bun service bound to `127.0.0.1`, and opens the system browser. The hierarchy can add, duplicate, delete, reorder, and reparent nodes, with every completed operation saved automatically and available to Undo / Redo. Structural changes replace only the Scene preview root while the Pixi Application and Canvas remain alive. Inspector input updates runtime nodes immediately, then blur or Enter writes the versioned `.scene` file.
+When maintaining this repository, run `bun run editor`; it builds the Vue frontend, starts a local Bun service bound to `127.0.0.1`, and opens the system browser. The hierarchy can add, duplicate, delete, reorder, and reparent nodes; dragging starts from the handle on the left of each node. Every completed operation is saved automatically and available to Undo / Redo. Structural changes replace only the Scene preview root while the Pixi Application and Canvas remain alive. Inspector input updates runtime nodes immediately, then blur or Enter writes the versioned `.scene` file.
 
 ## CLI
 
