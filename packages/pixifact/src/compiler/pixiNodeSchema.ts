@@ -2,7 +2,7 @@ import type { SceneTemplatePrimitiveType, SceneTemplateValue } from './spec';
 
 export type PixiSceneNodeType = Extract<
     SceneTemplatePrimitiveType,
-    'Group' | 'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'Label' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'Image' | 'NineImage' | 'TileImage' | 'GridContainer' | 'HBoxContainer' | 'ScrollContainer' | 'VBoxContainer'
+    'Group' | 'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'Label' | 'BitmapLabel' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'Image' | 'NineImage' | 'TileImage' | 'GridContainer' | 'HBoxContainer' | 'ScrollContainer' | 'VBoxContainer'
 >;
 
 export type PixiSceneFieldType = 'string' | 'number' | 'boolean' | 'color' | 'enum';
@@ -219,6 +219,7 @@ export const pixiSceneAddableNodeTypes = [
     'NineSliceSprite',
     'TilingSprite',
     'Label',
+    'BitmapLabel',
     'Text',
     'BitmapText',
     'HTMLText',
@@ -379,6 +380,28 @@ const pixiSceneNodeSchemas: Record<PixiSceneNodeType, PixiSceneNodeSchema> = {
     },
     Label: {
         type: 'Label',
+        acceptsChildren: false,
+        defaults: {
+            text: 'Text',
+            width: 120,
+            height: 28,
+            fontFamily: 'Arial',
+            fontSize: 16,
+            fontWeight: 400,
+            fill: 0x111827,
+            lineHeight: 0,
+            letterSpacing: 0,
+            wordWrap: false,
+            alignX: 'start',
+            alignY: 'start',
+            overflow: 'visible',
+        },
+        groups: {
+            text: pixiSceneLabelProps,
+        },
+    },
+    BitmapLabel: {
+        type: 'BitmapLabel',
         acceptsChildren: false,
         defaults: {
             text: 'Text',

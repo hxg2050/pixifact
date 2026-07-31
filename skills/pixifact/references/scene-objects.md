@@ -113,6 +113,7 @@
 | `NineSliceSprite` | 否 | Pixi 原生九宫格精灵。 |
 | `TilingSprite` | 否 | Pixi 原生平铺精灵。 |
 | `Label` | 否 | 带明确宽高、对齐、换行和裁剪的 UI 文本盒。 |
+| `BitmapLabel` | 否 | 使用 bitmap font 的 UI 文本盒。 |
 | `Text` | 否 | 普通文本。 |
 | `BitmapText` | 否 | 高频更新或大量文本。 |
 | `HTMLText` | 否 | 简单富文本。 |
@@ -362,6 +363,14 @@ Pixifact runtime 平铺图片，推荐用于重复背景或可滚动纹理。
 
 ```xml
 <Label id="title" width="240" height="52" text="背包" fontSize="28" fontWeight="700" fill="#ffffff" alignX="center" alignY="center" />
+```
+
+## BitmapLabel
+
+`BitmapLabel` 与 `Label` 使用相同的盒子、排版、换行、对齐和裁剪属性，内部使用 PixiJS `BitmapText`。应用必须在实例化 Scene 前加载 `.fnt`，`fontFamily` 写字体文件声明的 family 名称。
+
+```xml
+<BitmapLabel id="gold" width="160" height="48" text="1280" fontFamily="寒蝉圆黑体Heavy" fontSize="32" fill="#ffdb84" alignX="end" alignY="center" />
 ```
 
 ## Text Nodes

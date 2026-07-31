@@ -146,6 +146,25 @@ Scenario: Author uses a native Pixi Text node
   And the node keeps native Pixi bounds and scale semantics
 ```
 
+### BDD-LABEL-002 BitmapLabel combines bitmap fonts with box layout
+
+```gherkin
+Feature: Bitmap font text box
+
+Scenario: Author uses a bitmap font in a layout box
+  Given the application loaded a bitmap font before Scene instantiation
+  And a Scene contains a BitmapLabel using that font family
+  When the author changes the BitmapLabel width or height
+  Then the BitmapLabel layout box changes
+  And the internal BitmapText scale remains unchanged
+
+Scenario: Editor previews BitmapLabel without running game scripts
+  Given a Scene contains a BitmapLabel
+  When the Editor opens the Scene in Authoring Preview
+  Then the Editor creates a safe BitmapLabel preview
+  And the Editor does not execute the paired Scene script or application font-loading code
+```
+
 TDD 入口：`tests/scene-compiler.test.ts`、`tests/project-file-tree.test.ts`。
 
 ## 4. Editor

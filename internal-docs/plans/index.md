@@ -25,7 +25,7 @@
 | [grid-container-runtime.md](./grid-container-runtime.md) | GridContainer runtime |
 | [image-runtime-nodes.md](./image-runtime-nodes.md) | Image / NineImage / TileImage runtime |
 | [rect-runtime-node.md](./rect-runtime-node.md) | Rect runtime |
-| [label-runtime-node.md](./label-runtime-node.md) | Label 文本盒、排版语义、compiler 与 Editor 接入 |
+| [label-runtime-node.md](./label-runtime-node.md) | Label / BitmapLabel 文本盒、排版语义、compiler 与 Editor 接入 |
 | [documentation-split.md](./documentation-split.md) | 对外文档和内部文档分层迁移 |
 | [documentation-foundation.md](./documentation-foundation.md) | README、文档入口和 Layout 文档整理 |
 | [public-docs-i18n.md](./public-docs-i18n.md) | 对外文档中英文目录拆分 |

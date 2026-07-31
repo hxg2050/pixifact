@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as Pixi from 'pixi.js';
-import { Group, Label, Rect } from 'pixifact/runtime';
+import { BitmapLabel, Group, Label, Rect } from 'pixifact/runtime';
 import {
     createCompilerSceneRuntimePreview,
 } from '../apps/editor/src/preview/compilerSceneRuntimePreview';
@@ -175,6 +175,35 @@ describe('browser Editor runtime preview', () => {
             fontSize: 24,
             wordWrap: true,
             alignX: 'center',
+            alignY: 'center',
+            overflow: 'clip',
+        });
+        expect(fetch).not.toHaveBeenCalledWith('/api/file?path=src%2Fscenes%2FHud.ts');
+        preview.dispose();
+    });
+
+    it('renders BitmapLabel through the safe Authoring preview', async () => {
+        const projectTree = createProject({
+            'src/scenes/Hud.scene': [
+                '<Scene name="Hud" width="400" height="240">',
+                '  <BitmapLabel id="gold" width="180" height="48" text="1280" fontFamily="AntCount" fontSize="32" alignX="end" alignY="center" overflow="clip" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            'src/scenes/Hud.ts': 'throw new Error("Editor must not execute project scripts");\n',
+        });
+
+        const preview = await createPreview(projectTree, 'src/scenes/Hud.scene');
+        const gold = preview.nodes.get('0:gold');
+
+        expect(gold).toBeInstanceOf(BitmapLabel);
+        expect(gold).toMatchObject({
+            width: 180,
+            height: 48,
+            text: '1280',
+            fontFamily: 'AntCount',
+            fontSize: 32,
+            alignX: 'end',
             alignY: 'center',
             overflow: 'clip',
         });

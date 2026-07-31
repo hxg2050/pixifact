@@ -4,6 +4,7 @@ export type SceneTemplatePrimitiveType =
     | 'Sprite'
     | 'Text'
     | 'Label'
+    | 'BitmapLabel'
     | 'Graphics'
     | 'Rect'
     | 'Image'

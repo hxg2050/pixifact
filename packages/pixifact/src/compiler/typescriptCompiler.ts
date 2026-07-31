@@ -29,7 +29,7 @@ const graphicsProps = new Set<string>(pixiSceneGraphicsProps);
 const labelProps = new Set<string>(pixiSceneLabelProps);
 const rectProps = new Set<string>(pixiSceneRectProps);
 const textStyleProps = new Set<string>(pixiSceneTextStyleProps);
-const runtimeNodeTypes = new Set<SceneTemplatePrimitiveType>(['Group', 'GridContainer', 'HBoxContainer', 'ScrollContainer', 'VBoxContainer', 'Label', 'Rect', 'Image', 'NineImage', 'TileImage']);
+const runtimeNodeTypes = new Set<SceneTemplatePrimitiveType>(['Group', 'GridContainer', 'HBoxContainer', 'ScrollContainer', 'VBoxContainer', 'Label', 'BitmapLabel', 'Rect', 'Image', 'NineImage', 'TileImage']);
 const runtimeNodeProps = new Set<string>(['columns', 'gap', 'gapX', 'gapY', 'alignX', 'alignY', 'justify', 'direction', 'scrollX', 'scrollY']);
 
 function isSceneBindingValue(value: SceneTemplateValue | undefined): value is SceneTemplateBindingValue {
@@ -523,7 +523,7 @@ class CompileContext {
             this.#drawGraphics(variable, props);
         }
         for (const [key, value] of Object.entries(props)) {
-            if (!instance && pixiType === 'Label' && labelProps.has(key)) {
+            if (!instance && (pixiType === 'Label' || pixiType === 'BitmapLabel') && labelProps.has(key)) {
                 this.#lines.push(`  ${variable}.${key} = ${this.#value(value)};`);
                 continue;
             }

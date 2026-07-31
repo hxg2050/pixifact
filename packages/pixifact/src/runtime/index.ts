@@ -1,6 +1,7 @@
 export * from './Group'
 export * from './Control'
 export * from './Label'
+export * from './BitmapLabel'
 export * from './Rect'
 export * from './Image'
 export * from './NineImage'

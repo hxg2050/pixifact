@@ -22,7 +22,7 @@ const icon = computed(() => {
     const node = props.entry.node;
     if (node.kind === 'sceneInstance') return Component;
     if (node.kind === 'pixi' && ['Image', 'NineImage', 'TileImage', 'Sprite'].includes(node.type)) return Image;
-    if (node.kind === 'pixi' && ['Label', 'Text', 'BitmapText', 'HTMLText'].includes(node.type)) return Type;
+    if (node.kind === 'pixi' && ['Label', 'BitmapLabel', 'Text', 'BitmapText', 'HTMLText'].includes(node.type)) return Type;
     return Layers3;
 });
 </script>

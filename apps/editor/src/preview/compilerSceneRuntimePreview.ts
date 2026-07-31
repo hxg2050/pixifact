@@ -5,6 +5,7 @@ import {
     Group,
     HBoxContainer,
     Image,
+    BitmapLabel,
     Label,
     NineImage,
     Rect,
@@ -162,6 +163,7 @@ function createPrimitive(context: AuthoringContext, node: PixiTemplateNode): Con
         case 'NineImage': return new NineImage({ texture });
         case 'TileImage': return new TileImage({ texture });
         case 'Label': return new Label();
+        case 'BitmapLabel': return new BitmapLabel();
         case 'Container': return new Pixi.Container();
         case 'Sprite': return new Pixi.Sprite({ texture });
         case 'Text': return new Pixi.Text({ text, style });

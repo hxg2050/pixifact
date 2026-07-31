@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Container, Graphics, Mesh, NineSliceSprite, Rectangle, Text, Texture, TextureSource, Ticker, TilingSprite } from 'pixi.js';
-import { Control, GridContainer, Group, HBoxContainer, Image, Label, NineImage, Rect, ScrollContainer, TileImage, VBoxContainer, calculatePixifactViewportLayout, getFrameLayout } from 'pixifact/runtime';
+import { BitmapText, Container, Graphics, Mesh, NineSliceSprite, Rectangle, Text, Texture, TextureSource, Ticker, TilingSprite } from 'pixi.js';
+import { BitmapLabel, Control, GridContainer, Group, HBoxContainer, Image, Label, NineImage, Rect, ScrollContainer, TileImage, VBoxContainer, calculatePixifactViewportLayout, getFrameLayout } from 'pixifact/runtime';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -593,6 +593,34 @@ describe('Pixifact scene compiler spike', () => {
 
         label.overflow = 'visible';
         expect(renderedText.mask).toBeFalsy();
+    });
+
+    it('exports BitmapLabel with a BitmapText renderer and independent box size', () => {
+        const label = new BitmapLabel({
+            text: '1280',
+            width: 180,
+            height: 64,
+            fontFamily: 'AntCount',
+            fontSize: 32,
+            wordWrap: true,
+            alignX: 'end',
+            alignY: 'center',
+            overflow: 'clip',
+        });
+        const renderedText = label.children[0] as BitmapText;
+
+        expect(label).toBeInstanceOf(Control);
+        expect(renderedText).toBeInstanceOf(BitmapText);
+        expect(renderedText.style.wordWrapWidth).toBe(180);
+        expect(renderedText.scale).toMatchObject({ x: 1, y: 1 });
+        expect(renderedText.mask).toBe(label.children[1]);
+
+        label.width = 96;
+        label.height = 48;
+
+        expect(label.getSize()).toEqual({ width: 96, height: 48 });
+        expect(renderedText.style.wordWrapWidth).toBe(96);
+        expect(renderedText.scale).toMatchObject({ x: 1, y: 1 });
     });
 
     it('exports Image as a Mesh leaf with Pixifact box size and fit modes', () => {
@@ -2234,6 +2262,81 @@ import { Group, Label, setFrameLayout } from 'pixifact/runtime';`);
                 expected: 'no child nodes',
                 actual: '1 child node',
                 hint: 'Label is a leaf drawing node. Wrap it and sibling content in a <Container> or <Group>.',
+            }],
+        });
+    });
+
+    it('parses, serializes, validates, and compiles BitmapLabel primitive nodes', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="Hud" width="400" height="240">
+              <BitmapLabel id="gold" width="180" height="48" text="1280" fontFamily="AntCount" fontSize="32" fill="#ffdb84" alignX="end" alignY="center" overflow="clip" />
+            </Scene>
+        `);
+
+        expect(template.children[0]).toMatchObject({
+            kind: 'pixi',
+            type: 'BitmapLabel',
+            id: 'gold',
+            props: {
+                width: 180,
+                height: 48,
+                text: '1280',
+                fontFamily: 'AntCount',
+                fontSize: 32,
+                fill: 0xffdb84,
+                alignX: 'end',
+                alignY: 'center',
+                overflow: 'clip',
+            },
+            children: [],
+        });
+
+        const source = serializeSceneTemplate(template);
+        expect(source).toContain('<BitmapLabel id="gold" width="180" height="48" text="1280" fontFamily="AntCount" fontSize="32" fill="#ffdb84" alignX="end" alignY="center" overflow="clip" />');
+        expect(parseSceneTemplate(source)).toEqual(template);
+        expect(validateSceneContent({
+            scene: 'src/scenes/Hud.scene',
+            content: source,
+        })).toMatchObject({ ok: true });
+        expect(pixiSceneNodeDefaults('BitmapLabel')).toMatchObject({
+            width: 120,
+            height: 28,
+            text: 'Text',
+            overflow: 'visible',
+        });
+
+        const code = compileSceneTemplateToTs(template);
+        expect(code).toContain(`import { Container } from 'pixi.js';
+import { Group, BitmapLabel } from 'pixifact/runtime';`);
+        expect(code).toContain('gold: BitmapLabel;');
+        expect(code).toContain('const gold = new BitmapLabel();');
+        expect(code).toContain('gold.width = 180;');
+        expect(code).toContain('gold.height = 48;');
+        expect(code).toContain('gold.fontFamily = "AntCount";');
+        expect(code).toContain('gold.alignX = "end";');
+        expect(code).toContain('gold.overflow = "clip";');
+    });
+
+    it('rejects BitmapLabel children because BitmapLabel is a leaf node', () => {
+        const result = validateSceneContent({
+            scene: 'src/scenes/Hud.scene',
+            content: `
+                <Scene name="Hud">
+                  <BitmapLabel id="gold">
+                    <Text id="child" text="Nope" />
+                  </BitmapLabel>
+                </Scene>
+            `,
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            diagnostics: [{
+                path: '0:gold',
+                prop: 'children',
+                expected: 'no child nodes',
+                actual: '1 child node',
+                hint: 'BitmapLabel is a leaf drawing node. Wrap it and sibling content in a <Container> or <Group>.',
             }],
         });
     });

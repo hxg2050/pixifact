@@ -59,6 +59,7 @@ Pixifact runtime adds box-size semantics:
 - `Group.width` / `Group.height` are Pixifact box sizes, not Pixi bounds / scale sizes.
 - `Control extends Group` and is the base layout type with frame layout properties.
 - `Label extends Control` and places UI text in an independent box; changing the box size does not scale the text.
+- `BitmapLabel extends Control` renders with a bitmap font while keeping the same box semantics as `Label`.
 - `Rect`, `Image`, `NineImage`, and `TileImage` are not containers, but they also support frame layout properties.
 
 `<Group>` can be written directly in `.scene` as an ordinary box container. `Control` is a runtime layout base type, not a built-in Scene tag; do not write bare `<Control>`. Use concrete layout containers, child Scene instances, or your own Scene scripts when you need automatic arrangement.

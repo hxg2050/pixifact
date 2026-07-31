@@ -113,6 +113,7 @@ Horizontal priority is `left + right > left > right > horizontal > x`. Vertical 
 | `NineSliceSprite` | No | Native Pixi nine-slice sprites. |
 | `TilingSprite` | No | Native Pixi tiled sprites. |
 | `Label` | No | Box-sized UI text with alignment, wrapping, and clipping. |
+| `BitmapLabel` | No | Box-sized UI text rendered with a bitmap font. |
 | `Text` | No | Ordinary text. |
 | `BitmapText` | No | Frequently updated or numerous text nodes when bitmap fonts are prepared. |
 | `HTMLText` | No | Text that needs simple rich markup. |
@@ -396,6 +397,20 @@ Object-specific props:
 ```xml
 <Label id="title" left="24" right="24" top="32" height="52" text="Inventory" fontSize="28" fontWeight="700" fill="#ffffff" alignX="center" alignY="center" />
 <Label id="description" width="420" height="120" text="A longer description that wraps inside its box" fontSize="20" lineHeight="28" wordWrap="true" overflow="clip" />
+```
+
+## BitmapLabel
+
+`BitmapLabel` has the same layout box, typography, wrapping, alignment, and clipping props as `Label`, but renders through PixiJS `BitmapText`. Use it for bitmap-font counters, scores, damage numbers, and other text that must participate in UI layout.
+
+Load the `.fnt` through PixiJS `Assets.load()` before instantiating the Scene. `fontFamily` must match the family declared by the bitmap font. The Editor does not execute project scripts, so Authoring Preview remains safe while the running game uses the registered bitmap font.
+
+```ts
+await Assets.load('assets/fonts/ant_count.fnt');
+```
+
+```xml
+<BitmapLabel id="gold" width="160" height="48" text="1280" fontFamily="寒蝉圆黑体Heavy" fontSize="32" fill="#ffdb84" alignX="end" alignY="center" />
 ```
 
 ## Text

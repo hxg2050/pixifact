@@ -113,6 +113,7 @@
 | `NineSliceSprite` | 否 | Pixi 原生九宫格精灵。 |
 | `TilingSprite` | 否 | Pixi 原生平铺精灵。 |
 | `Label` | 否 | 带明确宽高、对齐、换行和裁剪的 UI 文本盒。 |
+| `BitmapLabel` | 否 | 使用 bitmap font 的 UI 文本盒。 |
 | `Text` | 否 | 普通文本。 |
 | `BitmapText` | 否 | 高频更新或大量文本，依赖 bitmap font 准备。 |
 | `HTMLText` | 否 | 需要简单富文本标记的文本。 |
@@ -396,6 +397,20 @@
 ```xml
 <Label id="title" left="24" right="24" top="32" height="52" text="背包" fontSize="28" fontWeight="700" fill="#ffffff" alignX="center" alignY="center" />
 <Label id="description" width="420" height="120" text="一段会在盒子内自动换行的说明文字" fontSize="20" lineHeight="28" wordWrap="true" overflow="clip" />
+```
+
+## BitmapLabel
+
+`BitmapLabel` 与 `Label` 使用相同的布局盒、排版、换行、对齐和裁剪属性，内部改用 PixiJS `BitmapText` 渲染。适合金币、分数、伤害数字等需要 bitmap font 且宽高参与 UI 布局的内容。
+
+应用应在实例化 Scene 前通过 PixiJS `Assets.load()` 注册 `.fnt`；`fontFamily` 必须与字体文件中的 family 名称一致。Editor 不执行项目脚本，因此 Authoring Preview 会显示安全预览，游戏运行时使用应用已注册的真实 bitmap font。
+
+```ts
+await Assets.load('assets/fonts/ant_count.fnt');
+```
+
+```xml
+<BitmapLabel id="gold" width="160" height="48" text="1280" fontFamily="寒蝉圆黑体Heavy" fontSize="32" fill="#ffdb84" alignX="end" alignY="center" />
 ```
 
 ## Text

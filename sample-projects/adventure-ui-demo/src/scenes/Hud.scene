@@ -8,7 +8,7 @@
   <Rect id="energyFill" x="134" y="114" width="226" height="14" fillColor="#6dd08c" radius="7" />
   <HBoxContainer id="goldRow" x="520" y="44" width="196" height="48" gap="10" alignY="center" justify="end">
     <Image id="coinIcon" texture="assets/icons/coin.svg" width="42" height="42" fit="contain" />
-    <Text id="goldText" text="{gold}" fontSize="30" fontWeight="700" fill="#ffdb84" />
+    <BitmapLabel id="goldText" width="130" height="42" text="{gold}" fontFamily="寒蝉圆黑体Heavy" fontSize="30" fill="#ffdb84" alignX="end" alignY="center" />
   </HBoxContainer>
   <Rect id="questPill" x="500" y="111" width="216" height="38" fillColor="#172233" fillAlpha="0.9" strokeColor="#6f8aa4" strokeAlpha="0.45" strokeWidth="1" radius="19" />
   <Text id="questText" text="主线：进入月井" x="524" y="119" fontSize="17" fontWeight="600" fill="#d8e6f3" />
