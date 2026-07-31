@@ -112,6 +112,7 @@
 | `Sprite` | 否 | 简单图片精灵，直接使用 Pixi `Sprite` 语义。 |
 | `NineSliceSprite` | 否 | Pixi 原生九宫格精灵。 |
 | `TilingSprite` | 否 | Pixi 原生平铺精灵。 |
+| `Label` | 否 | 带明确宽高、对齐、换行和裁剪的 UI 文本盒。 |
 | `Text` | 否 | 普通文本。 |
 | `BitmapText` | 否 | 高频更新或大量文本，依赖 bitmap font 准备。 |
 | `HTMLText` | 否 | 需要简单富文本标记的文本。 |
@@ -372,9 +373,34 @@
 <TileImage id="groundPattern" texture="assets/bg/grass_tile.png" left="0" right="0" bottom="0" height="180" tileScaleX="2" tileScaleY="2" />
 ```
 
+## Label
+
+`Label` 是推荐用于 UI 的 Pixifact 文本盒。`width` / `height` 表示布局盒，不会缩放文字；`fontSize` 只改变字号和排版；`scaleX` / `scaleY` 才会缩放整个控件。默认盒子为 `120 x 28`。
+
+专属属性：
+
+| 属性 | 类型 | 可选值 | 说明 |
+| --- | --- | --- | --- |
+| `text` | string |  | 文本内容。 |
+| `fontSize` | number |  | 字号。 |
+| `fontFamily` | string |  | 字体族。 |
+| `fontWeight` | enum | `400` / `500` / `600` / `700` / `bold` | 字重。数字可写成数字或字符串。 |
+| `fill` | color |  | 文本颜色。 |
+| `lineHeight` | number |  | 行高；`0` 使用字体自然行高。 |
+| `letterSpacing` | number |  | 字符间距。 |
+| `wordWrap` | boolean |  | 是否按 `width` 自动换行。 |
+| `alignX` | enum | `start` / `center` / `end` | 文字在盒子内的水平对齐。 |
+| `alignY` | enum | `start` / `center` / `end` | 文字在盒子内的垂直对齐。 |
+| `overflow` | enum | `visible` / `clip` | 超出盒子的文字是否可见。 |
+
+```xml
+<Label id="title" left="24" right="24" top="32" height="52" text="背包" fontSize="28" fontWeight="700" fill="#ffffff" alignX="center" alignY="center" />
+<Label id="description" width="420" height="120" text="一段会在盒子内自动换行的说明文字" fontSize="20" lineHeight="28" wordWrap="true" overflow="clip" />
+```
+
 ## Text
 
-`Text` 是普通 Pixi 文本节点，适合大多数静态或低频更新文本。
+`Text` 是普通 Pixi 文本节点，适合需要直接使用 Pixi 原生文字语义的场景。它没有 authoring 假宽高默认值；显式设置 `width` / `height` 会通过 scale 改变文字尺寸，不是设置布局盒。普通 UI 文本优先使用 `Label`。
 
 专属属性：
 
@@ -423,7 +449,7 @@
 | `fill` | color |  | 文本颜色。 |
 
 ```xml
-<HTMLText id="richTip" text="获得 &lt;b&gt;稀有&lt;/b&gt; 道具" width="420" fontSize="22" fill="#ffffff" />
+<HTMLText id="richTip" text="获得 &lt;b&gt;稀有&lt;/b&gt; 道具" fontSize="22" fill="#ffffff" />
 ```
 
 ## Graphics

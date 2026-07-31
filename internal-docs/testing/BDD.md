@@ -120,7 +120,35 @@ Scenario: User edits a structured field
 
 TDD 入口：`tests/compiler-scene-commands.test.ts`、`tests/editor-scene-document.test.ts`、`tests/editor-vue-ui.test.ts`。
 
-## 3. Editor
+## 3. Runtime Text
+
+### BDD-LABEL-001 Label separates box layout from text scale
+
+Feature: Box-sized UI text
+
+```gherkin
+Scenario: Author changes a Label box and typography independently
+  Given a Scene contains a Label with explicit width and height
+  When the author changes the Label width or height
+  Then the Label layout box changes
+  And the rendered text scale stays at 1
+  And word wrapping follows the new box width
+  When the author changes fontSize
+  Then the text is re-laid out at the new font size
+  And the Label box size does not change
+```
+
+```gherkin
+Scenario: Author uses a native Pixi Text node
+  Given a Scene contains Text, BitmapText, or HTMLText without width and height
+  When Pixifact opens or compiles the Scene
+  Then Pixifact does not invent a 120 by 28 size
+  And the node keeps native Pixi bounds and scale semantics
+```
+
+TDD 入口：`tests/scene-compiler.test.ts`、`tests/project-file-tree.test.ts`。
+
+## 4. Editor
 
 ### BDD-EDITOR-001 Editor 预览外部修改
 
@@ -255,7 +283,7 @@ Scenario: Scene changes after the Editor reads it
 
 TDD 入口：`tests/editor-server.test.ts`、`tests/editor-scene-document.test.ts`。
 
-## 4. CLI
+## 5. CLI
 
 ### BDD-CLI-001 Inspect and validate compiler scenes
 

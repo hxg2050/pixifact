@@ -112,6 +112,7 @@ Horizontal priority is `left + right > left > right > horizontal > x`. Vertical 
 | `Sprite` | No | Simple image sprites with direct Pixi `Sprite` semantics. |
 | `NineSliceSprite` | No | Native Pixi nine-slice sprites. |
 | `TilingSprite` | No | Native Pixi tiled sprites. |
+| `Label` | No | Box-sized UI text with alignment, wrapping, and clipping. |
 | `Text` | No | Ordinary text. |
 | `BitmapText` | No | Frequently updated or numerous text nodes when bitmap fonts are prepared. |
 | `HTMLText` | No | Text that needs simple rich markup. |
@@ -372,9 +373,34 @@ Use for ground textures, repeated backgrounds, moving textures, and decorative t
 <TileImage id="groundPattern" texture="assets/bg/grass_tile.png" left="0" right="0" bottom="0" height="180" tileScaleX="2" tileScaleY="2" />
 ```
 
+## Label
+
+`Label` is the recommended Pixifact text box for UI. Its `width` / `height` define a layout box without scaling the rendered text; `fontSize` only changes typography and layout; `scaleX` / `scaleY` scale the entire control. The default box is `120 x 28`.
+
+Object-specific props:
+
+| Prop | Type | Values | Description |
+| --- | --- | --- | --- |
+| `text` | string |  | Text content. |
+| `fontSize` | number |  | Font size. |
+| `fontFamily` | string |  | Font family. |
+| `fontWeight` | enum | `400` / `500` / `600` / `700` / `bold` | Font weight. Numbers can be written as numbers or strings. |
+| `fill` | color |  | Text color. |
+| `lineHeight` | number |  | Line height; `0` uses the natural font line height. |
+| `letterSpacing` | number |  | Spacing between characters. |
+| `wordWrap` | boolean |  | Whether text wraps to the current `width`. |
+| `alignX` | enum | `start` / `center` / `end` | Horizontal alignment inside the box. |
+| `alignY` | enum | `start` / `center` / `end` | Vertical alignment inside the box. |
+| `overflow` | enum | `visible` / `clip` | Whether text outside the box remains visible. |
+
+```xml
+<Label id="title" left="24" right="24" top="32" height="52" text="Inventory" fontSize="28" fontWeight="700" fill="#ffffff" alignX="center" alignY="center" />
+<Label id="description" width="420" height="120" text="A longer description that wraps inside its box" fontSize="20" lineHeight="28" wordWrap="true" overflow="clip" />
+```
+
 ## Text
 
-`Text` is the ordinary Pixi text node. Use it for most static or low-frequency text.
+`Text` is the native Pixi text node. It has no invented authoring width or height; explicitly setting `width` / `height` resizes text through scale rather than creating a layout box. Prefer `Label` for ordinary UI text.
 
 Object-specific props:
 
@@ -423,7 +449,7 @@ Its object-specific props are the same as `Text`:
 | `fill` | color |  | Text color. |
 
 ```xml
-<HTMLText id="richTip" text="Found a &lt;b&gt;Rare&lt;/b&gt; item" width="420" fontSize="22" fill="#ffffff" />
+<HTMLText id="richTip" text="Found a &lt;b&gt;Rare&lt;/b&gt; item" fontSize="22" fill="#ffffff" />
 ```
 
 ## Graphics

@@ -2,7 +2,7 @@ import type { SceneTemplatePrimitiveType, SceneTemplateValue } from './spec';
 
 export type PixiSceneNodeType = Extract<
     SceneTemplatePrimitiveType,
-    'Group' | 'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'Image' | 'NineImage' | 'TileImage' | 'GridContainer' | 'HBoxContainer' | 'ScrollContainer' | 'VBoxContainer'
+    'Group' | 'Container' | 'Sprite' | 'NineSliceSprite' | 'TilingSprite' | 'Text' | 'Label' | 'BitmapText' | 'HTMLText' | 'Graphics' | 'Rect' | 'Image' | 'NineImage' | 'TileImage' | 'GridContainer' | 'HBoxContainer' | 'ScrollContainer' | 'VBoxContainer'
 >;
 
 export type PixiSceneFieldType = 'string' | 'number' | 'boolean' | 'color' | 'enum';
@@ -114,6 +114,16 @@ export const pixiSceneTextProps = [
     'fill',
 ] as const;
 
+export const pixiSceneLabelProps = [
+    ...pixiSceneTextProps,
+    'lineHeight',
+    'letterSpacing',
+    'wordWrap',
+    'alignX',
+    'alignY',
+    'overflow',
+] as const;
+
 export const pixiSceneGraphicsProps = [
     'shape',
     'radius',
@@ -191,6 +201,7 @@ export const pixiSceneKnownProps = [
     ...pixiSceneDisplayProps,
     ...pixiSceneSpriteLikeProps,
     ...pixiSceneTextProps,
+    ...pixiSceneLabelProps,
     ...pixiSceneGraphicsProps,
     ...pixiSceneRectProps,
     ...pixiSceneStackProps,
@@ -207,6 +218,7 @@ export const pixiSceneAddableNodeTypes = [
     'Sprite',
     'NineSliceSprite',
     'TilingSprite',
+    'Label',
     'Text',
     'BitmapText',
     'HTMLText',
@@ -268,8 +280,12 @@ const pixiSceneFieldSchemas: Partial<Record<string, PixiSceneFieldSchema>> = {
     text: { key: 'text', type: 'string' },
     fontSize: { key: 'fontSize', type: 'number' },
     fontFamily: { key: 'fontFamily', type: 'string' },
-    fontWeight: { key: 'fontWeight', type: 'enum', options: [400, 500, 600, 700, '400', '500', '600', '700', 'bold'] },
+    fontWeight: { key: 'fontWeight', type: 'enum', options: [400, 500, 600, 700, 'bold'] },
     fill: { key: 'fill', type: 'color' },
+    lineHeight: { key: 'lineHeight', type: 'number' },
+    letterSpacing: { key: 'letterSpacing', type: 'number' },
+    wordWrap: { key: 'wordWrap', type: 'boolean' },
+    overflow: { key: 'overflow', type: 'enum', options: ['visible', 'clip'] },
     fillColor: { key: 'fillColor', type: 'color' },
     shape: { key: 'shape', type: 'enum', options: ['roundRect', 'rect'] },
     radius: { key: 'radius', type: 'number' },
@@ -354,8 +370,6 @@ const pixiSceneNodeSchemas: Record<PixiSceneNodeType, PixiSceneNodeSchema> = {
         acceptsChildren: false,
         defaults: {
             text: 'Text',
-            width: 120,
-            height: 28,
             fontSize: 16,
             fill: 0x111827,
         },
@@ -363,13 +377,33 @@ const pixiSceneNodeSchemas: Record<PixiSceneNodeType, PixiSceneNodeSchema> = {
             text: pixiSceneTextProps,
         },
     },
-    BitmapText: {
-        type: 'BitmapText',
+    Label: {
+        type: 'Label',
         acceptsChildren: false,
         defaults: {
             text: 'Text',
             width: 120,
             height: 28,
+            fontFamily: 'Arial',
+            fontSize: 16,
+            fontWeight: 400,
+            fill: 0x111827,
+            lineHeight: 0,
+            letterSpacing: 0,
+            wordWrap: false,
+            alignX: 'start',
+            alignY: 'start',
+            overflow: 'visible',
+        },
+        groups: {
+            text: pixiSceneLabelProps,
+        },
+    },
+    BitmapText: {
+        type: 'BitmapText',
+        acceptsChildren: false,
+        defaults: {
+            text: 'Text',
             fontSize: 16,
             fill: 0x111827,
         },
@@ -382,8 +416,6 @@ const pixiSceneNodeSchemas: Record<PixiSceneNodeType, PixiSceneNodeSchema> = {
         acceptsChildren: false,
         defaults: {
             text: 'Text',
-            width: 120,
-            height: 28,
             fontSize: 16,
             fill: 0x111827,
         },

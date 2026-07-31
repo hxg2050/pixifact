@@ -58,6 +58,7 @@ Pixifact runtime 增加盒子尺寸心智：
 - `Group extends Container`，用于 Scene 根节点和普通盒子容器。
 - `Group.width` / `Group.height` 是 Pixifact 盒子尺寸，不是 Pixi 的 bounds / scale 尺寸。
 - `Control extends Group`，是布局基础类型，支持 frame layout 属性。
+- `Label extends Control`，用独立盒子承载 UI 文字；修改盒子宽高不会缩放文字。
 - `Rect`、`Image`、`NineImage`、`TileImage` 不是容器，但也支持 frame layout 属性。
 
 `<Group>` 可直接写在 `.scene` 中，用于普通盒子容器。`Control` 是 runtime 布局基类，不是内置 Scene；不要在 `.scene` 中写裸 `<Control>`。需要自动排列时使用具体布局容器、子 Scene 实例或项目自己的 Scene 脚本。

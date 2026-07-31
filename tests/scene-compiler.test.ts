@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Container, Graphics, Mesh, NineSliceSprite, Rectangle, Text, Texture, TextureSource, Ticker, TilingSprite } from 'pixi.js';
-import { Control, GridContainer, Group, HBoxContainer, Image, NineImage, Rect, ScrollContainer, TileImage, VBoxContainer, calculatePixifactViewportLayout, getFrameLayout } from 'pixifact/runtime';
+import { Control, GridContainer, Group, HBoxContainer, Image, Label, NineImage, Rect, ScrollContainer, TileImage, VBoxContainer, calculatePixifactViewportLayout, getFrameLayout } from 'pixifact/runtime';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -12,6 +12,7 @@ import {
     normalizeSceneAssetId,
     parseSceneTemplate,
     pairedSceneScriptPath,
+    pixiSceneNodeDefaults,
     resolveSceneReference,
     serializeSceneTemplate,
     inspectSceneTemplate,
@@ -540,6 +541,58 @@ describe('Pixifact scene compiler spike', () => {
         expect(rect.scale.x).toBe(1);
         expect(rect.scale.y).toBe(1);
         expect(rect.getBounds().rectangle).toMatchObject({ x: 0, y: 0, width: 240, height: 72 });
+    });
+
+    it('exports Label with independent box, typography, wrapping, alignment, and overflow', () => {
+        const label = new Label({
+            text: 'Inventory items wrap inside the label',
+            width: 180,
+            height: 64,
+            fontSize: 20,
+            fontWeight: 700,
+            fill: 0xffcc66,
+            lineHeight: 26,
+            letterSpacing: 1,
+            wordWrap: true,
+            alignX: 'center',
+            alignY: 'center',
+            overflow: 'clip',
+        });
+        const renderedText = label.children[0] as Text;
+
+        expect(label).toBeInstanceOf(Control);
+        expect(label).toMatchObject({
+            text: 'Inventory items wrap inside the label',
+            width: 180,
+            height: 64,
+            fontSize: 20,
+            fontWeight: 700,
+            fill: 0xffcc66,
+            lineHeight: 26,
+            letterSpacing: 1,
+            wordWrap: true,
+            alignX: 'center',
+            alignY: 'center',
+            overflow: 'clip',
+        });
+        expect(renderedText).toBeInstanceOf(Text);
+        expect(renderedText.style.wordWrapWidth).toBe(180);
+        expect(renderedText.scale).toMatchObject({ x: 1, y: 1 });
+        expect(renderedText.mask).toBe(label.children[1]);
+
+        const originalHeight = label.height;
+        label.width = 96;
+        expect(label.getSize()).toEqual({ width: 96, height: originalHeight });
+        expect(renderedText.style.wordWrapWidth).toBe(96);
+        expect(renderedText.scale).toMatchObject({ x: 1, y: 1 });
+
+        label.fontSize = 30;
+        expect(label.getSize()).toEqual({ width: 96, height: originalHeight });
+        expect(renderedText.style.fontSize).toBe(30);
+        expect(renderedText.scale).toMatchObject({ x: 1, y: 1 });
+
+        label.overflow = 'visible';
+        expect(renderedText.mask).toBeFalsy();
     });
 
     it('exports Image as a Mesh leaf with Pixifact box size and fit modes', () => {
@@ -2089,6 +2142,100 @@ import { Group, Rect, setFrameLayout } from 'pixifact/runtime';`);
         expect(code).toContain('panel.strokeAlpha = 0.5;');
         expect(code).toContain('panel.strokeWidth = 2;');
         expect(code).toContain('panel.radius = 12;');
+    });
+
+    it('parses, serializes, validates, and compiles Label primitive nodes', () => {
+        const template = parseSceneTemplate(`
+            <Scene name="Hud" width="400" height="240">
+              <Label id="title" left="24" right="24" top="16" height="64" text="Inventory" fontFamily="Inter" fontSize="24" fontWeight="700" fill="#ffffff" lineHeight="30" letterSpacing="1" wordWrap="true" alignX="center" alignY="center" overflow="clip" />
+            </Scene>
+        `);
+
+        expect(template.children[0]).toMatchObject({
+            kind: 'pixi',
+            type: 'Label',
+            id: 'title',
+            props: {
+                left: 24,
+                right: 24,
+                top: 16,
+                height: 64,
+                text: 'Inventory',
+                fontFamily: 'Inter',
+                fontSize: 24,
+                fontWeight: 700,
+                fill: 0xffffff,
+                lineHeight: 30,
+                letterSpacing: 1,
+                wordWrap: true,
+                alignX: 'center',
+                alignY: 'center',
+                overflow: 'clip',
+            },
+            children: [],
+        });
+
+        const source = serializeSceneTemplate(template);
+        expect(source).toContain('<Label id="title" left="24" right="24" top="16" height="64" text="Inventory" fontFamily="Inter" fontSize="24" fontWeight="700" fill="#ffffff" lineHeight="30" letterSpacing="1" wordWrap="true" alignX="center" alignY="center" overflow="clip" />');
+        expect(parseSceneTemplate(source)).toEqual(template);
+        expect(validateSceneContent({
+            scene: 'src/scenes/Hud.scene',
+            content: source,
+        })).toMatchObject({ ok: true });
+
+        expect(pixiSceneNodeDefaults('Label')).toMatchObject({
+            width: 120,
+            height: 28,
+            text: 'Text',
+            overflow: 'visible',
+        });
+        for (const type of ['Text', 'BitmapText', 'HTMLText'] as const) {
+            expect(pixiSceneNodeDefaults(type)).not.toHaveProperty('width');
+            expect(pixiSceneNodeDefaults(type)).not.toHaveProperty('height');
+        }
+
+        const code = compileSceneTemplateToTs(template);
+        expect(code).toContain(`import { Container } from 'pixi.js';
+import { Group, Label, setFrameLayout } from 'pixifact/runtime';`);
+        expect(code).toContain('title: Label;');
+        expect(code).toContain('const title = new Label();');
+        expect(code).toContain('title.height = 64;');
+        expect(code).toContain('setFrameLayout(title, { left: 24, right: 24, top: 16 });');
+        expect(code).toContain('title.text = "Inventory";');
+        expect(code).toContain('title.fontFamily = "Inter";');
+        expect(code).toContain('title.fontSize = 24;');
+        expect(code).toContain('title.fontWeight = 700;');
+        expect(code).toContain('title.fill = 16777215;');
+        expect(code).toContain('title.lineHeight = 30;');
+        expect(code).toContain('title.letterSpacing = 1;');
+        expect(code).toContain('title.wordWrap = true;');
+        expect(code).toContain('title.alignX = "center";');
+        expect(code).toContain('title.alignY = "center";');
+        expect(code).toContain('title.overflow = "clip";');
+    });
+
+    it('rejects Label children because Label is a leaf node', () => {
+        const result = validateSceneContent({
+            scene: 'src/scenes/Hud.scene',
+            content: `
+                <Scene name="Hud">
+                  <Label id="title">
+                    <Text id="child" text="Nope" />
+                  </Label>
+                </Scene>
+            `,
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            diagnostics: [{
+                path: '0:title',
+                prop: 'children',
+                expected: 'no child nodes',
+                actual: '1 child node',
+                hint: 'Label is a leaf drawing node. Wrap it and sibling content in a <Container> or <Group>.',
+            }],
+        });
     });
 
     it('parses, serializes, validates, and compiles Pixifact image primitive nodes', () => {

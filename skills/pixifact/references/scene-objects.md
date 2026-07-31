@@ -112,6 +112,7 @@
 | `Sprite` | 否 | Pixi 原生图片精灵。 |
 | `NineSliceSprite` | 否 | Pixi 原生九宫格精灵。 |
 | `TilingSprite` | 否 | Pixi 原生平铺精灵。 |
+| `Label` | 否 | 带明确宽高、对齐、换行和裁剪的 UI 文本盒。 |
 | `Text` | 否 | 普通文本。 |
 | `BitmapText` | 否 | 高频更新或大量文本。 |
 | `HTMLText` | 否 | 简单富文本。 |
@@ -341,6 +342,28 @@ Pixifact runtime 平铺图片，推荐用于重复背景或可滚动纹理。
 <TileImage id="groundPattern" texture="assets/bg/grass_tile.png" left="0" right="0" bottom="0" height="180" tileScaleX="2" tileScaleY="2" />
 ```
 
+## Label
+
+`Label` 是推荐用于 UI 的 Pixifact 文本盒。`width` / `height` 是布局盒尺寸，不会缩放文字；`fontSize` 修改字号和排版；`scaleX` / `scaleY` 缩放整个控件。默认盒子为 `120 x 28`。
+
+| 属性 | 类型 | 可选值 / 说明 |
+| --- | --- | --- |
+| `text` | string | 文本内容。 |
+| `fontSize` | number | 字号。 |
+| `fontFamily` | string | 字体族。 |
+| `fontWeight` | enum | `400` / `500` / `600` / `700` / `bold`。 |
+| `fill` | color | 文本颜色。 |
+| `lineHeight` | number | 行高；`0` 使用字体自然行高。 |
+| `letterSpacing` | number | 字符间距。 |
+| `wordWrap` | boolean | 是否按 `width` 自动换行。 |
+| `alignX` | enum | `start` / `center` / `end`，水平对齐。 |
+| `alignY` | enum | `start` / `center` / `end`，垂直对齐。 |
+| `overflow` | enum | `visible` / `clip`。 |
+
+```xml
+<Label id="title" width="240" height="52" text="背包" fontSize="28" fontWeight="700" fill="#ffffff" alignX="center" alignY="center" />
+```
+
 ## Text Nodes
 
 `Text`、`BitmapText`、`HTMLText` 支持相同文本属性。
@@ -353,12 +376,12 @@ Pixifact runtime 平铺图片，推荐用于重复背景或可滚动纹理。
 | `fontWeight` | enum | `400` / `500` / `600` / `700` / `bold`，数字可写成数字或字符串。 |
 | `fill` | color | 文本颜色。 |
 
-`Text` 适合大多数静态或低频更新文本。`BitmapText` 适合大量文本或频繁变化数值。`HTMLText` 适合简单 HTML 标记；因为 `.scene` 是 XML-like 格式，`text` 中的 `<`、`>`、`&` 要写成实体。
+三者保留 Pixi 原生尺寸语义，没有 `120 x 28` 假宽高默认值。显式设置 `width` / `height` 会通过 scale 改变文字尺寸，不是设置布局盒。普通 UI 文本优先使用 `Label`；`BitmapText` 适合大量文本或频繁变化数值；`HTMLText` 适合简单 HTML 标记，因为 `.scene` 是 XML-like 格式，`text` 中的 `<`、`>`、`&` 要写成实体。
 
 ```xml
 <Text id="scoreLabel" text="Score 1200" right="24" top="28" fontSize="28" fontWeight="700" fill="#ffffff" />
 <BitmapText id="damageNumber" text="-358" x="320" y="260" fontSize="36" fontFamily="DamageFont" fill="#ff4d4d" />
-<HTMLText id="richTip" text="获得 &lt;b&gt;稀有&lt;/b&gt; 道具" width="420" fontSize="22" fill="#ffffff" />
+<HTMLText id="richTip" text="获得 &lt;b&gt;稀有&lt;/b&gt; 道具" fontSize="22" fill="#ffffff" />
 ```
 
 ## Graphics

@@ -86,6 +86,39 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it('shows Label box and typography fields in the Inspector', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: [
+                '<Scene name="Menu">',
+                '  <Label id="title" text="开始" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const wrapper = mount(InspectorPanel, {
+            props: {
+                document,
+                revision: 0,
+                selected: '0:title',
+            },
+        });
+
+        expect((wrapper.get('input[data-prop="width"]').element as HTMLInputElement).value).toBe('120');
+        expect((wrapper.get('input[data-prop="height"]').element as HTMLInputElement).value).toBe('28');
+        expect((wrapper.get('input[data-prop="fontSize"]').element as HTMLInputElement).value).toBe('16');
+        expect((wrapper.get('input[data-prop="wordWrap"]').element as HTMLInputElement).checked).toBe(false);
+        expect(wrapper.get('select[data-prop="fontWeight"]').findAll('option').map((option) => option.text()))
+            .toEqual(['400', '500', '600', '700', 'bold']);
+        expect((wrapper.get('select[data-prop="alignX"]').element as HTMLSelectElement).value).toBe('start');
+        expect((wrapper.get('select[data-prop="alignY"]').element as HTMLSelectElement).value).toBe('start');
+        expect((wrapper.get('select[data-prop="overflow"]').element as HTMLSelectElement).value).toBe('visible');
+        wrapper.unmount();
+    });
+
     it('does not replace newer input when an earlier save finishes', async () => {
         const api = createApi();
         let finishWrite!: (value: { path: string; version: string }) => void;

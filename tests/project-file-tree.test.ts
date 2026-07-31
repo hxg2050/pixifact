@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as Pixi from 'pixi.js';
-import { Group, Rect } from 'pixifact/runtime';
+import { Group, Label, Rect } from 'pixifact/runtime';
 import {
     createCompilerSceneRuntimePreview,
 } from '../apps/editor/src/preview/compilerSceneRuntimePreview';
@@ -150,6 +150,35 @@ describe('browser Editor runtime preview', () => {
             fillColor: 0x111827,
             radius: 12,
         });
+        preview.dispose();
+    });
+
+    it('renders Label through the safe Authoring preview', async () => {
+        const projectTree = createProject({
+            'src/scenes/Hud.scene': [
+                '<Scene name="Hud" width="400" height="240">',
+                '  <Label id="title" width="240" height="72" text="Inventory" fontSize="24" wordWrap="true" alignX="center" alignY="center" overflow="clip" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            'src/scenes/Hud.ts': 'throw new Error("Editor must not execute project scripts");\n',
+        });
+
+        const preview = await createPreview(projectTree, 'src/scenes/Hud.scene');
+        const title = preview.nodes.get('0:title');
+
+        expect(title).toBeInstanceOf(Label);
+        expect(title).toMatchObject({
+            width: 240,
+            height: 72,
+            text: 'Inventory',
+            fontSize: 24,
+            wordWrap: true,
+            alignX: 'center',
+            alignY: 'center',
+            overflow: 'clip',
+        });
+        expect(fetch).not.toHaveBeenCalledWith('/api/file?path=src%2Fscenes%2FHud.ts');
         preview.dispose();
     });
 

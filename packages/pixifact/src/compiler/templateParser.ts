@@ -22,6 +22,7 @@ const pixiTypes = new Set<string>([
     'Container',
     'Sprite',
     'Text',
+    'Label',
     'Graphics',
     'Rect',
     'Image',

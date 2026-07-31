@@ -3,6 +3,7 @@ export type SceneTemplatePrimitiveType =
     | 'Container'
     | 'Sprite'
     | 'Text'
+    | 'Label'
     | 'Graphics'
     | 'Rect'
     | 'Image'

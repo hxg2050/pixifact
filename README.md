@@ -108,6 +108,7 @@ Pixifact runtime 从 `pixifact/runtime` 导出当前官方基础节点：
 
 - `Group`：Pixifact 盒子尺寸容器，也是 Scene 根节点的基础心智。
 - `Control`：继承 `Group` 的布局基础类型，承载 `left/right/top/bottom/horizontal/vertical`。
+- `Label`：带独立布局盒的 UI 文本控件，宽高、字号和整体缩放语义分离。
 - `Rect`：绘制矩形、圆角矩形、填充和边框，不作为容器。
 - `Image`：普通图片盒子，支持 `stretch`、`contain`、`cover`、`none`。
 - `NineImage`：九宫格图片，用于可缩放 UI 背板。
