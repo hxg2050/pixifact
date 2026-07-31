@@ -225,6 +225,10 @@ Inspector:
 - Properties: `direction`, `scrollX`, `scrollY`.
 - `direction`: `vertical`, `horizontal`, `both`.
 - Current runtime supports elasticity and inertia, but no scrollbars.
+- Construction and property assignment only establish the content layer, clipping mask, layout, and static scroll position; they do not register input or Ticker behavior.
+- Instances declared in a compiled Scene automatically activate wheel, pointer, elasticity, and inertia after parts and slots are ready and before `onMounted()`.
+- Editor Authoring Preview does not activate this behavior. It displays the same static visual state, but interaction events do not mutate the preview.
+- Adding a directly constructed `new ScrollContainer()` to a regular Pixi container does not automatically enable input behavior; declare interactive scroll nodes in `.scene`.
 
 ## Drawing And Image Nodes
 

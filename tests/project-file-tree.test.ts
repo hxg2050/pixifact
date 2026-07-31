@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as Pixi from 'pixi.js';
-import { BitmapLabel, Group, Label, Rect } from 'pixifact/runtime';
+import { BitmapLabel, Group, Label, Rect, ScrollContainer } from 'pixifact/runtime';
 import {
     createCompilerSceneRuntimePreview,
 } from '../apps/editor/src/preview/compilerSceneRuntimePreview';
@@ -208,6 +208,44 @@ describe('browser Editor runtime preview', () => {
             overflow: 'clip',
         });
         expect(fetch).not.toHaveBeenCalledWith('/api/file?path=src%2Fscenes%2FHud.ts');
+        preview.dispose();
+    });
+
+    it('renders ScrollContainer visual state without activating runtime input behavior', async () => {
+        const projectTree = createProject({
+            'src/scenes/Inventory.scene': [
+                '<Scene name="Inventory" width="400" height="240">',
+                '  <ScrollContainer id="items" width="100" height="60" scrollY="20">',
+                '    <Rect id="content" width="100" height="180" />',
+                '  </ScrollContainer>',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            'src/scenes/Inventory.ts': 'throw new Error("Editor must not execute project scripts");\n',
+        });
+
+        const preview = await createPreview(projectTree, 'src/scenes/Inventory.scene');
+        const items = preview.nodes.get('0:items') as ScrollContainer;
+        const wheelEvent = {
+            deltaX: 0,
+            deltaY: 24,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        };
+
+        expect(items).toBeInstanceOf(ScrollContainer);
+        expect(items.contentLayer.mask).toBeInstanceOf(Pixi.Graphics);
+        expect(items.contentLayer.children).toHaveLength(1);
+        expect(items.scrollY).toBe(20);
+        expect(items.contentLayer.y).toBe(-20);
+
+        items.emit('wheel', wheelEvent);
+
+        expect(items.scrollY).toBe(20);
+        expect(items.contentLayer.y).toBe(-20);
+        expect(wheelEvent.preventDefault).not.toHaveBeenCalled();
+        expect(wheelEvent.stopPropagation).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalledWith('/api/file?path=src%2Fscenes%2FInventory.ts');
         preview.dispose();
     });
 

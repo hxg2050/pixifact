@@ -233,6 +233,9 @@ bun run editor:frontend:build
 - `Group.width` / `height` 表达 Pixifact 盒子尺寸，不修改 `scale`。
 - compiler root 使用 `Group`，并通过 `setSize()` 写入 Scene 尺寸。
 - sample project 的 scene scripts 继承 `Group`。
+- 构造函数和 setter 只建立确定性的视觉、几何、布局与 mask，不注册 pointer、wheel、Ticker 等游戏行为。
+- decorated compiled Scene 在 parts / slots 注入后、`onMounted()` 前激活 Runtime 行为；嵌套 Scene 重复遍历保持幂等。
+- Editor Authoring Preview 只构造视觉树，不调用 Runtime 行为激活入口。
 
 验证命令：
 

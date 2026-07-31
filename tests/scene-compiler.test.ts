@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { BitmapText, Container, Graphics, Mesh, NineSliceSprite, Rectangle, Text, Texture, TextureSource, Ticker, TilingSprite } from 'pixi.js';
 import { BitmapLabel, Control, GridContainer, Group, HBoxContainer, Image, Label, NineImage, Rect, ScrollContainer, TileImage, VBoxContainer, calculatePixifactViewportLayout, getFrameLayout } from 'pixifact/runtime';
 import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises';
@@ -68,6 +68,74 @@ function tickSharedTicker(frames: number) {
         Ticker.shared.update(time);
     }
 }
+
+const runtimeScrollScenePath = '__tests__/RuntimeScroll.scene';
+const nestedRuntimeScrollScenePath = '__tests__/NestedRuntimeScroll.scene';
+
+@scene()
+class RuntimeScrollFixture extends Group {
+    @part()
+    declare scroll: ScrollContainer;
+
+    activeBeforeMounted = false;
+
+    onMounted() {
+        this.activeBeforeMounted = this.scroll.eventMode === 'static';
+    }
+}
+
+registerScene(runtimeScrollScenePath, {
+    assets: [],
+    dependencies: [],
+    mount(root) {
+        const scroll = new ScrollContainer();
+        root.addChild(scroll);
+        return {
+            root,
+            nodes: { '0:scroll': scroll },
+            parts: { scroll },
+            slots: {},
+        };
+    },
+    async prepare() {},
+});
+registerSceneClass(RuntimeScrollFixture, runtimeScrollScenePath);
+
+@scene()
+class NestedRuntimeScrollFixture extends Group {
+    @part()
+    declare child: RuntimeScrollFixture;
+}
+
+registerScene(nestedRuntimeScrollScenePath, {
+    assets: [],
+    dependencies: [runtimeScrollScenePath],
+    mount(root) {
+        const child = new RuntimeScrollFixture();
+        child.scroll.setSize(100, 100);
+        child.scroll.addChild(new Rect({ width: 100, height: 160 }));
+        root.addChild(child);
+        return {
+            root,
+            nodes: { '0:child': child },
+            parts: { child },
+            slots: {},
+        };
+    },
+    async prepare() {},
+});
+registerSceneClass(NestedRuntimeScrollFixture, nestedRuntimeScrollScenePath);
+
+function createRuntimeScroll(options: { width: number; height: number; direction?: 'vertical' | 'horizontal' | 'both' }) {
+    const scene = new RuntimeScrollFixture();
+    scene.scroll.setSize(options.width, options.height);
+    scene.scroll.direction = options.direction ?? 'vertical';
+    return scene.scroll;
+}
+
+beforeAll(async () => {
+    await prepareSceneClass(NestedRuntimeScrollFixture);
+});
 
 describe('Pixifact scene compiler spike', () => {
     it('parses and serializes direct Scene Prop and Variant field bindings', () => {
@@ -335,8 +403,42 @@ describe('Pixifact scene compiler spike', () => {
         expect(scroll.contentLayer.y).toBeCloseTo(0);
     });
 
+    it('keeps directly constructed ScrollContainer free of runtime input behavior', () => {
+        const scroll = new ScrollContainer({ width: 100, height: 60 });
+        scroll.addChild(new Rect({ width: 100, height: 180 }));
+        const wheelEvent = {
+            deltaX: 0,
+            deltaY: 24,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        };
+
+        scroll.emit('wheel', wheelEvent);
+
+        expect(scroll.scrollY).toBe(0);
+        expect(scroll.contentLayer.y).toBeCloseTo(0);
+        expect(wheelEvent.preventDefault).not.toHaveBeenCalled();
+        expect(wheelEvent.stopPropagation).not.toHaveBeenCalled();
+    });
+
+    it('activates runtime behavior before onMounted and only once across nested Scenes', () => {
+        const scene = new RuntimeScrollFixture();
+
+        expect(scene.activeBeforeMounted).toBe(true);
+
+        const nested = new NestedRuntimeScrollFixture();
+        nested.child.scroll.emit('wheel', {
+            deltaX: 0,
+            deltaY: 10,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        });
+
+        expect(nested.child.scroll.scrollY).toBe(10);
+    });
+
     it('scrolls ScrollContainer content from wheel and pointer drag events', () => {
-        const scroll = new ScrollContainer({ width: 100, height: 60, direction: 'both' });
+        const scroll = createRuntimeScroll({ width: 100, height: 60, direction: 'both' });
         scroll.addChild(new Rect({ width: 200, height: 180 }));
         const wheelEvent = {
             deltaX: 12,
@@ -389,7 +491,7 @@ describe('Pixifact scene compiler spike', () => {
     });
 
     it('clamps ScrollContainer targets without reverse scroll dead zones', () => {
-        const wheelScroll = new ScrollContainer({ width: 100, height: 100 });
+        const wheelScroll = createRuntimeScroll({ width: 100, height: 100 });
         wheelScroll.addChild(new Rect({ width: 100, height: 160 }));
         wheelScroll.emit('wheel', {
             deltaX: 0,
@@ -409,7 +511,7 @@ describe('Pixifact scene compiler spike', () => {
 
         expect(wheelScroll.scrollY).toBe(59);
 
-        const dragScroll = new ScrollContainer({ width: 100, height: 100 });
+        const dragScroll = createRuntimeScroll({ width: 100, height: 100 });
         dragScroll.addChild(new Rect({ width: 100, height: 160 }));
         dragScroll.emit('pointerdown', { pointerId: 1, global: { x: 0, y: 0 } });
         dragScroll.emit('globalpointermove', { pointerId: 1, global: { x: 0, y: -100 } });
@@ -423,7 +525,7 @@ describe('Pixifact scene compiler spike', () => {
     });
 
     it('allows elastic ScrollContainer drag beyond bounds and springs back on release', () => {
-        const scroll = new ScrollContainer({ width: 100, height: 100 });
+        const scroll = createRuntimeScroll({ width: 100, height: 100 });
         try {
             scroll.addChild(new Rect({ width: 100, height: 160 }));
             scroll.emit('pointerdown', { pointerId: 1, global: { x: 0, y: 0 } });
@@ -444,7 +546,7 @@ describe('Pixifact scene compiler spike', () => {
     });
 
     it('keeps elastic ScrollContainer drag moving with the pointer before release', () => {
-        const scroll = new ScrollContainer({ width: 100, height: 100 });
+        const scroll = createRuntimeScroll({ width: 100, height: 100 });
         try {
             scroll.addChild(new Rect({ width: 100, height: 160 }));
             scroll.emit('pointerdown', { pointerId: 1, global: { x: 0, y: 0 } });
@@ -460,7 +562,7 @@ describe('Pixifact scene compiler spike', () => {
     });
 
     it('continues ScrollContainer movement with inertia after drag release', () => {
-        const scroll = new ScrollContainer({ width: 100, height: 100 });
+        const scroll = createRuntimeScroll({ width: 100, height: 100 });
         try {
             scroll.addChild(new Rect({ width: 100, height: 400 }));
             scroll.emit('pointerdown', { pointerId: 1, global: { x: 0, y: 0 } });

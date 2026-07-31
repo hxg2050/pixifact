@@ -10,6 +10,7 @@ import {
 } from 'pixi.js';
 import { Control } from './Control';
 import type { GroupOptions } from './Group';
+import { runtimeBehavior } from './runtimeBehavior';
 
 export type ScrollDirection = 'vertical' | 'horizontal' | 'both';
 
@@ -57,19 +58,22 @@ export class ScrollContainer extends Control {
         this.#direction = direction ?? this.#direction;
         this.#targetScrollX = scrollX ?? this.#targetScrollX;
         this.#targetScrollY = scrollY ?? this.#targetScrollY;
-        this.eventMode = 'static';
         this.contentLayer.mask = this.#mask;
         this.contentLayer.on('childAdded', this.#handleContentChildAdded, this);
         this.contentLayer.on('childRemoved', this.#handleContentChildRemoved, this);
         super.addChild(this.contentLayer);
         super.addChild(this.#mask);
+        this.layout();
+    }
+
+    [runtimeBehavior]() {
+        this.eventMode = 'static';
         this.on('wheel', this.#handleWheel, this);
         this.on('pointerdown', this.#handlePointerDown, this);
         this.on('globalpointermove', this.#handleGlobalPointerMove, this);
         this.on('pointerup', this.#handlePointerUp, this);
         this.on('pointerupoutside', this.#handlePointerUp, this);
         this.on('pointercancel', this.#handlePointerUp, this);
-        this.layout();
     }
 
     get direction() {
@@ -159,6 +163,13 @@ export class ScrollContainer extends Control {
     override destroy(options?: DestroyOptions) {
         this.#destroying = true;
         this.#stopMomentum();
+        this.#drag = undefined;
+        this.off('wheel', this.#handleWheel, this);
+        this.off('pointerdown', this.#handlePointerDown, this);
+        this.off('globalpointermove', this.#handleGlobalPointerMove, this);
+        this.off('pointerup', this.#handlePointerUp, this);
+        this.off('pointerupoutside', this.#handlePointerUp, this);
+        this.off('pointercancel', this.#handlePointerUp, this);
         this.contentLayer.off('childAdded', this.#handleContentChildAdded, this);
         this.contentLayer.off('childRemoved', this.#handleContentChildRemoved, this);
         for (const child of this.#watchedContent) {

@@ -1,4 +1,5 @@
 import type { Group } from '../runtime';
+import { activateRuntimeTree } from '../runtime/runtimeBehavior';
 import type {
     SceneClassDecorator,
     SceneEventDecoratorOptions,
@@ -53,6 +54,7 @@ export function scene(): SceneClassDecorator {
                         writable: false,
                     });
                 }
+                activateRuntimeTree(this as object as Group);
                 const ready = (this as { onMounted?: () => void }).onMounted;
                 if (ready) {
                     ready.call(this);

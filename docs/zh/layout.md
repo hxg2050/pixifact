@@ -225,6 +225,10 @@ Inspector：
 - 属性：`direction`、`scrollX`、`scrollY`。
 - `direction` 可用 `vertical`、`horizontal`、`both`。
 - 当前运行时支持弹性和惯性，不提供滚动条。
+- 构造和属性设置只建立 content layer、裁剪 mask、布局与静态滚动位置，不注册输入或 Ticker。
+- 声明在 compiled Scene 中的实例会在 parts / slots 准备完成后、`onMounted()` 前自动激活 wheel、pointer、弹性和惯性行为。
+- Editor Authoring Preview 不激活这些行为；它显示同一份静态视觉状态，但交互事件不会修改预览。
+- 直接 `new ScrollContainer()` 并加入普通 Pixi 容器不会自动获得输入行为；需要交互滚动时应把节点声明在 `.scene` 中。
 
 ## 绘制和图片节点
 

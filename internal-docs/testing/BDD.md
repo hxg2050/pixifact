@@ -363,6 +363,28 @@ Scenario: Game loads compiled scene output
 
 TDD 入口：`tests/scene-compiler.test.ts`、`tests/scene-script-interface.test.ts`、sample project build tests。
 
+### BDD-RUNTIME-002 Runtime behavior activates outside Authoring
+
+Feature: Runtime behavior activation boundary
+
+```gherkin
+Scenario: Game instantiates a compiled Scene with interactive runtime nodes
+  Given a compiled Scene contains a ScrollContainer
+  When the game constructs the decorated Scene class
+  Then Pixifact mounts nodes and injects parts and slots
+  And it activates wheel, pointer, and Ticker behavior before onMounted
+  And an already activated nested Scene is not activated twice
+
+Scenario: Editor constructs the same visual node for Authoring Preview
+  Given a .scene contains a ScrollContainer with a static scroll position
+  When the Editor opens the Scene in Authoring Preview
+  Then the Editor creates its content layer, clipping mask, layout, and static scroll position
+  And wheel or pointer events do not change preview state
+  And no runtime behavior or project logic is activated
+```
+
+TDD 入口：`tests/scene-compiler.test.ts`、`tests/project-file-tree.test.ts`。
+
 ## 6. Non-Goals
 
 - Pixifact 不提供内置模型服务、模拟 Agent 服务或内置 AI chat 作为主开发路径。
