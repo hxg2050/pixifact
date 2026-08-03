@@ -180,7 +180,7 @@ Done:
 - 层级已接通 Compiler `insertNode`、`deleteNode` 和 `moveNode` Command，支持添加、复制、删除、同级排序和更换父节点。
 - 层级拖拽从节点整行启动并使用 Pointer Events，不依赖浏览器原生 Drag and Drop。
 - 画布直接操作使用长驻 Pixi authoring preview 的 Pointer Events；移动和 resize 期间只 preview，释放后提交一个 Scene Command。
-- 画布不会把 frame layout 转换成自由 `x / y`；`HBoxContainer`、`VBoxContainer` 和 `GridContainer` 的直接子节点只允许选择。
+- 画布不会把 frame layout 转换成自由 `x / y`；`HBoxContainer`、`VBoxContainer` 和 `GridContainer` 的直接子节点不能自由移动，但可通过右、下、右下控制点修改 `width / height`。
 - 新建节点写入 schema defaults，复制子树递归生成全 Scene 唯一 ID；每个结构操作自动保存并可 Undo / Redo。
 - Compiler `moveNode` 已覆盖同级首尾边界，并能通过 inverse 精确恢复原顺序。
 - 结构 Command、Undo 和 Redo 只重建 Scene preview root；桌面浏览器验收中 Canvas 始终只有一个，临时添加节点经 Undo 后示例 Scene 无 diff。

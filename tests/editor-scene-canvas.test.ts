@@ -4,8 +4,9 @@ import { parseSceneTemplate } from 'pixifact/compiler';
 import { SceneDocument } from '../apps/editor/src/document/SceneDocument';
 import {
     moveSceneCanvasGeometry,
+    resizeLayoutManagedSceneCanvasGeometry,
     resizeSceneCanvasGeometry,
-    sceneCanvasNodeIsLayoutManaged,
+    sceneCanvasNodePositionIsLayoutManaged,
 } from '../apps/editor/src/preview/sceneCanvasGeometry';
 import { redrawSceneCanvasGraphics } from '../apps/editor/src/preview/sceneCanvasGraphics';
 
@@ -164,7 +165,33 @@ describe('Editor Scene canvas geometry', () => {
             '</Scene>',
         ].join('\n'));
 
-        expect(sceneCanvasNodeIsLayoutManaged(template, '0:row/0:first')).toBe(true);
-        expect(sceneCanvasNodeIsLayoutManaged(template, '1:free/0:second')).toBe(false);
+        expect(sceneCanvasNodePositionIsLayoutManaged(template, '0:row/0:first')).toBe(true);
+        expect(sceneCanvasNodePositionIsLayoutManaged(template, '1:free/0:second')).toBe(false);
+    });
+
+    it('resizes stack-layout children through width and height without authoring x or y', () => {
+        expect(resizeLayoutManagedSceneCanvasGeometry(
+            { width: 148, height: 64 },
+            { x: 166, y: 4, width: 148, height: 64 },
+            'se',
+            { x: 12, y: 8 },
+        )).toEqual([
+            { prop: 'width', value: 160 },
+            { prop: 'height', value: 72 },
+        ]);
+        expect(resizeLayoutManagedSceneCanvasGeometry(
+            { left: 0, right: 0, width: 148, height: 64 },
+            { x: 166, y: 4, width: 148, height: 64 },
+            'e',
+            { x: 12, y: 0 },
+        )).toEqual([
+            { prop: 'width', value: 160 },
+        ]);
+        expect(resizeLayoutManagedSceneCanvasGeometry(
+            { width: 148, height: 64 },
+            { x: 166, y: 4, width: 148, height: 64 },
+            'w',
+            { x: -12, y: 0 },
+        )).toBeUndefined();
     });
 });

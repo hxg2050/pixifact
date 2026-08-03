@@ -359,7 +359,9 @@ Scenario: Canvas editing preserves layout ownership
   Given a node is arranged by an HBoxContainer, VBoxContainer, or GridContainer
   When the user selects it on the canvas
   Then the node can be inspected
-  But the canvas does not offer move or resize controls for that node
+  And the canvas does not offer free-position movement for that node
+  But the canvas offers right, bottom, and bottom-right resize handles
+  And resizing changes width and height without authoring x or y
 ```
 
 TDD 入口：`tests/editor-scene-canvas.test.ts`、`tests/editor-scene-document.test.ts` 与浏览器验收。

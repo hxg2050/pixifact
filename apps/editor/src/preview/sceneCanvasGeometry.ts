@@ -111,7 +111,30 @@ export function resizeSceneCanvasGeometry(
         : undefined;
 }
 
-export function sceneCanvasNodeIsLayoutManaged(template: SceneTemplate, locator: string) {
+export function resizeLayoutManagedSceneCanvasGeometry(
+    props: Record<string, SceneTemplateValue>,
+    geometry: SceneCanvasGeometry,
+    handle: SceneCanvasResizeHandle,
+    delta: SceneCanvasPoint,
+): SceneCanvasPropChange[] | undefined {
+    if (handle !== 'e' && handle !== 's' && handle !== 'se') return undefined;
+    const changes: SceneCanvasPropChange[] = [];
+    if (
+        handle.includes('e')
+        && !setGeometryNumber(changes, props, 'width', Math.max(1, geometry.width + delta.x), geometry.width)
+    ) {
+        return undefined;
+    }
+    if (
+        handle.includes('s')
+        && !setGeometryNumber(changes, props, 'height', Math.max(1, geometry.height + delta.y), geometry.height)
+    ) {
+        return undefined;
+    }
+    return changes;
+}
+
+export function sceneCanvasNodePositionIsLayoutManaged(template: SceneTemplate, locator: string) {
     const entry = findSceneTreeEntry(template.children, locator);
     if (!entry || entry.parentLocator === '__scene__') return false;
     const parent = findSceneTreeEntry(template.children, entry.parentLocator)?.node;

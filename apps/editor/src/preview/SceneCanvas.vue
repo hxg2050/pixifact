@@ -24,8 +24,9 @@ import {
 } from './compilerSceneRuntimePreview';
 import {
     moveSceneCanvasGeometry,
+    resizeLayoutManagedSceneCanvasGeometry,
     resizeSceneCanvasGeometry,
-    sceneCanvasNodeIsLayoutManaged,
+    sceneCanvasNodePositionIsLayoutManaged,
     type SceneCanvasGeometry,
     type SceneCanvasPropChange,
     type SceneCanvasResizeHandle,
@@ -72,6 +73,7 @@ interface CanvasInteraction {
     mode: 'move' | 'resize';
     parent: Container;
     pointerId: number;
+    positionManaged: boolean;
     previewed: Set<string>;
     props: Record<string, SceneTemplateValue>;
     start: { x: number; y: number };
@@ -245,20 +247,22 @@ function targetGeometry(target: Container): SceneCanvasGeometry {
 function nodeCanMove(locator: string, target: Container) {
     const node = selectedNode(locator);
     if (!props.document || !node || node.kind === 'slotOutlet') return false;
-    if (sceneCanvasNodeIsLayoutManaged(props.document.template, locator)) return false;
+    if (sceneCanvasNodePositionIsLayoutManaged(props.document.template, locator)) return false;
     return moveSceneCanvasGeometry(node.props, targetGeometry(target), { x: 1, y: 1 }) !== undefined;
 }
 
 function nodeCanResize(locator: string, target: Container, handle: SceneCanvasResizeHandle) {
     const node = selectedNode(locator);
     if (!props.document || !node || node.kind === 'slotOutlet') return false;
-    if (sceneCanvasNodeIsLayoutManaged(props.document.template, locator)) return false;
     if (target.rotation !== 0 || target.skew.x !== 0 || target.skew.y !== 0) return false;
     const delta = {
         x: handle.includes('w') || handle.includes('e') ? 1 : 0,
         y: handle.includes('n') || handle.includes('s') ? 1 : 0,
     };
-    return resizeSceneCanvasGeometry(node.props, targetGeometry(target), handle, delta) !== undefined;
+    const resize = sceneCanvasNodePositionIsLayoutManaged(props.document.template, locator)
+        ? resizeLayoutManagedSceneCanvasGeometry
+        : resizeSceneCanvasGeometry;
+    return resize(node.props, targetGeometry(target), handle, delta) !== undefined;
 }
 
 function beginMove(locator: string, event: FederatedPointerEvent) {
@@ -302,6 +306,7 @@ function beginInteraction(
         mode,
         parent: target.parent,
         pointerId: event.pointerId,
+        positionManaged: sceneCanvasNodePositionIsLayoutManaged(document.template, locator),
         previewed: new Set(),
         props: { ...node.props },
         start: { x: start.x, y: start.y },
@@ -319,7 +324,9 @@ function moveInteraction(event: FederatedPointerEvent) {
     };
     const changes = current.mode === 'move'
         ? moveSceneCanvasGeometry(current.props, current.geometry, delta)
-        : resizeSceneCanvasGeometry(current.props, current.geometry, current.handle!, delta);
+        : current.positionManaged
+            ? resizeLayoutManagedSceneCanvasGeometry(current.props, current.geometry, current.handle!, delta)
+            : resizeSceneCanvasGeometry(current.props, current.geometry, current.handle!, delta);
     if (!changes) return;
     previewInteractionChanges(current, changes);
 }
