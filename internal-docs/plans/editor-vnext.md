@@ -160,6 +160,7 @@ rtk bun run pixifact -- editor
 - [x] 删除未接入 vNext Editor 的旧 `live ...` CLI、固定端口 bridge、测试和文档入口。
 - [x] 实现项目级 Host session discovery、单浏览器会话和 `pixifact editor context`。
 - [x] 实现顶栏手动刷新，在保持长驻 Canvas 的同时重新读取 Scene、脚本接口和图片预览。
+- [x] 实现鼠标滚轮以光标为中心缩放 authoring 画布，并限制在 10%–400%。
 
 ## Resume Protocol
 
@@ -201,9 +202,11 @@ Done:
 - 外部 Scene 重载按路径合并并串行执行，选择只在原位修改、id rename 或唯一 id 移动时保守重定位。
 - 真实浏览器验收已确认第二个标签页只显示占用状态；选择 `bagButton` 后，`editor context` 返回 Compiler locator、Scene Instance props、events 和 slot 数量。
 - 真实浏览器验收已完成外部 `BottomMenu.scene` 的 `背包 -> 背包验收 -> 背包` 往返修改；Editor 自动刷新 revision 并保留确定的选择，Canvas 始终只有一个，示例 Scene 最终无 diff，当前 Host 无 console warning/error。
-- 全量测试为 16 个测试文件、217 个测试，`editor:typecheck`、`editor:frontend:build` 和包构建均通过。
+- 全量测试为 16 个测试文件、219 个测试，`editor:typecheck`、`editor:frontend:build` 和包构建均通过。
 - 顶栏手动刷新会等待当前 Scene 同步，重新读取项目索引、脚本接口和 Scene；同 revision 保留选择与 Undo / Redo，并通过更新 project tree 强制重建图片预览。
 - 真实浏览器验收已完成 `背包 -> 背包刷新 -> 手动刷新 -> Undo 背包`；刷新前后选择保持为 `bagButton`、Undo 仍可用、Canvas 始终只有一个，示例 Scene 最终无 diff，当前 Host 无 console warning/error。
+- 画布滚轮缩放直接更新 authoring preview root 的 scale / position；光标下 Scene 坐标保持不变，选择框同步更新，缩放限制为 10%–400%。
+- 真实浏览器验收已完成围绕 `bagButton` 中心放大与恢复；选择框同步缩放，Canvas 始终只有一个，当前 Host 无 console warning/error。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
@@ -214,6 +217,7 @@ Current State:
 - 当前浏览器主包约 812 KB，整个 Editor 构建约 821 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
 - 层级结构编辑直接复用 Compiler Command，不存在第二套树 mutation 模型。
 - 顶栏提供手动刷新入口，保存进行中或同步失败时禁用，避免与 versioned write 竞争。
+- authoring 画布支持鼠标滚轮以光标为中心缩放，不修改 `.scene` 数据或替换 Pixi Application / Canvas。
 
 Currently Failing:
 - None。

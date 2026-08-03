@@ -31,6 +31,7 @@ import {
     resizeLayoutManagedSceneCanvasGeometry,
     resizeSceneCanvasGeometry,
     sceneCanvasNodePositionIsLayoutManaged,
+    zoomSceneCanvasView,
     type SceneCanvasGeometry,
     type SceneCanvasPropChange,
     type SceneCanvasResizeHandle,
@@ -104,6 +105,28 @@ function fitPreview() {
         (viewport.width - preview.width * scale) / 2,
         (viewport.height - preview.height * scale) / 2,
     );
+    updateSelectionOverlay();
+}
+
+function handleCanvasWheel(event: WheelEvent) {
+    if (!app || !preview || !host.value) return;
+    const bounds = host.value.getBoundingClientRect();
+    const pointer = {
+        x: (event.clientX - bounds.left) * app.screen.width / bounds.width,
+        y: (event.clientY - bounds.top) * app.screen.height / bounds.height,
+    };
+    const wheelDelta = event.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? event.deltaY * 16
+        : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
+            ? event.deltaY * bounds.height
+            : event.deltaY;
+    const next = zoomSceneCanvasView({
+        scale: preview.root.scale.x,
+        x: preview.root.position.x,
+        y: preview.root.position.y,
+    }, pointer, wheelDelta);
+    preview.root.scale.set(next.scale);
+    preview.root.position.set(next.x, next.y);
     updateSelectionOverlay();
 }
 
@@ -560,6 +583,7 @@ onBeforeUnmount(() => {
     class="scene-canvas-host"
     :class="{ 'is-asset-drop-target': !!draggedAsset }"
     @pointerup="dropAssetOnCanvas"
+    @wheel.prevent="handleCanvasWheel"
   >
     <div class="canvas-grid" />
     <div v-if="status" class="canvas-status">{{ status }}</div>

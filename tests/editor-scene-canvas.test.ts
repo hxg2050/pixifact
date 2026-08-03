@@ -7,10 +7,33 @@ import {
     resizeLayoutManagedSceneCanvasGeometry,
     resizeSceneCanvasGeometry,
     sceneCanvasNodePositionIsLayoutManaged,
+    zoomSceneCanvasView,
 } from '../apps/editor/src/preview/sceneCanvasGeometry';
 import { redrawSceneCanvasGraphics } from '../apps/editor/src/preview/sceneCanvasGraphics';
 
 describe('Editor Scene canvas geometry', () => {
+    it('zooms around the pointer without changing its Scene coordinate', () => {
+        const view = { x: 120, y: 80, scale: 0.5 };
+        const pointer = { x: 420, y: 260 };
+        const next = zoomSceneCanvasView(view, pointer, -120);
+
+        expect(next.scale).toBeGreaterThan(view.scale);
+        expect((pointer.x - next.x) / next.scale).toBeCloseTo(
+            (pointer.x - view.x) / view.scale,
+        );
+        expect((pointer.y - next.y) / next.scale).toBeCloseTo(
+            (pointer.y - view.y) / view.scale,
+        );
+    });
+
+    it('limits canvas zoom between 10% and 400%', () => {
+        const view = { x: 120, y: 80, scale: 1 };
+        const pointer = { x: 420, y: 260 };
+
+        expect(zoomSceneCanvasView(view, pointer, -100_000).scale).toBe(4);
+        expect(zoomSceneCanvasView(view, pointer, 100_000).scale).toBe(0.1);
+    });
+
     it('commits a canvas drag as one saved Scene command', async () => {
         const source = [
             '<Scene name="Menu">',

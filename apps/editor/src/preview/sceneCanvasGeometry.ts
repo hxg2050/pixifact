@@ -19,6 +19,12 @@ export interface SceneCanvasPoint {
     y: number;
 }
 
+export interface SceneCanvasView {
+    scale: number;
+    x: number;
+    y: number;
+}
+
 export interface SceneCanvasPropChange {
     prop: string;
     value: number;
@@ -47,6 +53,26 @@ const verticalAxis: AxisProps = {
     start: 'top',
 };
 const stackLayoutTypes = new Set(['GridContainer', 'HBoxContainer', 'VBoxContainer']);
+const minSceneCanvasScale = 0.1;
+const maxSceneCanvasScale = 4;
+const sceneCanvasZoomFactor = 0.002;
+
+export function zoomSceneCanvasView(
+    view: SceneCanvasView,
+    pointer: SceneCanvasPoint,
+    wheelDelta: number,
+): SceneCanvasView {
+    const scale = Math.min(
+        maxSceneCanvasScale,
+        Math.max(minSceneCanvasScale, view.scale * Math.exp(-wheelDelta * sceneCanvasZoomFactor)),
+    );
+    const ratio = scale / view.scale;
+    return {
+        scale,
+        x: pointer.x - (pointer.x - view.x) * ratio,
+        y: pointer.y - (pointer.y - view.y) * ratio,
+    };
+}
 
 export function moveSceneCanvasGeometry(
     props: Record<string, SceneTemplateValue>,

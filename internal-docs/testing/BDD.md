@@ -394,6 +394,16 @@ Scenario: Canvas editing preserves layout ownership
   And resizing changes width and height without authoring x or y
 ```
 
+```gherkin
+Scenario: User zooms the authoring canvas around the pointer
+  Given a compiler Scene is visible in the Editor authoring canvas
+  When the user scrolls the mouse wheel over a point on the canvas
+  Then the Scene zoom stays between 10% and 400%
+  And the Scene coordinate under the pointer remains under the pointer
+  And the selection overlay follows the transformed node
+  And the Pixi Application and Canvas remain the same instances
+```
+
 TDD 入口：`tests/editor-scene-canvas.test.ts`、`tests/editor-scene-document.test.ts` 与浏览器验收。
 
 ### BDD-EDITOR-011 一个项目只有一个有效 Editor 会话
