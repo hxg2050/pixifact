@@ -1,8 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { defineComponent, h, markRaw, ref } from 'vue';
-import { describe, expect, it, vi } from 'vitest';
+import { defineComponent, h, markRaw, ref, watch } from 'vue';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { parseSceneTemplate, type SceneTemplateInterface } from 'pixifact/compiler';
+import EditorApp from '../apps/editor/src/EditorApp.vue';
 import AssetsPanel from '../apps/editor/src/panels/AssetsPanel.vue';
 import HierarchyPanel from '../apps/editor/src/panels/HierarchyPanel.vue';
 import InspectorPanel from '../apps/editor/src/panels/InspectorPanel.vue';
@@ -31,7 +32,130 @@ function createApi() {
     };
 }
 
+class AcceptedEditorWebSocket {
+    static readonly OPEN = 1;
+    readonly listeners = new Map<string, Array<(event: { data?: string }) => void>>();
+    readyState = AcceptedEditorWebSocket.OPEN;
+
+    constructor(_url: string) {
+        queueMicrotask(() => this.emit('message', JSON.stringify({
+            type: 'editorSessionAccepted',
+            protocolVersion: 1,
+        })));
+    }
+
+    addEventListener(type: string, listener: (event: { data?: string }) => void) {
+        const listeners = this.listeners.get(type) ?? [];
+        listeners.push(listener);
+        this.listeners.set(type, listeners);
+    }
+
+    send() {}
+
+    close() {
+        this.readyState = 3;
+        this.emit('close');
+    }
+
+    emit(type: string, data?: string) {
+        for (const listener of this.listeners.get(type) ?? []) {
+            listener({ data });
+        }
+    }
+}
+
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
+
 describe('Editor Vue UI', () => {
+    it('manually reloads project context and rebuilds the current preview', async () => {
+        const project = {
+            name: 'demo',
+            root: '/demo',
+            scenes: ['src/scenes/Menu.scene'],
+            images: ['assets/icon.png'],
+            files: [
+                { kind: 'scene', path: 'src/scenes/Menu.scene' },
+                { kind: 'script', path: 'src/scenes/Menu.ts' },
+                { kind: 'image', path: 'assets/icon.png' },
+            ],
+        };
+        const bindings = {
+            'src/scenes/Menu.scene': {
+                className: 'Menu',
+                interface: { props: {}, events: {}, slots: {} },
+            },
+        };
+        let diskSource = source;
+        let diskVersion = 'sha256:before';
+        const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+            if (url === '/api/project') return Response.json(project);
+            if (url === '/api/scene-bindings') return Response.json(bindings);
+            if (url.startsWith('/api/scene?')) {
+                if (init?.method === 'PUT') {
+                    const body = JSON.parse(String(init.body)) as { source: string };
+                    diskSource = body.source;
+                    diskVersion = 'sha256:after';
+                    return Response.json({ path: 'src/scenes/Menu.scene', version: diskVersion });
+                }
+                return Response.json({
+                    path: 'src/scenes/Menu.scene',
+                    source: diskSource,
+                    version: diskVersion,
+                });
+            }
+            throw new Error(`Unexpected Editor request: ${url}`);
+        });
+        vi.stubGlobal('fetch', fetcher);
+        vi.stubGlobal('WebSocket', AcceptedEditorWebSocket);
+        const previewRefreshes = vi.fn();
+        const SceneCanvasStub = defineComponent({
+            props: { projectTree: Object },
+            setup(props) {
+                watch(() => props.projectTree, () => previewRefreshes());
+                return () => h('div', { 'data-testid': 'scene-canvas' });
+            },
+        });
+        const pinia = createPinia();
+        setActivePinia(pinia);
+        const wrapper = mount(EditorApp, {
+            global: {
+                plugins: [pinia],
+                stubs: { SceneCanvas: SceneCanvasStub },
+            },
+        });
+        await vi.waitFor(() => expect(wrapper.find('button[aria-label="刷新"]').exists()).toBe(true));
+        await flushPromises();
+        const ui = useEditorUiStore();
+        ui.selectedLocator = '0:title';
+        await flushPromises();
+        const xInput = wrapper.get('input[data-prop="x"]');
+        (xInput.element as HTMLInputElement).value = '48';
+        await xInput.trigger('input');
+        await xInput.trigger('blur');
+        await vi.waitFor(() => expect(wrapper.get('button[aria-label="撤销"]').attributes('disabled')).toBeUndefined());
+        await vi.waitFor(() => expect(wrapper.get('button[aria-label="刷新"]').attributes('disabled')).toBeUndefined());
+        const previousPreviewRefreshes = previewRefreshes.mock.calls.length;
+
+        await wrapper.get('button[aria-label="刷新"]').trigger('click');
+        await vi.waitFor(() => expect(previewRefreshes.mock.calls.length).toBeGreaterThan(previousPreviewRefreshes));
+
+        const urls = fetcher.mock.calls.map(([input]) => (
+            typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+        ));
+        expect(urls.filter((url) => url === '/api/project')).toHaveLength(2);
+        expect(urls.filter((url) => url === '/api/scene-bindings')).toHaveLength(2);
+        expect(fetcher.mock.calls.filter(([input, init]) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+            return url.startsWith('/api/scene?') && init?.method !== 'PUT';
+        })).toHaveLength(2);
+        expect(ui.selectedLocator).toBe('0:title');
+        expect(wrapper.get('button[aria-label="撤销"]').attributes('disabled')).toBeUndefined();
+        wrapper.unmount();
+    });
+
     it('creates Image and Scene Instance nodes from indexed project assets', () => {
         const template = parseSceneTemplate([
             '<Scene name="Menu">',

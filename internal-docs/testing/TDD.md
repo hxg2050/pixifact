@@ -18,7 +18,7 @@
 
 | 文件 | 责任边界 | 当前覆盖重点 |
 | --- | --- | --- |
-| `tests/editor-vue-ui.test.ts` | Vue Editor UI / Pinia | Inspector preview / commit 与 Pinia 项目数据边界 |
+| `tests/editor-vue-ui.test.ts` | Vue Editor UI / Pinia | Inspector preview / commit、手动刷新与 Pinia 项目数据边界 |
 | `tests/editor-scene-document.test.ts` | vNext `SceneDocument` | versioned auto-save、Undo / Redo、文件通知协调 |
 | `tests/editor-server.test.ts` | 浏览器 Editor 本地服务 | 项目索引、Scene versioned write、project root guard |
 | `tests/project-file-tree.test.ts` | 浏览器 Editor 项目树与 runtime preview | 浏览器文件读取、Scene binding、Pixi 节点布局和图片 parser |
@@ -201,6 +201,7 @@ bun run build
 - 节点类型专属 display 字段过滤正确。
 - Pinia 只保存 UI 偏好。
 - 纯图标按钮有 `aria-label` 和 `title`。
+- 手动刷新重新读取项目索引、Scene interface 和当前 Scene，同 revision 不清空选择与 Undo / Redo。
 - 中文文案符合 `AGENTS.md` 的中英混用规则。
 
 验证命令：
@@ -219,6 +220,7 @@ bun run editor:frontend:build
 - 模块顶层、constructor、setter、onMounted、事件、timer 和网络代码均不在 Authoring 中运行。
 - `.scene` 直接绑定与 Variant 绑定能显示默认值和 Scene Instance 初始值。
 - Inspector 连续输入原地更新绑定节点，不替换 Pixi Application、Canvas 或当前 Scene root。
+- 手动刷新可重建引用图片的预览内容，但不替换 Pixi Application 或 Canvas。
 - Scene Instance 保持 opaque；父 Scene 只编辑公开 Props、Events 和 slot children。
 
 验证命令：

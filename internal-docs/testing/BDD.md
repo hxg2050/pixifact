@@ -433,6 +433,22 @@ Scenario: Agent writes the current Scene several times in one operation
 
 TDD 入口：`tests/editor-session.test.ts`、`tests/editor-context.test.ts` 与浏览器验收。
 
+### BDD-EDITOR-013 手动刷新当前 Editor
+
+Feature: Manual Editor refresh
+
+```gherkin
+Scenario: User manually refreshes the synchronized Editor
+  Given a compiler Scene is open and synchronized in the Editor
+  When the user clicks the refresh button in the top bar
+  Then the Editor reads the project index, paired Scene interfaces, and current Scene from disk again
+  And the authoring preview reloads referenced image bytes without replacing the Pixi Application or Canvas
+  And an unchanged Scene revision keeps the current selection and Undo / Redo history
+  But a changed Scene revision establishes a new document baseline and conservatively relocates the selection
+```
+
+TDD 入口：`tests/editor-vue-ui.test.ts`、`tests/editor-scene-document.test.ts` 与浏览器验收。
+
 ## 5. CLI
 
 ### BDD-CLI-001 Inspect and validate compiler scenes

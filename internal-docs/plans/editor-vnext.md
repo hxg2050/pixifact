@@ -45,7 +45,7 @@
 ### 主界面
 
 - 固定三栏工作区：左侧 `层级 / 资产`、中央 Scene 画布、右侧 Inspector。
-- 顶栏只保留返回、前进、当前 Scene、Undo、Redo 和同步状态。
+- 顶栏只保留返回、前进、当前 Scene、刷新、Undo、Redo 和同步状态。
 - 面板可调整宽度，但不支持自由停靠、拆组和布局持久化。
 - 一次只编辑一个 Scene，不做多文档 Tab；双击 Scene Instance 可进入其引用 Scene，返回时恢复上一个 Scene 的选择和画布位置。
 - 第一版不做集中式问题收集或底部问题面板。当前 Scene 的解析、预览、字段和写入错误只在对应位置显示。
@@ -108,6 +108,7 @@
 - 新增 `pixifact editor context`，从当前项目已注册的 Editor Host 读取 Scene revision、同步状态和 selection。
 - Editor 直接进入项目工作区，一次只打开一个 Scene。
 - `.scene` 编辑自动保存；顶栏显示 `已同步`、`正在写入`、`外部变更已应用`、`同步冲突` 或 `写入失败`。
+- 顶栏刷新按钮重新读取项目索引、Scene interface 和当前 Scene；同 revision 保留选择与 Undo / Redo，变化的 revision 建立新基线。
 - 外部 Agent 继续通过直接文件编辑与现有 Pixifact CLI 工作，不依赖 Editor mutation API。
 - 当前 `bun run desktop`、Tauri 配置和桌面运行能力在 vNext 完成时直接删除，不保留别名或 fallback。
 
@@ -158,6 +159,7 @@ rtk bun run pixifact -- editor
 - [x] 实现项目图片与 Scene 资产拖入画布或层级，并接入自动保存和 Undo / Redo。
 - [x] 删除未接入 vNext Editor 的旧 `live ...` CLI、固定端口 bridge、测试和文档入口。
 - [x] 实现项目级 Host session discovery、单浏览器会话和 `pixifact editor context`。
+- [x] 实现顶栏手动刷新，在保持长驻 Canvas 的同时重新读取 Scene、脚本接口和图片预览。
 
 ## Resume Protocol
 
@@ -199,7 +201,9 @@ Done:
 - 外部 Scene 重载按路径合并并串行执行，选择只在原位修改、id rename 或唯一 id 移动时保守重定位。
 - 真实浏览器验收已确认第二个标签页只显示占用状态；选择 `bagButton` 后，`editor context` 返回 Compiler locator、Scene Instance props、events 和 slot 数量。
 - 真实浏览器验收已完成外部 `BottomMenu.scene` 的 `背包 -> 背包验收 -> 背包` 往返修改；Editor 自动刷新 revision 并保留确定的选择，Canvas 始终只有一个，示例 Scene 最终无 diff，当前 Host 无 console warning/error。
-- 全量测试为 16 个测试文件、216 个测试，`editor:typecheck`、`editor:frontend:build` 和包构建均通过。
+- 全量测试为 16 个测试文件、217 个测试，`editor:typecheck`、`editor:frontend:build` 和包构建均通过。
+- 顶栏手动刷新会等待当前 Scene 同步，重新读取项目索引、脚本接口和 Scene；同 revision 保留选择与 Undo / Redo，并通过更新 project tree 强制重建图片预览。
+- 真实浏览器验收已完成 `背包 -> 背包刷新 -> 手动刷新 -> Undo 背包`；刷新前后选择保持为 `bagButton`、Undo 仍可用、Canvas 始终只有一个，示例 Scene 最终无 diff，当前 Host 无 console warning/error。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
@@ -209,6 +213,7 @@ Current State:
 - CLI 不再暴露 `live summary`、`live scene get` 或 `live node inspect`，也不保留固定端口 bridge。
 - 当前浏览器主包约 812 KB，整个 Editor 构建约 821 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
 - 层级结构编辑直接复用 Compiler Command，不存在第二套树 mutation 模型。
+- 顶栏提供手动刷新入口，保存进行中或同步失败时禁用，避免与 versioned write 竞争。
 
 Currently Failing:
 - None。

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Redo2, Undo2 } from 'lucide-vue-next';
+import { Redo2, RefreshCw, Undo2 } from 'lucide-vue-next';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { computed, markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { SceneTemplateInterface } from 'pixifact/compiler';
@@ -32,6 +32,7 @@ const document = ref<SceneDocument>();
 const documentRevision = ref(0);
 const error = ref('');
 const draggedAsset = ref<EditorSceneAsset>();
+const refreshing = ref(false);
 const sessionOccupied = ref(false);
 let unsubscribeDocument: (() => void) | undefined;
 let sessionConnection: Extract<EditorSessionConnection, { status: 'accepted' }> | undefined;
@@ -76,11 +77,15 @@ async function openScene(path: string) {
     }
 }
 
-async function refreshSceneInterfaces() {
+async function readSceneInterfaces() {
     const descriptors = await readEditorSceneBindings();
-    sceneInterfaces.value = Object.fromEntries(
+    return Object.fromEntries(
         Object.entries(descriptors).map(([scenePath, descriptor]) => [scenePath, descriptor.interface]),
     );
+}
+
+async function refreshSceneInterfaces() {
+    sceneInterfaces.value = await readSceneInterfaces();
 }
 
 async function refreshOpenedScene(path: string) {
@@ -137,6 +142,32 @@ function publishEditorContext() {
 }
 
 watch([document, documentRevision, selectedLocator, syncState], publishEditorContext, { flush: 'post' });
+
+async function refreshEditor() {
+    const current = document.value;
+    if (!current || refreshing.value || syncState.value !== 'synced') return;
+    error.value = '';
+    refreshing.value = true;
+    try {
+        const [nextProject, nextSceneInterfaces, latest] = await Promise.all([
+            readEditorProject(),
+            readSceneInterfaces(),
+            current.reloadIfChanged(),
+        ]);
+        if (document.value !== current || current.syncState !== 'synced') return;
+        const selection = latest
+            ? remapSceneSelection(current.template, latest.template, selectedLocator.value)
+            : selectedLocator.value;
+        project.value = nextProject;
+        projectTree.value = createEditorProjectTree(nextProject);
+        sceneInterfaces.value = nextSceneInterfaces;
+        if (latest) bindDocument(latest, selection);
+    } catch (cause) {
+        error.value = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+        refreshing.value = false;
+    }
+}
 
 async function undo() {
     error.value = '';
@@ -216,6 +247,15 @@ onBeforeUnmount(() => {
         <span>{{ currentScenePath }}</span>
       </div>
       <div class="history-tools">
+        <button
+          type="button"
+          title="刷新"
+          aria-label="刷新"
+          :disabled="!document || syncState !== 'synced' || refreshing"
+          @click="refreshEditor"
+        >
+          <RefreshCw :size="16" />
+        </button>
         <button type="button" title="撤销" aria-label="撤销" :disabled="!document?.canUndo" @click="undo">
           <Undo2 :size="16" />
         </button>

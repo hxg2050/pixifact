@@ -23,7 +23,7 @@ pixifact editor
 
 ## 当前结构
 
-- `src/EditorApp.vue`：固定三栏工作区、Scene 打开、Undo / Redo 和同步状态。
+- `src/EditorApp.vue`：固定三栏工作区、Scene 打开、手动刷新、Undo / Redo 和同步状态。
 - `src/document/SceneDocument.ts`：Scene template、Command Stack、自动保存和文件版本。
 - `src/panels/`：层级、资产与 Inspector。
 - `src/preview/`：长驻 Pixi Application、运行时 Scene root 和 locator 节点索引。
@@ -31,6 +31,8 @@ pixifact editor
 - `packages/pixifact-cli/src/editorServer.ts`：项目索引、受项目根约束的文件读取、versioned Scene write 和文件通知。
 
 Pinia 只保存当前 Scene、selection 和左侧 Tab 等 UI 状态，不保存 `.scene` template 或项目数据副本。
+
+顶栏刷新按钮会重新读取项目索引、Scene interface 和当前 Scene，并重建 authoring preview 以重新加载图片；它不是保存按钮。
 
 ## 资产边界
 
