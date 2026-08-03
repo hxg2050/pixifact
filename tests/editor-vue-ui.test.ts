@@ -3,10 +3,11 @@ import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent, h, markRaw, ref } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
 import { parseSceneTemplate, type SceneTemplateInterface } from 'pixifact/compiler';
+import AssetsPanel from '../apps/editor/src/panels/AssetsPanel.vue';
 import HierarchyPanel from '../apps/editor/src/panels/HierarchyPanel.vue';
 import InspectorPanel from '../apps/editor/src/panels/InspectorPanel.vue';
 import { SceneDocument } from '../apps/editor/src/document/SceneDocument';
-import { duplicateSceneNode } from '../apps/editor/src/document/sceneTree';
+import { createSceneAssetNode, duplicateSceneNode } from '../apps/editor/src/document/sceneTree';
 import { useEditorUiStore } from '../apps/editor/src/stores/editorUi';
 
 const source = [
@@ -31,6 +32,76 @@ function createApi() {
 }
 
 describe('Editor Vue UI', () => {
+    it('creates Image and Scene Instance nodes from indexed project assets', () => {
+        const template = parseSceneTemplate([
+            '<Scene name="Menu">',
+            '  <Image id="image" texture="assets/existing.png" />',
+            '  <Button id="button" scene="src/scenes/Button.scene" />',
+            '</Scene>',
+        ].join('\n'));
+
+        expect(createSceneAssetNode(template, {
+            kind: 'image',
+            path: 'assets/icons/map.svg',
+        }, { x: 24, y: 36 })).toMatchObject({
+            kind: 'pixi',
+            type: 'Image',
+            id: 'image2',
+            props: {
+                x: 24,
+                y: 36,
+                width: 96,
+                height: 96,
+                fit: 'stretch',
+                texture: 'assets/icons/map.svg',
+            },
+        });
+        expect(createSceneAssetNode(template, {
+            kind: 'scene',
+            path: 'src/scenes/Button.scene',
+        }, { x: 40, y: 52 })).toEqual({
+            kind: 'sceneInstance',
+            type: 'Button',
+            id: 'button2',
+            scene: 'src/scenes/Button.scene',
+            props: { x: 40, y: 52 },
+            events: {},
+            slots: {},
+        });
+    });
+
+    it('starts asset drags for indexed images and other Scenes only', async () => {
+        const wrapper = mount(AssetsPanel, {
+            props: {
+                currentScene: 'src/scenes/Menu.scene',
+                project: {
+                    name: 'demo',
+                    root: '/demo',
+                    scenes: ['src/scenes/Menu.scene', 'src/scenes/Button.scene'],
+                    images: ['assets/icons/map.svg'],
+                    files: [],
+                },
+            },
+        });
+        const currentScene = wrapper.get('[data-asset-path="src/scenes/Menu.scene"]');
+        const buttonScene = wrapper.get('[data-asset-path="src/scenes/Button.scene"]');
+        const image = wrapper.get('[data-asset-path="assets/icons/map.svg"]');
+
+        expect(currentScene.attributes('data-asset-draggable')).toBe('false');
+        expect(buttonScene.attributes('data-asset-draggable')).toBe('true');
+        expect(image.attributes('data-asset-draggable')).toBe('true');
+
+        await buttonScene.trigger('pointerdown', { button: 0, clientX: 10, clientY: 10, pointerId: 1 });
+        window.dispatchEvent(new PointerEvent('pointermove', { clientX: 15, clientY: 10, pointerId: 1 }));
+        await image.trigger('pointerdown', { button: 0, clientX: 10, clientY: 10, pointerId: 2 });
+        window.dispatchEvent(new PointerEvent('pointermove', { clientX: 15, clientY: 10, pointerId: 2 }));
+
+        expect(wrapper.emitted('assetDragStart')).toEqual([
+            [{ kind: 'scene', path: 'src/scenes/Button.scene' }],
+            [{ kind: 'image', path: 'assets/icons/map.svg' }],
+        ]);
+    });
+
     it('assigns unique ids throughout a duplicated subtree', () => {
         const template = parseSceneTemplate([
             '<Scene name="Menu">',
@@ -429,6 +500,45 @@ describe('Editor Vue UI', () => {
         await flushPromises();
 
         expect(api.writeScene).toHaveBeenCalledTimes(5);
+        wrapper.unmount();
+    });
+
+    it('inserts a dragged asset at the hierarchy drop target', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: [
+                '<Scene name="Menu">',
+                '  <Group id="panel" width="320" height="180" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const wrapper = mount(HierarchyPanel, {
+            props: {
+                document,
+                draggedAsset: { kind: 'image', path: 'assets/icons/map.svg' },
+                revision: 0,
+            },
+        });
+        const panelRow = wrapper.get('button[data-locator="0:panel"]');
+
+        await panelRow.trigger('pointermove', { clientY: 13 });
+        expect(panelRow.classes()).toContain('drop-inside');
+        await panelRow.trigger('pointerup', { clientY: 13 });
+        await flushPromises();
+
+        expect(document.template.children[0]).toMatchObject({
+            children: [{
+                kind: 'pixi',
+                type: 'Image',
+                id: 'image',
+                props: { texture: 'assets/icons/map.svg' },
+            }],
+        });
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
         wrapper.unmount();
     });
 });

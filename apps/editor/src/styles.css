@@ -318,6 +318,10 @@ button:disabled {
     cursor: grabbing;
 }
 
+.hierarchy-panel.is-asset-dragging .tree-row {
+    cursor: copy;
+}
+
 .tree-row.drop-inside {
     background: #26364d;
     box-shadow: inset 0 0 0 1px var(--focus);
@@ -423,6 +427,10 @@ button.asset-row {
     cursor: pointer;
 }
 
+.asset-row[data-asset-draggable="true"] {
+    cursor: grab;
+}
+
 .asset-row:hover,
 .asset-row.selected {
     background: #20242c;
@@ -439,7 +447,7 @@ button.asset-row {
     white-space: nowrap;
 }
 
-.asset-row.readonly {
+.asset-row.asset-draggable {
     color: var(--muted);
 }
 
@@ -463,6 +471,15 @@ button.asset-row {
     position: absolute;
     inset: 0;
     overflow: hidden;
+}
+
+.scene-canvas-host.is-asset-drop-target::after {
+    position: absolute;
+    inset: 3px;
+    z-index: 2;
+    border: 1px solid var(--focus);
+    content: "";
+    pointer-events: none;
 }
 
 .canvas-grid {

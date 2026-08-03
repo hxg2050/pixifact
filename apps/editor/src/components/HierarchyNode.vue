@@ -6,6 +6,7 @@ import type { SceneTreeDropTarget, SceneTreeEntry } from '../document/sceneTree'
 const props = defineProps<{
     entry: SceneTreeEntry;
     level: number;
+    assetDragging?: boolean;
     dropTarget?: SceneTreeDropTarget;
     dragging?: boolean;
     selected?: string;
@@ -13,6 +14,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     dragOver: [target: SceneTreeDropTarget];
     dragStart: [locator: string];
+    assetDrop: [target: SceneTreeDropTarget];
     select: [locator: string];
 }>();
 const expanded = ref(true);
@@ -32,7 +34,7 @@ const icon = computed(() => {
     return Layers3;
 });
 
-function calculateDropTarget(event: PointerEvent): SceneTreeDropTarget {
+function calculateDropTarget(event: Pick<PointerEvent, 'clientY' | 'currentTarget'>): SceneTreeDropTarget {
     const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const height = bounds.height || 27;
     const ratio = (event.clientY - bounds.top) / height;
@@ -54,13 +56,18 @@ function calculateDropTarget(event: PointerEvent): SceneTreeDropTarget {
 }
 
 function handlePointerDown(event: PointerEvent) {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || props.assetDragging) return;
     emit('dragStart', props.entry.locator);
 }
 
 function handlePointerMove(event: PointerEvent) {
-    if (!props.dragging) return;
+    if (!props.dragging && !props.assetDragging) return;
     emit('dragOver', calculateDropTarget(event));
+}
+
+function handleAssetDrop(event: PointerEvent) {
+    if (!props.assetDragging) return;
+    emit('assetDrop', calculateDropTarget(event));
 }
 </script>
 
@@ -80,6 +87,7 @@ function handlePointerMove(event: PointerEvent) {
       @click="emit('select', entry.locator)"
       @pointerdown="handlePointerDown"
       @pointermove.stop="handlePointerMove"
+      @pointerup="handleAssetDrop"
     >
       <span
         class="tree-disclosure"
@@ -100,11 +108,13 @@ function handlePointerMove(event: PointerEvent) {
         :key="child.locator"
         :entry="child"
         :level="level + 1"
+        :asset-dragging="props.assetDragging"
         :drop-target="props.dropTarget"
         :dragging="props.dragging"
         :selected="selected"
         @drag-over="emit('dragOver', $event)"
         @drag-start="emit('dragStart', $event)"
+        @asset-drop="emit('assetDrop', $event)"
         @select="emit('select', $event)"
       />
     </ul>

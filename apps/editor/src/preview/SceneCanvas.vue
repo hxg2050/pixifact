@@ -15,7 +15,11 @@ import {
 } from 'pixifact/compiler';
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { SceneDocument, SceneDocumentEvent } from '../document/SceneDocument';
-import { findSceneNodeByLocator } from '../document/sceneTree';
+import {
+    createSceneAssetNode,
+    findSceneNodeByLocator,
+    type EditorSceneAsset,
+} from '../document/sceneTree';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import {
     createCompilerSceneRuntimePreview,
@@ -36,11 +40,15 @@ import { incrementalScenePreviewCommands } from './scenePreviewCommands';
 
 const props = defineProps<{
     document?: SceneDocument;
+    draggedAsset?: EditorSceneAsset;
     projectTree?: ProjectFileTreeNode;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
     selected?: string;
 }>();
-const emit = defineEmits<{ select: [locator: string] }>();
+const emit = defineEmits<{
+    assetDrop: [];
+    select: [locator: string];
+}>();
 const host = ref<HTMLElement>();
 const status = ref('正在初始化画布');
 let app: Application | undefined;
@@ -393,6 +401,41 @@ function resetCanvasCursor() {
     if (app) app.canvas.style.cursor = '';
 }
 
+function canvasScenePoint(event: PointerEvent) {
+    if (!app || !host.value || !preview) return;
+    const bounds = host.value.getBoundingClientRect();
+    const point = preview.root.toLocal({
+        x: (event.clientX - bounds.left) * app.screen.width / bounds.width,
+        y: (event.clientY - bounds.top) * app.screen.height / bounds.height,
+    });
+    if (point.x < 0 || point.y < 0 || point.x > preview.width || point.y > preview.height) return;
+    return {
+        x: Math.round(point.x * 100) / 100,
+        y: Math.round(point.y * 100) / 100,
+    };
+}
+
+async function dropAssetOnCanvas(event: PointerEvent) {
+    const asset = props.draggedAsset;
+    const document = props.document;
+    const position = canvasScenePoint(event);
+    if (!asset || !document || !position) {
+        emit('assetDrop');
+        return;
+    }
+    try {
+        await document.commitCommand({
+            op: 'insertNode',
+            parent: '__scene__',
+            node: createSceneAssetNode(document.template, asset, position),
+        });
+    } catch (error) {
+        status.value = error instanceof Error ? error.message : String(error);
+    } finally {
+        emit('assetDrop');
+    }
+}
+
 function handleWindowPointerUp(event: PointerEvent) {
     if (event.pointerId === interaction?.pointerId) void finishInteraction();
 }
@@ -512,7 +555,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="host" class="scene-canvas-host">
+  <div
+    ref="host"
+    class="scene-canvas-host"
+    :class="{ 'is-asset-drop-target': !!draggedAsset }"
+    @pointerup="dropAssetOnCanvas"
+  >
     <div class="canvas-grid" />
     <div v-if="status" class="canvas-status">{{ status }}</div>
   </div>

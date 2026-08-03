@@ -9,6 +9,7 @@ import HierarchyPanel from './panels/HierarchyPanel.vue';
 import InspectorPanel from './panels/InspectorPanel.vue';
 import SceneCanvas from './preview/SceneCanvas.vue';
 import { SceneDocument } from './document/SceneDocument';
+import type { EditorSceneAsset } from './document/sceneTree';
 import {
     createEditorProjectTree,
     editorSceneFileApi,
@@ -28,6 +29,7 @@ const sceneInterfaces = ref<Record<string, SceneTemplateInterface>>({});
 const document = ref<SceneDocument>();
 const documentRevision = ref(0);
 const error = ref('');
+const draggedAsset = ref<EditorSceneAsset>();
 let unsubscribeDocument: (() => void) | undefined;
 let unwatchProject: (() => void) | undefined;
 
@@ -102,7 +104,18 @@ async function redo() {
     }
 }
 
+function startAssetDrag(asset: EditorSceneAsset) {
+    draggedAsset.value = asset;
+    activeLeftTab.value = 'hierarchy';
+}
+
+function endAssetDrag() {
+    draggedAsset.value = undefined;
+}
+
 onMounted(async () => {
+    window.addEventListener('pointerup', endAssetDrag);
+    window.addEventListener('pointercancel', endAssetDrag);
     try {
         const [nextProject] = await Promise.all([
             readEditorProject(),
@@ -131,6 +144,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    window.removeEventListener('pointerup', endAssetDrag);
+    window.removeEventListener('pointercancel', endAssetDrag);
     unsubscribeDocument?.();
     unwatchProject?.();
 });
@@ -165,13 +180,20 @@ onBeforeUnmount(() => {
           <TabsContent class="tab-content" value="hierarchy">
             <HierarchyPanel
               :document="document"
+              :dragged-asset="draggedAsset"
               :revision="documentRevision"
               :selected="selectedLocator"
               @select="selectedLocator = $event"
+              @asset-drop="endAssetDrag"
             />
           </TabsContent>
           <TabsContent class="tab-content" value="assets">
-            <AssetsPanel :project="project" :current-scene="currentScenePath" @open-scene="openScene" />
+            <AssetsPanel
+              :project="project"
+              :current-scene="currentScenePath"
+              @asset-drag-start="startAssetDrag"
+              @open-scene="openScene"
+            />
           </TabsContent>
         </TabsRoot>
       </aside>
@@ -179,10 +201,12 @@ onBeforeUnmount(() => {
       <section class="canvas-panel" aria-label="Scene 画布">
         <SceneCanvas
           :document="document"
+          :dragged-asset="draggedAsset"
           :project-tree="projectTree"
           :scene-interfaces="sceneInterfaces"
           :selected="selectedLocator"
           @select="selectedLocator = $event"
+          @asset-drop="endAssetDrag"
         />
       </section>
 

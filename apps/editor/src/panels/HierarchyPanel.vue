@@ -4,23 +4,29 @@ import {
     pixiSceneAddableNodeTypes,
     type PixiSceneNodeType,
 } from 'pixifact/compiler';
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import HierarchyNode from '../components/HierarchyNode.vue';
 import type { SceneDocument } from '../document/SceneDocument';
 import {
     createPixiSceneNode,
+    createSceneAssetNode,
     duplicateSceneNode,
     findSceneTreeEntry,
     sceneTreeEntries,
     type SceneTreeDropTarget,
+    type EditorSceneAsset,
 } from '../document/sceneTree';
 
 const props = defineProps<{
     document?: SceneDocument;
+    draggedAsset?: EditorSceneAsset;
     revision: number;
     selected?: string;
 }>();
-const emit = defineEmits<{ select: [locator?: string] }>();
+const emit = defineEmits<{
+    assetDrop: [];
+    select: [locator?: string];
+}>();
 const addType = ref<PixiSceneNodeType>('Group');
 const draggedLocator = ref<string>();
 const dropTarget = ref<SceneTreeDropTarget>();
@@ -36,6 +42,7 @@ const selectedEntry = computed(() => (
 ));
 const canDuplicate = computed(() => !!selectedEntry.value && selectedEntry.value.node.kind !== 'slotOutlet');
 const canDelete = computed(() => !!selectedEntry.value);
+const isDragging = computed(() => !!draggedLocator.value || !!props.draggedAsset);
 const addGroups = [
     { label: '容器', types: ['Group', 'GridContainer', 'HBoxContainer', 'ScrollContainer', 'VBoxContainer', 'Container'] },
     { label: '绘制', types: ['Rect', 'Graphics'] },
@@ -92,7 +99,7 @@ function startDrag(locator: string) {
 }
 
 function updateDropTarget(target: SceneTreeDropTarget) {
-    dropTarget.value = canDrop(target) ? target : undefined;
+    dropTarget.value = props.draggedAsset || canDrop(target) ? target : undefined;
 }
 
 function canDrop(target: SceneTreeDropTarget) {
@@ -121,6 +128,19 @@ async function dropNode(target: SceneTreeDropTarget) {
         parent: target.parent,
         index: target.index,
     });
+}
+
+async function dropAsset(target: SceneTreeDropTarget) {
+    const asset = props.draggedAsset;
+    if (!props.document || !asset) return;
+    dropTarget.value = undefined;
+    await commit({
+        op: 'insertNode',
+        parent: target.parent,
+        index: target.index,
+        node: createSceneAssetNode(props.document.template, asset),
+    });
+    emit('assetDrop');
 }
 
 function endDrag() {
@@ -158,10 +178,17 @@ async function commit(command: Parameters<SceneDocument['commitCommand']>[0]) {
 }
 
 onBeforeUnmount(endDrag);
+watch(() => props.draggedAsset, (asset) => {
+    if (!asset && !draggedLocator.value) dropTarget.value = undefined;
+});
 </script>
 
 <template>
-  <div v-if="document" class="hierarchy-panel" :class="{ 'is-dragging': !!draggedLocator }">
+  <div
+    v-if="document"
+    class="hierarchy-panel"
+    :class="{ 'is-dragging': isDragging, 'is-asset-dragging': !!draggedAsset }"
+  >
     <div class="hierarchy-toolbar">
       <select v-model="addType" aria-label="节点类型" title="节点类型">
         <optgroup v-for="group in addGroups" :key="group.label" :label="group.label">
@@ -187,7 +214,8 @@ onBeforeUnmount(endDrag);
       data-locator="__scene__"
       type="button"
       @click="emit('select', undefined)"
-      @pointermove.stop="draggedLocator && updateDropTarget({ parent: '__scene__', index: entries.length, locator: '__scene__', mode: 'inside' })"
+      @pointermove.stop="isDragging && updateDropTarget({ parent: '__scene__', index: entries.length, locator: '__scene__', mode: 'inside' })"
+      @pointerup="draggedAsset && dropAsset({ parent: '__scene__', index: entries.length, locator: '__scene__', mode: 'inside' })"
     >
       <span class="tree-disclosure empty" />
       <span class="scene-mark">S</span>
@@ -200,11 +228,13 @@ onBeforeUnmount(endDrag);
         :key="entry.locator"
         :entry="entry"
         :level="0"
+        :asset-dragging="!!draggedAsset"
         :drop-target="dropTarget"
         :dragging="!!draggedLocator"
         :selected="selected"
         @drag-over="updateDropTarget"
         @drag-start="startDrag"
+        @asset-drop="dropAsset"
         @select="emit('select', $event)"
       />
     </ul>

@@ -220,9 +220,19 @@ Scenario: User opens a source asset
   When the user double-clicks a concrete asset
   Then Pixifact delegates to the system default application
   And Pixifact does not edit the asset bytes
+
+Scenario: User adds an indexed asset to the current Scene
+  Given the project asset index contains an image or another Scene
+  When the user drags the image or Scene onto the canvas
+  Then the Editor inserts a root Image or Scene Instance at the Scene drop coordinates
+  And the node references the existing project-relative asset path
+  When the user drags the asset onto a hierarchy insertion target
+  Then the Editor inserts it before, inside, or after that target
+  And the insertion is saved as one undoable Scene Command
+  But the current Scene cannot be inserted into itself
 ```
 
-TDD 入口：`tests/editor-server.test.ts`；系统程序调用仍需补自动化覆盖。
+TDD 入口：`tests/editor-vue-ui.test.ts`、`tests/editor-server.test.ts`；系统程序调用仍需补自动化覆盖。
 
 ### BDD-EDITOR-004 Pinia 不保存项目数据
 

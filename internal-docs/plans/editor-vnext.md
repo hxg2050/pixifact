@@ -58,6 +58,7 @@
 - 资产面板只索引项目内已有的 `.scene` 与图片，不承担通用文件管理。
 - 图片由用户或外部 Agent 放入项目；Editor 不导入、复制、移动、重命名或删除图片源文件。
 - 项目内图片可拖入画布或层级树，默认创建 `Image`；Scene 可拖入并创建 Scene Instance。
+- 资产投放只消费项目索引中的现有文件；画布投放创建根级节点并写入 Scene 坐标，层级投放复用 before / inside / after 插入位置；当前 Scene 不允许拖入自身。
 - 双击 Scene 打开编辑；双击图片调用系统默认程序；配对脚本通过“打开脚本”调用外部代码编辑器。
 - Editor 支持在明确的现有目录中创建同名 `.scene` 与 `.ts`，第一版不支持 Scene 重命名和删除。
 
@@ -125,7 +126,7 @@
 - [ ] 为受项目根约束的文件读取、版本写入、文件监听和图片访问补服务测试。
 - [x] 为 SceneDocument Command、Undo / Redo、自动保存和同步冲突补单元测试。
 - [x] 为普通属性增量更新、结构变化替换 Scene root 补 Preview Command 分类测试，并完成人工 Canvas 长驻验收。
-- [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试；当前已覆盖 Pinia 边界、层级结构操作与 Inspector preview / commit。
+- [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试；当前已覆盖 Pinia 边界、层级结构操作、资产拖入与 Inspector preview / commit。
 - [ ] 为外部 `.scene` / 脚本 / 图片变化和只读 live context 补集成测试。
 - [ ] 在桌面浏览器视口完成布局、无重叠、拖拽与 Inspector 实时反馈的人工验证；当前已完成固定三栏、Canvas 非空、属性实时反馈、层级添加、自动保存和 Undo 验收。
 
@@ -152,6 +153,7 @@ rtk bun run pixifact -- editor
 - [x] 删除旧 Tauri / Dockview / 运行服务并迁移对外文档。
 - [x] 实现层级结构添加、复制、删除、同级排序和更换父节点。
 - [x] 实现画布节点选择、连续移动与八方向 resize，并保持 frame layout 约束和栈布局所有权。
+- [x] 实现项目图片与 Scene 资产拖入画布或层级，并接入自动保存和 Undo / Redo。
 
 ## Resume Protocol
 
@@ -163,7 +165,7 @@ rtk bun run pixifact -- editor
 
 ## Resume Notes
 
-Last updated: 2026-07-31
+Last updated: 2026-08-03
 
 Done:
 - 完成 `pixifact editor` 本地 Bun 服务、127.0.0.1 绑定、系统浏览器启动、项目索引、受 project root 约束的文件读取和 versioned Scene write。
@@ -184,11 +186,13 @@ Done:
 - 新建节点写入 schema defaults，复制子树递归生成全 Scene 唯一 ID；每个结构操作自动保存并可 Undo / Redo。
 - Compiler `moveNode` 已覆盖同级首尾边界，并能通过 inverse 精确恢复原顺序。
 - 结构 Command、Undo 和 Redo 只重建 Scene preview root；桌面浏览器验收中 Canvas 始终只有一个，临时添加节点经 Undo 后示例 Scene 无 diff。
+- 资产面板使用 Pointer Events 拖动项目索引中的现有图片和 Scene；开始拖动后自动切到层级，画布创建根级节点并写入 Scene 坐标，层级复用 before / inside / after 插入位置。
+- 浏览器验收已完成 `hero.svg` 拖入画布和 `Button.scene` 拖入 `menuRow`，两次投放均可一次 Undo，Canvas 始终为一个且示例 Scene 最终无语义 diff。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
 - 仓库只保留 Vue 浏览器 Editor，不存在旧桌面入口或兼容层。
-- vNext 尚未实现完整资产拖入交互和 read-only live context。
+- vNext 尚未实现 read-only live context。
 - 当前浏览器主包约 812 KB，整个 Editor 构建约 821 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
 - 层级结构编辑直接复用 Compiler Command，不存在第二套树 mutation 模型。
 
@@ -196,5 +200,4 @@ Currently Failing:
 - None。
 
 Next:
-1. 补齐图片拖入画布或层级创建 `Image`、Scene 拖入创建 Scene Instance 的资产交互。
-2. 重新接通 read-only live context。
+1. 重新接通 read-only live context。

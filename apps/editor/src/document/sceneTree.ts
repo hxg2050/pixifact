@@ -2,10 +2,23 @@ import {
     compilerSceneNodeLocator,
     pixiSceneNodeAcceptsChildren,
     pixiSceneNodeDefaults,
+    sceneLocalName,
     type PixiSceneNodeType,
+    type PixiTemplateNode,
     type SceneTemplate,
     type SceneTemplateNode,
+    type SceneTemplateValue,
 } from 'pixifact/compiler';
+
+export interface EditorSceneAsset {
+    kind: 'image' | 'scene';
+    path: string;
+}
+
+export interface SceneAssetPosition {
+    x: number;
+    y: number;
+}
 
 export interface SceneTreeEntry {
     acceptsChildren: boolean;
@@ -64,7 +77,7 @@ export function findSceneTreeEntry(nodes: readonly SceneTemplateNode[], locator:
     return undefined;
 }
 
-export function createPixiSceneNode(template: SceneTemplate, type: PixiSceneNodeType): SceneTemplateNode {
+export function createPixiSceneNode(template: SceneTemplate, type: PixiSceneNodeType): PixiTemplateNode {
     const ids = collectSceneNodeIds(template.children);
     return {
         kind: 'pixi',
@@ -72,6 +85,35 @@ export function createPixiSceneNode(template: SceneTemplate, type: PixiSceneNode
         id: uniqueSceneNodeId(lowercaseFirst(type), ids),
         props: pixiSceneNodeDefaults(type),
         children: [],
+    };
+}
+
+export function createSceneAssetNode(
+    template: SceneTemplate,
+    asset: EditorSceneAsset,
+    position?: SceneAssetPosition,
+): SceneTemplateNode {
+    const positionProps: Record<string, SceneTemplateValue> = position
+        ? { x: position.x, y: position.y }
+        : {};
+    if (asset.kind === 'image') {
+        const node = createPixiSceneNode(template, 'Image');
+        node.props = {
+            ...positionProps,
+            ...node.props,
+            texture: asset.path,
+        };
+        return node;
+    }
+    const type = sceneLocalName(asset.path);
+    return {
+        kind: 'sceneInstance',
+        type,
+        id: uniqueSceneNodeId(lowercaseFirst(type), collectSceneNodeIds(template.children)),
+        scene: asset.path,
+        props: positionProps,
+        events: {},
+        slots: {},
     };
 }
 
