@@ -229,6 +229,7 @@ Scenario: User adds an indexed asset to the current Scene
   When the user drags the asset onto a hierarchy insertion target
   Then the Editor inserts it before, inside, or after that target
   And the insertion is saved as one undoable Scene Command
+  And dragging an asset does not select its label text
   But the current Scene cannot be inserted into itself
 ```
 

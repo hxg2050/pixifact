@@ -91,6 +91,10 @@ describe('Editor Vue UI', () => {
         expect(buttonScene.attributes('data-asset-draggable')).toBe('true');
         expect(image.attributes('data-asset-draggable')).toBe('true');
 
+        const selectionEvent = new Event('selectstart', { bubbles: true, cancelable: true });
+        buttonScene.get('span').element.dispatchEvent(selectionEvent);
+        expect(selectionEvent.defaultPrevented).toBe(true);
+
         await buttonScene.trigger('pointerdown', { button: 0, clientX: 10, clientY: 10, pointerId: 1 });
         window.dispatchEvent(new PointerEvent('pointermove', { clientX: 15, clientY: 10, pointerId: 1 }));
         await image.trigger('pointerdown', { button: 0, clientX: 10, clientY: 10, pointerId: 2 });

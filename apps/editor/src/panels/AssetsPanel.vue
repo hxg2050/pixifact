@@ -62,6 +62,7 @@ onBeforeUnmount(cancelPendingDrag);
       type="button"
       @dblclick="emit('openScene', scene)"
       @pointerdown="scene !== currentScene && prepareAssetDrag($event, { kind: 'scene', path: scene })"
+      @selectstart.prevent
     >
       <PanelsTopLeft :size="15" />
       <span>{{ scene.split('/').at(-1) }}</span>
@@ -75,6 +76,7 @@ onBeforeUnmount(cancelPendingDrag);
       :data-asset-path="image"
       data-asset-draggable="true"
       @pointerdown="prepareAssetDrag($event, { kind: 'image', path: image })"
+      @selectstart.prevent
     >
       <FileImage :size="15" />
       <span>{{ image.split('/').at(-1) }}</span>

@@ -429,6 +429,7 @@ button.asset-row {
 
 .asset-row[data-asset-draggable="true"] {
     cursor: grab;
+    user-select: none;
 }
 
 .asset-row:hover,
