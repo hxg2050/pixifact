@@ -18,7 +18,7 @@
 - 用户在项目目录运行 `pixifact editor`；本地 Bun 服务绑定当前项目并打开系统浏览器。
 - 一个 Editor 服务只服务一个项目；不做欢迎页、项目选择器、最近项目和跨项目状态。
 - 外部 Agent 是唯一 Agent 形态。Editor 不内置对话、Prompt、任务管理、Git、CI 或 Agent 编排。
-- 外部 Agent 通过 Pixifact CLI 读取只读 live context，并直接修改 `.scene` 与配对脚本；Editor live bridge 不提供 mutation 入口。
+- 外部 Agent 直接修改 `.scene` 与配对脚本；后续通过 Pixifact CLI 读取只读 Editor context，不提供 mutation 入口，也不恢复旧 `live ...` CLI 或固定端口 bridge。
 - `.scene` 始终是人、Agent、Editor 和 compiler 共享的 source of truth。
 
 ### 技术栈
@@ -116,7 +116,7 @@
 - 用 Bun / Node 标准能力实现受项目根约束的文件读写、版本检查、监听、图片访问、系统程序调用和 WebSocket 通知。
 - 用 Vue 3、TypeScript、Vite、Pinia 和 Reka UI 重建 `apps/editor/` 浏览器 UI，并实现 SceneDocument、Command 流程和长驻 ScenePreview。
 - 建立固定三栏、单 Scene 导航、层级、只读资产索引、画布和 schema-driven Inspector。
-- 接通自动保存、Undo / Redo、外部变化同步和只读 live context。
+- 接通自动保存、Undo / Redo、外部变化同步；后续另行实现只读 Editor context。
 - vNext 完成后删除 Tauri host、Dockview、React、Zustand、旧运行服务和不再使用的旧 Editor 实现及依赖。
 - 实现完成后更新 README、中文与英文 Editor 对外文档和相关脚本。
 
@@ -127,7 +127,8 @@
 - [x] 为 SceneDocument Command、Undo / Redo、自动保存和同步冲突补单元测试。
 - [x] 为普通属性增量更新、结构变化替换 Scene root 补 Preview Command 分类测试，并完成人工 Canvas 长驻验收。
 - [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试；当前已覆盖 Pinia 边界、层级结构操作、资产拖入与 Inspector preview / commit。
-- [ ] 为外部 `.scene` / 脚本 / 图片变化和只读 live context 补集成测试。
+- [ ] 为外部 `.scene` / 脚本 / 图片变化补集成测试。
+- [ ] 为新的只读 Editor context 补 CLI / 服务集成测试，不恢复旧 `live ...` 命令。
 - [ ] 在桌面浏览器视口完成布局、无重叠、拖拽与 Inspector 实时反馈的人工验证；当前已完成固定三栏、Canvas 非空、属性实时反馈、层级添加、自动保存和 Undo 验收。
 
 ## Verification
@@ -154,6 +155,7 @@ rtk bun run pixifact -- editor
 - [x] 实现层级结构添加、复制、删除、同级排序和更换父节点。
 - [x] 实现画布节点选择、连续移动与八方向 resize，并保持 frame layout 约束和栈布局所有权。
 - [x] 实现项目图片与 Scene 资产拖入画布或层级，并接入自动保存和 Undo / Redo。
+- [x] 删除未接入 vNext Editor 的旧 `live ...` CLI、固定端口 bridge、测试和文档入口。
 
 ## Resume Protocol
 
@@ -188,11 +190,13 @@ Done:
 - 结构 Command、Undo 和 Redo 只重建 Scene preview root；桌面浏览器验收中 Canvas 始终只有一个，临时添加节点经 Undo 后示例 Scene 无 diff。
 - 资产面板使用 Pointer Events 拖动项目索引中的现有图片和 Scene；开始拖动后自动切到层级，画布创建根级节点并写入 Scene 坐标，层级复用 before / inside / after 插入位置。
 - 浏览器验收已完成 `hero.svg` 拖入画布和 `Button.scene` 拖入 `menuRow`，两次投放均可一次 Undo，Canvas 始终为一个且示例 Scene 最终无语义 diff。
+- 删除未接入新版 Editor 的 `live summary`、`live scene get`、`live node inspect`、固定端口 bridge 实现及相关对外文档；CLI help 不再暴露旧入口。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
 - 仓库只保留 Vue 浏览器 Editor，不存在旧桌面入口或兼容层。
-- vNext 尚未实现 read-only live context。
+- vNext 尚未实现 read-only Editor context。
+- CLI 不再暴露 `live summary`、`live scene get` 或 `live node inspect`，也不保留固定端口 bridge。
 - 当前浏览器主包约 812 KB，整个 Editor 构建约 821 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
 - 层级结构编辑直接复用 Compiler Command，不存在第二套树 mutation 模型。
 
@@ -200,4 +204,4 @@ Currently Failing:
 - None。
 
 Next:
-1. 重新接通 read-only live context。
+1. 设计并实现新的 read-only Editor context、单 Host / 单浏览器会话和 CLI 会话发现。

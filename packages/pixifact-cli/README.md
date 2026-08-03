@@ -29,7 +29,7 @@ pixifact scene validate --all
 
 默认使用当前工作目录作为项目根目录；不在项目根目录运行时再加 `--project-root <path>`。
 
-其他命令是辅助入口：`scene create` 用于新建 Scene，`node inspect` 用于已知 locator 的节点详情，`live ...` 只在 Editor 运行时读取上下文。不要使用 `scene get`，file mode 只保留 `scene inspect`。
+其他命令是辅助入口：`scene create` 用于新建 Scene，`node inspect` 用于已知 locator 的节点详情。不要使用 `scene get`，file mode 只保留 `scene inspect`。旧 `live ...` 命令已经删除，新的 Editor context 尚未实现。
 
 ## 浏览器 Editor
 

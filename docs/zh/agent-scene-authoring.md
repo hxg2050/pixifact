@@ -4,7 +4,7 @@
 权威范围：外部 Agent 直接编辑 Pixifact `.scene` 的规则、契约和校验边界
 上游文档：[./index.md](./index.md)、[../../README.md](../../README.md)
 下游文档：[./layout.md](./layout.md)、[./scene-objects.md](./scene-objects.md)
-更新规则：修改 `.scene` authoring 模型、CLI 校验边界、Scene 脚本契约或 live context 行为时更新
+更新规则：修改 `.scene` authoring 模型、CLI 校验边界、Scene 脚本契约或 Editor context 行为时更新
 
 [English](../en/agent-scene-authoring.md)
 
@@ -24,7 +24,7 @@ Claude Code / Codex edit .scene
 Pixifact validate edited file
 Pixifact compile generated TypeScript
 Agent repair .scene if validation or compilation fails
-Editor optionally exposes live context and preview state
+Editor optionally exposes read-only context and preview state
 ```
 
 这替代了面向 Agent 的 `SceneCommand[]` 编辑协议。Editor 内部 undo 可以继续使用 compiler-scene commands，但外部 Agent 工作流不能依赖 command payload。
@@ -62,7 +62,6 @@ Agent 应遵循这个循环；AI-facing 文档优先只暴露这条主路径，�
 5. 运行 `compile-scenes`。
 6. 如果 validation 或 compilation 报 diagnostics，修复 `.scene` 源文件并重跑失败命令。
 7. 运行最小相关项目 build 或 test。
-8. 如果 Editor 正在运行，可选读取 `live scene get` 获取当前选择、预览上下文和最近一次外部刷新或校验结果。
 
 示例命令应在下游 Pixifact 游戏项目根目录运行，使用项目相对 scene path；不在项目根目录运行时再加 `--project-root <path>`。
 
@@ -296,15 +295,15 @@ pixifact compile-scenes
 pixifact scene validate --all
 ```
 
-默认项目根目录是当前工作目录；不在项目根目录运行时再加 `--project-root <path>`。不要把 `node inspect` 或 `live ...` 作为默认 AI 主路径。它们是辅助入口：`node inspect` 只在已有 locator 时使用，`live ...` 只在 Editor 正在运行时读取上下文。file mode 不提供 `scene get`，查看 Scene 使用 `scene inspect`。
+默认项目根目录是当前工作目录；不在项目根目录运行时再加 `--project-root <path>`。`node inspect` 只在已有 locator 时作为辅助入口使用。file mode 不提供 `scene get`，查看 Scene 使用 `scene inspect`。旧 `live ...` 命令已经删除。
 
 Live mutation commands 已从外部 CLI surface 移除。对 Agent 暴露的修改路径是直接编辑 `.scene` source，然后执行 validation。
 
-## Editor Live Context
+## Editor Context 方向
 
 Editor 可以通过暴露当前 project root、打开的 scene path、selection、preview context、最近一次外部 refresh 或 validation result，辅助外部 Agent 使用直接 `.scene` 工作流。它不是 AI 工作的计划或编排入口。
 
-Live editor bridge 是可选 context source。`live scene get` 应帮助 Agent 看到当前打开的 compiler scene、当前 selection、dirty state、revision，以及该 Scene 最近一次外部刷新或校验结果。它必须保持 read-only，不是隐藏的 apply channel。
+旧 `live ...` 命令和固定端口 bridge 已删除，新的 Editor context 尚未实现。后续入口必须保持 read-only，只暴露 Editor 当前状态，不能成为隐藏的 apply channel。
 
 ## Editor Direction
 
@@ -327,6 +326,6 @@ Editor 应改进 preview refresh、validation feedback 和 externally edited `.s
 
 ## Migration Notes
 
-基于 `SceneCommand[]` 的旧 command-payload Agent flows 不再从 CLI 或 live bridge surface 暴露。Compiler scene edits 应使用直接 `.scene` source changes，然后运行 `scene validate --scene <path>` 或 `scene validate --all`。
+基于 `SceneCommand[]` 的旧 command-payload Agent flows 不再从 CLI 暴露。Compiler scene edits 应使用直接 `.scene` source changes，然后运行 `scene validate --scene <path>` 或 `scene validate --all`。
 
-Live editor bridge 是只读 context：`live summary`、`live scene get` 和 `live node inspect`。它用于暴露当前 editor state、selected node、最近一次外部 `.scene` refresh 或 validation result，不用于修改项目文件。
+旧 `live summary`、`live scene get` 和 `live node inspect` 已删除，不保留兼容入口。

@@ -3,7 +3,6 @@ import { createPixifactAutomation } from './automation';
 import { hintForCommandError } from 'pixifact';
 import { CompileSceneError, compileScenes } from 'pixifact/compiler-node';
 import type { SceneValidationDiagnostic } from 'pixifact/compiler';
-import { createLiveBridgeServer } from './liveBridgeServer';
 import { startEditorServer } from './editorServer';
 import {
     buildWechatTarget,
@@ -14,13 +13,9 @@ import {
 } from './wechatTarget';
 
 type Automation = ReturnType<typeof createPixifactAutomation>;
-type LiveBridge = Pick<ReturnType<typeof createLiveBridgeServer>, 'connected' | 'callAction' | 'stop'> & {
-    waitForConnection?: (timeoutMs?: number) => Promise<void>;
-};
 
 interface CliOptions {
     automation?: Automation;
-    liveBridge?: LiveBridge;
     onWechatDevEvent?: (event: WechatDevEvent) => void;
     startEditor?: typeof startEditorServer;
 }
@@ -371,32 +366,7 @@ async function executeFileCommand(
     throw new Error(`Unknown Pixifact CLI command "${positionals.join(' ')}".`);
 }
 
-async function executeLiveCommand(positionals: string[], flags: Record<string, string | true>, bridge: LiveBridge) {
-    if (!bridge.connected && bridge.waitForConnection) {
-        await bridge.waitForConnection();
-    }
-    if (!bridge.connected) {
-        throw new Error('No live Pixifact editor is connected.');
-    }
-
-    const [area, action] = positionals;
-    if (area === 'summary' && action === undefined) {
-        return bridge.callAction('summary', {});
-    }
-    if (area === 'scene' && action === 'get') {
-        return bridge.callAction('scene.get', {});
-    }
-    if (area === 'node' && action === 'inspect') {
-        return bridge.callAction('node.inspect', {
-            node: requireFlag(flags, 'node'),
-        });
-    }
-
-    throw new Error(`Unknown Pixifact live command "${positionals.join(' ')}".`);
-}
-
 export async function executePixifactCli(argv: string[], options: CliOptions = {}): Promise<CliResult> {
-    let ownedBridge: ReturnType<typeof createLiveBridgeServer> | undefined;
     try {
         const parsed = parseArgs(argv);
         if (parsed.flags.help === true) {
@@ -420,11 +390,6 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'scene create --scene <scene-path> --name <SceneName>',
                         'node inspect --scene <scene-path> --node <locator>',
                     ],
-                    liveContextCommands: [
-                        'live summary',
-                        'live scene get',
-                        'live node inspect --node <locator>',
-                    ],
                     defaults: {
                         projectRoot: 'current working directory',
                     },
@@ -434,20 +399,13 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
         }
 
         const automation = options.automation ?? createPixifactAutomation();
-        const isLive = parsed.positionals[0] === 'live';
-        const result = isLive
-            ? await executeLiveCommand(
-                parsed.positionals.slice(1),
-                parsed.flags,
-                options.liveBridge ?? (ownedBridge = createLiveBridgeServer()),
-            )
-            : await executeFileCommand(
-                parsed.positionals,
-                parsed.flags,
-                automation,
-                options.onWechatDevEvent,
-                options.startEditor,
-            );
+        const result = await executeFileCommand(
+            parsed.positionals,
+            parsed.flags,
+            automation,
+            options.onWechatDevEvent,
+            options.startEditor,
+        );
         if (isFailedResult(result)) {
             return {
                 exitCode: 1,
@@ -470,8 +428,6 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                 hint: hintForCommandError(error instanceof Error ? error.message : String(error)),
             }),
         };
-    } finally {
-        ownedBridge?.stop();
     }
 }
 

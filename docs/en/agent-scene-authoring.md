@@ -4,7 +4,7 @@ Status: Active
 Authority: Rules, contracts, and validation boundaries for external agents editing Pixifact `.scene` directly
 Upstream: [./index.md](./index.md), [../../README.en.md](../../README.en.md)
 Downstream: [./layout.md](./layout.md), [./scene-objects.md](./scene-objects.md)
-Update rule: Update when the `.scene` authoring model, CLI validation boundary, Scene script contracts, or live context behavior changes.
+Update rule: Update when the `.scene` authoring model, CLI validation boundary, Scene script contracts, or Editor context behavior changes.
 
 [中文](../zh/agent-scene-authoring.md)
 
@@ -24,7 +24,7 @@ Claude Code / Codex edits .scene
 Pixifact validates the edited file
 Pixifact compiles generated TypeScript
 Agent repairs the .scene if validation or compilation fails
-Editor optionally exposes live context and preview state
+Editor optionally exposes read-only context and preview state
 ```
 
 This replaces `SceneCommand[]` as the agent-facing edit protocol. Editor undo uses compiler-scene commands internally, but external agent workflows must not depend on command payloads.
@@ -62,7 +62,6 @@ Agents should follow this loop. AI-facing docs should expose this primary path f
 5. Run `compile-scenes`.
 6. If validation or compilation reports diagnostics, repair the `.scene` source and rerun the failing command.
 7. Run the smallest relevant project build or test.
-8. If Editor is running, optionally read `live scene get` for current selection, preview context, and the latest external refresh or validation result.
 
 Example commands should be run from the downstream Pixifact game project root with project-relative scene paths. Add `--project-root <path>` only when running outside the project root.
 
@@ -296,15 +295,15 @@ If multiple scenes may have changed, replace single-scene validation with:
 pixifact scene validate --all
 ```
 
-The default project root is the current working directory. Add `--project-root <path>` only when running outside the project root. Do not present `node inspect` or `live ...` as the default AI path. They are auxiliary entries: `node inspect` is for known locators, and `live ...` is read-only context when the Editor is running. File mode does not expose `scene get`; use `scene inspect` to read a Scene.
+The default project root is the current working directory. Add `--project-root <path>` only when running outside the project root. `node inspect` is an auxiliary entry for known locators. File mode does not expose `scene get`; use `scene inspect` to read a Scene. The retired `live ...` commands have been removed.
 
 Live mutation commands have been removed from the external CLI surface. The supported agent-facing mutation path is direct `.scene` source editing plus validation.
 
-## Editor Live Context
+## Editor Context Direction
 
 The Editor can help external agents use the direct `.scene` workflow by exposing the current project root, opened scene path, selection, preview context, and latest external refresh or validation result. It is not the place where AI work is planned or orchestrated.
 
-The live editor bridge is an optional context source. `live scene get` should help agents see the currently opened compiler scene, current selection, dirty state, revision, and the last external refresh or validation result for that scene. It must remain read-only; it is not a hidden apply channel.
+The retired `live ...` commands and fixed-port bridge have been removed, and the replacement Editor context is not implemented yet. Its future entry point must remain read-only and cannot become a hidden apply channel.
 
 ## Editor Direction
 
@@ -327,6 +326,6 @@ These costs are acceptable because they keep the final authoring model simple an
 
 ## Migration Notes
 
-Retired command-payload agent flows based on `SceneCommand[]` are not exposed by the CLI or live bridge surface. Compiler scene edits should use direct `.scene` source changes followed by `scene validate --scene <path>` or `scene validate --all`.
+Retired command-payload agent flows based on `SceneCommand[]` are not exposed by the CLI. Compiler scene edits should use direct `.scene` source changes followed by `scene validate --scene <path>` or `scene validate --all`.
 
-The live editor bridge is read-only context: `live summary`, `live scene get`, and `live node inspect`. It exists to expose the current editor state, selected node, and latest external `.scene` refresh or validation result, not to mutate project files.
+The retired `live summary`, `live scene get`, and `live node inspect` commands have been removed without compatibility aliases.

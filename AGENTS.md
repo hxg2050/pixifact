@@ -19,7 +19,7 @@
 
 ## 项目概览
 
-Pixifact 是面向 AI 完整游戏开发的 Scene / UI / 轻场景与项目资产管理层。PixiJS 只作为底层渲染实现；Codex、Claude Code 等外部 Agent 通过 Pixifact CLI 使用 `.scene` 语义层，编辑器负责预览、资产浏览、live context、校验结果展示和人工微调。
+Pixifact 是面向 AI 完整游戏开发的 Scene / UI / 轻场景与项目资产管理层。PixiJS 只作为底层渲染实现；Codex、Claude Code 等外部 Agent 通过 Pixifact CLI 使用 `.scene` 语义层，编辑器负责预览、资产浏览、Editor context、校验结果展示和人工微调。
 
 Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validate、compile、preview 和 diagnose。Agent 编排、Git 分支 / commit / revert、任务管理、CI、PR 和长期项目管理交给外部专业工具，不在 Pixifact 内重复实现。
 
@@ -67,7 +67,7 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 - Compiler `.scene` 源文件是外部 Agent 和 editor 共享的 source of truth。
 - Pinia 只保存 UI 状态，不保存 `.scene` 模板副本作为项目数据源。
 - Compiler `.scene` 的默认 Agent 路径是直接编辑 `.scene` 源文件，然后运行 Pixifact CLI 的 `scene validate`、`compile-scenes` 和项目最小相关验证。
-- Editor live bridge 只提供 summary、scene get、node inspect 等 compiler scene 上下文能力，不提供 mutation 入口。
+- 旧 `live ...` CLI 与固定端口 bridge 已删除；后续 Editor context 只提供当前项目、Scene、selection 和同步状态等只读上下文，不提供 mutation 入口。
 - JSON 是资产格式，不作为主要编辑入口。
 - 不引入 Monaco，不做内嵌代码编辑器。
 - Editor 可以做项目资产浏览、轻量预览、资源引用和校验，但不编辑图片、音频、脚本等源资源。

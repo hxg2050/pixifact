@@ -29,7 +29,7 @@
 - 项目文件树选择状态。
 - Dockview 布局状态。
 - 外部文件变更的合并。
-- Editor live bridge mutation。
+- Editor context mutation。
 
 ## 2. 行为场景
 

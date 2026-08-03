@@ -165,15 +165,7 @@ pixifact compile-scenes
 
 默认项目根目录是当前工作目录；不在项目根目录运行时再加 `--project-root <path>`。小范围改动可以校验单个 `.scene`；批量改动或不确定影响范围时使用 `scene validate --all` 校验所有 compiler Scene。
 
-Editor live context 只读：
-
-```bash
-bun run pixifact -- live summary
-bun run pixifact -- live scene get
-bun run pixifact -- live node inspect --node 0:content/0:label
-```
-
-有 Editor 时，`live scene get` 可额外返回当前选中节点和最近一次外部 `.scene` 刷新 / 校验结果，帮助 Agent 判断直接编辑是否需要修复；它不修改项目文件。
+旧 `live ...` 命令和固定端口 bridge 已删除。新的只读 Editor context 尚未实现；当前 Agent 通过上述文件命令读取项目，并直接修改 `.scene`。
 
 ## 项目资产边界
 

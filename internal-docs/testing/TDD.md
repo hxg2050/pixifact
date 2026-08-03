@@ -23,7 +23,7 @@
 | `tests/editor-server.test.ts` | 浏览器 Editor 本地服务 | 项目索引、Scene versioned write、project root guard |
 | `tests/project-file-tree.test.ts` | 浏览器 Editor 项目树与 runtime preview | 浏览器文件读取、Scene binding、Pixi 节点布局和图片 parser |
 | `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
-| `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、path guard、read-only live context、exit code |
+| `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、path guard、旧 live 命令移除、exit code |
 | `tests/scene-script-interface.test.ts` | compiler Scene script contract | `@scene` / `@prop` / `@event` / `@slot` / `@part` 提取，primitive 和 structured prop contract |
 | `tests/scene-compiler.test.ts` | compiler `.scene` parser / serializer / validator / codegen | scene source canonicalization、scene instance contract、structured prop dot-path、generated TypeScript |
 | `tests/compiler-scene-commands.test.ts` | compiler scene internal commands | node prop 更新、nested prop path、undo/redo inverse |
@@ -46,7 +46,7 @@
    - editor 本地服务 / runtime preview：`tests/editor-server.test.ts`、`tests/project-file-tree.test.ts`
    - project run config：`tests/project-run-config.test.ts`
    - Vue editor store / Inspector：`tests/editor-vue-ui.test.ts`
-   - CLI / Agent live context：`tests/pixifact-cli.test.ts`
+   - CLI / Agent commands：`tests/pixifact-cli.test.ts`
 
 3. Red
 
@@ -142,14 +142,13 @@ bunx --no-install vitest run tests/scene-script-interface.test.ts tests/scene-co
 bun run editor:frontend:build
 ```
 
-### 修改 Editor live context
+### 移除旧 Editor live commands
 
 必须先覆盖：
 
-- `live summary` 返回项目、当前文件和 scene 列表。
-- `live scene get` 返回当前 compiler scene 的只读上下文。
-- `live node inspect` 返回当前选中或指定节点的稳定 locator、类型和 props。
-- live bridge 不暴露 mutation action。
+- CLI help 不再列出 `live summary`、`live scene get` 或 `live node inspect`。
+- `pixifact live ...` 返回 unknown command，不启动固定端口 bridge。
+- 删除 bridge 实现，不保留兼容入口。
 
 验证命令：
 
@@ -252,7 +251,7 @@ bun run build
 - 至少一个自动化测试覆盖主要成功路径。
 - 关键失败路径有测试，尤其是 invalid scene、path guard、asset/contract validation。
 - 外部 Agent 修改路径是 `.scene` direct edit + validation。
-- Editor live context 是只读增强，不写项目文件。
+- 后续 Editor context 是只读增强，不写项目文件。
 - editor UI 没有保存 `.scene` source 或 `SceneDocument` 副本到 Pinia。
 - 相关最小验证通过。
 - 涉及 editor 前端时，TypeScript strict check 和 `editor:frontend:build` 通过。

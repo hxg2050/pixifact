@@ -21,18 +21,15 @@ Scenario: Agent edits a compiler scene without Editor
 
 TDD 入口：`tests/pixifact-cli.test.ts`。
 
-### BDD-AGENT-002 Editor live context 是只读增强
+### BDD-AGENT-002 旧 live 命令不再暴露
 
-Feature: Editor live context
+Feature: Retired live CLI removal
 
 ```gherkin
-Scenario: Agent reads selected node from the running Editor
-  Given Pixifact Editor has a project open
-  And a Scene node is selected
-  When the agent runs "pixifact live scene get"
-  Or runs "pixifact live node inspect"
-  Then Pixifact returns the current Scene and selection context
-  And no project file is modified
+Scenario: Agent invokes a retired live command
+  When the agent runs "pixifact live summary"
+  Then Pixifact reports an unknown CLI command
+  And no fixed-port live bridge is started
 ```
 
 TDD 入口：`tests/pixifact-cli.test.ts`。
@@ -464,5 +461,5 @@ TDD 入口：`tests/scene-compiler.test.ts`、`tests/project-file-tree.test.ts`�
 
 - Pixifact 不提供内置模型服务、模拟 Agent 服务或内置 AI chat 作为主开发路径。
 - Pixifact 不提供 Git/PR/CI/任务编排能力。
-- Editor live bridge 不提供 mutation action。
+- 后续 Editor context 不提供 mutation action。
 - 外部 Agent 不使用 `SceneCommand[]` 作为项目修改协议。

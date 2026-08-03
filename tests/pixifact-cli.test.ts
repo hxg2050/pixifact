@@ -137,11 +137,6 @@ describe('Pixifact CLI', () => {
                 'scene create --scene <scene-path> --name <SceneName>',
                 'node inspect --scene <scene-path> --node <locator>',
             ],
-            liveContextCommands: [
-                'live summary',
-                'live scene get',
-                'live node inspect --node <locator>',
-            ],
             defaults: {
                 projectRoot: 'current working directory',
             },
@@ -1131,53 +1126,13 @@ import { Group } from 'pixifact/runtime';
         expect(result.json.hint).toContain('project-relative');
     });
 
-    it('routes live scene reads to the live editor bridge when connected', async () => {
-        const result = await executePixifactCli([
-            'live',
-            'scene',
-            'get',
-        ], {
-            liveBridge: {
-                connected: true,
-                stop: () => {},
-                callAction: async (action, args) => ({
-                    live: true,
-                    action,
-                    args,
-                }),
-            },
-        });
-        const parsed = JSON.parse(result.stdout);
-
-        expect(result.exitCode).toBe(0);
-        expect(parsed).toMatchObject({
-            live: true,
-            action: 'scene.get',
-            args: {},
-        });
-    });
-
-
-    it('does not expose live mutation commands', async () => {
-        const callAction = vi.fn(async () => ({}));
-        const result = await executePixifactCli([
-            'live',
-            'template',
-            'add',
-        ], {
-            liveBridge: {
-                connected: true,
-                stop: () => {},
-                callAction,
-            },
-        });
-        const parsed = JSON.parse(result.stderr);
+    it('does not expose retired live commands', async () => {
+        const result = await runCli(['live', 'summary']);
 
         expect(result.exitCode).toBe(1);
-        expect(parsed).toMatchObject({
+        expect(result.json).toMatchObject({
             ok: false,
-            error: 'Unknown Pixifact live command "template add".',
+            error: 'Unknown Pixifact CLI command "live summary".',
         });
-        expect(callAction).not.toHaveBeenCalled();
     });
 });
