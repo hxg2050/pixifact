@@ -19,7 +19,7 @@ bun run editor
 pixifact editor
 ```
 
-一个 Editor 服务只绑定一个项目，不提供欢迎页、项目选择器或跨项目状态。
+一个项目只注册一个 Editor Host，一个 Host 同时只接受一个浏览器 Editor 页面；不提供欢迎页、项目选择器或跨项目状态。
 
 ## 当前结构
 
@@ -50,6 +50,14 @@ pixifact scene validate --scene src/scenes/Main.scene
 pixifact scene validate --all
 pixifact compile-scenes
 ```
+
+Editor 正在运行且 Scene 已同步时，可以读取当前 Scene 和 selection：
+
+```bash
+pixifact editor context
+```
+
+该命令只读，不提供 Scene mutation。
 
 Scene 脚本按同目录同 basename 配对，例如 `src/scenes/Main.scene` 与 `src/scenes/Main.ts`。不要编辑 `.pixifact/generated`。
 

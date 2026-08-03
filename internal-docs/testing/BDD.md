@@ -21,7 +21,29 @@ Scenario: Agent edits a compiler scene without Editor
 
 TDD 入口：`tests/pixifact-cli.test.ts`。
 
-### BDD-AGENT-002 旧 live 命令不再暴露
+### BDD-AGENT-002 Agent 读取当前 Editor context
+
+Feature: Read-only Editor context
+
+```gherkin
+Scenario: Agent reads the selected node from the running Editor
+  Given one Pixifact Editor Host and one browser page are active for the project
+  And the browser has a valid Scene revision and selected node
+  When the agent runs "pixifact editor context"
+  Then Pixifact returns the project, Scene revision, sync state, Compiler locator, node type, id, and explicit props
+  And no project file is modified
+
+Scenario: Editor context has not caught up with the Scene file
+  Given the browser reported selection for an earlier Scene revision
+  And an external Agent changed the .scene file
+  When the agent runs "pixifact editor context"
+  Then Pixifact returns a non-zero exit code
+  And does not return the stale selection
+```
+
+TDD 入口：`tests/pixifact-cli.test.ts`、`tests/editor-session.test.ts`。
+
+### BDD-AGENT-003 旧 live 命令不再暴露
 
 Feature: Retired live CLI removal
 
@@ -374,6 +396,43 @@ Scenario: Canvas editing preserves layout ownership
 
 TDD 入口：`tests/editor-scene-canvas.test.ts`、`tests/editor-scene-document.test.ts` 与浏览器验收。
 
+### BDD-EDITOR-011 一个项目只有一个有效 Editor 会话
+
+Feature: Single Editor session
+
+```gherkin
+Scenario: User starts Editor again for the same project
+  Given an Editor Host is already registered and healthy for the project
+  When the user runs "pixifact editor" again
+  Then Pixifact reuses the registered Host URL
+  And does not register a second Host
+
+Scenario: User opens the Editor URL in a second browser tab
+  Given one browser tab already owns the Editor WebSocket session
+  When another tab connects
+  Then the second tab reports that the project is already open
+  And it does not load, edit, or publish context for the project
+```
+
+TDD 入口：`tests/editor-session.test.ts`、Editor 前端构建与浏览器验收。
+
+### BDD-EDITOR-012 外部文件变化只应用最新 revision
+
+Feature: Coordinated external Scene refresh
+
+```gherkin
+Scenario: Agent writes the current Scene several times in one operation
+  Given the Editor has the Scene open
+  When file watching reports multiple changes for the same path
+  Then the Host coalesces the notifications
+  And the browser refreshes the Scene serially
+  And only the latest disk revision replaces the authoring preview root
+  And the Pixi Application, Canvas, zoom, and pan remain unchanged
+  And selection is retained only when the target can be conservatively relocated
+```
+
+TDD 入口：`tests/editor-session.test.ts`、`tests/editor-context.test.ts` 与浏览器验收。
+
 ## 5. CLI
 
 ### BDD-CLI-001 Inspect and validate compiler scenes
@@ -461,5 +520,5 @@ TDD 入口：`tests/scene-compiler.test.ts`、`tests/project-file-tree.test.ts`�
 
 - Pixifact 不提供内置模型服务、模拟 Agent 服务或内置 AI chat 作为主开发路径。
 - Pixifact 不提供 Git/PR/CI/任务编排能力。
-- 后续 Editor context 不提供 mutation action。
+- Editor context 不提供 mutation action。
 - 外部 Agent 不使用 `SceneCommand[]` 作为项目修改协议。

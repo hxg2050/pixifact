@@ -60,6 +60,10 @@ export class SceneDocument {
         return this.#syncState;
     }
 
+    get version() {
+        return this.#version;
+    }
+
     get canUndo() {
         return this.#commandStack.canUndo;
     }

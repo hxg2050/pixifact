@@ -62,6 +62,7 @@ Agent 应遵循这个循环；AI-facing 文档优先只暴露这条主路径，�
 5. 运行 `compile-scenes`。
 6. 如果 validation 或 compilation 报 diagnostics，修复 `.scene` 源文件并重跑失败命令。
 7. 运行最小相关项目 build 或 test。
+8. 如果 Editor 正在运行且用户指向了具体对象，可运行 `editor context` 获取当前 Scene 和 selection。
 
 示例命令应在下游 Pixifact 游戏项目根目录运行，使用项目相对 scene path；不在项目根目录运行时再加 `--project-root <path>`。
 
@@ -303,7 +304,7 @@ Live mutation commands 已从外部 CLI surface 移除。对 Agent 暴露的修�
 
 Editor 可以通过暴露当前 project root、打开的 scene path、selection、preview context、最近一次外部 refresh 或 validation result，辅助外部 Agent 使用直接 `.scene` 工作流。它不是 AI 工作的计划或编排入口。
 
-旧 `live ...` 命令和固定端口 bridge 已删除，新的 Editor context 尚未实现。后续入口必须保持 read-only，只暴露 Editor 当前状态，不能成为隐藏的 apply channel。
+`pixifact editor context` 是可选的只读 context source，返回当前项目、打开的 Scene、revision、同步状态和 selection。它不返回 mutation action，也不是隐藏的 apply channel。旧 `live ...` 命令和固定端口 bridge 已删除。
 
 ## Editor Direction
 

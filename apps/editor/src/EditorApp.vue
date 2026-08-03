@@ -2,22 +2,24 @@
 import { storeToRefs } from 'pinia';
 import { Redo2, Undo2 } from 'lucide-vue-next';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
-import { computed, markRaw, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { SceneTemplateInterface } from 'pixifact/compiler';
 import AssetsPanel from './panels/AssetsPanel.vue';
 import HierarchyPanel from './panels/HierarchyPanel.vue';
 import InspectorPanel from './panels/InspectorPanel.vue';
 import SceneCanvas from './preview/SceneCanvas.vue';
 import { SceneDocument } from './document/SceneDocument';
-import type { EditorSceneAsset } from './document/sceneTree';
+import { remapSceneSelection, type EditorSceneAsset } from './document/sceneTree';
 import {
+    connectEditorSession,
     createEditorProjectTree,
     editorSceneFileApi,
     readEditorSceneBindings,
     readEditorProject,
-    watchEditorProject,
+    type EditorSessionConnection,
     type EditorProject,
 } from './services/editorApi';
+import { editorSelectionContext } from './services/editorContext';
 import type { ProjectFileTreeNode } from './services/projectFileTree';
 import { useEditorUiStore } from './stores/editorUi';
 
@@ -30,8 +32,12 @@ const document = ref<SceneDocument>();
 const documentRevision = ref(0);
 const error = ref('');
 const draggedAsset = ref<EditorSceneAsset>();
+const sessionOccupied = ref(false);
 let unsubscribeDocument: (() => void) | undefined;
-let unwatchProject: (() => void) | undefined;
+let sessionConnection: Extract<EditorSessionConnection, { status: 'accepted' }> | undefined;
+let projectChangeTimer: ReturnType<typeof setTimeout> | undefined;
+let projectRefreshQueue = Promise.resolve();
+const pendingProjectChanges = new Set<string>();
 
 const sceneName = computed(() => currentScenePath.value?.split('/').at(-1)?.replace(/\.scene$/, '') ?? '未打开 Scene');
 const syncLabel = computed(() => ({
@@ -41,11 +47,11 @@ const syncLabel = computed(() => ({
     error: '写入失败',
 }[syncState.value]));
 
-function bindDocument(next: SceneDocument) {
+function bindDocument(next: SceneDocument, selection?: string) {
     unsubscribeDocument?.();
     document.value = markRaw(next);
     currentScenePath.value = next.path;
-    selectedLocator.value = undefined;
+    selectedLocator.value = selection;
     syncState.value = next.syncState;
     documentRevision.value += 1;
     unsubscribeDocument = next.subscribe((event) => {
@@ -80,11 +86,57 @@ async function refreshSceneInterfaces() {
 async function refreshOpenedScene(path: string) {
     const current = document.value;
     if (!current || current.path !== path) return;
-    const latest = await current.reloadIfChanged();
-    if (latest && document.value === current) {
-        bindDocument(latest);
+    try {
+        const latest = await current.reloadIfChanged();
+        if (latest && document.value === current) {
+            const selection = remapSceneSelection(current.template, latest.template, selectedLocator.value);
+            bindDocument(latest, selection);
+            error.value = '';
+        }
+    } catch (cause) {
+        selectedLocator.value = undefined;
+        throw cause;
     }
 }
+
+async function applyProjectChanges(paths: readonly string[]) {
+    if (currentScenePath.value && paths.includes(currentScenePath.value)) {
+        await refreshOpenedScene(currentScenePath.value);
+    }
+    if (paths.some((path) => path.endsWith('.ts'))) {
+        await refreshSceneInterfaces();
+    }
+}
+
+function scheduleProjectChange(path: string) {
+    pendingProjectChanges.add(path);
+    if (projectChangeTimer) clearTimeout(projectChangeTimer);
+    projectChangeTimer = window.setTimeout(() => {
+        projectChangeTimer = undefined;
+        const paths = [...pendingProjectChanges];
+        pendingProjectChanges.clear();
+        projectRefreshQueue = projectRefreshQueue
+            .then(() => applyProjectChanges(paths))
+            .catch((cause) => {
+                error.value = cause instanceof Error ? cause.message : String(cause);
+            });
+    }, 30);
+}
+
+function publishEditorContext() {
+    const current = document.value;
+    if (!current || !sessionConnection) return;
+    sessionConnection.publishContext({
+        scene: {
+            path: current.path,
+            revision: current.version,
+            syncState: syncState.value,
+        },
+        selection: editorSelectionContext(current.template, selectedLocator.value),
+    });
+}
+
+watch([document, documentRevision, selectedLocator, syncState], publishEditorContext, { flush: 'post' });
 
 async function undo() {
     error.value = '';
@@ -117,6 +169,15 @@ onMounted(async () => {
     window.addEventListener('pointerup', endAssetDrag);
     window.addEventListener('pointercancel', endAssetDrag);
     try {
+        const connection = await connectEditorSession(scheduleProjectChange, () => {
+            sessionConnection = undefined;
+            error.value = 'Editor 与本地项目服务的连接已断开。';
+        });
+        if (connection.status === 'occupied') {
+            sessionOccupied.value = true;
+            return;
+        }
+        sessionConnection = connection;
         const [nextProject] = await Promise.all([
             readEditorProject(),
             refreshSceneInterfaces(),
@@ -126,18 +187,6 @@ onMounted(async () => {
         if (project.value.scenes[0]) {
             await openScene(project.value.scenes[0]);
         }
-        unwatchProject = watchEditorProject((path) => {
-            window.setTimeout(async () => {
-                try {
-                    await refreshOpenedScene(path);
-                    if (path.endsWith('.ts')) {
-                        await refreshSceneInterfaces();
-                    }
-                } catch (cause) {
-                    error.value = cause instanceof Error ? cause.message : String(cause);
-                }
-            }, 30);
-        });
     } catch (cause) {
         error.value = cause instanceof Error ? cause.message : String(cause);
     }
@@ -146,13 +195,20 @@ onMounted(async () => {
 onBeforeUnmount(() => {
     window.removeEventListener('pointerup', endAssetDrag);
     window.removeEventListener('pointercancel', endAssetDrag);
+    if (projectChangeTimer) clearTimeout(projectChangeTimer);
     unsubscribeDocument?.();
-    unwatchProject?.();
+    sessionConnection?.close();
 });
 </script>
 
 <template>
-  <main class="editor-shell">
+  <main v-if="sessionOccupied" class="editor-session-occupied">
+    <div>
+      <strong>项目已在另一个标签页中打开</strong>
+      <span>请在原标签页继续编辑。</span>
+    </div>
+  </main>
+  <main v-else class="editor-shell">
     <header class="topbar">
       <div class="brand">PIXIFACT</div>
       <div class="scene-identity">

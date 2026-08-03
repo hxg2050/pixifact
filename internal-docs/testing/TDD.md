@@ -23,7 +23,9 @@
 | `tests/editor-server.test.ts` | 浏览器 Editor 本地服务 | 项目索引、Scene versioned write、project root guard |
 | `tests/project-file-tree.test.ts` | 浏览器 Editor 项目树与 runtime preview | 浏览器文件读取、Scene binding、Pixi 节点布局和图片 parser |
 | `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
-| `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、path guard、旧 live 命令移除、exit code |
+| `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、Editor context 路由、path guard、旧 live 命令移除、exit code |
+| `tests/editor-session.test.ts` | Editor Host session / context | 单浏览器会话、context auth、revision 一致性、session discovery |
+| `tests/editor-context.test.ts` | Editor context / selection | Scene 与节点 context、Compiler locator、外部 revision 选择重定位 |
 | `tests/scene-script-interface.test.ts` | compiler Scene script contract | `@scene` / `@prop` / `@event` / `@slot` / `@part` 提取，primitive 和 structured prop contract |
 | `tests/scene-compiler.test.ts` | compiler `.scene` parser / serializer / validator / codegen | scene source canonicalization、scene instance contract、structured prop dot-path、generated TypeScript |
 | `tests/compiler-scene-commands.test.ts` | compiler scene internal commands | node prop 更新、nested prop path、undo/redo inverse |
@@ -142,18 +144,21 @@ bunx --no-install vitest run tests/scene-script-interface.test.ts tests/scene-co
 bun run editor:frontend:build
 ```
 
-### 移除旧 Editor live commands
+### 修改 Editor context
 
 必须先覆盖：
 
-- CLI help 不再列出 `live summary`、`live scene get` 或 `live node inspect`。
-- `pixifact live ...` 返回 unknown command，不启动固定端口 bridge。
-- 删除 bridge 实现，不保留兼容入口。
+- `editor context` 只从当前项目已注册的 Editor Host 读取状态。
+- Host 同时只接受一个浏览器 WebSocket 会话，第二个页面不能发布 context。
+- context 只在 Scene 磁盘 revision 与浏览器 revision 一致且同步状态为 `synced` 时成功。
+- Scene 根、Pixi 节点、Scene Instance 和 Slot Outlet 使用明确的 selection kind。
+- 节点地址直接复用 Compiler locator，不新增第二套 locator。
+- 旧 `live ...` 继续返回 unknown command，不恢复固定端口 bridge。
 
 验证命令：
 
 ```bash
-bunx --no-install vitest run tests/pixifact-cli.test.ts
+bunx --no-install vitest run tests/pixifact-cli.test.ts tests/editor-session.test.ts tests/editor-context.test.ts
 ```
 
 ### 修改 compiler scene 内部命令
@@ -251,7 +256,7 @@ bun run build
 - 至少一个自动化测试覆盖主要成功路径。
 - 关键失败路径有测试，尤其是 invalid scene、path guard、asset/contract validation。
 - 外部 Agent 修改路径是 `.scene` direct edit + validation。
-- 后续 Editor context 是只读增强，不写项目文件。
+- Editor context 是只读增强，不写项目文件。
 - editor UI 没有保存 `.scene` source 或 `SceneDocument` 副本到 Pinia。
 - 相关最小验证通过。
 - 涉及 editor 前端时，TypeScript strict check 和 `editor:frontend:build` 通过。

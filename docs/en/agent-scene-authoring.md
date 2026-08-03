@@ -62,6 +62,7 @@ Agents should follow this loop. AI-facing docs should expose this primary path f
 5. Run `compile-scenes`.
 6. If validation or compilation reports diagnostics, repair the `.scene` source and rerun the failing command.
 7. Run the smallest relevant project build or test.
+8. If Editor is running and the user is pointing at a concrete object, run `editor context` to read the current Scene and selection.
 
 Example commands should be run from the downstream Pixifact game project root with project-relative scene paths. Add `--project-root <path>` only when running outside the project root.
 
@@ -303,7 +304,7 @@ Live mutation commands have been removed from the external CLI surface. The supp
 
 The Editor can help external agents use the direct `.scene` workflow by exposing the current project root, opened scene path, selection, preview context, and latest external refresh or validation result. It is not the place where AI work is planned or orchestrated.
 
-The retired `live ...` commands and fixed-port bridge have been removed, and the replacement Editor context is not implemented yet. Its future entry point must remain read-only and cannot become a hidden apply channel.
+`pixifact editor context` is an optional read-only context source. It returns the current project, opened Scene, revision, sync state, and selection. It exposes no mutation action and is not a hidden apply channel. The retired `live ...` commands and fixed-port bridge remain removed.
 
 ## Editor Direction
 

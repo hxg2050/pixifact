@@ -18,7 +18,7 @@
 - 用户在项目目录运行 `pixifact editor`；本地 Bun 服务绑定当前项目并打开系统浏览器。
 - 一个 Editor 服务只服务一个项目；不做欢迎页、项目选择器、最近项目和跨项目状态。
 - 外部 Agent 是唯一 Agent 形态。Editor 不内置对话、Prompt、任务管理、Git、CI 或 Agent 编排。
-- 外部 Agent 直接修改 `.scene` 与配对脚本；后续通过 Pixifact CLI 读取只读 Editor context，不提供 mutation 入口，也不恢复旧 `live ...` CLI 或固定端口 bridge。
+- 外部 Agent 直接修改 `.scene` 与配对脚本，并通过 `pixifact editor context` 读取只读 Editor 状态；context 不提供 mutation 入口，也不恢复旧 `live ...` CLI 或固定端口 bridge。
 - `.scene` 始终是人、Agent、Editor 和 compiler 共享的 source of truth。
 
 ### 技术栈
@@ -105,6 +105,7 @@
 ## Public API / User-Facing Behavior
 
 - 新增 `pixifact editor`，从当前项目目录启动本地服务并打开浏览器 Editor。
+- 新增 `pixifact editor context`，从当前项目已注册的 Editor Host 读取 Scene revision、同步状态和 selection。
 - Editor 直接进入项目工作区，一次只打开一个 Scene。
 - `.scene` 编辑自动保存；顶栏显示 `已同步`、`正在写入`、`外部变更已应用`、`同步冲突` 或 `写入失败`。
 - 外部 Agent 继续通过直接文件编辑与现有 Pixifact CLI 工作，不依赖 Editor mutation API。
@@ -116,7 +117,7 @@
 - 用 Bun / Node 标准能力实现受项目根约束的文件读写、版本检查、监听、图片访问、系统程序调用和 WebSocket 通知。
 - 用 Vue 3、TypeScript、Vite、Pinia 和 Reka UI 重建 `apps/editor/` 浏览器 UI，并实现 SceneDocument、Command 流程和长驻 ScenePreview。
 - 建立固定三栏、单 Scene 导航、层级、只读资产索引、画布和 schema-driven Inspector。
-- 接通自动保存、Undo / Redo、外部变化同步；后续另行实现只读 Editor context。
+- 接通自动保存、Undo / Redo、外部变化同步和只读 Editor context。
 - vNext 完成后删除 Tauri host、Dockview、React、Zustand、旧运行服务和不再使用的旧 Editor 实现及依赖。
 - 实现完成后更新 README、中文与英文 Editor 对外文档和相关脚本。
 
@@ -128,7 +129,7 @@
 - [x] 为普通属性增量更新、结构变化替换 Scene root 补 Preview Command 分类测试，并完成人工 Canvas 长驻验收。
 - [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试；当前已覆盖 Pinia 边界、层级结构操作、资产拖入与 Inspector preview / commit。
 - [ ] 为外部 `.scene` / 脚本 / 图片变化补集成测试。
-- [ ] 为新的只读 Editor context 补 CLI / 服务集成测试，不恢复旧 `live ...` 命令。
+- [x] 为新的只读 Editor context 补 CLI / 服务集成测试，不恢复旧 `live ...` 命令。
 - [ ] 在桌面浏览器视口完成布局、无重叠、拖拽与 Inspector 实时反馈的人工验证；当前已完成固定三栏、Canvas 非空、属性实时反馈、层级添加、自动保存和 Undo 验收。
 
 ## Verification
@@ -156,6 +157,7 @@ rtk bun run pixifact -- editor
 - [x] 实现画布节点选择、连续移动与八方向 resize，并保持 frame layout 约束和栈布局所有权。
 - [x] 实现项目图片与 Scene 资产拖入画布或层级，并接入自动保存和 Undo / Redo。
 - [x] 删除未接入 vNext Editor 的旧 `live ...` CLI、固定端口 bridge、测试和文档入口。
+- [x] 实现项目级 Host session discovery、单浏览器会话和 `pixifact editor context`。
 
 ## Resume Protocol
 
@@ -191,11 +193,19 @@ Done:
 - 资产面板使用 Pointer Events 拖动项目索引中的现有图片和 Scene；开始拖动后自动切到层级，画布创建根级节点并写入 Scene 坐标，层级复用 before / inside / after 插入位置。
 - 浏览器验收已完成 `hero.svg` 拖入画布和 `Button.scene` 拖入 `menuRow`，两次投放均可一次 Undo，Canvas 始终为一个且示例 Scene 最终无语义 diff。
 - 删除未接入新版 Editor 的 `live summary`、`live scene get`、`live node inspect`、固定端口 bridge 实现及相关对外文档；CLI help 不再暴露旧入口。
+- 实现系统临时目录中的项目级 session descriptor、健康检查、Host 复用和私有 token context 查询。
+- `/api/events` 同时负责单浏览器会话、文件变化通知和浏览器 context 上报；第二个标签页不能加载项目或发布 context。
+- `editor context` 返回 Scene root 或 Compiler node selection，并在磁盘 revision 不一致、Scene 未同步或解析失败时拒绝返回旧 selection。
+- 外部 Scene 重载按路径合并并串行执行，选择只在原位修改、id rename 或唯一 id 移动时保守重定位。
+- 真实浏览器验收已确认第二个标签页只显示占用状态；选择 `bagButton` 后，`editor context` 返回 Compiler locator、Scene Instance props、events 和 slot 数量。
+- 真实浏览器验收已完成外部 `BottomMenu.scene` 的 `背包 -> 背包验收 -> 背包` 往返修改；Editor 自动刷新 revision 并保留确定的选择，Canvas 始终只有一个，示例 Scene 最终无 diff，当前 Host 无 console warning/error。
+- 全量测试为 16 个测试文件、216 个测试，`editor:typecheck`、`editor:frontend:build` 和包构建均通过。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
 - 仓库只保留 Vue 浏览器 Editor，不存在旧桌面入口或兼容层。
-- vNext 尚未实现 read-only Editor context。
+- vNext 已实现 read-only Editor context、单 Host / 单浏览器会话和 CLI session discovery。
+- read-only Editor context、单浏览器占用状态和外部 Scene 自动刷新已通过真实浏览器验收。
 - CLI 不再暴露 `live summary`、`live scene get` 或 `live node inspect`，也不保留固定端口 bridge。
 - 当前浏览器主包约 812 KB，整个 Editor 构建约 821 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
 - 层级结构编辑直接复用 Compiler Command，不存在第二套树 mutation 模型。
@@ -204,4 +214,4 @@ Currently Failing:
 - None。
 
 Next:
-1. 设计并实现新的 read-only Editor context、单 Host / 单浏览器会话和 CLI 会话发现。
+1. 继续补齐外部 `.scene`、配对脚本和图片变化的自动化集成测试。

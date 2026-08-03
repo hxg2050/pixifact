@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -7,6 +7,14 @@ import {
     pairedSceneScriptPath,
 } from 'pixifact/compiler';
 import { extractSceneScriptInterfaces } from 'pixifact/compiler-node';
+import {
+    claimEditorSession,
+    createEditorHostSession,
+    editorSessionProtocolVersion,
+    findActiveEditorSession,
+    removeEditorSessionDescriptor,
+    type EditorSessionDescriptor,
+} from './editorSession';
 
 export interface EditorProjectServiceOptions {
     projectRoot: string;
@@ -268,44 +276,94 @@ export async function startEditorServer(options: StartEditorOptions): Promise<Ed
         throw new Error('Editor frontend is not built. Run "bun run editor:frontend:build" first.');
     }
     const projectRoot = fs.realpathSync(options.projectRoot);
+    const activeSession = await findActiveEditorSession({ projectRoot });
+    if (activeSession) {
+        openBrowser(activeSession.origin);
+        return {
+            url: activeSession.origin,
+            stop() {},
+        };
+    }
+
     const service = createEditorProjectService({ projectRoot, staticRoot });
-    const sockets = new Set<BunWebSocket>();
+    const token = randomBytes(32).toString('hex');
+    const hostSession = createEditorHostSession({ projectRoot, token });
     const server = Bun.serve({
         hostname: '127.0.0.1',
         port: 0,
         fetch(request, bunServer) {
-            if (new URL(request.url).pathname === '/api/events' && bunServer.upgrade(request)) {
-                return undefined;
+            const sessionResponse = hostSession.fetch(request);
+            if (sessionResponse) {
+                return sessionResponse;
+            }
+            const requestUrl = new URL(request.url);
+            if (requestUrl.pathname === '/api/events') {
+                if (request.headers.get('origin') !== requestUrl.origin) {
+                    return Response.json({ ok: false, error: 'Editor WebSocket origin is invalid.' }, { status: 403 });
+                }
+                if (bunServer.upgrade(request)) {
+                    return undefined;
+                }
             }
             return service.fetch(request);
         },
         websocket: {
             open(socket) {
-                sockets.add(socket);
+                hostSession.open(socket);
             },
             close(socket) {
-                sockets.delete(socket);
+                hostSession.close(socket);
             },
-            message() {},
+            message(socket, message) {
+                hostSession.message(socket, message);
+            },
         },
     });
+    const changedPathTimers = new Map<string, ReturnType<typeof setTimeout>>();
     const watcher = fs.watch(projectRoot, { recursive: true }, (_event, fileName) => {
         if (!fileName) {
             return;
         }
-        const message = JSON.stringify({
-            type: 'projectFileChanged',
-            path: String(fileName).split(path.sep).join('/'),
-        });
-        for (const socket of sockets) {
-            socket.send(message);
-        }
+        const changedPath = String(fileName).split(path.sep).join('/');
+        const pending = changedPathTimers.get(changedPath);
+        if (pending) clearTimeout(pending);
+        changedPathTimers.set(changedPath, setTimeout(() => {
+            changedPathTimers.delete(changedPath);
+            hostSession.notifyProjectFileChanged(changedPath);
+        }, 30));
     });
     const url = `http://${server.hostname}:${server.port}`;
+    const descriptor: EditorSessionDescriptor = {
+        protocolVersion: editorSessionProtocolVersion,
+        projectRoot,
+        pid: process.pid,
+        origin: url,
+        token,
+    };
+    const claim = await claimEditorSession({ projectRoot, descriptor });
+    if (!claim.owned) {
+        watcher.close();
+        for (const timer of changedPathTimers.values()) clearTimeout(timer);
+        server.stop(true);
+        openBrowser(claim.descriptor.origin);
+        return {
+            url: claim.descriptor.origin,
+            stop() {},
+        };
+    }
+
+    let stopped = false;
+    const removeDescriptor = () => removeEditorSessionDescriptor(descriptor);
+    process.once('exit', removeDescriptor);
     openBrowser(url);
     return {
         url,
         stop() {
+            if (stopped) return;
+            stopped = true;
+            process.off('exit', removeDescriptor);
+            removeDescriptor();
+            for (const timer of changedPathTimers.values()) clearTimeout(timer);
             watcher.close();
             server.stop(true);
         },

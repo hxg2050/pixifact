@@ -71,7 +71,7 @@ Codex / Claude Code -> inspect .scene -> edit .scene -> scene validate -> compil
 
 Editor is an enhancer: it provides the currently opened Scene, selected node, preview, and asset context. Without Editor, agents can still develop fully through file editing and the CLI.
 
-Pixifact's default loop ends at `scene validate`, `compile-scenes`, and the future optional Editor context. Git diff, commits, reverts, PRs, CI, and task orchestration belong to external tools, not Pixifact built-ins.
+Pixifact's default loop ends at `scene validate`, `compile-scenes`, and optional read-only Editor context. Git diff, commits, reverts, PRs, CI, and task orchestration belong to external tools, not Pixifact built-ins.
 
 ## Repository Layout
 
@@ -114,7 +114,13 @@ pixifact compile-scenes
 
 The default project root is the current working directory. Add `--project-root <path>` only when running outside the project root. Use `scene validate --all` after broad edits or when multiple `.scene` files may have changed.
 
-The retired `live ...` commands and fixed-port bridge have been removed. A new read-only Editor context is not implemented yet; agents currently use the file commands above and edit `.scene` directly.
+When Editor is running and its Scene is synchronized, external agents can read the current Scene and selection:
+
+```bash
+pixifact editor context
+```
+
+This command only returns the project, Scene revision, sync state, and current selection. It does not modify project files. Agents still edit `.scene` directly and run the file validation commands. The retired `live ...` commands and fixed-port bridge remain removed.
 
 ## Project Asset Boundary
 

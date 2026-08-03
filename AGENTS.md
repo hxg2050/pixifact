@@ -67,7 +67,7 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 - Compiler `.scene` 源文件是外部 Agent 和 editor 共享的 source of truth。
 - Pinia 只保存 UI 状态，不保存 `.scene` 模板副本作为项目数据源。
 - Compiler `.scene` 的默认 Agent 路径是直接编辑 `.scene` 源文件，然后运行 Pixifact CLI 的 `scene validate`、`compile-scenes` 和项目最小相关验证。
-- 旧 `live ...` CLI 与固定端口 bridge 已删除；后续 Editor context 只提供当前项目、Scene、selection 和同步状态等只读上下文，不提供 mutation 入口。
+- `pixifact editor context` 只提供当前项目、Scene、selection 和同步状态等只读上下文，不提供 mutation 入口；旧 `live ...` CLI 与固定端口 bridge 已删除。
 - JSON 是资产格式，不作为主要编辑入口。
 - 不引入 Monaco，不做内嵌代码编辑器。
 - Editor 可以做项目资产浏览、轻量预览、资源引用和校验，但不编辑图片、音频、脚本等源资源。

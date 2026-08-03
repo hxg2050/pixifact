@@ -4,6 +4,7 @@ import { hintForCommandError } from 'pixifact';
 import { CompileSceneError, compileScenes } from 'pixifact/compiler-node';
 import type { SceneValidationDiagnostic } from 'pixifact/compiler';
 import { startEditorServer } from './editorServer';
+import { queryEditorContext } from './editorSession';
 import {
     buildWechatTarget,
     devWechatTarget,
@@ -17,6 +18,7 @@ type Automation = ReturnType<typeof createPixifactAutomation>;
 interface CliOptions {
     automation?: Automation;
     onWechatDevEvent?: (event: WechatDevEvent) => void;
+    readEditorContext?: typeof queryEditorContext;
     startEditor?: typeof startEditorServer;
 }
 
@@ -225,6 +227,7 @@ async function executeFileCommand(
     automation: Automation,
     onWechatDevEvent?: (event: WechatDevEvent) => void,
     startEditor: typeof startEditorServer = startEditorServer,
+    readEditorContext: typeof queryEditorContext = queryEditorContext,
 ) {
     const [area, action] = positionals;
     const projectRoot = projectRootFlag(flags);
@@ -236,6 +239,10 @@ async function executeFileCommand(
             projectRoot,
             url: session.url,
         };
+    }
+
+    if (area === 'editor' && action === 'context') {
+        return readEditorContext({ projectRoot });
     }
 
     if ((area === 'build' || area === 'dev' || area === 'validate') && action === undefined) {
@@ -387,6 +394,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                     ],
                     auxiliaryCommands: [
                         'editor',
+                        'editor context',
                         'scene create --scene <scene-path> --name <SceneName>',
                         'node inspect --scene <scene-path> --node <locator>',
                     ],
@@ -405,6 +413,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
             automation,
             options.onWechatDevEvent,
             options.startEditor,
+            options.readEditorContext,
         );
         if (isFailedResult(result)) {
             return {

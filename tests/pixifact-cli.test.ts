@@ -134,6 +134,7 @@ describe('Pixifact CLI', () => {
             ],
             auxiliaryCommands: [
                 'editor',
+                'editor context',
                 'scene create --scene <scene-path> --name <SceneName>',
                 'node inspect --scene <scene-path> --node <locator>',
             ],
@@ -157,6 +158,43 @@ describe('Pixifact CLI', () => {
             projectRoot,
             url: 'http://127.0.0.1:43120',
         });
+    });
+
+    it('reads the current project Editor context without exposing mutation', async () => {
+        const projectRoot = createTempProject();
+        const context = {
+            protocolVersion: 1,
+            projectRoot,
+            editor: { connected: true, updatedAt: '2026-08-03T08:00:00.000Z' },
+            scene: {
+                path: 'src/scenes/Button.scene',
+                revision: 'sha256:current',
+                syncState: 'synced',
+            },
+            selection: {
+                kind: 'node',
+                locator: '0:label',
+                node: {
+                    kind: 'pixi',
+                    type: 'Text',
+                    id: 'label',
+                    props: { text: 'Start' },
+                    childCount: 0,
+                },
+            },
+        };
+        const readEditorContext = vi.fn(async () => context);
+
+        const result = await executePixifactCli([
+            'editor',
+            'context',
+            '--project-root',
+            projectRoot,
+        ], { readEditorContext });
+
+        expect(result.exitCode).toBe(0);
+        expect(readEditorContext).toHaveBeenCalledWith({ projectRoot });
+        expect(JSON.parse(result.stdout)).toEqual(context);
     });
 
     it('includes pixifact project run config in summary without running it', async () => {

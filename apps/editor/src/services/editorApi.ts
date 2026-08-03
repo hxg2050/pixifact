@@ -1,5 +1,8 @@
 import type { ProjectFileTreeNode, ProjectFileKind } from './projectFileTree';
 import type { SceneScriptInterface } from 'pixifact/compiler';
+import type { EditorSelectionContext } from './editorContext';
+
+const editorSessionProtocolVersion = 1;
 
 export interface EditorProjectFile {
     kind: 'image' | 'scene' | 'script' | 'file';
@@ -19,6 +22,26 @@ export interface EditorSceneFile {
     source: string;
     version: string;
 }
+
+export interface EditorBrowserContext {
+    scene: {
+        path: string;
+        revision: string;
+        syncState: 'synced' | 'saving' | 'conflict' | 'error';
+    };
+    selection: EditorSelectionContext;
+}
+
+export type EditorSessionConnection =
+    | {
+        status: 'accepted';
+        close(): void;
+        publishContext(context: EditorBrowserContext): void;
+    }
+    | {
+        status: 'occupied';
+        close(): void;
+    };
 
 export class EditorApiError extends Error {
     constructor(readonly status: number, message: string) {
@@ -62,16 +85,68 @@ export async function readEditorProjectFile(path: string) {
     return checkedResponse(await fetch(`/api/file?path=${encodeURIComponent(path)}`));
 }
 
-export function watchEditorProject(handler: (path: string) => void) {
+export function connectEditorSession(
+    onProjectFileChanged: (path: string) => void,
+    onDisconnected: () => void,
+) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const socket = new WebSocket(`${protocol}//${window.location.host}/api/events`);
-    socket.addEventListener('message', (event) => {
-        const message = JSON.parse(String(event.data)) as { type?: string; path?: string };
-        if (message.type === 'projectFileChanged' && message.path) {
-            handler(message.path);
-        }
+    return new Promise<EditorSessionConnection>((resolve, reject) => {
+        let connected = false;
+        let settled = false;
+        socket.addEventListener('message', (event) => {
+            const message = JSON.parse(String(event.data)) as {
+                type?: string;
+                path?: string;
+                protocolVersion?: number;
+            };
+            if (message.protocolVersion !== undefined && message.protocolVersion !== editorSessionProtocolVersion) {
+                socket.close();
+                reject(new Error('Editor session protocol version does not match. Restart Pixifact Editor.'));
+                return;
+            }
+            if (message.type === 'editorSessionAccepted') {
+                connected = true;
+                settled = true;
+                resolve({
+                    status: 'accepted',
+                    close: () => socket.close(),
+                    publishContext(context) {
+                        if (socket.readyState !== WebSocket.OPEN) return;
+                        socket.send(JSON.stringify({
+                            type: 'editorContextChanged',
+                            protocolVersion: editorSessionProtocolVersion,
+                            context,
+                        }));
+                    },
+                });
+                return;
+            }
+            if (message.type === 'editorSessionOccupied') {
+                settled = true;
+                resolve({ status: 'occupied', close: () => socket.close() });
+                socket.close();
+                return;
+            }
+            if (message.type === 'projectFileChanged' && message.path) {
+                onProjectFileChanged(message.path);
+            }
+        });
+        socket.addEventListener('error', () => {
+            if (!settled) {
+                settled = true;
+                reject(new Error('Editor 无法连接本地项目服务。'));
+            }
+        });
+        socket.addEventListener('close', () => {
+            if (!settled) {
+                settled = true;
+                reject(new Error('Editor 本地项目服务连接已关闭。'));
+            } else if (connected) {
+                onDisconnected();
+            }
+        });
     });
-    return () => socket.close();
 }
 
 function projectFileKind(kind: EditorProjectFile['kind']): ProjectFileKind {

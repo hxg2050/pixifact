@@ -77,6 +77,154 @@ export function findSceneTreeEntry(nodes: readonly SceneTemplateNode[], locator:
     return undefined;
 }
 
+type SceneNodeAddressSegment =
+    | { kind: 'child'; index: number }
+    | { kind: 'slot'; name: string };
+
+function findSceneNodeAddress(
+    nodes: readonly SceneTemplateNode[],
+    locator: string,
+    parentLocator = '__scene__',
+    parentAddress: SceneNodeAddressSegment[] = [],
+): SceneNodeAddressSegment[] | undefined {
+    for (const [index, node] of nodes.entries()) {
+        const path = parentLocator === '__scene__' ? String(index) : `${parentLocator}/${index}`;
+        const nodeLocator = compilerSceneNodeLocator(node, path);
+        const address = [...parentAddress, { kind: 'child' as const, index }];
+        if (nodeLocator === locator) {
+            return address;
+        }
+        if (node.kind === 'pixi') {
+            const childAddress = findSceneNodeAddress(node.children, locator, nodeLocator, address);
+            if (childAddress) return childAddress;
+        } else if (node.kind === 'sceneInstance') {
+            for (const [slot, children] of Object.entries(node.slots)) {
+                const childAddress = findSceneNodeAddress(
+                    children,
+                    locator,
+                    `${nodeLocator}/slot:${slot}`,
+                    [...address, { kind: 'slot', name: slot }],
+                );
+                if (childAddress) return childAddress;
+            }
+        }
+    }
+    return undefined;
+}
+
+function nodeTypeMatches(left: SceneTemplateNode, right: SceneTemplateNode) {
+    if (left.kind !== right.kind) return false;
+    if (left.kind === 'slotOutlet' && right.kind === 'slotOutlet') return true;
+    return left.kind !== 'slotOutlet'
+        && right.kind !== 'slotOutlet'
+        && left.type === right.type;
+}
+
+function nodeIdentityMatches(left: SceneTemplateNode, right: SceneTemplateNode) {
+    if (!nodeTypeMatches(left, right)) return false;
+    if (left.kind === 'slotOutlet' && right.kind === 'slotOutlet') {
+        return left.name === right.name;
+    }
+    if (left.kind === 'sceneInstance' && right.kind === 'sceneInstance') {
+        return left.id === right.id && left.scene === right.scene;
+    }
+    return left.kind === 'pixi' && right.kind === 'pixi' && left.id === right.id;
+}
+
+function resolveAddress(template: SceneTemplate, address: readonly SceneNodeAddressSegment[]) {
+    let nodes: readonly SceneTemplateNode[] = template.children;
+    let node: SceneTemplateNode | undefined;
+    for (const segment of address) {
+        if (segment.kind === 'slot') {
+            if (node?.kind !== 'sceneInstance') return undefined;
+            nodes = node.slots[segment.name] ?? [];
+            node = undefined;
+            continue;
+        }
+        node = nodes[segment.index];
+        if (!node) return undefined;
+        nodes = node.kind === 'pixi' ? node.children : [];
+    }
+    return node;
+}
+
+function structuralAddressCanRetarget(
+    before: SceneTemplate,
+    after: SceneTemplate,
+    address: readonly SceneNodeAddressSegment[],
+) {
+    let beforeNodes: readonly SceneTemplateNode[] = before.children;
+    let afterNodes: readonly SceneTemplateNode[] = after.children;
+    let beforeNode: SceneTemplateNode | undefined;
+    let afterNode: SceneTemplateNode | undefined;
+
+    for (const [addressIndex, segment] of address.entries()) {
+        if (segment.kind === 'slot') {
+            if (beforeNode?.kind !== 'sceneInstance' || afterNode?.kind !== 'sceneInstance') return false;
+            beforeNodes = beforeNode.slots[segment.name] ?? [];
+            afterNodes = afterNode.slots[segment.name] ?? [];
+            beforeNode = undefined;
+            afterNode = undefined;
+            continue;
+        }
+        if (beforeNodes.length !== afterNodes.length) return false;
+        for (let index = 0; index < beforeNodes.length; index += 1) {
+            if (index !== segment.index && !nodeIdentityMatches(beforeNodes[index], afterNodes[index])) {
+                return false;
+            }
+        }
+        beforeNode = beforeNodes[segment.index];
+        afterNode = afterNodes[segment.index];
+        if (!beforeNode || !afterNode || !nodeTypeMatches(beforeNode, afterNode)) return false;
+        const isSelectedNode = addressIndex === address.length - 1;
+        if (!isSelectedNode && !nodeIdentityMatches(beforeNode, afterNode)) return false;
+        beforeNodes = beforeNode.kind === 'pixi' ? beforeNode.children : [];
+        afterNodes = afterNode.kind === 'pixi' ? afterNode.children : [];
+    }
+    return true;
+}
+
+function locatorForNode(template: SceneTemplate, target: SceneTemplateNode) {
+    const queue = [...sceneTreeEntries(template.children)];
+    while (queue.length > 0) {
+        const entry = queue.shift()!;
+        if (entry.node === target) return entry.locator;
+        queue.unshift(...entry.children);
+    }
+    return undefined;
+}
+
+function locatorsForId(template: SceneTemplate, id: string, expected: SceneTemplateNode) {
+    const matches: string[] = [];
+    const queue = [...sceneTreeEntries(template.children)];
+    while (queue.length > 0) {
+        const entry = queue.shift()!;
+        if (entry.node.kind !== 'slotOutlet' && entry.node.id === id && nodeTypeMatches(expected, entry.node)) {
+            matches.push(entry.locator);
+        }
+        queue.unshift(...entry.children);
+    }
+    return matches;
+}
+
+export function remapSceneSelection(before: SceneTemplate, after: SceneTemplate, locator?: string) {
+    if (!locator) return undefined;
+    if (findSceneTreeEntry(after.children, locator)) return locator;
+    const previous = findSceneTreeEntry(before.children, locator)?.node;
+    const address = findSceneNodeAddress(before.children, locator);
+    if (!previous || !address) return undefined;
+
+    const samePosition = resolveAddress(after, address);
+    if (samePosition && structuralAddressCanRetarget(before, after, address)) {
+        return locatorForNode(after, samePosition);
+    }
+    if (previous.kind !== 'slotOutlet' && previous.id) {
+        const matches = locatorsForId(after, previous.id, previous);
+        if (matches.length === 1) return matches[0];
+    }
+    return undefined;
+}
+
 export function createPixiSceneNode(template: SceneTemplate, type: PixiSceneNodeType): PixiTemplateNode {
     const ids = collectSceneNodeIds(template.children);
     return {
