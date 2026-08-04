@@ -10,10 +10,10 @@ Pixifact 发布三个公开 npm 包：
 
 ## 当前发布状态
 
-当前 npm 最新版本和 git tag 均为 `0.4.0`：
+当前发布版本为 `0.5.0`：
 
-- npm packages: `0.4.0`
-- git tag: `v0.4.0`
+- npm packages: `0.5.0`
+- git tag: `v0.5.0`
 - changelog sources: [`pixifact`](../../packages/pixifact/CHANGELOG.md)、[`pixifact-cli`](../../packages/pixifact-cli/CHANGELOG.md)、[`create-pixifact`](../../packages/create-pixifact/CHANGELOG.md)
 
 首个 npm 发布记录见 [`v0.1.3.md`](./v0.1.3.md)。
@@ -86,8 +86,8 @@ bun run release:publish
 脚本会读取三个发布包版本，确认版本一致，然后：
 
 - 创建 `vX.Y.Z` tag
-- push `main`
-- push tag
+- 向当前 `main` 分支配置的 upstream remote push `main`
+- 向同一 remote push tag
 
 `.github/workflows/publish.yml` 会在 tag push 后自动验证、构建并通过 Trusted Publishing 发布 npm 包。如果某个包版本已经发布，workflow 会跳过该包，方便重跑。
 

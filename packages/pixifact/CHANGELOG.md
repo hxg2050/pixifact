@@ -1,5 +1,11 @@
 # pixifact
 
+## 0.5.0
+
+### Minor Changes
+
+- 发布 AI-first Scene authoring 闭环：浏览器 Editor、Scene Binding、Label / BitmapLabel、只读 Editor context、外部文件同步、画布与层级编辑，以及真实 npm tarball 的下游项目发布验收。
+
 ## 0.4.0
 
 ### Minor Changes

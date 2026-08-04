@@ -22,13 +22,14 @@ if (versions.size !== 1) {
 const version = packages[0].version;
 const tag = `v${version}`;
 const status = execFileSync('git', ['status', '--porcelain'], { encoding: 'utf8' });
+const remote = execFileSync('git', ['config', '--get', 'branch.main.remote'], { encoding: 'utf8' }).trim();
 
 if (status.trim() !== '') {
     throw new Error('Working tree must be clean before publishing a release tag.');
 }
 
 execFileSync('git', ['tag', tag], { stdio: 'inherit' });
-execFileSync('git', ['push', 'origin', 'main'], { stdio: 'inherit' });
-execFileSync('git', ['push', 'origin', tag], { stdio: 'inherit' });
+execFileSync('git', ['push', remote, 'main'], { stdio: 'inherit' });
+execFileSync('git', ['push', remote, tag], { stdio: 'inherit' });
 
-console.log(`Pushed ${tag}. GitHub Actions will publish npm packages through Trusted Publishing.`);
+console.log(`Pushed ${tag} to ${remote}. GitHub Actions will publish npm packages through Trusted Publishing.`);
