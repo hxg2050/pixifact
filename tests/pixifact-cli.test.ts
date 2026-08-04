@@ -135,9 +135,11 @@ describe('Pixifact CLI', () => {
             auxiliaryCommands: [
                 'editor',
                 'editor context',
+                'editor screenshot --output <png-path>',
                 'scene create --scene <scene-path> --name <SceneName>',
                 'node inspect --scene <scene-path> --node <locator>',
             ],
+            nodeLocatorSource: 'scene inspect --scene <scene-path> returns node locator values',
             defaults: {
                 projectRoot: 'current working directory',
             },
@@ -163,7 +165,7 @@ describe('Pixifact CLI', () => {
     it('reads the current project Editor context without exposing mutation', async () => {
         const projectRoot = createTempProject();
         const context = {
-            protocolVersion: 2,
+            protocolVersion: 3,
             projectRoot,
             editor: { connected: true, updatedAt: '2026-08-03T08:00:00.000Z' },
             scene: {
@@ -195,6 +197,88 @@ describe('Pixifact CLI', () => {
         expect(result.exitCode).toBe(0);
         expect(readEditorContext).toHaveBeenCalledWith({ projectRoot });
         expect(JSON.parse(result.stdout)).toEqual(context);
+    });
+
+    it('writes the active Editor authoring Scene screenshot to the required output path', async () => {
+        const projectRoot = createTempProject();
+        const output = path.join(projectRoot, 'scene.png');
+        const data = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
+        const captureEditorScreenshot = vi.fn(async () => ({
+            ok: true as const,
+            scene: 'src/scenes/Button.scene',
+            revision: 'sha256:current',
+            width: 120,
+            height: 40,
+            data,
+        }));
+
+        const result = await executePixifactCli([
+            'editor',
+            'screenshot',
+            '--project-root',
+            projectRoot,
+            '--output',
+            output,
+        ], { captureEditorScreenshot });
+
+        expect(result.exitCode).toBe(0);
+        expect(captureEditorScreenshot).toHaveBeenCalledWith({ projectRoot });
+        expect(fs.readFileSync(output)).toEqual(Buffer.from(data));
+        expect(JSON.parse(result.stdout)).toEqual({
+            ok: true,
+            scene: 'src/scenes/Button.scene',
+            revision: 'sha256:current',
+            width: 120,
+            height: 40,
+            bytes: data.byteLength,
+            output,
+        });
+    });
+
+    it('requires an output path before requesting an Editor screenshot', async () => {
+        const projectRoot = createTempProject();
+        const captureEditorScreenshot = vi.fn();
+
+        const result = await executePixifactCli([
+            'editor',
+            'screenshot',
+            '--project-root',
+            projectRoot,
+        ], { captureEditorScreenshot });
+
+        expect(result.exitCode).toBe(1);
+        expect(captureEditorScreenshot).not.toHaveBeenCalled();
+        expect(JSON.parse(result.stderr)).toMatchObject({
+            ok: false,
+            error: '--output must include a value.',
+        });
+    });
+
+    it('does not write an output file when Editor screenshot capture fails', async () => {
+        const projectRoot = createTempProject();
+        const output = path.join(projectRoot, 'failed.png');
+        const captureEditorScreenshot = vi.fn(async () => ({
+            ok: false as const,
+            error: 'Editor Scene preview is not ready.',
+            previewState: 'loading',
+        }));
+
+        const result = await executePixifactCli([
+            'editor',
+            'screenshot',
+            '--project-root',
+            projectRoot,
+            '--output',
+            output,
+        ], { captureEditorScreenshot });
+
+        expect(result.exitCode).toBe(1);
+        expect(fs.existsSync(output)).toBe(false);
+        expect(JSON.parse(result.stderr)).toMatchObject({
+            ok: false,
+            error: 'Editor Scene preview is not ready.',
+            previewState: 'loading',
+        });
     });
 
     it('includes pixifact project run config in summary without running it', async () => {
@@ -368,6 +452,29 @@ import { Group } from 'pixifact/runtime';
         });
     });
 
+    it('explains how to refresh an invalid Compiler node locator', async () => {
+        const projectRoot = createCompilerSceneProject();
+
+        const result = await runCli([
+            'node',
+            'inspect',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'src/scenes/Button.scene',
+            '--node',
+            '0:missing',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            error: 'Node locator "0:missing" was not found.',
+            hint: 'Run scene inspect --scene <scene-path> and pass one of the returned node locator values.',
+        });
+        expect(result.json.hint).not.toContain('scene get');
+    });
+
     it('does not expose duplicate scene get as a file command', async () => {
         const projectRoot = createCompilerSceneProject();
 
@@ -469,14 +576,10 @@ import { Group } from 'pixifact/runtime';
         ]);
 
         expect(result.exitCode).toBe(0);
-        expect(result.json).toMatchObject({
+        expect(result.json).toEqual({
             ok: true,
             projectRoot,
             sceneCount: 2,
-            scenes: [
-                { scenePath: 'src/scenes/Button.scene' },
-                { scenePath: 'src/scenes/MainMenu.scene' },
-            ],
         });
     });
 

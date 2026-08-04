@@ -306,6 +306,8 @@ Editor 可以通过暴露当前 project root、打开的 scene path、selection�
 
 `pixifact editor context` 是可选的只读 context source，返回当前项目、打开的 Scene、revision、同步状态和 selection。它不返回 mutation action，也不是隐藏的 apply channel。旧 `live ...` 命令和固定端口 bridge 已删除。
 
+`pixifact editor screenshot --output <png-path>` 是另一条可选的只读入口。它要求活动 Editor 的当前 Scene 已同步且 Authoring Preview ready，并以 Scene 设计尺寸输出不含 Editor UI 的 PNG；画布 zoom / pan 不影响结果，项目 TypeScript 和 runtime 不会执行。
+
 ## Editor Direction
 
 Editor edits 和外部 direct edits 应收敛到同一套 compiler scene validation pipeline。Inspector 编辑、asset drop 和 direct agent edit 来源不同，但都应该产出通过校验的 `.scene` source changes。

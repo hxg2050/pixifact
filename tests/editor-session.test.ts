@@ -9,12 +9,15 @@ import {
     editorSessionDescriptorPath,
     editorSessionProtocolVersion,
     findActiveEditorSession,
+    captureEditorScreenshot,
     queryEditorContext,
     writeEditorSessionDescriptor,
     type EditorSessionDescriptor,
 } from '../packages/pixifact-cli/src/editorSession';
 
 const tempRoots: string[] = [];
+const pngBytes = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+X1JtWQAAAABJRU5ErkJggg==', 'base64');
+const pngDataUrl = `data:image/png;base64,${pngBytes.toString('base64')}`;
 
 function createFixture() {
     const projectRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-editor-context-project-')));
@@ -46,12 +49,17 @@ function fakeSocket() {
     };
 }
 
-function contextMessage(scenePath: string, revision: string, syncState = 'synced') {
+function contextMessage(
+    scenePath: string,
+    revision: string,
+    syncState = 'synced',
+    previewState = 'ready',
+) {
     return JSON.stringify({
         type: 'editorContextChanged',
         protocolVersion: editorSessionProtocolVersion,
         context: {
-            scene: { path: scenePath, revision, syncState },
+            scene: { path: scenePath, revision, syncState, previewState },
             selection: {
                 kind: 'node',
                 locator: '0:title',
@@ -78,6 +86,139 @@ afterEach(() => {
 });
 
 describe('Editor Host session', () => {
+    it('captures the current ready authoring Scene through the active browser', async () => {
+        const fixture = createFixture();
+        const host = createEditorHostSession({ projectRoot: fixture.projectRoot, token: 'token' });
+        const browser = fakeSocket();
+        host.open(browser);
+        host.message(browser, contextMessage(fixture.scenePath, version(fixture.source)));
+
+        const responsePromise = host.fetch(new Request('http://localhost/api/editor-screenshot', {
+            method: 'POST',
+            headers: { authorization: 'Bearer token' },
+        }));
+        await Promise.resolve();
+        const request = browser.messages.at(-1) as Record<string, unknown>;
+        expect(request).toMatchObject({
+            type: 'editorScreenshotRequested',
+            protocolVersion: editorSessionProtocolVersion,
+            scene: {
+                path: fixture.scenePath,
+                revision: version(fixture.source),
+            },
+        });
+
+        host.message(browser, JSON.stringify({
+            type: 'editorScreenshotCompleted',
+            protocolVersion: editorSessionProtocolVersion,
+            requestId: request.requestId,
+            scene: {
+                path: fixture.scenePath,
+                revision: version(fixture.source),
+            },
+            width: 640,
+            height: 360,
+            dataUrl: pngDataUrl,
+        }));
+
+        const response = await responsePromise;
+        expect(response?.status).toBe(200);
+        expect(response?.headers.get('content-type')).toBe('image/png');
+        expect(decodeURIComponent(response!.headers.get('x-pixifact-scene')!)).toBe(fixture.scenePath);
+        expect(response?.headers.get('x-pixifact-revision')).toBe(version(fixture.source));
+        expect(response?.headers.get('x-pixifact-width')).toBe('640');
+        expect(response?.headers.get('x-pixifact-height')).toBe('360');
+        expect(Buffer.from(await response!.arrayBuffer())).toEqual(pngBytes);
+    });
+
+    it('refuses screenshots until the active Scene and preview are ready and current', async () => {
+        const fixture = createFixture();
+        const host = createEditorHostSession({ projectRoot: fixture.projectRoot, token: 'token' });
+        const request = () => host.fetch(new Request('http://localhost/api/editor-screenshot', {
+            method: 'POST',
+            headers: { authorization: 'Bearer token' },
+        }));
+
+        const inactive = await request();
+        expect(inactive?.status).toBe(409);
+        expect(await responseJson(inactive!)).toMatchObject({ error: 'No active Editor browser session.' });
+
+        const browser = fakeSocket();
+        host.open(browser);
+        const noContext = await request();
+        expect(noContext?.status).toBe(409);
+        expect(await responseJson(noContext!)).toMatchObject({ error: 'Editor context is not ready.' });
+
+        host.message(browser, contextMessage(fixture.scenePath, version(fixture.source), 'saving'));
+        const saving = await request();
+        expect(saving?.status).toBe(409);
+        expect(await responseJson(saving!)).toMatchObject({
+            error: 'Editor Scene is not synchronized.',
+            syncState: 'saving',
+        });
+
+        host.message(browser, contextMessage(fixture.scenePath, version(fixture.source), 'synced', 'loading'));
+        const loading = await request();
+        expect(loading?.status).toBe(409);
+        expect(await responseJson(loading!)).toMatchObject({
+            error: 'Editor Scene preview is not ready.',
+            previewState: 'loading',
+        });
+
+        host.message(browser, contextMessage(fixture.scenePath, version(fixture.source)));
+        fs.writeFileSync(path.join(fixture.projectRoot, fixture.scenePath), fixture.source.replace('开始', '继续'));
+        const stale = await request();
+        expect(stale?.status).toBe(409);
+        expect(await responseJson(stale!)).toMatchObject({ error: 'Editor context is updating.' });
+    });
+
+    it('cancels an in-flight screenshot when the active browser closes', async () => {
+        const fixture = createFixture();
+        const host = createEditorHostSession({ projectRoot: fixture.projectRoot, token: 'token' });
+        const browser = fakeSocket();
+        host.open(browser);
+        host.message(browser, contextMessage(fixture.scenePath, version(fixture.source)));
+
+        const responsePromise = host.fetch(new Request('http://localhost/api/editor-screenshot', {
+            method: 'POST',
+            headers: { authorization: 'Bearer token' },
+        }));
+        await Promise.resolve();
+        host.close(browser);
+
+        const response = await responsePromise;
+        expect(response?.status).toBe(409);
+        expect(await responseJson(response!)).toMatchObject({
+            error: 'Active Editor browser disconnected during screenshot capture.',
+        });
+    });
+
+    it('cancels an in-flight screenshot when another browser takes over', async () => {
+        const fixture = createFixture();
+        const host = createEditorHostSession({ projectRoot: fixture.projectRoot, token: 'token' });
+        const primary = fakeSocket();
+        const secondary = fakeSocket();
+        host.open(primary);
+        host.message(primary, contextMessage(fixture.scenePath, version(fixture.source)));
+
+        const responsePromise = host.fetch(new Request('http://localhost/api/editor-screenshot', {
+            method: 'POST',
+            headers: { authorization: 'Bearer token' },
+        }));
+        await Promise.resolve();
+        host.open(secondary);
+        host.message(secondary, JSON.stringify({
+            type: 'editorSessionTakeoverRequested',
+            protocolVersion: editorSessionProtocolVersion,
+        }));
+
+        const response = await responsePromise;
+        expect(response?.status).toBe(409);
+        expect(await responseJson(response!)).toMatchObject({
+            error: 'Active Editor browser changed during screenshot capture.',
+        });
+    });
+
     it('keeps one active browser and explicitly transfers control to a standby browser', async () => {
         const fixture = createFixture();
         const host = createEditorHostSession({
@@ -170,6 +311,7 @@ describe('Editor Host session', () => {
                 path: fixture.scenePath,
                 revision: version(fixture.source),
                 syncState: 'synced',
+                previewState: 'ready',
             },
             selection: {
                 kind: 'node',
@@ -295,6 +437,7 @@ describe('Editor Host session', () => {
                     path: fixture.scenePath,
                     revision: version(fixture.source),
                     syncState: 'synced',
+                    previewState: 'ready',
                 },
                 selection: { kind: 'scene' },
             });
@@ -319,6 +462,49 @@ describe('Editor Host session', () => {
         expect(fetcher).toHaveBeenCalledWith(
             'http://127.0.0.1:43120/api/editor-context',
             { headers: { authorization: 'Bearer private-token' } },
+        );
+    });
+
+    it('discovers the project Host and captures PNG bytes with its private token', async () => {
+        const fixture = createFixture();
+        const descriptor: EditorSessionDescriptor = {
+            protocolVersion: editorSessionProtocolVersion,
+            projectRoot: fixture.projectRoot,
+            pid: 1234,
+            origin: 'http://127.0.0.1:43120',
+            token: 'private-token',
+        };
+        writeEditorSessionDescriptor(descriptor, fixture.sessionsRoot);
+        const fetcher = vi.fn(async () => new Response(pngBytes, {
+            headers: {
+                'content-type': 'image/png',
+                'x-pixifact-scene': fixture.scenePath,
+                'x-pixifact-revision': version(fixture.source),
+                'x-pixifact-width': '640',
+                'x-pixifact-height': '360',
+            },
+        }));
+
+        const screenshot = await captureEditorScreenshot({
+            projectRoot: fixture.projectRoot,
+            sessionsRoot: fixture.sessionsRoot,
+            fetch: fetcher,
+        });
+
+        expect(screenshot).toMatchObject({
+            ok: true,
+            scene: fixture.scenePath,
+            revision: version(fixture.source),
+            width: 640,
+            height: 360,
+        });
+        expect(Buffer.from(screenshot.data)).toEqual(pngBytes);
+        expect(fetcher).toHaveBeenCalledWith(
+            'http://127.0.0.1:43120/api/editor-screenshot',
+            {
+                method: 'POST',
+                headers: { authorization: 'Bearer private-token' },
+            },
         );
     });
 

@@ -57,9 +57,10 @@ Editor 正在运行且 Scene 已同步时，可以读取当前 Scene 和 selecti
 
 ```bash
 pixifact editor context
+pixifact editor screenshot --output /tmp/scene.png
 ```
 
-该命令只读，不提供 Scene mutation。
+两个命令都只读，不提供 Scene mutation。截图只捕获当前 ready 的 Authoring Scene，不包含 Editor UI，也不执行项目 runtime。
 
 Scene 脚本按同目录同 basename 配对，例如 `src/scenes/Main.scene` 与 `src/scenes/Main.ts`。不要编辑 `.pixifact/generated`。
 

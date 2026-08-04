@@ -4,9 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import { parseSceneTemplate } from 'pixifact/compiler';
 
-export const editorSessionProtocolVersion = 2;
+export const editorSessionProtocolVersion = 3;
 
 export type EditorContextSyncState = 'synced' | 'saving' | 'conflict' | 'error';
+export type EditorPreviewState = 'loading' | 'ready' | 'error';
 
 export type EditorNodeContext =
     | {
@@ -41,6 +42,7 @@ export type EditorSelectionContext =
 export interface EditorBrowserContext {
     scene: {
         path: string;
+        previewState: EditorPreviewState;
         revision: string;
         syncState: EditorContextSyncState;
     };
@@ -75,6 +77,7 @@ interface EditorBrowserSocket {
 
 interface EditorHostSessionOptions {
     projectRoot: string;
+    screenshotTimeoutMs?: number;
     token: string;
     now?: () => Date;
 }
@@ -87,6 +90,25 @@ interface EditorSessionLookupOptions {
 
 interface ClaimEditorSessionOptions extends EditorSessionLookupOptions {
     descriptor: EditorSessionDescriptor;
+}
+
+interface PendingEditorScreenshot {
+    browser: EditorBrowserSocket;
+    resolve(response: Response): void;
+    scene: {
+        path: string;
+        revision: string;
+    };
+    timeout: ReturnType<typeof setTimeout>;
+}
+
+export interface EditorScreenshotResult {
+    ok: true;
+    scene: string;
+    revision: string;
+    width: number;
+    height: number;
+    data: Uint8Array;
 }
 
 function jsonResponse(value: unknown, status = 200) {
@@ -138,6 +160,7 @@ function isEditorBrowserContext(value: unknown): value is EditorBrowserContext {
         typeof value.scene.path !== 'string'
         || typeof value.scene.revision !== 'string'
         || !['synced', 'saving', 'conflict', 'error'].includes(String(syncState))
+        || !['loading', 'ready', 'error'].includes(String(value.scene.previewState))
     ) {
         return false;
     }
@@ -152,10 +175,29 @@ function isEditorBrowserContext(value: unknown): value is EditorBrowserContext {
 export function createEditorHostSession(options: EditorHostSessionOptions) {
     const projectRoot = fs.realpathSync(options.projectRoot);
     const now = options.now ?? (() => new Date());
+    const screenshotTimeoutMs = options.screenshotTimeoutMs ?? 10_000;
     const browsers = new Set<EditorBrowserSocket>();
+    const pendingScreenshots = new Map<string, PendingEditorScreenshot>();
     let activeBrowser: EditorBrowserSocket | undefined;
     let context: EditorContext | undefined;
     let resume: EditorSessionResumeState | undefined;
+    let screenshotSequence = 0;
+
+    function settleScreenshot(requestId: string, response: Response) {
+        const pending = pendingScreenshots.get(requestId);
+        if (!pending) return;
+        pendingScreenshots.delete(requestId);
+        clearTimeout(pending.timeout);
+        pending.resolve(response);
+    }
+
+    function rejectBrowserScreenshots(browser: EditorBrowserSocket, error: string) {
+        for (const [requestId, pending] of pendingScreenshots) {
+            if (pending.browser === browser) {
+                settleScreenshot(requestId, jsonResponse({ ok: false, error }, 409));
+            }
+        }
+    }
 
     function sendState(
         socket: EditorBrowserSocket,
@@ -190,6 +232,7 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
     function close(socket: EditorBrowserSocket) {
         browsers.delete(socket);
         if (socket === activeBrowser) {
+            rejectBrowserScreenshots(socket, 'Active Editor browser disconnected during screenshot capture.');
             activeBrowser = undefined;
             context = undefined;
         }
@@ -209,6 +252,9 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
                 return;
             }
             const previous = activeBrowser;
+            if (previous) {
+                rejectBrowserScreenshots(previous, 'Active Editor browser changed during screenshot capture.');
+            }
             activeBrowser = socket;
             context = undefined;
             for (const browser of browsers) {
@@ -220,6 +266,57 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
                     });
                 }
             }
+            return;
+        }
+        if (
+            socket === activeBrowser
+            && (parsed.type === 'editorScreenshotCompleted' || parsed.type === 'editorScreenshotFailed')
+        ) {
+            const requestId = typeof parsed.requestId === 'string' ? parsed.requestId : '';
+            const pending = pendingScreenshots.get(requestId);
+            if (!pending || pending.browser !== socket) return;
+            if (parsed.type === 'editorScreenshotFailed') {
+                const error = typeof parsed.error === 'string'
+                    ? parsed.error
+                    : 'Editor browser failed to capture the Scene screenshot.';
+                settleScreenshot(requestId, jsonResponse({ ok: false, error }, 500));
+                return;
+            }
+            if (
+                !isRecord(parsed.scene)
+                || parsed.scene.path !== pending.scene.path
+                || parsed.scene.revision !== pending.scene.revision
+                || !Number.isInteger(parsed.width)
+                || Number(parsed.width) <= 0
+                || !Number.isInteger(parsed.height)
+                || Number(parsed.height) <= 0
+                || typeof parsed.dataUrl !== 'string'
+            ) {
+                settleScreenshot(requestId, jsonResponse({
+                    ok: false,
+                    error: 'Editor browser returned an invalid screenshot response.',
+                }, 502));
+                return;
+            }
+            const match = parsed.dataUrl.match(/^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/);
+            const png = match ? Buffer.from(match[1], 'base64') : undefined;
+            if (!png || !png.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+                settleScreenshot(requestId, jsonResponse({
+                    ok: false,
+                    error: 'Editor browser did not return PNG screenshot data.',
+                }, 502));
+                return;
+            }
+            settleScreenshot(requestId, new Response(png, {
+                headers: {
+                    'cache-control': 'no-store',
+                    'content-type': 'image/png',
+                    'x-pixifact-height': String(parsed.height),
+                    'x-pixifact-revision': pending.scene.revision,
+                    'x-pixifact-scene': encodeURIComponent(pending.scene.path),
+                    'x-pixifact-width': String(parsed.width),
+                },
+            }));
             return;
         }
         if (socket !== activeBrowser || parsed.type !== 'editorContextChanged') return;
@@ -244,7 +341,7 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
         notifyStandbyBrowsers();
     }
 
-    function contextResponse() {
+    function synchronizedContext() {
         if (!activeBrowser) {
             return jsonResponse({
                 ok: false,
@@ -297,12 +394,54 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
                 },
             }, 409);
         }
-        return jsonResponse(context);
+        return context;
+    }
+
+    function contextResponse() {
+        const result = synchronizedContext();
+        return result instanceof Response ? result : jsonResponse(result);
+    }
+
+    function screenshotResponse() {
+        const result = synchronizedContext();
+        if (result instanceof Response) return result;
+        if (result.scene.previewState !== 'ready') {
+            return jsonResponse({
+                ok: false,
+                error: 'Editor Scene preview is not ready.',
+                previewState: result.scene.previewState,
+            }, 409);
+        }
+        const browser = activeBrowser!;
+        const requestId = `screenshot-${++screenshotSequence}`;
+        const scene = {
+            path: result.scene.path,
+            revision: result.scene.revision,
+        };
+        return new Promise<Response>((resolve) => {
+            const timeout = setTimeout(() => {
+                settleScreenshot(requestId, jsonResponse({
+                    ok: false,
+                    error: 'Editor screenshot capture timed out.',
+                }, 504));
+            }, screenshotTimeoutMs);
+            pendingScreenshots.set(requestId, { browser, resolve, scene, timeout });
+            browser.send(JSON.stringify({
+                type: 'editorScreenshotRequested',
+                protocolVersion: editorSessionProtocolVersion,
+                requestId,
+                scene,
+            }));
+        });
     }
 
     function fetchRequest(request: Request) {
         const pathname = new URL(request.url).pathname;
-        if (pathname !== '/api/editor-session/health' && pathname !== '/api/editor-context') {
+        if (
+            pathname !== '/api/editor-session/health'
+            && pathname !== '/api/editor-context'
+            && pathname !== '/api/editor-screenshot'
+        ) {
             return undefined;
         }
         if (!authorizationMatches(request, options.token)) {
@@ -313,6 +452,12 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
                 protocolVersion: editorSessionProtocolVersion,
                 projectRoot,
             });
+        }
+        if (pathname === '/api/editor-screenshot') {
+            if (request.method !== 'POST') {
+                return jsonResponse({ ok: false, error: 'Editor screenshot requires POST.' }, 405);
+            }
+            return screenshotResponse();
         }
         return contextResponse();
     }
@@ -487,4 +632,66 @@ export async function queryEditorContext(options: EditorSessionLookupOptions) {
             error: 'Pixifact Editor Host is not reachable for this project.',
         };
     }
+}
+
+export async function captureEditorScreenshot(
+    options: EditorSessionLookupOptions,
+): Promise<EditorScreenshotResult | { ok: false; error: string; [key: string]: unknown }> {
+    const projectRoot = fs.realpathSync(options.projectRoot);
+    const descriptor = readEditorSessionDescriptor(projectRoot, options.sessionsRoot);
+    if (!descriptor) {
+        return {
+            ok: false,
+            error: 'No Pixifact Editor Host is running for this project.',
+        };
+    }
+    if (descriptor.projectRoot !== projectRoot) {
+        return {
+            ok: false,
+            error: 'Pixifact Editor session belongs to a different project.',
+        };
+    }
+    const fetcher = options.fetch ?? fetch;
+    let response: Response;
+    try {
+        response = await fetcher(`${descriptor.origin}/api/editor-screenshot`, {
+            method: 'POST',
+            headers: { authorization: `Bearer ${descriptor.token}` },
+        });
+    } catch {
+        return {
+            ok: false,
+            error: 'Pixifact Editor Host is not reachable for this project.',
+        };
+    }
+    if (!response.ok) {
+        return await response.json() as { ok: false; error: string; [key: string]: unknown };
+    }
+    const sceneHeader = response.headers.get('x-pixifact-scene');
+    const revision = response.headers.get('x-pixifact-revision');
+    const width = Number(response.headers.get('x-pixifact-width'));
+    const height = Number(response.headers.get('x-pixifact-height'));
+    if (
+        response.headers.get('content-type') !== 'image/png'
+        || !sceneHeader
+        || !revision
+        || !Number.isInteger(width)
+        || width <= 0
+        || !Number.isInteger(height)
+        || height <= 0
+    ) {
+        return { ok: false, error: 'Pixifact Editor Host returned invalid screenshot metadata.' };
+    }
+    const data = new Uint8Array(await response.arrayBuffer());
+    if (!Buffer.from(data.subarray(0, 8)).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+        return { ok: false, error: 'Pixifact Editor Host did not return PNG screenshot data.' };
+    }
+    return {
+        ok: true,
+        scene: decodeURIComponent(sceneHeader),
+        revision,
+        width,
+        height,
+        data,
+    };
 }

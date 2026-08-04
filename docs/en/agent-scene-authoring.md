@@ -306,6 +306,8 @@ The Editor can help external agents use the direct `.scene` workflow by exposing
 
 `pixifact editor context` is an optional read-only context source. It returns the current project, opened Scene, revision, sync state, and selection. It exposes no mutation action and is not a hidden apply channel. The retired `live ...` commands and fixed-port bridge remain removed.
 
+`pixifact editor screenshot --output <png-path>` is another optional read-only entry. It requires the active Editor Scene to be synchronized and its Authoring Preview to be ready, then writes a design-size PNG without Editor UI. Canvas zoom and pan do not affect the result, and project TypeScript or runtime code is not executed.
+
 ## Editor Direction
 
 Editor changes and external direct edits should converge on the same compiler scene validation pipeline. Inspector edits, asset drops, and direct agent edits may have different origins, but they should all produce validated `.scene` source changes.

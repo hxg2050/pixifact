@@ -36,7 +36,7 @@ class AcceptedEditorWebSocket {
     static readonly OPEN = 1;
     static initialMessage: Record<string, unknown> = {
         type: 'editorSessionActive',
-        protocolVersion: 2,
+        protocolVersion: 3,
     };
     static instances: AcceptedEditorWebSocket[] = [];
     readonly listeners = new Map<string, Array<(event: { data?: string }) => void>>();
@@ -73,7 +73,7 @@ class AcceptedEditorWebSocket {
 afterEach(() => {
     AcceptedEditorWebSocket.initialMessage = {
         type: 'editorSessionActive',
-        protocolVersion: 2,
+        protocolVersion: 3,
     };
     AcceptedEditorWebSocket.instances = [];
     vi.unstubAllGlobals();
@@ -106,7 +106,7 @@ describe('Editor Vue UI', () => {
         });
         AcceptedEditorWebSocket.initialMessage = {
             type: 'editorSessionStandby',
-            protocolVersion: 2,
+            protocolVersion: 3,
             resume: {
                 scenePath: 'src/scenes/Menu.scene',
                 selectedLocator: '0:title',
@@ -129,12 +129,12 @@ describe('Editor Vue UI', () => {
         await wrapper.get('button[aria-label="在此接管"]').trigger('click');
         expect(JSON.parse(AcceptedEditorWebSocket.instances[0].sent[0])).toEqual({
             type: 'editorSessionTakeoverRequested',
-            protocolVersion: 2,
+            protocolVersion: 3,
         });
 
         AcceptedEditorWebSocket.instances[0].emit('message', JSON.stringify({
             type: 'editorSessionActive',
-            protocolVersion: 2,
+            protocolVersion: 3,
             resume: {
                 scenePath: 'src/scenes/Menu.scene',
                 selectedLocator: '0:title',
@@ -145,7 +145,7 @@ describe('Editor Vue UI', () => {
 
         AcceptedEditorWebSocket.instances[0].emit('message', JSON.stringify({
             type: 'editorSessionStandby',
-            protocolVersion: 2,
+            protocolVersion: 3,
             reason: 'takenOver',
             resume: {
                 scenePath: 'src/scenes/Menu.scene',

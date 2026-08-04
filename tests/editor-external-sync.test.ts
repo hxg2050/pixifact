@@ -82,7 +82,7 @@ class EditorWebSocket {
         EditorWebSocket.instances.push(this);
         queueMicrotask(() => this.emit('message', JSON.stringify({
             type: 'editorSessionActive',
-            protocolVersion: 2,
+            protocolVersion: 3,
         })));
     }
 

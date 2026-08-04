@@ -8,8 +8,11 @@ export function hintForCommandError(error: string) {
     if (error.includes('Unknown template kind')) {
         return 'Use one of: button, progressBar, scrollView, loginForm.';
     }
+    if (error.includes('Node locator') && error.includes('was not found')) {
+        return 'Run scene inspect --scene <scene-path> and pass one of the returned node locator values.';
+    }
     if (error.includes('was not found')) {
-        return 'Re-run scene get or node inspect to refresh locators before regenerating the command.';
+        return 'Inspect the current project state again before regenerating the command.';
     }
     if (error.includes('Only container nodes')) {
         return 'Choose a container node as the parent, or create a container template before adding children.';

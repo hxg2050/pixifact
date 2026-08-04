@@ -2,7 +2,7 @@ import type { ProjectFileTreeNode, ProjectFileKind } from './projectFileTree';
 import type { SceneScriptInterface } from 'pixifact/compiler';
 import type { EditorSelectionContext } from './editorContext';
 
-const editorSessionProtocolVersion = 2;
+const editorSessionProtocolVersion = 3;
 
 export interface EditorProjectFile {
     kind: 'image' | 'scene' | 'script' | 'file';
@@ -26,6 +26,7 @@ export interface EditorSceneFile {
 export interface EditorBrowserContext {
     scene: {
         path: string;
+        previewState: 'loading' | 'ready' | 'error';
         revision: string;
         syncState: 'synced' | 'saving' | 'conflict' | 'error';
     };
@@ -49,6 +50,17 @@ export interface EditorSessionConnection {
     close(): void;
     publishContext(context: EditorBrowserContext): void;
     requestTakeover(): void;
+}
+
+export interface EditorScreenshotRequest {
+    path: string;
+    revision: string;
+}
+
+export interface EditorScreenshotCapture {
+    width: number;
+    height: number;
+    dataUrl: string;
 }
 
 export class EditorApiError extends Error {
@@ -97,6 +109,7 @@ export function connectEditorSession(
     onProjectFileChanged: (path: string) => void,
     onDisconnected: () => void,
     onStateChanged: (state: EditorSessionState) => void,
+    onScreenshotRequested: (request: EditorScreenshotRequest) => Promise<EditorScreenshotCapture>,
 ) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const socket = new WebSocket(`${protocol}//${window.location.host}/api/events`);
@@ -131,6 +144,8 @@ export function connectEditorSession(
                 protocolVersion?: number;
                 reason?: 'takenOver';
                 resume?: EditorSessionResumeState;
+                requestId?: string;
+                scene?: EditorScreenshotRequest;
             };
             if (message.protocolVersion !== undefined && message.protocolVersion !== editorSessionProtocolVersion) {
                 socket.close();
@@ -156,6 +171,32 @@ export function connectEditorSession(
             }
             if (active && message.type === 'projectFileChanged' && message.path) {
                 onProjectFileChanged(message.path);
+                return;
+            }
+            if (
+                active
+                && message.type === 'editorScreenshotRequested'
+                && message.requestId
+                && message.scene
+            ) {
+                void onScreenshotRequested(message.scene).then((capture) => {
+                    if (!active || socket.readyState !== WebSocket.OPEN) return;
+                    socket.send(JSON.stringify({
+                        type: 'editorScreenshotCompleted',
+                        protocolVersion: editorSessionProtocolVersion,
+                        requestId: message.requestId,
+                        scene: message.scene,
+                        ...capture,
+                    }));
+                }).catch((error) => {
+                    if (!active || socket.readyState !== WebSocket.OPEN) return;
+                    socket.send(JSON.stringify({
+                        type: 'editorScreenshotFailed',
+                        protocolVersion: editorSessionProtocolVersion,
+                        requestId: message.requestId,
+                        error: error instanceof Error ? error.message : String(error),
+                    }));
+                });
             }
         });
         socket.addEventListener('error', () => {

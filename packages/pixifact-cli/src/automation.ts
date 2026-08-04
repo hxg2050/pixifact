@@ -432,7 +432,7 @@ function validateAllCompilerScenes(root: string) {
     const failures = results.filter((result): result is CompilerSceneValidationFailure => !result.ok);
     const scenes = results
         .filter((result): result is CompilerSceneValidationSuccess => result.ok)
-        .map(({ scenePath, revision, summary }) => ({ scenePath, revision, summary }));
+        .map(({ scenePath, revision }) => ({ scenePath, revision }));
     if (failures.length > 0) {
         return {
             ok: false as const,
@@ -447,7 +447,6 @@ function validateAllCompilerScenes(root: string) {
         ok: true as const,
         projectRoot: root,
         sceneCount: results.length,
-        scenes,
     };
 }
 
@@ -637,7 +636,7 @@ export function createPixifactAutomation() {
             const nodeId = assertString(args.node, 'node');
             const node = collectDetailedCompilerNodes(template.children).find((item) => item.locator === nodeId);
             if (!node) {
-                throw new Error(`Node "${nodeId}" was not found.`);
+                throw new Error(`Node locator "${nodeId}" was not found.`);
             }
             return node;
         },

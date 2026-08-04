@@ -90,6 +90,9 @@
 - 本地结构变化和外部文件变化在画布外准备新 Scene root，完成后原子替换；Pixi Application、Canvas、缩放和画布位置保持不变。
 - 外部文件通知继续使用一条按路径合并的刷新管线；当前 Scene、其他 Scene、配对脚本和图片按类型刷新，不增加独立 watcher。
 - 首版不建立 Scene / 图片依赖图；任意非当前 Scene 或图片变化都重建当前 Preview，连续通知只允许最新 generation 应用结果。
+- `editor screenshot` 复用当前活动浏览器中的 Authoring Preview，不在 CLI 或 Host 引入第二套 Pixi renderer、Playwright 或 Chromium。
+- 截图只接受当前已同步、磁盘 revision 一致且 preview ready 的 Scene；不切换 Scene、不修改项目，也不执行项目 TypeScript 或 runtime 逻辑。
+- 截图固定使用 Scene 设计尺寸并只捕获 Preview root，不受画布 zoom / pan 影响，也不包含选择框和 Editor UI。
 
 ### 视觉方向
 
@@ -112,6 +115,7 @@
 
 - 新增 `pixifact editor`，从当前项目目录启动本地服务并打开浏览器 Editor。
 - 新增 `pixifact editor context`，从当前项目已注册的 Editor Host 读取 Scene revision、同步状态和 selection。
+- 新增 `pixifact editor screenshot --output <png-path>`，将当前同步的 Authoring Scene 以设计尺寸 PNG 写入指定路径。
 - Editor 直接进入项目工作区，一次只打开一个 Scene。
 - `.scene` 编辑自动保存；顶栏显示 `已同步`、`正在写入`、`外部变更已应用`、`同步冲突` 或 `写入失败`。
 - 顶栏刷新按钮重新读取项目索引、Scene interface 和当前 Scene；同 revision 保留选择与 Undo / Redo，变化的 revision 建立新基线。
@@ -125,6 +129,7 @@
 - 用 Vue 3、TypeScript、Vite、Pinia 和 Reka UI 重建 `apps/editor/` 浏览器 UI，并实现 SceneDocument、Command 流程和长驻 ScenePreview。
 - 建立固定三栏、单 Scene 导航、层级、只读资产索引、画布和 schema-driven Inspector。
 - 接通自动保存、Undo / Redo、外部变化同步和只读 Editor context。
+- 通过现有 Editor Host session 协议接通当前 Authoring Scene 的只读截图，不增加独立渲染进程。
 - vNext 完成后删除 Tauri host、Dockview、React、Zustand、旧运行服务和不再使用的旧 Editor 实现及依赖。
 - 实现完成后更新 README、中文与英文 Editor 对外文档和相关脚本。
 
@@ -137,6 +142,7 @@
 - [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试；当前已覆盖 Pinia 边界、单 Scene 导航、层级结构操作、资产拖入与 Inspector preview / commit。
 - [x] 为外部 `.scene` / 脚本 / 图片变化补集成测试。
 - [x] 为新的只读 Editor context 补 CLI / 服务集成测试，不恢复旧 `live ...` 命令。
+- [x] 为只读 `editor screenshot` 补 Host / 浏览器 session / CLI 测试，并验证 Scene 设计尺寸、zoom / pan 无关和 PNG 非空。
 - [ ] 在桌面浏览器视口完成布局、无重叠、拖拽与 Inspector 实时反馈的人工验证；当前已完成固定三栏、Canvas 非空、属性实时反馈、层级添加、自动保存和 Undo 验收。
 
 ## Verification
@@ -171,6 +177,7 @@ rtk bun run pixifact -- editor
 - [x] 实现同项目多标签页 standby 与显式接管，恢复 Scene / selection，并在接管时丢弃旧页工作区状态。
 - [x] 实现外部当前 Scene、引用 Scene、配对脚本和图片的统一实时刷新，并只应用最新 generation。
 - [x] 实现单 Scene 导航历史，支持从层级或画布双击 Scene Instance 进入，并在返回 / 前进时恢复 selection 和画布视图。
+- [x] 实现 `pixifact editor screenshot --output <png-path>`，复用活动浏览器 Authoring Preview 输出设计尺寸 PNG。
 
 ## Resume Protocol
 
@@ -227,6 +234,8 @@ Done:
 - 真实浏览器验收完成 `背包 -> 背包同步 -> 背包`、临时 `syncProbe` Prop 增删和 `bag.svg` 棕色 / 洋红 / 棕色往返；Canvas 始终为 1，最终示例项目无 diff，console 无 warning/error。
 - 单 Scene 导航在当前标签页维护路径、selection 和画布视图；打开新 Scene 会截断前进分支，不引入多文档 Tab 或持久化状态。
 - 真实浏览器验收完成层级与画布双击 `bagButton` 进入 `Button.scene`，返回恢复 `bagButton`，前进恢复 `labelText`；缩放后的子 Scene 画布往返前后像素一致，console 无 warning/error。
+- `editor screenshot` 通过 session protocol v3 请求活动浏览器捕获当前 Preview root；Host 校验同步状态、preview ready、磁盘 revision 和 PNG 响应后再返回 CLI。
+- 真实浏览器验收完成 `BottomMenu.scene` 设计尺寸 `750 x 154` 截图；zoom / pan 前后 PNG 均为 17,760 字节且 SHA-256 完全一致，截图非空、不含 Editor UI，示例项目无 diff，console 无 warning/error。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
@@ -239,10 +248,11 @@ Current State:
 - 顶栏提供手动刷新入口，保存进行中或同步失败时禁用，避免与 versioned write 竞争。
 - authoring 画布支持滚轮缩放、空格/中键平移和适应窗口，不修改 `.scene` 数据或替换 Pixi Application / Canvas。
 - 顶栏返回 / 前进和 Scene Instance 双击入口已闭环，并按每个历史位置恢复 selection 与画布视图。
-- 当前全量测试为 17 个测试文件、228 个测试；`editor:typecheck`、`editor:frontend:build` 和核心包构建均通过。
+- CLI 已提供 `editor screenshot --output <png-path>`；成功输出 Scene、revision、设计尺寸、字节数和绝对输出路径。
+- 当前全量测试为 17 个测试文件、240 个测试；单 worker 全量测试、`editor:typecheck`、`editor:frontend:build`、包内容检查和发布安装 smoke 均通过。
 
 Currently Failing:
-- None。
+- 默认并行 `bun run test` 中，既有 `editor-server` 文件监听合并测试偶发在 1 秒等待窗口内收不到全部 macOS `fs.watch` 事件；该测试单独运行和单 worker 全量运行均通过，与截图路径无代码交集。
 
 Next:
 1. 继续补齐 `pixifact editor` 启动、本机地址限制和项目级服务发现测试。

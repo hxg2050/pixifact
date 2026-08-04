@@ -144,10 +144,15 @@ describe('Editor context selection', () => {
         const changed = vi.fn();
         const disconnected = vi.fn();
         const stateChanged = vi.fn();
-        const connectionPromise = connectEditorSession(changed, disconnected, stateChanged);
+        const screenshotRequested = vi.fn(async () => ({
+            width: 640,
+            height: 360,
+            dataUrl: 'data:image/png;base64,cG5n',
+        }));
+        const connectionPromise = connectEditorSession(changed, disconnected, stateChanged, screenshotRequested);
         const socket = FakeWebSocket.instances[0];
 
-        socket.emit('message', JSON.stringify({ type: 'editorSessionActive', protocolVersion: 2 }));
+        socket.emit('message', JSON.stringify({ type: 'editorSessionActive', protocolVersion: 3 }));
         const connection = await connectionPromise;
         expect(connection.initialState).toEqual({ status: 'active' });
 
@@ -156,6 +161,7 @@ describe('Editor context selection', () => {
                 path: 'src/scenes/Menu.scene',
                 revision: 'sha256:current',
                 syncState: 'synced',
+                previewState: 'ready',
             },
             selection: { kind: 'scene' },
         });
@@ -166,12 +172,13 @@ describe('Editor context selection', () => {
 
         expect(JSON.parse(socket.sent[0])).toEqual({
             type: 'editorContextChanged',
-            protocolVersion: 2,
+            protocolVersion: 3,
             context: {
                 scene: {
                     path: 'src/scenes/Menu.scene',
                     revision: 'sha256:current',
                     syncState: 'synced',
+                    previewState: 'ready',
                 },
                 selection: { kind: 'scene' },
             },
@@ -180,7 +187,7 @@ describe('Editor context selection', () => {
 
         socket.emit('message', JSON.stringify({
             type: 'editorSessionStandby',
-            protocolVersion: 2,
+            protocolVersion: 3,
             reason: 'takenOver',
             resume: { scenePath: 'src/scenes/Menu.scene', selectedLocator: '0:title' },
         }));
@@ -189,6 +196,7 @@ describe('Editor context selection', () => {
                 path: 'src/scenes/Menu.scene',
                 revision: 'sha256:ignored',
                 syncState: 'synced',
+                previewState: 'ready',
             },
             selection: { kind: 'scene' },
         });
@@ -205,12 +213,84 @@ describe('Editor context selection', () => {
         });
         expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
             type: 'editorSessionTakeoverRequested',
-            protocolVersion: 2,
+            protocolVersion: 3,
         });
         expect(socket.sent).toHaveLength(2);
         expect(changed).toHaveBeenCalledOnce();
 
         socket.close();
         expect(disconnected).toHaveBeenCalledOnce();
+    });
+
+    it('captures screenshot requests from the active Host session', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        const capture = vi.fn(async () => ({
+            width: 750,
+            height: 1334,
+            dataUrl: 'data:image/png;base64,cG5n',
+        }));
+        const connectionPromise = connectEditorSession(vi.fn(), vi.fn(), vi.fn(), capture);
+        const socket = FakeWebSocket.instances[0];
+        socket.emit('message', JSON.stringify({ type: 'editorSessionActive', protocolVersion: 3 }));
+        await connectionPromise;
+
+        socket.emit('message', JSON.stringify({
+            type: 'editorScreenshotRequested',
+            protocolVersion: 3,
+            requestId: 'screenshot-1',
+            scene: {
+                path: 'src/scenes/Menu.scene',
+                revision: 'sha256:current',
+            },
+        }));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(capture).toHaveBeenCalledWith({
+            path: 'src/scenes/Menu.scene',
+            revision: 'sha256:current',
+        });
+        expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
+            type: 'editorScreenshotCompleted',
+            protocolVersion: 3,
+            requestId: 'screenshot-1',
+            scene: {
+                path: 'src/scenes/Menu.scene',
+                revision: 'sha256:current',
+            },
+            width: 750,
+            height: 1334,
+            dataUrl: 'data:image/png;base64,cG5n',
+        });
+    });
+
+    it('reports browser screenshot failures to the Host session', async () => {
+        vi.stubGlobal('WebSocket', FakeWebSocket);
+        const capture = vi.fn(async () => {
+            throw new Error('Authoring preview changed during screenshot capture.');
+        });
+        const connectionPromise = connectEditorSession(vi.fn(), vi.fn(), vi.fn(), capture);
+        const socket = FakeWebSocket.instances[0];
+        socket.emit('message', JSON.stringify({ type: 'editorSessionActive', protocolVersion: 3 }));
+        await connectionPromise;
+
+        socket.emit('message', JSON.stringify({
+            type: 'editorScreenshotRequested',
+            protocolVersion: 3,
+            requestId: 'screenshot-2',
+            scene: {
+                path: 'src/scenes/Menu.scene',
+                revision: 'sha256:current',
+            },
+        }));
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
+            type: 'editorScreenshotFailed',
+            protocolVersion: 3,
+            requestId: 'screenshot-2',
+            error: 'Authoring preview changed during screenshot capture.',
+        });
     });
 });

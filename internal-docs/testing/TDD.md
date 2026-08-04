@@ -153,6 +153,8 @@ bun run editor:frontend:build
 - `editor context` 只从当前项目已注册的 Editor Host 读取状态。
 - Host 同时只接受一个浏览器 WebSocket 会话，第二个页面不能发布 context。
 - context 只在 Scene 磁盘 revision 与浏览器 revision 一致且同步状态为 `synced` 时成功。
+- `editor screenshot` 只在 active browser、同步 revision 和 ready preview 同时成立时成功，并只返回当前 Authoring Scene 的设计尺寸 PNG。
+- 截图不受 authoring 画布 zoom / pan 影响，不包含选择框或 Editor UI，也不执行项目 TypeScript / runtime。
 - Scene 根、Pixi 节点、Scene Instance 和 Slot Outlet 使用明确的 selection kind。
 - 节点地址直接复用 Compiler locator，不新增第二套 locator。
 - 旧 `live ...` 继续返回 unknown command，不恢复固定端口 bridge。

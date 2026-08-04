@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Scan } from 'lucide-vue-next';
-import { Application, Container, Graphics, type FederatedPointerEvent } from 'pixi.js';
+import { Application, Container, Graphics, Rectangle, type FederatedPointerEvent } from 'pixi.js';
 import {
     getFrameLayout,
     requestFrameLayout,
@@ -55,6 +55,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     assetDrop: [];
     openScene: [reference: string];
+    previewState: [state: 'loading' | 'ready' | 'error'];
     select: [locator: string];
 }>();
 const host = ref<HTMLElement>();
@@ -65,6 +66,7 @@ const status = ref('正在初始化画布');
 let app: Application | undefined;
 let canvasPan: CanvasPan | undefined;
 let preview: CompilerSceneRuntimePreview | undefined;
+let previewDocument: SceneDocument | undefined;
 let resizeObserver: ResizeObserver | undefined;
 let unsubscribeDocument: (() => void) | undefined;
 let view: SceneCanvasView | undefined;
@@ -132,7 +134,39 @@ function restoreView(next: SceneCanvasView) {
     applyView();
 }
 
-defineExpose({ captureView, restoreView });
+async function captureScreenshot() {
+    if (!app || !preview || !previewDocument) {
+        throw new Error('Authoring preview is not ready.');
+    }
+    const capturedPreview = preview;
+    const capturedDocument = previewDocument;
+    const position = capturedPreview.root.position.clone();
+    const scale = capturedPreview.root.scale.clone();
+    let dataUrlPromise: Promise<string>;
+    try {
+        capturedPreview.root.position.set(0, 0);
+        capturedPreview.root.scale.set(1);
+        dataUrlPromise = app.renderer.extract.base64({
+            target: capturedPreview.root,
+            frame: new Rectangle(0, 0, capturedPreview.width, capturedPreview.height),
+            resolution: 1,
+            format: 'png',
+            antialias: true,
+        });
+    } finally {
+        capturedPreview.root.position.copyFrom(position);
+        capturedPreview.root.scale.copyFrom(scale);
+    }
+    return {
+        path: capturedDocument.path,
+        revision: capturedDocument.version,
+        width: capturedPreview.width,
+        height: capturedPreview.height,
+        dataUrl: await dataUrlPromise,
+    };
+}
+
+defineExpose({ captureScreenshot, captureView, restoreView });
 
 function fitPreview() {
     if (!preview || !host.value) return;
@@ -172,6 +206,7 @@ async function rebuildPreview() {
         view = undefined;
     }
     status.value = '正在构建 Scene';
+    emit('previewState', 'loading');
     try {
         const next = await createCompilerSceneRuntimePreview({
             document: {
@@ -190,6 +225,7 @@ async function rebuildPreview() {
             destroyCompilerSceneRuntimePreview(preview);
         }
         preview = next;
+        previewDocument = document;
         for (const [locator, target] of preview.nodes) {
             target.eventMode = 'static';
             target.cursor = nodeCanMove(locator, target) ? 'move' : 'default';
@@ -209,8 +245,11 @@ async function rebuildPreview() {
             fitPreview();
         }
         status.value = '';
+        emit('previewState', 'ready');
     } catch (error) {
+        if (revision !== buildRevision) return;
         status.value = error instanceof Error ? error.message : String(error);
+        emit('previewState', 'error');
     }
 }
 

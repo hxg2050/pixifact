@@ -21,6 +21,7 @@ import {
     editorSceneFileApi,
     readEditorSceneBindings,
     readEditorProject,
+    type EditorScreenshotRequest,
     type EditorSessionConnection,
     type EditorSessionResumeState,
     type EditorSessionState,
@@ -40,12 +41,20 @@ const documentRevision = ref(0);
 const error = ref('');
 const draggedAsset = ref<EditorSceneAsset>();
 const refreshing = ref(false);
+const previewState = ref<'loading' | 'ready' | 'error'>('loading');
 const sessionState = ref<'connecting' | 'active' | 'standby'>('connecting');
 const sessionStateMessage = ref('');
 const standbyReason = ref<'takenOver'>();
 const standbyScenePath = ref<string>();
 const takeoverPending = ref(false);
 const sceneCanvas = ref<{
+    captureScreenshot?: () => Promise<{
+        path: string;
+        revision: string;
+        width: number;
+        height: number;
+        dataUrl: string;
+    }>;
     captureView?: () => SceneCanvasView | undefined;
     restoreView?: (view: SceneCanvasView) => void;
 }>();
@@ -84,6 +93,7 @@ const canNavigateForward = computed(() => (
 
 function bindDocument(next: SceneDocument, selection?: string) {
     unsubscribeDocument?.();
+    previewState.value = 'loading';
     document.value = markRaw(next);
     currentScenePath.value = next.path;
     selectedLocator.value = selection;
@@ -289,12 +299,49 @@ function publishEditorContext() {
             path: current.path,
             revision: current.version,
             syncState: syncState.value,
+            previewState: previewState.value,
         },
         selection: editorSelectionContext(current.template, selectedLocator.value),
     });
 }
 
-watch([document, documentRevision, selectedLocator, syncState], publishEditorContext, { flush: 'post' });
+watch([document, documentRevision, selectedLocator, syncState, previewState], publishEditorContext, { flush: 'post' });
+
+async function captureEditorScreenshot(request: EditorScreenshotRequest) {
+    const current = document.value;
+    if (
+        sessionState.value !== 'active'
+        || !current
+        || current.path !== request.path
+        || current.version !== request.revision
+        || syncState.value !== 'synced'
+        || previewState.value !== 'ready'
+    ) {
+        throw new Error('Authoring preview is not ready for the requested Scene revision.');
+    }
+    const capture = sceneCanvas.value?.captureScreenshot;
+    if (!capture) {
+        throw new Error('Authoring preview screenshot capture is unavailable.');
+    }
+    const result = await capture();
+    if (
+        sessionState.value !== 'active'
+        || document.value !== current
+        || current.path !== request.path
+        || current.version !== request.revision
+        || syncState.value !== 'synced'
+        || previewState.value !== 'ready'
+        || result.path !== request.path
+        || result.revision !== request.revision
+    ) {
+        throw new Error('Authoring preview changed during screenshot capture.');
+    }
+    return {
+        width: result.width,
+        height: result.height,
+        dataUrl: result.dataUrl,
+    };
+}
 
 async function refreshEditor() {
     const current = document.value;
@@ -363,6 +410,7 @@ function clearWorkspace() {
     documentRevision.value += 1;
     draggedAsset.value = undefined;
     refreshing.value = false;
+    previewState.value = 'loading';
     navigationEntries.value = [];
     navigationIndex.value = -1;
     navigationPending.value = false;
@@ -449,6 +497,7 @@ onMounted(async () => {
                 }
             },
             (next) => void applyEditorSessionState(next),
+            captureEditorScreenshot,
         );
         sessionConnection = connection;
         await applyEditorSessionState(connection.initialState);
@@ -579,6 +628,7 @@ onBeforeUnmount(() => {
           @select="selectedLocator = $event"
           @open-scene="navigateToSceneReference"
           @asset-drop="endAssetDrag"
+          @preview-state="previewState = $event"
         />
       </section>
 

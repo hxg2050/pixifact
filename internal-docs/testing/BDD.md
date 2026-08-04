@@ -56,6 +56,30 @@ Scenario: Agent invokes a retired live command
 
 TDD 入口：`tests/pixifact-cli.test.ts`。
 
+### BDD-AGENT-004 Agent 截取当前 Authoring Scene
+
+Feature: Read-only Editor Scene screenshot
+
+```gherkin
+Scenario: Agent captures the current synchronized Scene
+  Given one Pixifact Editor Host and one browser page are active for the project
+  And the browser has finished building the current authoring preview
+  And the browser Scene revision matches the .scene file on disk
+  When the agent runs "pixifact editor screenshot --output /tmp/scene.png"
+  Then Pixifact writes a PNG using the Scene design width and height
+  And the PNG contains the authoring Scene without Editor chrome or selection overlays
+  And canvas zoom and pan do not affect the PNG
+  And no project file or runtime game logic is executed
+
+Scenario: Agent requests a screenshot before the Editor is ready
+  Given there is no active browser, the Scene is not synchronized, or its preview is not ready
+  When the agent runs "pixifact editor screenshot --output /tmp/scene.png"
+  Then Pixifact returns a non-zero exit code with the current blocking state
+  And no output file is written
+```
+
+TDD 入口：`tests/editor-session.test.ts`、`tests/editor-context.test.ts`、`tests/pixifact-cli.test.ts` 与浏览器验收。
+
 ## 2. Compiler Scene Props
 
 ### BDD-PROP-001 Scene script props are static declarations

@@ -169,9 +169,10 @@ Editor 运行且 Scene 已同步时，外部 Agent 可以读取当前 Scene 和�
 
 ```bash
 pixifact editor context
+pixifact editor screenshot --output /tmp/scene.png
 ```
 
-该命令只返回项目、Scene revision、同步状态和当前 selection，不修改项目文件。Agent 仍然直接修改 `.scene`，再运行文件校验命令。旧 `live ...` 命令和固定端口 bridge 已删除。
+`context` 返回项目、Scene revision、同步状态和当前 selection；`screenshot` 将当前 ready 的 Authoring Scene 以设计尺寸写为 PNG，不包含 Editor UI，也不受画布缩放和平移影响。两者都不修改 `.scene` 或执行项目 runtime。Agent 仍然直接修改 `.scene`，再运行文件校验命令。旧 `live ...` 命令和固定端口 bridge 已删除。
 
 ## 项目资产边界
 
