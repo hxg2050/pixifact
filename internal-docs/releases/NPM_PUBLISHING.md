@@ -73,6 +73,7 @@ bun run release:check
 - `bun run editor:frontend:build`
 - `packages/create-pixifact` build
 - 三个发布包的 `npm pack --dry-run --json`
+- 当前 `pixifact` / `pixifact-cli` tarball 在仓库外 `adventure-ui-demo` 副本中的安装、CLI、构建和 Editor 启动冒烟
 
 ## 触发发布
 

@@ -19,6 +19,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [release-install-smoke.md](./release-install-smoke.md) | 真实 npm tarball 的仓库外安装、CLI、构建和 Editor 发布前验收 |
 | [adventure-ui-demo.md](./adventure-ui-demo.md) | 示例项目计划 |
 | [viewport-adaptation-v1.md](./viewport-adaptation-v1.md) | 视口适配第一版 |
 | [scroll-container-runtime.md](./scroll-container-runtime.md) | ScrollContainer runtime |

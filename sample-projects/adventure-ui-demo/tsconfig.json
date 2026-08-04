@@ -7,12 +7,7 @@
     "experimentalDecorators": true,
     "useDefineForClassFields": true,
     "lib": ["ESNext", "DOM"],
-    "skipLibCheck": true,
-    "baseUrl": ".",
-    "paths": {
-      "pixifact": ["../../packages/pixifact/src/index.ts"],
-      "pixifact/*": ["../../packages/pixifact/src/*"]
-    }
+    "skipLibCheck": true
   },
   "include": ["src/**/*.ts"]
 }

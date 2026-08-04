@@ -4,6 +4,8 @@ import { cwd } from 'node:process';
 import { describe, expect, it } from 'vitest';
 import { compileScenes, extractSceneScriptInterfaces } from 'pixifact/compiler-node';
 import { validateSceneContent } from 'pixifact/compiler';
+import pixifactPackage from '../packages/pixifact/package.json' with { type: 'json' };
+import pixifactCliPackage from '../packages/pixifact-cli/package.json' with { type: 'json' };
 
 const repoRoot = cwd();
 const sampleRoot = join(repoRoot, 'sample-projects', 'adventure-ui-demo');
@@ -93,6 +95,20 @@ describe('sample projects', () => {
             await expect(exists(join(sampleRoot, 'src', 'scenes', `${sceneName}.scene`)), `${sceneName}.scene`).resolves.toBe(true);
             await expect(exists(join(sampleRoot, 'src', 'scenes', `${sceneName}.ts`)), `${sceneName}.ts`).resolves.toBe(true);
         }
+    });
+
+    it('keeps the adventure UI demo on public package entrypoints', async () => {
+        const packageJson = JSON.parse(await readFile(join(sampleRoot, 'package.json'), 'utf8'));
+        expect(packageJson.scripts['compile:scenes']).toBe('pixifact compile-scenes --project-root .');
+        expect(packageJson.dependencies.pixifact).toBe(`^${pixifactPackage.version}`);
+        expect(packageJson.devDependencies['pixifact-cli']).toBe(`^${pixifactCliPackage.version}`);
+
+        const viteConfig = await readFile(join(sampleRoot, 'vite.config.ts'), 'utf8');
+        expect(viteConfig).toContain("from 'pixifact/compiler-node'");
+        expect(viteConfig).not.toContain('../../packages/');
+
+        const tsconfig = await readFile(join(sampleRoot, 'tsconfig.json'), 'utf8');
+        expect(tsconfig).not.toContain('../../packages/');
     });
 
     it('validates and compiles the adventure UI demo scenes', async () => {

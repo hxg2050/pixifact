@@ -72,13 +72,10 @@ jobs:
         run: bun run editor:frontend:build
 
       - name: Check package contents
-        run: |
-          for dir in packages/pixifact packages/pixifact-cli packages/create-pixifact; do
-            (
-              cd "$dir"
-              npm pack --dry-run --json .
-            )
-          done
+        run: bun scripts/check-release-packages.mjs
+
+      - name: Check packed downstream install
+        run: bun scripts/check-release-install.mjs
 
       - name: Publish packages
         run: |
