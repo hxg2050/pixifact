@@ -404,6 +404,29 @@ Scenario: User zooms the authoring canvas around the pointer
   And the Pixi Application and Canvas remain the same instances
 ```
 
+```gherkin
+Scenario: User pans and resets the authoring canvas view
+  Given a compiler Scene is visible in the Editor authoring canvas
+  When the user holds Space and drags with the left mouse button
+  Or the user drags with the middle mouse button
+  Then the Scene view follows the pointer without moving a Scene node
+  And the .scene source remains unchanged
+  When the user activates "适应窗口"
+  Then the complete Scene is centered at no more than 100% scale
+```
+
+```gherkin
+Scenario: The canvas view survives same-Scene changes
+  Given the user has zoomed or panned the current Scene
+  When the same Scene preview root is rebuilt after an Editor or external Agent change
+  Then the current zoom and canvas position remain unchanged
+  When the canvas viewport changes size
+  Then the same Scene coordinate remains at the viewport center
+  When the user opens a different Scene
+  Then the new Scene is fitted to the viewport
+  And the Pixi Application and Canvas remain the same instances
+```
+
 TDD 入口：`tests/editor-scene-canvas.test.ts`、`tests/editor-scene-document.test.ts` 与浏览器验收。
 
 ### BDD-EDITOR-011 一个项目只有一个有效 Editor 会话

@@ -496,6 +496,7 @@ button.asset-row {
     position: absolute;
     inset: 0;
     overflow: hidden;
+    user-select: none;
 }
 
 .scene-canvas-host.is-asset-drop-target::after {
@@ -521,6 +522,40 @@ button.asset-row {
     position: absolute;
     inset: 0;
     display: block;
+}
+
+.scene-canvas-host.is-pan-ready .scene-canvas {
+    cursor: grab !important;
+}
+
+.scene-canvas-host.is-panning .scene-canvas {
+    cursor: grabbing !important;
+}
+
+.canvas-tools {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 3;
+}
+
+.canvas-tools button {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--panel);
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.canvas-tools button:hover:not(:disabled) {
+    border-color: var(--line-strong);
+    background: var(--panel-raised);
+    color: var(--text);
 }
 
 .canvas-status {

@@ -25,6 +25,11 @@ export interface SceneCanvasView {
     y: number;
 }
 
+export interface SceneCanvasSize {
+    width: number;
+    height: number;
+}
+
 export interface SceneCanvasPropChange {
     prop: string;
     value: number;
@@ -56,6 +61,40 @@ const stackLayoutTypes = new Set(['GridContainer', 'HBoxContainer', 'VBoxContain
 const minSceneCanvasScale = 0.1;
 const maxSceneCanvasScale = 4;
 const sceneCanvasZoomFactor = 0.002;
+
+export function fitSceneCanvasView(
+    viewport: SceneCanvasSize,
+    scene: SceneCanvasSize,
+): SceneCanvasView {
+    const scale = Math.min(viewport.width / scene.width, viewport.height / scene.height, 1);
+    return {
+        scale,
+        x: (viewport.width - scene.width * scale) / 2,
+        y: (viewport.height - scene.height * scale) / 2,
+    };
+}
+
+export function panSceneCanvasView(
+    view: SceneCanvasView,
+    delta: SceneCanvasPoint,
+): SceneCanvasView {
+    return {
+        scale: view.scale,
+        x: view.x + delta.x,
+        y: view.y + delta.y,
+    };
+}
+
+export function resizeSceneCanvasView(
+    view: SceneCanvasView,
+    previousViewport: SceneCanvasSize,
+    nextViewport: SceneCanvasSize,
+): SceneCanvasView {
+    return panSceneCanvasView(view, {
+        x: (nextViewport.width - previousViewport.width) / 2,
+        y: (nextViewport.height - previousViewport.height) / 2,
+    });
+}
 
 export function zoomSceneCanvasView(
     view: SceneCanvasView,

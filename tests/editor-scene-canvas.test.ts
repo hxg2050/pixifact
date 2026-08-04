@@ -3,8 +3,11 @@ import { Graphics } from 'pixi.js';
 import { parseSceneTemplate } from 'pixifact/compiler';
 import { SceneDocument } from '../apps/editor/src/document/SceneDocument';
 import {
+    fitSceneCanvasView,
     moveSceneCanvasGeometry,
+    panSceneCanvasView,
     resizeLayoutManagedSceneCanvasGeometry,
+    resizeSceneCanvasView,
     resizeSceneCanvasGeometry,
     sceneCanvasNodePositionIsLayoutManaged,
     zoomSceneCanvasView,
@@ -12,6 +15,39 @@ import {
 import { redrawSceneCanvasGraphics } from '../apps/editor/src/preview/sceneCanvasGraphics';
 
 describe('Editor Scene canvas geometry', () => {
+    it('fits a Scene in the viewport without scaling it above 100%', () => {
+        expect(fitSceneCanvasView(
+            { width: 1_000, height: 600 },
+            { width: 400, height: 300 },
+        )).toEqual({ scale: 1, x: 300, y: 150 });
+        expect(fitSceneCanvasView(
+            { width: 300, height: 200 },
+            { width: 600, height: 200 },
+        )).toEqual({ scale: 0.5, x: 0, y: 50 });
+    });
+
+    it('pans the canvas view without changing its scale', () => {
+        expect(panSceneCanvasView(
+            { x: 120, y: 80, scale: 0.5 },
+            { x: -30, y: 45 },
+        )).toEqual({ x: 90, y: 125, scale: 0.5 });
+    });
+
+    it('keeps the viewport center on the same Scene coordinate after resizing', () => {
+        const view = { x: 100, y: 50, scale: 0.5 };
+        const previousViewport = { width: 800, height: 600 };
+        const nextViewport = { width: 1_000, height: 700 };
+        const next = resizeSceneCanvasView(view, previousViewport, nextViewport);
+
+        expect(next).toEqual({ x: 200, y: 100, scale: 0.5 });
+        expect((previousViewport.width / 2 - view.x) / view.scale).toBe(
+            (nextViewport.width / 2 - next.x) / next.scale,
+        );
+        expect((previousViewport.height / 2 - view.y) / view.scale).toBe(
+            (nextViewport.height / 2 - next.y) / next.scale,
+        );
+    });
+
     it('zooms around the pointer without changing its Scene coordinate', () => {
         const view = { x: 120, y: 80, scale: 0.5 };
         const pointer = { x: 420, y: 260 };

@@ -66,6 +66,8 @@
 
 - 画布是 Scene authoring 画布，不是完整游戏运行窗口。
 - 第一版支持选择、移动、八方向 resize、平移、缩放、适应窗口、100% 和网格。
+- 画布视图是 Editor UI 状态；同一路径 Scene 重建保持视图，切换 Scene 时重新适应，画布尺寸变化时保持中心 Scene 坐标。
+- 平移使用 `Space + 左键拖动`或中键拖动；“适应窗口”将完整 Scene 居中且不放大到 100% 以上。
 - 画布直接操作必须保持已有 frame layout 语义，不能把 layout 节点偷偷改成自由 `x / y`。
 - 第一版不做多选、智能吸附、旋转控制柄、动画时间轴、游戏输入模拟和 Runtime Profiler。
 - authoring 预览不触发 Scene 的游戏生命周期和交互事件。
@@ -161,6 +163,7 @@ rtk bun run pixifact -- editor
 - [x] 实现项目级 Host session discovery、单浏览器会话和 `pixifact editor context`。
 - [x] 实现顶栏手动刷新，在保持长驻 Canvas 的同时重新读取 Scene、脚本接口和图片预览。
 - [x] 实现鼠标滚轮以光标为中心缩放 authoring 画布，并限制在 10%–400%。
+- [x] 实现独立画布视图状态、同 Scene 重建保持、中心点 resize、空格/中键平移与适应窗口。
 
 ## Resume Protocol
 
@@ -172,7 +175,7 @@ rtk bun run pixifact -- editor
 
 ## Resume Notes
 
-Last updated: 2026-08-03
+Last updated: 2026-08-04
 
 Done:
 - 完成 `pixifact editor` 本地 Bun 服务、127.0.0.1 绑定、系统浏览器启动、项目索引、受 project root 约束的文件读取和 versioned Scene write。
@@ -202,11 +205,13 @@ Done:
 - 外部 Scene 重载按路径合并并串行执行，选择只在原位修改、id rename 或唯一 id 移动时保守重定位。
 - 真实浏览器验收已确认第二个标签页只显示占用状态；选择 `bagButton` 后，`editor context` 返回 Compiler locator、Scene Instance props、events 和 slot 数量。
 - 真实浏览器验收已完成外部 `BottomMenu.scene` 的 `背包 -> 背包验收 -> 背包` 往返修改；Editor 自动刷新 revision 并保留确定的选择，Canvas 始终只有一个，示例 Scene 最终无 diff，当前 Host 无 console warning/error。
-- 全量测试为 16 个测试文件、219 个测试，`editor:typecheck`、`editor:frontend:build` 和包构建均通过。
+- 全量测试为 16 个测试文件、222 个测试，`editor:typecheck`、`editor:frontend:build` 和包构建均通过。
 - 顶栏手动刷新会等待当前 Scene 同步，重新读取项目索引、脚本接口和 Scene；同 revision 保留选择与 Undo / Redo，并通过更新 project tree 强制重建图片预览。
 - 真实浏览器验收已完成 `背包 -> 背包刷新 -> 手动刷新 -> Undo 背包`；刷新前后选择保持为 `bagButton`、Undo 仍可用、Canvas 始终只有一个，示例 Scene 最终无 diff，当前 Host 无 console warning/error。
 - 画布滚轮缩放直接更新 authoring preview root 的 scale / position；光标下 Scene 坐标保持不变，选择框同步更新，缩放限制为 10%–400%。
 - 真实浏览器验收已完成围绕 `bagButton` 中心放大与恢复；选择框同步缩放，Canvas 始终只有一个，当前 Host 无 console warning/error。
+- 画布视图独立于 Preview root；同路径 Scene 重建重放当前视图，切换路径重新适应，视口尺寸变化保持中心 Scene 坐标。
+- `Space + 左键拖动`和中键拖动平移画布且不提交 Scene Command；“适应窗口”按钮将 Scene 居中并限制为最多 100%。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
@@ -217,10 +222,11 @@ Current State:
 - 当前浏览器主包约 812 KB，整个 Editor 构建约 821 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
 - 层级结构编辑直接复用 Compiler Command，不存在第二套树 mutation 模型。
 - 顶栏提供手动刷新入口，保存进行中或同步失败时禁用，避免与 versioned write 竞争。
-- authoring 画布支持鼠标滚轮以光标为中心缩放，不修改 `.scene` 数据或替换 Pixi Application / Canvas。
+- authoring 画布支持滚轮缩放、空格/中键平移和适应窗口，不修改 `.scene` 数据或替换 Pixi Application / Canvas。
 
 Currently Failing:
 - None。
 
 Next:
-1. 继续补齐外部 `.scene`、配对脚本和图片变化的自动化集成测试。
+1. 在 `http://127.0.0.1:58308` 完成空格/中键平移、同 Scene 刷新保持视图和适应窗口的人工验收。
+2. 继续补齐外部 `.scene`、配对脚本和图片变化的自动化集成测试。

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Scan } from 'lucide-vue-next';
 import { Application, Container, Graphics, type FederatedPointerEvent } from 'pixi.js';
 import {
     getFrameLayout,
@@ -27,14 +28,19 @@ import {
     type CompilerSceneRuntimePreview,
 } from './compilerSceneRuntimePreview';
 import {
+    fitSceneCanvasView,
     moveSceneCanvasGeometry,
+    panSceneCanvasView,
     resizeLayoutManagedSceneCanvasGeometry,
+    resizeSceneCanvasView,
     resizeSceneCanvasGeometry,
     sceneCanvasNodePositionIsLayoutManaged,
     zoomSceneCanvasView,
     type SceneCanvasGeometry,
     type SceneCanvasPropChange,
     type SceneCanvasResizeHandle,
+    type SceneCanvasSize,
+    type SceneCanvasView,
 } from './sceneCanvasGeometry';
 import { graphicsDrawingProps, redrawSceneCanvasGraphics } from './sceneCanvasGraphics';
 import { incrementalScenePreviewCommands } from './scenePreviewCommands';
@@ -51,11 +57,18 @@ const emit = defineEmits<{
     select: [locator: string];
 }>();
 const host = ref<HTMLElement>();
+const canvasHovered = ref(false);
+const isPanning = ref(false);
+const spacePressed = ref(false);
 const status = ref('正在初始化画布');
 let app: Application | undefined;
+let canvasPan: CanvasPan | undefined;
 let preview: CompilerSceneRuntimePreview | undefined;
 let resizeObserver: ResizeObserver | undefined;
 let unsubscribeDocument: (() => void) | undefined;
+let view: SceneCanvasView | undefined;
+let viewScenePath: string | undefined;
+let viewportSize: SceneCanvasSize | undefined;
 let buildRevision = 0;
 let selectionLayer: Container | undefined;
 let selectionOutline: Graphics | undefined;
@@ -88,6 +101,12 @@ interface CanvasInteraction {
     start: { x: number; y: number };
 }
 
+interface CanvasPan {
+    pointerId: number;
+    start: { x: number; y: number };
+    view: SceneCanvasView;
+}
+
 function hostSize() {
     const bounds = host.value!.getBoundingClientRect();
     return {
@@ -96,38 +115,39 @@ function hostSize() {
     };
 }
 
-function fitPreview() {
-    if (!preview || !host.value) return;
-    const viewport = hostSize();
-    const scale = Math.min(viewport.width / preview.width, viewport.height / preview.height, 1);
-    preview.root.scale.set(scale);
-    preview.root.position.set(
-        (viewport.width - preview.width * scale) / 2,
-        (viewport.height - preview.height * scale) / 2,
-    );
+function applyView() {
+    if (!preview || !view) return;
+    preview.root.scale.set(view.scale);
+    preview.root.position.set(view.x, view.y);
     updateSelectionOverlay();
 }
 
-function handleCanvasWheel(event: WheelEvent) {
-    if (!app || !preview || !host.value) return;
+function fitPreview() {
+    if (!preview || !host.value) return;
+    view = fitSceneCanvasView(viewportSize ?? hostSize(), preview);
+    applyView();
+}
+
+function canvasViewportPoint(clientX: number, clientY: number) {
+    if (!app || !host.value) return;
     const bounds = host.value.getBoundingClientRect();
-    const pointer = {
-        x: (event.clientX - bounds.left) * app.screen.width / bounds.width,
-        y: (event.clientY - bounds.top) * app.screen.height / bounds.height,
+    return {
+        x: (clientX - bounds.left) * app.screen.width / bounds.width,
+        y: (clientY - bounds.top) * app.screen.height / bounds.height,
     };
+}
+
+function handleCanvasWheel(event: WheelEvent) {
+    if (!preview || !host.value || !view) return;
+    const bounds = host.value.getBoundingClientRect();
+    const pointer = canvasViewportPoint(event.clientX, event.clientY)!;
     const wheelDelta = event.deltaMode === WheelEvent.DOM_DELTA_LINE
         ? event.deltaY * 16
         : event.deltaMode === WheelEvent.DOM_DELTA_PAGE
             ? event.deltaY * bounds.height
             : event.deltaY;
-    const next = zoomSceneCanvasView({
-        scale: preview.root.scale.x,
-        x: preview.root.position.x,
-        y: preview.root.position.y,
-    }, pointer, wheelDelta);
-    preview.root.scale.set(next.scale);
-    preview.root.position.set(next.x, next.y);
-    updateSelectionOverlay();
+    view = zoomSceneCanvasView(view, pointer, wheelDelta);
+    applyView();
 }
 
 async function rebuildPreview() {
@@ -135,6 +155,10 @@ async function rebuildPreview() {
     const document = props.document;
     const projectTree = props.projectTree;
     if (!app || !document || !projectTree) return;
+    if (viewScenePath !== document.path) {
+        viewScenePath = document.path;
+        view = undefined;
+    }
     status.value = '正在构建 Scene';
     try {
         const next = await createCompilerSceneRuntimePreview({
@@ -161,8 +185,11 @@ async function rebuildPreview() {
         }
         app.stage.addChild(preview.root);
         if (selectionLayer) app.stage.addChild(selectionLayer);
-        fitPreview();
-        updateSelectionOverlay();
+        if (view) {
+            applyView();
+        } else {
+            fitPreview();
+        }
         status.value = '';
     } catch (error) {
         status.value = error instanceof Error ? error.message : String(error);
@@ -297,6 +324,7 @@ function nodeCanResize(locator: string, target: Container, handle: SceneCanvasRe
 }
 
 function beginMove(locator: string, event: FederatedPointerEvent) {
+    if (spacePressed.value || isPanning.value) return;
     event.stopPropagation();
     if (event.button !== 0) return;
     emit('select', locator);
@@ -309,6 +337,7 @@ function beginMove(locator: string, event: FederatedPointerEvent) {
 }
 
 function beginResize(handle: SceneCanvasResizeHandle, event: FederatedPointerEvent) {
+    if (spacePressed.value || isPanning.value) return;
     event.stopPropagation();
     if (event.button !== 0 || !props.selected) return;
     const target = selectedTarget();
@@ -424,13 +453,74 @@ function resetCanvasCursor() {
     if (app) app.canvas.style.cursor = '';
 }
 
-function canvasScenePoint(event: PointerEvent) {
-    if (!app || !host.value || !preview) return;
-    const bounds = host.value.getBoundingClientRect();
-    const point = preview.root.toLocal({
-        x: (event.clientX - bounds.left) * app.screen.width / bounds.width,
-        y: (event.clientY - bounds.top) * app.screen.height / bounds.height,
+function handleCanvasPointerDown(event: PointerEvent) {
+    const target = event.target;
+    if (target instanceof Element && target.closest('.canvas-tools')) return;
+    const shouldPan = event.button === 1 || (event.button === 0 && spacePressed.value);
+    if (!shouldPan || !view) return;
+    event.preventDefault();
+    event.stopPropagation();
+    cancelInteraction();
+    canvasPan = {
+        pointerId: event.pointerId,
+        start: canvasViewportPoint(event.clientX, event.clientY)!,
+        view: { ...view },
+    };
+    isPanning.value = true;
+    host.value!.setPointerCapture(event.pointerId);
+}
+
+function moveCanvasPan(event: PointerEvent) {
+    const current = canvasPan;
+    if (!current || event.pointerId !== current.pointerId) return;
+    const point = canvasViewportPoint(event.clientX, event.clientY)!;
+    view = panSceneCanvasView(current.view, {
+        x: point.x - current.start.x,
+        y: point.y - current.start.y,
     });
+    applyView();
+}
+
+function finishCanvasPan() {
+    const current = canvasPan;
+    if (!current) return;
+    if (host.value?.hasPointerCapture(current.pointerId)) {
+        host.value.releasePointerCapture(current.pointerId);
+    }
+    canvasPan = undefined;
+    isPanning.value = false;
+}
+
+function handleWindowKeyDown(event: KeyboardEvent) {
+    if (event.code !== 'Space' || !canvasHovered.value || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+    }
+    const target = event.target;
+    if (
+        target instanceof Element
+        && target.closest('input, textarea, select, button, [contenteditable="true"]')
+    ) {
+        return;
+    }
+    event.preventDefault();
+    spacePressed.value = true;
+}
+
+function handleWindowKeyUp(event: KeyboardEvent) {
+    if (event.code !== 'Space' || !spacePressed.value) return;
+    event.preventDefault();
+    spacePressed.value = false;
+}
+
+function handleWindowBlur() {
+    spacePressed.value = false;
+    finishCanvasPan();
+    cancelInteraction();
+}
+
+function canvasScenePoint(event: PointerEvent) {
+    if (!preview) return;
+    const point = preview.root.toLocal(canvasViewportPoint(event.clientX, event.clientY)!);
     if (point.x < 0 || point.y < 0 || point.x > preview.width || point.y > preview.height) return;
     return {
         x: Math.round(point.x * 100) / 100,
@@ -439,6 +529,9 @@ function canvasScenePoint(event: PointerEvent) {
 }
 
 async function dropAssetOnCanvas(event: PointerEvent) {
+    const target = event.target;
+    if (target instanceof Element && target.closest('.canvas-tools')) return;
+    if (event.pointerId === canvasPan?.pointerId) return;
     const asset = props.draggedAsset;
     const document = props.document;
     const position = canvasScenePoint(event);
@@ -460,11 +553,19 @@ async function dropAssetOnCanvas(event: PointerEvent) {
 }
 
 function handleWindowPointerUp(event: PointerEvent) {
-    if (event.pointerId === interaction?.pointerId) void finishInteraction();
+    if (event.pointerId === canvasPan?.pointerId) {
+        finishCanvasPan();
+    } else if (event.pointerId === interaction?.pointerId) {
+        void finishInteraction();
+    }
 }
 
 function handleWindowPointerCancel(event: PointerEvent) {
-    if (event.pointerId === interaction?.pointerId) cancelInteraction();
+    if (event.pointerId === canvasPan?.pointerId) {
+        finishCanvasPan();
+    } else if (event.pointerId === interaction?.pointerId) {
+        cancelInteraction();
+    }
 }
 
 function createSelectionOverlay() {
@@ -525,6 +626,7 @@ function updateSelectionOverlay(locator = props.selected) {
 
 watch(() => props.document, (document) => {
     cancelInteraction();
+    finishCanvasPan();
     unsubscribeDocument?.();
     unsubscribeDocument = document?.subscribe(handleDocumentEvent);
     void rebuildPreview();
@@ -537,6 +639,7 @@ watch(() => props.selected, () => updateSelectionOverlay());
 onMounted(async () => {
     app = new Application();
     const size = hostSize();
+    viewportSize = size;
     await app.init({
         width: size.width,
         height: size.height,
@@ -552,14 +655,21 @@ onMounted(async () => {
     app.stage.hitArea = app.screen;
     app.stage.on('globalpointermove', moveInteraction);
     createSelectionOverlay();
+    window.addEventListener('pointermove', moveCanvasPan);
     window.addEventListener('pointerup', handleWindowPointerUp);
     window.addEventListener('pointercancel', handleWindowPointerCancel);
+    window.addEventListener('keydown', handleWindowKeyDown);
+    window.addEventListener('keyup', handleWindowKeyUp);
+    window.addEventListener('blur', handleWindowBlur);
     resizeObserver = new ResizeObserver(() => {
         if (!app) return;
         const next = hostSize();
+        const previous = viewportSize ?? next;
+        viewportSize = next;
         app.renderer.resize(next.width, next.height);
         app.stage.hitArea = app.screen;
-        fitPreview();
+        if (view) view = resizeSceneCanvasView(view, previous, next);
+        applyView();
     });
     resizeObserver.observe(host.value!);
     await rebuildPreview();
@@ -568,8 +678,13 @@ onMounted(async () => {
 onBeforeUnmount(() => {
     buildRevision += 1;
     interaction = undefined;
+    finishCanvasPan();
+    window.removeEventListener('pointermove', moveCanvasPan);
     window.removeEventListener('pointerup', handleWindowPointerUp);
     window.removeEventListener('pointercancel', handleWindowPointerCancel);
+    window.removeEventListener('keydown', handleWindowKeyDown);
+    window.removeEventListener('keyup', handleWindowKeyUp);
+    window.removeEventListener('blur', handleWindowBlur);
     unsubscribeDocument?.();
     resizeObserver?.disconnect();
     if (preview) destroyCompilerSceneRuntimePreview(preview);
@@ -581,11 +696,29 @@ onBeforeUnmount(() => {
   <div
     ref="host"
     class="scene-canvas-host"
-    :class="{ 'is-asset-drop-target': !!draggedAsset }"
+    :class="{
+      'is-asset-drop-target': !!draggedAsset,
+      'is-pan-ready': spacePressed,
+      'is-panning': isPanning,
+    }"
+    @pointerdown.capture="handleCanvasPointerDown"
+    @pointerenter="canvasHovered = true"
+    @pointerleave="canvasHovered = false"
     @pointerup="dropAssetOnCanvas"
     @wheel.prevent="handleCanvasWheel"
   >
     <div class="canvas-grid" />
     <div v-if="status" class="canvas-status">{{ status }}</div>
+    <div class="canvas-tools">
+      <button
+        type="button"
+        title="适应窗口"
+        aria-label="适应窗口"
+        :disabled="!document"
+        @click="fitPreview"
+      >
+        <Scan :size="15" />
+      </button>
+    </div>
   </div>
 </template>
