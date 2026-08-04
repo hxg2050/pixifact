@@ -478,9 +478,23 @@ Scenario: Agent writes the current Scene several times in one operation
   And only the latest disk revision replaces the authoring preview root
   And the Pixi Application, Canvas, zoom, and pan remain unchanged
   And selection is retained only when the target can be conservatively relocated
+
+Scenario: Agent changes a referenced Scene or paired script
+  Given the Editor has a Scene open
+  When an external Agent changes another Scene or a paired TypeScript script
+  Then the project index or Scene interfaces are read from disk again
+  And the Inspector and authoring preview use the new declarations
+  And project TypeScript is not imported or executed in the browser
+
+Scenario: Agent replaces an indexed image
+  Given the open Scene references a project image
+  When an external Agent replaces that image file
+  Then the project index is read from disk again
+  And the authoring preview reads the new image bytes through the project service
+  And the Pixi Application, Canvas, zoom, and pan remain unchanged
 ```
 
-TDD 入口：`tests/editor-session.test.ts`、`tests/editor-context.test.ts` 与浏览器验收。
+TDD 入口：`tests/editor-external-sync.test.ts`、`tests/editor-scene-document.test.ts` 与浏览器验收。
 
 ### BDD-EDITOR-013 手动刷新当前 Editor
 

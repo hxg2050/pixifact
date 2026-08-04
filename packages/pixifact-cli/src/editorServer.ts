@@ -270,6 +270,24 @@ function openBrowser(url: string) {
     spawn(command[0], command.slice(1), { detached: true, stdio: 'ignore' }).unref();
 }
 
+export function watchEditorProject(projectRoot: string, onProjectFileChanged: (path: string) => void) {
+    const changedPathTimers = new Map<string, ReturnType<typeof setTimeout>>();
+    const watcher = fs.watch(projectRoot, { recursive: true }, (_event, fileName) => {
+        if (!fileName) return;
+        const changedPath = String(fileName).split(path.sep).join('/');
+        const pending = changedPathTimers.get(changedPath);
+        if (pending) clearTimeout(pending);
+        changedPathTimers.set(changedPath, setTimeout(() => {
+            changedPathTimers.delete(changedPath);
+            onProjectFileChanged(changedPath);
+        }, 30));
+    });
+    return () => {
+        for (const timer of changedPathTimers.values()) clearTimeout(timer);
+        watcher.close();
+    };
+}
+
 export async function startEditorServer(options: StartEditorOptions): Promise<EditorServerSession> {
     const staticRoot = options.staticRoot ?? defaultEditorStaticRoot();
     if (!fs.existsSync(path.join(staticRoot, 'index.html'))) {
@@ -319,19 +337,7 @@ export async function startEditorServer(options: StartEditorOptions): Promise<Ed
             },
         },
     });
-    const changedPathTimers = new Map<string, ReturnType<typeof setTimeout>>();
-    const watcher = fs.watch(projectRoot, { recursive: true }, (_event, fileName) => {
-        if (!fileName) {
-            return;
-        }
-        const changedPath = String(fileName).split(path.sep).join('/');
-        const pending = changedPathTimers.get(changedPath);
-        if (pending) clearTimeout(pending);
-        changedPathTimers.set(changedPath, setTimeout(() => {
-            changedPathTimers.delete(changedPath);
-            hostSession.notifyProjectFileChanged(changedPath);
-        }, 30));
-    });
+    const stopWatcher = watchEditorProject(projectRoot, hostSession.notifyProjectFileChanged);
     const url = `http://${server.hostname}:${server.port}`;
     const descriptor: EditorSessionDescriptor = {
         protocolVersion: editorSessionProtocolVersion,
@@ -342,8 +348,7 @@ export async function startEditorServer(options: StartEditorOptions): Promise<Ed
     };
     const claim = await claimEditorSession({ projectRoot, descriptor });
     if (!claim.owned) {
-        watcher.close();
-        for (const timer of changedPathTimers.values()) clearTimeout(timer);
+        stopWatcher();
         server.stop(true);
         openBrowser(claim.descriptor.origin);
         return {
@@ -363,8 +368,7 @@ export async function startEditorServer(options: StartEditorOptions): Promise<Ed
             stopped = true;
             process.off('exit', removeDescriptor);
             removeDescriptor();
-            for (const timer of changedPathTimers.values()) clearTimeout(timer);
-            watcher.close();
+            stopWatcher();
             server.stop(true);
         },
     };

@@ -3,7 +3,7 @@ import { storeToRefs } from 'pinia';
 import { Redo2, RefreshCw, Undo2 } from 'lucide-vue-next';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { computed, markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import type { SceneTemplateInterface } from 'pixifact/compiler';
+import { pairedSceneScriptPath, type SceneTemplateInterface } from 'pixifact/compiler';
 import AssetsPanel from './panels/AssetsPanel.vue';
 import HierarchyPanel from './panels/HierarchyPanel.vue';
 import InspectorPanel from './panels/InspectorPanel.vue';
@@ -44,7 +44,9 @@ let unsubscribeDocument: (() => void) | undefined;
 let sessionConnection: EditorSessionConnection | undefined;
 let sessionStateRevision = 0;
 let projectChangeTimer: ReturnType<typeof setTimeout> | undefined;
-let projectRefreshQueue = Promise.resolve();
+let projectChangeGeneration = 0;
+let projectRefreshRunning = false;
+let editorDisposed = false;
 const pendingProjectChanges = new Set<string>();
 
 const sceneName = computed(() => currentScenePath.value?.split('/').at(-1)?.replace(/\.scene$/, '') ?? '未打开 Scene');
@@ -94,47 +96,95 @@ async function readSceneInterfaces() {
     );
 }
 
-async function refreshSceneInterfaces() {
-    sceneInterfaces.value = await readSceneInterfaces();
+function projectChangeIsCurrent(generation: number) {
+    return !editorDisposed && sessionState.value === 'active' && generation === projectChangeGeneration;
 }
 
-async function refreshOpenedScene(path: string) {
+async function applyProjectChanges(paths: readonly string[], generation: number) {
+    if (!projectChangeIsCurrent(generation)) return;
     const current = document.value;
-    if (!current || current.path !== path) return;
-    try {
-        const latest = await current.reloadIfChanged();
-        if (latest && document.value === current) {
-            const selection = remapSceneSelection(current.template, latest.template, selectedLocator.value);
-            bindDocument(latest, selection);
-            error.value = '';
-        }
-    } catch (cause) {
-        selectedLocator.value = undefined;
-        throw cause;
+    const currentProject = project.value;
+    const knownFiles = new Map(currentProject?.files.map((file) => [file.path, file]));
+    const unknownPaths = new Set(paths.filter((path) => !knownFiles.has(path)));
+    let indexedProject = currentProject;
+    if (unknownPaths.size > 0) {
+        indexedProject = await readEditorProject();
+        if (!projectChangeIsCurrent(generation)) return;
     }
+    const indexedFiles = new Map(indexedProject?.files.map((file) => [file.path, file]));
+    const changedFiles = paths.flatMap((path) => {
+        const file = knownFiles.get(path) ?? indexedFiles.get(path);
+        return file ? [file] : [];
+    });
+    const pairedScripts = new Set(indexedProject?.scenes.map(pairedSceneScriptPath));
+    const pairedScriptChanged = changedFiles.some((file) => file.kind === 'script' && pairedScripts.has(file.path));
+    const projectIndexChanged = changedFiles.some((file) => (
+        file.kind === 'image'
+        || (file.kind === 'scene' && file.path !== current?.path)
+        || (file.kind === 'script' && pairedScripts.has(file.path) && unknownPaths.has(file.path))
+    ));
+    const currentSceneChanged = !!current && paths.includes(current.path);
+    const currentSceneReload = currentSceneChanged && current
+        ? current.reloadIfChanged().catch((cause) => {
+            if (projectChangeIsCurrent(generation) && document.value === current) {
+                selectedLocator.value = undefined;
+            }
+            throw cause;
+        })
+        : undefined;
+    const [nextProject, nextSceneInterfaces, latest] = await Promise.all([
+        projectIndexChanged
+            ? indexedProject === currentProject ? readEditorProject() : indexedProject
+            : undefined,
+        pairedScriptChanged ? readSceneInterfaces() : undefined,
+        currentSceneReload,
+    ]);
+    if (!projectChangeIsCurrent(generation)) return;
+    if (nextProject) {
+        project.value = nextProject;
+        projectTree.value = createEditorProjectTree(nextProject);
+    }
+    if (nextSceneInterfaces) {
+        sceneInterfaces.value = nextSceneInterfaces;
+    }
+    if (latest && current && document.value === current) {
+        const selection = remapSceneSelection(current.template, latest.template, selectedLocator.value);
+        bindDocument(latest, selection);
+    }
+    error.value = '';
 }
 
-async function applyProjectChanges(paths: readonly string[]) {
-    if (currentScenePath.value && paths.includes(currentScenePath.value)) {
-        await refreshOpenedScene(currentScenePath.value);
-    }
-    if (paths.some((path) => path.endsWith('.ts'))) {
-        await refreshSceneInterfaces();
+async function flushProjectChanges() {
+    if (projectRefreshRunning) return;
+    projectRefreshRunning = true;
+    try {
+        while (pendingProjectChanges.size > 0) {
+            const paths = [...pendingProjectChanges];
+            pendingProjectChanges.clear();
+            const generation = projectChangeGeneration;
+            try {
+                await applyProjectChanges(paths, generation);
+            } catch (cause) {
+                if (projectChangeIsCurrent(generation)) {
+                    error.value = cause instanceof Error ? cause.message : String(cause);
+                }
+            }
+            if (generation !== projectChangeGeneration && projectChangeIsCurrent(projectChangeGeneration)) {
+                for (const path of paths) pendingProjectChanges.add(path);
+            }
+        }
+    } finally {
+        projectRefreshRunning = false;
     }
 }
 
 function scheduleProjectChange(path: string) {
     pendingProjectChanges.add(path);
+    projectChangeGeneration += 1;
     if (projectChangeTimer) clearTimeout(projectChangeTimer);
     projectChangeTimer = window.setTimeout(() => {
         projectChangeTimer = undefined;
-        const paths = [...pendingProjectChanges];
-        pendingProjectChanges.clear();
-        projectRefreshQueue = projectRefreshQueue
-            .then(() => applyProjectChanges(paths))
-            .catch((cause) => {
-                error.value = cause instanceof Error ? cause.message : String(cause);
-            });
+        void flushProjectChanges();
     }, 30);
 }
 
@@ -207,6 +257,7 @@ function endAssetDrag() {
 }
 
 function clearWorkspace() {
+    projectChangeGeneration += 1;
     unsubscribeDocument?.();
     unsubscribeDocument = undefined;
     document.value = undefined;
@@ -308,9 +359,12 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    editorDisposed = true;
     window.removeEventListener('pointerup', endAssetDrag);
     window.removeEventListener('pointercancel', endAssetDrag);
     if (projectChangeTimer) clearTimeout(projectChangeTimer);
+    projectChangeGeneration += 1;
+    pendingProjectChanges.clear();
     unsubscribeDocument?.();
     sessionConnection?.close();
 });

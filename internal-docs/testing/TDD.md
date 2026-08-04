@@ -19,9 +19,10 @@
 | 文件 | 责任边界 | 当前覆盖重点 |
 | --- | --- | --- |
 | `tests/editor-vue-ui.test.ts` | Vue Editor UI / Pinia | Inspector preview / commit、手动刷新与 Pinia 项目数据边界 |
+| `tests/editor-external-sync.test.ts` | Editor 外部文件同步集成 | 最新 Scene revision、引用 Scene、配对脚本、图片字节与 Canvas 长驻 |
 | `tests/editor-scene-canvas.test.ts` | Editor authoring 画布几何 | 节点移动、resize、布局所有权、缩放、平移、适应窗口与视口尺寸变化 |
 | `tests/editor-scene-document.test.ts` | vNext `SceneDocument` | versioned auto-save、Undo / Redo、文件通知协调 |
-| `tests/editor-server.test.ts` | 浏览器 Editor 本地服务 | 项目索引、Scene versioned write、project root guard |
+| `tests/editor-server.test.ts` | 浏览器 Editor 本地服务 | 项目索引、Scene versioned write、文件监听合并、project root guard |
 | `tests/project-file-tree.test.ts` | 浏览器 Editor 项目树与 runtime preview | 浏览器文件读取、Scene binding、Pixi 节点布局和图片 parser |
 | `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
 | `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、Editor context 路由、path guard、旧 live 命令移除、exit code |

@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
-import { createEditorProjectService } from '../packages/pixifact-cli/src/editorServer';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createEditorProjectService, watchEditorProject } from '../packages/pixifact-cli/src/editorServer';
 
 const tempRoots: string[] = [];
 
@@ -45,6 +45,32 @@ afterEach(() => {
 });
 
 describe('Editor project service', () => {
+    it('coalesces external Scene, paired script, and image file notifications', async () => {
+        const fixture = createFixture();
+        const changedPaths: string[] = [];
+        const stopWatcher = watchEditorProject(fixture.projectRoot, (changedPath) => {
+            changedPaths.push(changedPath);
+        });
+        try {
+            fs.appendFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.scene'), '\n');
+            fs.appendFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.scene'), '\n');
+            fs.appendFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.ts'), '\n');
+            fs.writeFileSync(path.join(fixture.projectRoot, 'assets', 'button.png'), 'changed-png');
+
+            await vi.waitFor(() => {
+                expect(new Set(changedPaths)).toEqual(new Set([
+                    'src/scenes/Menu.scene',
+                    'src/scenes/Menu.ts',
+                    'assets/button.png',
+                ]));
+            });
+            await new Promise((resolve) => setTimeout(resolve, 60));
+            expect(changedPaths.filter((changedPath) => changedPath === 'src/scenes/Menu.scene')).toHaveLength(1);
+        } finally {
+            stopWatcher();
+        }
+    });
+
     it('indexes project scenes and images and serves the browser app', async () => {
         const fixture = createFixture();
         const service = createEditorProjectService(fixture);

@@ -632,8 +632,7 @@ watch(() => props.document, (document) => {
     void rebuildPreview();
 }, { immediate: true });
 
-watch(() => props.projectTree, () => void rebuildPreview());
-watch(() => props.sceneInterfaces, () => void rebuildPreview());
+watch([() => props.projectTree, () => props.sceneInterfaces], () => void rebuildPreview());
 watch(() => props.selected, () => updateSelectionOverlay());
 
 onMounted(async () => {

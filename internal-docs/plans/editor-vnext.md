@@ -88,6 +88,8 @@
 - UI 只能向 `SceneDocument` 提交明确 Command，不能通过替换整个 template 驱动 Preview 生命周期。
 - 普通属性 Command 原地更新 locator 对应的运行时节点，不重建 Scene。
 - 本地结构变化和外部文件变化在画布外准备新 Scene root，完成后原子替换；Pixi Application、Canvas、缩放和画布位置保持不变。
+- 外部文件通知继续使用一条按路径合并的刷新管线；当前 Scene、其他 Scene、配对脚本和图片按类型刷新，不增加独立 watcher。
+- 首版不建立 Scene / 图片依赖图；任意非当前 Scene 或图片变化都重建当前 Preview，连续通知只允许最新 generation 应用结果。
 
 ### 视觉方向
 
@@ -129,11 +131,11 @@
 ## Test Plan
 
 - [ ] 为 `pixifact editor` 启动、项目根绑定、本机地址限制和会话发现补 CLI / 服务测试。
-- [ ] 为受项目根约束的文件读取、版本写入、文件监听和图片访问补服务测试。
+- [x] 为受项目根约束的文件读取、版本写入、文件监听和图片访问补服务测试。
 - [x] 为 SceneDocument Command、Undo / Redo、自动保存和同步冲突补单元测试。
 - [x] 为普通属性增量更新、结构变化替换 Scene root 补 Preview Command 分类测试，并完成人工 Canvas 长驻验收。
 - [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试；当前已覆盖 Pinia 边界、层级结构操作、资产拖入与 Inspector preview / commit。
-- [ ] 为外部 `.scene` / 脚本 / 图片变化补集成测试。
+- [x] 为外部 `.scene` / 脚本 / 图片变化补集成测试。
 - [x] 为新的只读 Editor context 补 CLI / 服务集成测试，不恢复旧 `live ...` 命令。
 - [ ] 在桌面浏览器视口完成布局、无重叠、拖拽与 Inspector 实时反馈的人工验证；当前已完成固定三栏、Canvas 非空、属性实时反馈、层级添加、自动保存和 Undo 验收。
 
@@ -167,6 +169,7 @@ rtk bun run pixifact -- editor
 - [x] 实现鼠标滚轮以光标为中心缩放 authoring 画布，并限制在 10%–400%。
 - [x] 实现独立画布视图状态、同 Scene 重建保持、中心点 resize、空格/中键平移与适应窗口。
 - [x] 实现同项目多标签页 standby 与显式接管，恢复 Scene / selection，并在接管时丢弃旧页工作区状态。
+- [x] 实现外部当前 Scene、引用 Scene、配对脚本和图片的统一实时刷新，并只应用最新 generation。
 
 ## Resume Protocol
 
@@ -217,6 +220,10 @@ Done:
 - 同项目多个浏览器标签页共享一个 Host，但只有 active 标签页加载工作区、接收文件变化并发布 context；standby 显示项目、当前 Scene 和接管入口。
 - 接管只在当前 active context 已同步时执行；新 active 恢复 Scene / selection，原 active 立即卸载工作区并显示“此标签页已停止编辑”。
 - 真实浏览器已完成两次双向接管；`BottomMenu.scene` 与 `bagButton` selection 均恢复，Undo / Redo 重新为空，两个标签页无 console warning/error。
+- Host watcher 按项目相对路径合并重复通知；active Editor 使用 dirty-path 循环串行刷新，后到事件会废弃在途结果并把未应用路径并入最新 generation。
+- 当前 Scene 外部 revision 建立新文档基线；非当前 Scene 与图片变化更新 ProjectTree，配对脚本变化更新只读 Scene interface，三类资源共用同一 Preview 重建入口。
+- 自动化集成测试使用真实临时项目服务和磁盘文件，覆盖连续 Scene revision、引用 Scene、配对脚本与图片字节；Canvas 组件不重新挂载。
+- 真实浏览器验收完成 `背包 -> 背包同步 -> 背包`、临时 `syncProbe` Prop 增删和 `bag.svg` 棕色 / 洋红 / 棕色往返；Canvas 始终为 1，最终示例项目无 diff，console 无 warning/error。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
@@ -224,14 +231,14 @@ Current State:
 - vNext 已实现 read-only Editor context、单 Host / 单活动标签页和 CLI session discovery。
 - read-only Editor context、标签页显式接管和外部 Scene 自动刷新已通过真实浏览器验收。
 - CLI 不再暴露 `live summary`、`live scene get` 或 `live node inspect`，也不保留固定端口 bridge。
-- 当前浏览器主包约 825 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
+- 当前浏览器主包约 826 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
 - 层级结构编辑直接复用 Compiler Command，不存在第二套树 mutation 模型。
 - 顶栏提供手动刷新入口，保存进行中或同步失败时禁用，避免与 versioned write 竞争。
 - authoring 画布支持滚轮缩放、空格/中键平移和适应窗口，不修改 `.scene` 数据或替换 Pixi Application / Canvas。
-- 当前全量测试为 16 个测试文件、224 个测试；`editor:typecheck`、`editor:frontend:build` 和核心包构建均通过。
+- 当前全量测试为 17 个测试文件、227 个测试；`editor:typecheck`、`editor:frontend:build` 和核心包构建均通过。
 
 Currently Failing:
 - None。
 
 Next:
-1. 继续补齐外部 `.scene`、配对脚本和图片变化的自动化集成测试。
+1. 继续补齐 `pixifact editor` 启动、本机地址限制和项目级服务发现测试。
