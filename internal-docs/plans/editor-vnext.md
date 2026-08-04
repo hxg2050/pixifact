@@ -134,7 +134,7 @@
 - [x] 为受项目根约束的文件读取、版本写入、文件监听和图片访问补服务测试。
 - [x] 为 SceneDocument Command、Undo / Redo、自动保存和同步冲突补单元测试。
 - [x] 为普通属性增量更新、结构变化替换 Scene root 补 Preview Command 分类测试，并完成人工 Canvas 长驻验收。
-- [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试；当前已覆盖 Pinia 边界、层级结构操作、资产拖入与 Inspector preview / commit。
+- [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试；当前已覆盖 Pinia 边界、单 Scene 导航、层级结构操作、资产拖入与 Inspector preview / commit。
 - [x] 为外部 `.scene` / 脚本 / 图片变化补集成测试。
 - [x] 为新的只读 Editor context 补 CLI / 服务集成测试，不恢复旧 `live ...` 命令。
 - [ ] 在桌面浏览器视口完成布局、无重叠、拖拽与 Inspector 实时反馈的人工验证；当前已完成固定三栏、Canvas 非空、属性实时反馈、层级添加、自动保存和 Undo 验收。
@@ -170,6 +170,7 @@ rtk bun run pixifact -- editor
 - [x] 实现独立画布视图状态、同 Scene 重建保持、中心点 resize、空格/中键平移与适应窗口。
 - [x] 实现同项目多标签页 standby 与显式接管，恢复 Scene / selection，并在接管时丢弃旧页工作区状态。
 - [x] 实现外部当前 Scene、引用 Scene、配对脚本和图片的统一实时刷新，并只应用最新 generation。
+- [x] 实现单 Scene 导航历史，支持从层级或画布双击 Scene Instance 进入，并在返回 / 前进时恢复 selection 和画布视图。
 
 ## Resume Protocol
 
@@ -224,6 +225,8 @@ Done:
 - 当前 Scene 外部 revision 建立新文档基线；非当前 Scene 与图片变化更新 ProjectTree，配对脚本变化更新只读 Scene interface，三类资源共用同一 Preview 重建入口。
 - 自动化集成测试使用真实临时项目服务和磁盘文件，覆盖连续 Scene revision、引用 Scene、配对脚本与图片字节；Canvas 组件不重新挂载。
 - 真实浏览器验收完成 `背包 -> 背包同步 -> 背包`、临时 `syncProbe` Prop 增删和 `bag.svg` 棕色 / 洋红 / 棕色往返；Canvas 始终为 1，最终示例项目无 diff，console 无 warning/error。
+- 单 Scene 导航在当前标签页维护路径、selection 和画布视图；打开新 Scene 会截断前进分支，不引入多文档 Tab 或持久化状态。
+- 真实浏览器验收完成层级与画布双击 `bagButton` 进入 `Button.scene`，返回恢复 `bagButton`，前进恢复 `labelText`；缩放后的子 Scene 画布往返前后像素一致，console 无 warning/error。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
@@ -235,7 +238,8 @@ Current State:
 - 层级结构编辑直接复用 Compiler Command，不存在第二套树 mutation 模型。
 - 顶栏提供手动刷新入口，保存进行中或同步失败时禁用，避免与 versioned write 竞争。
 - authoring 画布支持滚轮缩放、空格/中键平移和适应窗口，不修改 `.scene` 数据或替换 Pixi Application / Canvas。
-- 当前全量测试为 17 个测试文件、227 个测试；`editor:typecheck`、`editor:frontend:build` 和核心包构建均通过。
+- 顶栏返回 / 前进和 Scene Instance 双击入口已闭环，并按每个历史位置恢复 selection 与画布视图。
+- 当前全量测试为 17 个测试文件、228 个测试；`editor:typecheck`、`editor:frontend:build` 和核心包构建均通过。
 
 Currently Failing:
 - None。

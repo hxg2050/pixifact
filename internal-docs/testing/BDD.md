@@ -429,7 +429,28 @@ Scenario: The canvas view survives same-Scene changes
 
 TDD 入口：`tests/editor-scene-canvas.test.ts`、`tests/editor-scene-document.test.ts` 与浏览器验收。
 
-### BDD-EDITOR-011 一个项目只有一个活动 Editor 标签页
+### BDD-EDITOR-011 单 Scene 导航
+
+Feature: Scene instance navigation
+
+```gherkin
+Scenario: User enters a referenced Scene and returns
+  Given a parent Scene contains a Scene Instance
+  And the user selected that instance and adjusted the canvas view
+  When the user double-clicks the Scene Instance in the hierarchy or canvas
+  Then the Editor opens the referenced Scene in the same workspace
+  And no project runtime script is executed
+  When the user selects a child node, adjusts the canvas view, and activates "返回"
+  Then the parent Scene, selected instance, and previous canvas view are restored
+  When the user activates "前进"
+  Then the referenced Scene, selected child, and its previous canvas view are restored
+  When the user returns and opens a different Scene
+  Then the previous forward history is discarded
+```
+
+TDD 入口：`tests/editor-vue-ui.test.ts` 与浏览器验收。
+
+### BDD-EDITOR-012 一个项目只有一个活动 Editor 标签页
 
 Feature: Transferable active Editor session
 
@@ -465,7 +486,7 @@ Scenario: User requests takeover while the active Editor is writing
 
 TDD 入口：`tests/editor-session.test.ts`、Editor 前端构建与浏览器验收。
 
-### BDD-EDITOR-012 外部文件变化只应用最新 revision
+### BDD-EDITOR-013 外部文件变化只应用最新 revision
 
 Feature: Coordinated external Scene refresh
 
@@ -496,7 +517,7 @@ Scenario: Agent replaces an indexed image
 
 TDD 入口：`tests/editor-external-sync.test.ts`、`tests/editor-scene-document.test.ts` 与浏览器验收。
 
-### BDD-EDITOR-013 手动刷新当前 Editor
+### BDD-EDITOR-014 手动刷新当前 Editor
 
 Feature: Manual Editor refresh
 

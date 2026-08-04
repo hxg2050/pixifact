@@ -15,6 +15,7 @@ const emit = defineEmits<{
     dragOver: [target: SceneTreeDropTarget];
     dragStart: [locator: string];
     assetDrop: [target: SceneTreeDropTarget];
+    openScene: [reference: string];
     select: [locator: string];
 }>();
 const expanded = ref(true);
@@ -85,6 +86,7 @@ function handleAssetDrop(event: PointerEvent) {
       :style="{ paddingLeft: `${8 + level * 16}px` }"
       type="button"
       @click="emit('select', entry.locator)"
+      @dblclick="entry.node.kind === 'sceneInstance' && emit('openScene', entry.node.scene)"
       @pointerdown="handlePointerDown"
       @pointermove.stop="handlePointerMove"
       @pointerup="handleAssetDrop"
@@ -115,6 +117,7 @@ function handleAssetDrop(event: PointerEvent) {
         @drag-over="emit('dragOver', $event)"
         @drag-start="emit('dragStart', $event)"
         @asset-drop="emit('assetDrop', $event)"
+        @open-scene="emit('openScene', $event)"
         @select="emit('select', $event)"
       />
     </ul>

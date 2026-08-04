@@ -54,6 +54,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
     assetDrop: [];
+    openScene: [reference: string];
     select: [locator: string];
 }>();
 const host = ref<HTMLElement>();
@@ -122,6 +123,17 @@ function applyView() {
     updateSelectionOverlay();
 }
 
+function captureView() {
+    return view ? { ...view } : undefined;
+}
+
+function restoreView(next: SceneCanvasView) {
+    view = { ...next };
+    applyView();
+}
+
+defineExpose({ captureView, restoreView });
+
 function fitPreview() {
     if (!preview || !host.value) return;
     view = fitSceneCanvasView(viewportSize ?? hostSize(), preview);
@@ -182,6 +194,12 @@ async function rebuildPreview() {
             target.eventMode = 'static';
             target.cursor = nodeCanMove(locator, target) ? 'move' : 'default';
             target.on('pointerdown', (event) => beginMove(locator, event));
+            const node = findSceneNodeByLocator(document.template.children, locator);
+            if (node?.kind === 'sceneInstance') {
+                target.on('click', (event) => {
+                    if (event.detail === 2) emit('openScene', node.scene);
+                });
+            }
         }
         app.stage.addChild(preview.root);
         if (selectionLayer) app.stage.addChild(selectionLayer);

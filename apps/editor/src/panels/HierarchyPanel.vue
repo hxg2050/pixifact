@@ -25,6 +25,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
     assetDrop: [];
+    openScene: [reference: string];
     select: [locator?: string];
 }>();
 const addType = ref<PixiSceneNodeType>('Group');
@@ -235,6 +236,7 @@ watch(() => props.draggedAsset, (asset) => {
         @drag-over="updateDropTarget"
         @drag-start="startDrag"
         @asset-drop="dropAsset"
+        @open-scene="emit('openScene', $event)"
         @select="emit('select', $event)"
       />
     </ul>

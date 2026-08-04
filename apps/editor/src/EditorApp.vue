@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { Redo2, RefreshCw, Undo2 } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Redo2, RefreshCw, Undo2 } from 'lucide-vue-next';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
-import { computed, markRaw, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { pairedSceneScriptPath, type SceneTemplateInterface } from 'pixifact/compiler';
+import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import {
+    pairedSceneScriptPath,
+    resolveSceneReference,
+    type SceneTemplateInterface,
+} from 'pixifact/compiler';
 import AssetsPanel from './panels/AssetsPanel.vue';
 import HierarchyPanel from './panels/HierarchyPanel.vue';
 import InspectorPanel from './panels/InspectorPanel.vue';
 import SceneCanvas from './preview/SceneCanvas.vue';
+import type { SceneCanvasView } from './preview/sceneCanvasGeometry';
 import { SceneDocument } from './document/SceneDocument';
 import { remapSceneSelection, type EditorSceneAsset } from './document/sceneTree';
 import {
@@ -40,6 +45,13 @@ const sessionStateMessage = ref('');
 const standbyReason = ref<'takenOver'>();
 const standbyScenePath = ref<string>();
 const takeoverPending = ref(false);
+const sceneCanvas = ref<{
+    captureView?: () => SceneCanvasView | undefined;
+    restoreView?: (view: SceneCanvasView) => void;
+}>();
+const navigationEntries = ref<SceneNavigationEntry[]>([]);
+const navigationIndex = ref(-1);
+const navigationPending = ref(false);
 let unsubscribeDocument: (() => void) | undefined;
 let sessionConnection: EditorSessionConnection | undefined;
 let sessionStateRevision = 0;
@@ -47,7 +59,14 @@ let projectChangeTimer: ReturnType<typeof setTimeout> | undefined;
 let projectChangeGeneration = 0;
 let projectRefreshRunning = false;
 let editorDisposed = false;
+let sceneOpenGeneration = 0;
 const pendingProjectChanges = new Set<string>();
+
+interface SceneNavigationEntry {
+    path: string;
+    selectedLocator?: string;
+    view?: SceneCanvasView;
+}
 
 const sceneName = computed(() => currentScenePath.value?.split('/').at(-1)?.replace(/\.scene$/, '') ?? '未打开 Scene');
 const syncLabel = computed(() => ({
@@ -56,6 +75,12 @@ const syncLabel = computed(() => ({
     conflict: '同步冲突',
     error: '写入失败',
 }[syncState.value]));
+const canNavigateBack = computed(() => navigationIndex.value > 0 && !navigationPending.value);
+const canNavigateForward = computed(() => (
+    navigationIndex.value >= 0
+    && navigationIndex.value < navigationEntries.value.length - 1
+    && !navigationPending.value
+));
 
 function bindDocument(next: SceneDocument, selection?: string) {
     unsubscribeDocument?.();
@@ -77,16 +102,84 @@ function bindDocument(next: SceneDocument, selection?: string) {
     });
 }
 
-async function openScene(path: string, selection?: string) {
+async function openScene(path: string, selection?: string, restoredView?: SceneCanvasView) {
     const revision = sessionStateRevision;
+    const generation = ++sceneOpenGeneration;
     error.value = '';
     try {
         const next = await SceneDocument.open(path, editorSceneFileApi);
-        if (sessionState.value !== 'active' || revision !== sessionStateRevision) return;
+        if (
+            sessionState.value !== 'active'
+            || revision !== sessionStateRevision
+            || generation !== sceneOpenGeneration
+        ) return false;
         bindDocument(next, selection);
+        await nextTick();
+        if (document.value !== next || generation !== sceneOpenGeneration) return false;
+        if (restoredView) sceneCanvas.value?.restoreView?.(restoredView);
+        return true;
     } catch (cause) {
-        error.value = cause instanceof Error ? cause.message : String(cause);
+        if (
+            sessionState.value === 'active'
+            && revision === sessionStateRevision
+            && generation === sceneOpenGeneration
+        ) {
+            error.value = cause instanceof Error ? cause.message : String(cause);
+        }
+        return false;
     }
+}
+
+function resetSceneNavigation(path: string, selectedLocator?: string) {
+    navigationEntries.value = [{ path, selectedLocator }];
+    navigationIndex.value = 0;
+}
+
+function captureCurrentNavigationEntry() {
+    const entry = navigationEntries.value[navigationIndex.value];
+    if (!entry || entry.path !== document.value?.path) return;
+    navigationEntries.value[navigationIndex.value] = {
+        ...entry,
+        selectedLocator: selectedLocator.value,
+        view: sceneCanvas.value?.captureView?.() ?? entry.view,
+    };
+}
+
+async function navigateToScene(path: string) {
+    if (navigationPending.value || path === document.value?.path) return;
+    navigationPending.value = true;
+    captureCurrentNavigationEntry();
+    try {
+        if (!await openScene(path)) return;
+        navigationEntries.value = [
+            ...navigationEntries.value.slice(0, navigationIndex.value + 1),
+            { path },
+        ];
+        navigationIndex.value += 1;
+    } finally {
+        navigationPending.value = false;
+    }
+}
+
+async function navigateHistory(offset: -1 | 1) {
+    if (navigationPending.value) return;
+    const targetIndex = navigationIndex.value + offset;
+    const target = navigationEntries.value[targetIndex];
+    if (!target) return;
+    navigationPending.value = true;
+    captureCurrentNavigationEntry();
+    try {
+        if (!await openScene(target.path, target.selectedLocator, target.view)) return;
+        navigationIndex.value = targetIndex;
+    } finally {
+        navigationPending.value = false;
+    }
+}
+
+function navigateToSceneReference(reference: string) {
+    const current = document.value;
+    if (!current) return;
+    void navigateToScene(resolveSceneReference(current.path, reference));
 }
 
 async function readSceneInterfaces() {
@@ -258,6 +351,7 @@ function endAssetDrag() {
 
 function clearWorkspace() {
     projectChangeGeneration += 1;
+    sceneOpenGeneration += 1;
     unsubscribeDocument?.();
     unsubscribeDocument = undefined;
     document.value = undefined;
@@ -269,6 +363,9 @@ function clearWorkspace() {
     documentRevision.value += 1;
     draggedAsset.value = undefined;
     refreshing.value = false;
+    navigationEntries.value = [];
+    navigationIndex.value = -1;
+    navigationPending.value = false;
     pendingProjectChanges.clear();
     if (projectChangeTimer) {
         clearTimeout(projectChangeTimer);
@@ -289,7 +386,9 @@ async function loadActiveWorkspace(resume?: EditorSessionResumeState) {
     sceneInterfaces.value = nextSceneInterfaces;
     const scenePath = resume?.scenePath ?? nextProject.scenes[0];
     if (scenePath) {
-        await openScene(scenePath, resume?.selectedLocator);
+        if (await openScene(scenePath, resume?.selectedLocator)) {
+            resetSceneNavigation(scenePath, resume?.selectedLocator);
+        }
     }
 }
 
@@ -360,6 +459,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     editorDisposed = true;
+    sceneOpenGeneration += 1;
     window.removeEventListener('pointerup', endAssetDrag);
     window.removeEventListener('pointercancel', endAssetDrag);
     if (projectChangeTimer) clearTimeout(projectChangeTimer);
@@ -404,6 +504,24 @@ onBeforeUnmount(() => {
       <div class="history-tools">
         <button
           type="button"
+          title="返回"
+          aria-label="返回"
+          :disabled="!canNavigateBack"
+          @click="navigateHistory(-1)"
+        >
+          <ArrowLeft :size="16" />
+        </button>
+        <button
+          type="button"
+          title="前进"
+          aria-label="前进"
+          :disabled="!canNavigateForward"
+          @click="navigateHistory(1)"
+        >
+          <ArrowRight :size="16" />
+        </button>
+        <button
+          type="button"
           title="刷新"
           aria-label="刷新"
           :disabled="!document || syncState !== 'synced' || refreshing"
@@ -435,6 +553,7 @@ onBeforeUnmount(() => {
               :revision="documentRevision"
               :selected="selectedLocator"
               @select="selectedLocator = $event"
+              @open-scene="navigateToSceneReference"
               @asset-drop="endAssetDrag"
             />
           </TabsContent>
@@ -443,7 +562,7 @@ onBeforeUnmount(() => {
               :project="project"
               :current-scene="currentScenePath"
               @asset-drag-start="startAssetDrag"
-              @open-scene="openScene"
+              @open-scene="navigateToScene"
             />
           </TabsContent>
         </TabsRoot>
@@ -451,12 +570,14 @@ onBeforeUnmount(() => {
 
       <section class="canvas-panel" aria-label="Scene 画布">
         <SceneCanvas
+          ref="sceneCanvas"
           :document="document"
           :dragged-asset="draggedAsset"
           :project-tree="projectTree"
           :scene-interfaces="sceneInterfaces"
           :selected="selectedLocator"
           @select="selectedLocator = $event"
+          @open-scene="navigateToSceneReference"
           @asset-drop="endAssetDrag"
         />
       </section>

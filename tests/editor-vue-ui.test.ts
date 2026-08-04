@@ -157,6 +157,126 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it('navigates into Scene Instances and restores selection and canvas view', async () => {
+        const menuSource = [
+            '<Scene name="Menu">',
+            '  <Button id="button" scene="./Button.scene" />',
+            '</Scene>',
+            '',
+        ].join('\n');
+        const buttonSource = [
+            '<Scene name="Button">',
+            '  <Text id="label" text="按钮" />',
+            '</Scene>',
+            '',
+        ].join('\n');
+        const dialogSource = [
+            '<Scene name="Dialog">',
+            '  <Text id="message" text="提示" />',
+            '</Scene>',
+            '',
+        ].join('\n');
+        const project = {
+            name: 'demo',
+            root: '/demo',
+            scenes: [
+                'src/scenes/Menu.scene',
+                'src/scenes/Button.scene',
+                'src/scenes/Dialog.scene',
+            ],
+            images: [],
+            files: [
+                { kind: 'scene', path: 'src/scenes/Menu.scene' },
+                { kind: 'script', path: 'src/scenes/Menu.ts' },
+                { kind: 'scene', path: 'src/scenes/Button.scene' },
+                { kind: 'script', path: 'src/scenes/Button.ts' },
+                { kind: 'scene', path: 'src/scenes/Dialog.scene' },
+                { kind: 'script', path: 'src/scenes/Dialog.ts' },
+            ],
+        };
+        const sources = new Map([
+            ['src/scenes/Menu.scene', menuSource],
+            ['src/scenes/Button.scene', buttonSource],
+            ['src/scenes/Dialog.scene', dialogSource],
+        ]);
+        const fetcher = vi.fn(async (input: string | URL | Request) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+            if (url === '/api/project') return Response.json(project);
+            if (url === '/api/scene-bindings') return Response.json({});
+            if (url.startsWith('/api/scene?')) {
+                const scenePath = new URL(url, 'http://localhost').searchParams.get('path')!;
+                return Response.json({
+                    path: scenePath,
+                    source: sources.get(scenePath),
+                    version: `sha256:${scenePath}`,
+                });
+            }
+            throw new Error(`Unexpected Editor request: ${url}`);
+        });
+        const menuView = { scale: 0.75, x: 24, y: 36 };
+        const buttonView = { scale: 1.5, x: -18, y: 12 };
+        let canvasView = { scale: 1, x: 0, y: 0 };
+        const captureView = vi.fn(() => ({ ...canvasView }));
+        const restoreView = vi.fn((next: typeof canvasView) => {
+            canvasView = { ...next };
+        });
+        const SceneCanvasStub = defineComponent({
+            props: { document: Object },
+            setup(_props, { expose }) {
+                expose({ captureView, restoreView });
+                return () => h('div', { 'data-testid': 'scene-canvas' });
+            },
+        });
+        vi.stubGlobal('fetch', fetcher);
+        vi.stubGlobal('WebSocket', AcceptedEditorWebSocket);
+        const pinia = createPinia();
+        setActivePinia(pinia);
+        const wrapper = mount(EditorApp, {
+            global: {
+                plugins: [pinia],
+                stubs: { SceneCanvas: SceneCanvasStub },
+            },
+        });
+
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="0:button"]').exists()).toBe(true));
+        expect(wrapper.get('button[aria-label="返回"]').attributes('disabled')).toBeDefined();
+        expect(wrapper.get('button[aria-label="前进"]').attributes('disabled')).toBeDefined();
+        await wrapper.get('[data-locator="0:button"]').trigger('click');
+        canvasView = menuView;
+        await wrapper.get('[data-locator="0:button"]').trigger('dblclick');
+
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="0:label"]').exists()).toBe(true));
+        expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Button.scene');
+        expect(wrapper.get('button[aria-label="返回"]').attributes('disabled')).toBeUndefined();
+        await wrapper.get('[data-locator="0:label"]').trigger('click');
+        canvasView = buttonView;
+        await wrapper.get('button[aria-label="返回"]').trigger('click');
+
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="0:button"]').exists()).toBe(true));
+        expect(useEditorUiStore().selectedLocator).toBe('0:button');
+        expect(canvasView).toEqual(menuView);
+        expect(restoreView).toHaveBeenLastCalledWith(menuView);
+        expect(wrapper.get('button[aria-label="前进"]').attributes('disabled')).toBeUndefined();
+        await wrapper.get('button[aria-label="前进"]').trigger('click');
+
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="0:label"]').exists()).toBe(true));
+        expect(useEditorUiStore().selectedLocator).toBe('0:label');
+        expect(canvasView).toEqual(buttonView);
+        expect(restoreView).toHaveBeenLastCalledWith(buttonView);
+
+        await wrapper.get('button[aria-label="返回"]').trigger('click');
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="0:button"]').exists()).toBe(true));
+        useEditorUiStore().activeLeftTab = 'assets';
+        await flushPromises();
+        await wrapper.get('[data-asset-path="src/scenes/Dialog.scene"]').trigger('dblclick');
+        await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Dialog.scene'));
+        useEditorUiStore().activeLeftTab = 'hierarchy';
+        await flushPromises();
+        expect(wrapper.find('[data-locator="0:message"]').exists()).toBe(true);
+        expect(wrapper.get('button[aria-label="前进"]').attributes('disabled')).toBeDefined();
+        wrapper.unmount();
+    });
+
     it('manually reloads project context and rebuilds the current preview', async () => {
         const project = {
             name: 'demo',
