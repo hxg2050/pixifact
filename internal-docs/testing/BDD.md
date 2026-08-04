@@ -429,9 +429,9 @@ Scenario: The canvas view survives same-Scene changes
 
 TDD 入口：`tests/editor-scene-canvas.test.ts`、`tests/editor-scene-document.test.ts` 与浏览器验收。
 
-### BDD-EDITOR-011 一个项目只有一个有效 Editor 会话
+### BDD-EDITOR-011 一个项目只有一个活动 Editor 标签页
 
-Feature: Single Editor session
+Feature: Transferable active Editor session
 
 ```gherkin
 Scenario: User starts Editor again for the same project
@@ -443,8 +443,24 @@ Scenario: User starts Editor again for the same project
 Scenario: User opens the Editor URL in a second browser tab
   Given one browser tab already owns the Editor WebSocket session
   When another tab connects
-  Then the second tab reports that the project is already open
-  And it does not load, edit, or publish context for the project
+  Then the second tab shows the project and current Scene
+  And it offers an explicit "在此接管" action
+  And it does not edit or publish context before takeover
+
+Scenario: User takes over the Editor in another tab
+  Given the active Editor Scene is synchronized
+  When a standby tab activates "在此接管"
+  Then the standby tab becomes the only active editor
+  And it restores the current Scene and selection from the latest synchronized context
+  And the previous active tab becomes standby
+  And Undo, Redo, and canvas view are not transferred
+  And editor context waits for the new active tab to publish synchronized context
+
+Scenario: User requests takeover while the active Editor is writing
+  Given the active Editor Scene is saving, conflicted, or in an error state
+  When a standby tab requests takeover
+  Then the Host keeps the current active tab
+  And the standby tab reports that takeover can be retried after synchronization
 ```
 
 TDD 入口：`tests/editor-session.test.ts`、Editor 前端构建与浏览器验收。

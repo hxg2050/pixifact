@@ -78,7 +78,7 @@ afterEach(() => {
 });
 
 describe('Editor Host session', () => {
-    it('accepts one browser, rejects a second, and exposes authenticated read-only context', async () => {
+    it('keeps one active browser and explicitly transfers control to a standby browser', async () => {
         const fixture = createFixture();
         const host = createEditorHostSession({
             projectRoot: fixture.projectRoot,
@@ -91,16 +91,66 @@ describe('Editor Host session', () => {
         host.open(primary);
         host.open(secondary);
         host.message(primary, contextMessage(fixture.scenePath, version(fixture.source)));
-        host.message(secondary, contextMessage(fixture.scenePath, version(fixture.source)));
 
         expect(primary.messages).toEqual([{
-            type: 'editorSessionAccepted',
+            type: 'editorSessionActive',
             protocolVersion: editorSessionProtocolVersion,
         }]);
-        expect(secondary.messages).toEqual([{
-            type: 'editorSessionOccupied',
+        expect(secondary.messages).toEqual([
+            {
+                type: 'editorSessionStandby',
+                protocolVersion: editorSessionProtocolVersion,
+            },
+            {
+                type: 'editorSessionStandby',
+                protocolVersion: editorSessionProtocolVersion,
+                resume: {
+                    scenePath: fixture.scenePath,
+                    selectedLocator: '0:title',
+                },
+            },
+        ]);
+
+        host.message(secondary, JSON.stringify({
+            type: 'editorSessionTakeoverRequested',
             protocolVersion: editorSessionProtocolVersion,
-        }]);
+        }));
+
+        expect(primary.messages.at(-1)).toEqual({
+            type: 'editorSessionStandby',
+            protocolVersion: editorSessionProtocolVersion,
+            reason: 'takenOver',
+            resume: {
+                scenePath: fixture.scenePath,
+                selectedLocator: '0:title',
+            },
+        });
+        expect(secondary.messages.at(-1)).toEqual({
+            type: 'editorSessionActive',
+            protocolVersion: editorSessionProtocolVersion,
+            resume: {
+                scenePath: fixture.scenePath,
+                selectedLocator: '0:title',
+            },
+        });
+
+        host.message(primary, contextMessage(fixture.scenePath, version(fixture.source)));
+        const beforeNewActiveContext = await host.fetch(new Request('http://localhost/api/editor-context', {
+            headers: { authorization: 'Bearer session-token' },
+        }));
+        expect(beforeNewActiveContext?.status).toBe(409);
+        expect(await responseJson(beforeNewActiveContext!)).toMatchObject({
+            ok: false,
+            error: 'Editor context is not ready.',
+        });
+
+        host.message(secondary, contextMessage(fixture.scenePath, version(fixture.source)));
+        host.notifyProjectFileChanged('src/scenes/Menu.scene');
+        expect(primary.messages.at(-1)?.type).not.toBe('projectFileChanged');
+        expect(secondary.messages.at(-1)).toEqual({
+            type: 'projectFileChanged',
+            path: 'src/scenes/Menu.scene',
+        });
 
         const unauthorized = await host.fetch(new Request('http://localhost/api/editor-context'));
         const response = await host.fetch(new Request('http://localhost/api/editor-context', {
@@ -134,7 +184,7 @@ describe('Editor Host session', () => {
             },
         });
 
-        host.close(primary);
+        host.close(secondary);
         const disconnected = await host.fetch(new Request('http://localhost/api/editor-context', {
             headers: { authorization: 'Bearer session-token' },
         }));
@@ -142,6 +192,46 @@ describe('Editor Host session', () => {
         expect(await responseJson(disconnected!)).toMatchObject({
             ok: false,
             error: 'No active Editor browser session.',
+        });
+    });
+
+    it('does not transfer control while the active Scene is not synchronized', () => {
+        const fixture = createFixture();
+        const host = createEditorHostSession({
+            projectRoot: fixture.projectRoot,
+            token: 'session-token',
+        });
+        const primary = fakeSocket();
+        const secondary = fakeSocket();
+        host.open(primary);
+        host.open(secondary);
+
+        host.message(secondary, JSON.stringify({
+            type: 'editorSessionTakeoverRequested',
+            protocolVersion: editorSessionProtocolVersion,
+        }));
+
+        expect(secondary.messages.at(-1)).toEqual({
+            type: 'editorSessionStandby',
+            protocolVersion: editorSessionProtocolVersion,
+            error: '当前 Editor 尚未同步，暂时无法接管。',
+        });
+
+        host.message(primary, contextMessage(fixture.scenePath, version(fixture.source), 'saving'));
+
+        host.message(secondary, JSON.stringify({
+            type: 'editorSessionTakeoverRequested',
+            protocolVersion: editorSessionProtocolVersion,
+        }));
+
+        expect(secondary.messages.at(-1)).toEqual({
+            type: 'editorSessionStandby',
+            protocolVersion: editorSessionProtocolVersion,
+            error: '当前 Editor 尚未同步，暂时无法接管。',
+            resume: {
+                scenePath: fixture.scenePath,
+                selectedLocator: '0:title',
+            },
         });
     });
 

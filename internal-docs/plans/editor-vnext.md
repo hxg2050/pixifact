@@ -48,6 +48,8 @@
 - 顶栏只保留返回、前进、当前 Scene、刷新、Undo、Redo 和同步状态。
 - 面板可调整宽度，但不支持自由停靠、拆组和布局持久化。
 - 一次只编辑一个 Scene，不做多文档 Tab；双击 Scene Instance 可进入其引用 Scene，返回时恢复上一个 Scene 的选择和画布位置。
+- 同一项目允许打开多个浏览器标签页，但同时只有一个活动编辑标签页；standby 标签页可显式接管，原活动标签页随即失活。
+- 接管恢复最新同步 context 中的 Scene 和 selection，不迁移 Undo / Redo 与画布视图；活动 Scene 未同步时拒绝接管。
 - 第一版不做集中式问题收集或底部问题面板。当前 Scene 的解析、预览、字段和写入错误只在对应位置显示。
 
 ### 层级与资产
@@ -160,10 +162,11 @@ rtk bun run pixifact -- editor
 - [x] 实现画布节点选择、连续移动与八方向 resize，并保持 frame layout 约束和栈布局所有权。
 - [x] 实现项目图片与 Scene 资产拖入画布或层级，并接入自动保存和 Undo / Redo。
 - [x] 删除未接入 vNext Editor 的旧 `live ...` CLI、固定端口 bridge、测试和文档入口。
-- [x] 实现项目级 Host session discovery、单浏览器会话和 `pixifact editor context`。
+- [x] 实现项目级 Host session discovery、单活动标签页接管和 `pixifact editor context`。
 - [x] 实现顶栏手动刷新，在保持长驻 Canvas 的同时重新读取 Scene、脚本接口和图片预览。
 - [x] 实现鼠标滚轮以光标为中心缩放 authoring 画布，并限制在 10%–400%。
 - [x] 实现独立画布视图状态、同 Scene 重建保持、中心点 resize、空格/中键平移与适应窗口。
+- [x] 实现同项目多标签页 standby 与显式接管，恢复 Scene / selection，并在接管时丢弃旧页工作区状态。
 
 ## Resume Protocol
 
@@ -200,10 +203,9 @@ Done:
 - 浏览器验收已完成 `hero.svg` 拖入画布和 `Button.scene` 拖入 `menuRow`，两次投放均可一次 Undo，Canvas 始终为一个且示例 Scene 最终无语义 diff。
 - 删除未接入新版 Editor 的 `live summary`、`live scene get`、`live node inspect`、固定端口 bridge 实现及相关对外文档；CLI help 不再暴露旧入口。
 - 实现系统临时目录中的项目级 session descriptor、健康检查、Host 复用和私有 token context 查询。
-- `/api/events` 同时负责单浏览器会话、文件变化通知和浏览器 context 上报；第二个标签页不能加载项目或发布 context。
+- `/api/events` 同时负责单活动标签页、文件变化通知和浏览器 context 上报；standby 标签页只接收恢复状态并可显式请求接管。
 - `editor context` 返回 Scene root 或 Compiler node selection，并在磁盘 revision 不一致、Scene 未同步或解析失败时拒绝返回旧 selection。
 - 外部 Scene 重载按路径合并并串行执行，选择只在原位修改、id rename 或唯一 id 移动时保守重定位。
-- 真实浏览器验收已确认第二个标签页只显示占用状态；选择 `bagButton` 后，`editor context` 返回 Compiler locator、Scene Instance props、events 和 slot 数量。
 - 真实浏览器验收已完成外部 `BottomMenu.scene` 的 `背包 -> 背包验收 -> 背包` 往返修改；Editor 自动刷新 revision 并保留确定的选择，Canvas 始终只有一个，示例 Scene 最终无 diff，当前 Host 无 console warning/error。
 - 全量测试为 16 个测试文件、222 个测试，`editor:typecheck`、`editor:frontend:build` 和包构建均通过。
 - 顶栏手动刷新会等待当前 Scene 同步，重新读取项目索引、脚本接口和 Scene；同 revision 保留选择与 Undo / Redo，并通过更新 project tree 强制重建图片预览。
@@ -212,21 +214,24 @@ Done:
 - 真实浏览器验收已完成围绕 `bagButton` 中心放大与恢复；选择框同步缩放，Canvas 始终只有一个，当前 Host 无 console warning/error。
 - 画布视图独立于 Preview root；同路径 Scene 重建重放当前视图，切换路径重新适应，视口尺寸变化保持中心 Scene 坐标。
 - `Space + 左键拖动`和中键拖动平移画布且不提交 Scene Command；“适应窗口”按钮将 Scene 居中并限制为最多 100%。
+- 同项目多个浏览器标签页共享一个 Host，但只有 active 标签页加载工作区、接收文件变化并发布 context；standby 显示项目、当前 Scene 和接管入口。
+- 接管只在当前 active context 已同步时执行；新 active 恢复 Scene / selection，原 active 立即卸载工作区并显示“此标签页已停止编辑”。
+- 真实浏览器已完成两次双向接管；`BottomMenu.scene` 与 `bagButton` selection 均恢复，Undo / Redo 重新为空，两个标签页无 console warning/error。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
 - 仓库只保留 Vue 浏览器 Editor，不存在旧桌面入口或兼容层。
-- vNext 已实现 read-only Editor context、单 Host / 单浏览器会话和 CLI session discovery。
-- read-only Editor context、单浏览器占用状态和外部 Scene 自动刷新已通过真实浏览器验收。
+- vNext 已实现 read-only Editor context、单 Host / 单活动标签页和 CLI session discovery。
+- read-only Editor context、标签页显式接管和外部 Scene 自动刷新已通过真实浏览器验收。
 - CLI 不再暴露 `live summary`、`live scene get` 或 `live node inspect`，也不保留固定端口 bridge。
-- 当前浏览器主包约 812 KB，整个 Editor 构建约 821 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
+- 当前浏览器主包约 825 KB；TypeScript compiler 只存在于 Node/Bun extractor，不进入浏览器包。
 - 层级结构编辑直接复用 Compiler Command，不存在第二套树 mutation 模型。
 - 顶栏提供手动刷新入口，保存进行中或同步失败时禁用，避免与 versioned write 竞争。
 - authoring 画布支持滚轮缩放、空格/中键平移和适应窗口，不修改 `.scene` 数据或替换 Pixi Application / Canvas。
+- 当前全量测试为 16 个测试文件、224 个测试；`editor:typecheck`、`editor:frontend:build` 和核心包构建均通过。
 
 Currently Failing:
 - None。
 
 Next:
-1. 在 `http://127.0.0.1:58308` 完成空格/中键平移、同 Scene 刷新保持视图和适应窗口的人工验收。
-2. 继续补齐外部 `.scene`、配对脚本和图片变化的自动化集成测试。
+1. 继续补齐外部 `.scene`、配对脚本和图片变化的自动化集成测试。

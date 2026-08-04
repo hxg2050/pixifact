@@ -143,13 +143,13 @@ describe('Editor context selection', () => {
         vi.stubGlobal('WebSocket', FakeWebSocket);
         const changed = vi.fn();
         const disconnected = vi.fn();
-        const connectionPromise = connectEditorSession(changed, disconnected);
+        const stateChanged = vi.fn();
+        const connectionPromise = connectEditorSession(changed, disconnected, stateChanged);
         const socket = FakeWebSocket.instances[0];
 
-        socket.emit('message', JSON.stringify({ type: 'editorSessionAccepted', protocolVersion: 1 }));
+        socket.emit('message', JSON.stringify({ type: 'editorSessionActive', protocolVersion: 2 }));
         const connection = await connectionPromise;
-        expect(connection.status).toBe('accepted');
-        if (connection.status !== 'accepted') return;
+        expect(connection.initialState).toEqual({ status: 'active' });
 
         connection.publishContext({
             scene: {
@@ -166,7 +166,7 @@ describe('Editor context selection', () => {
 
         expect(JSON.parse(socket.sent[0])).toEqual({
             type: 'editorContextChanged',
-            protocolVersion: 1,
+            protocolVersion: 2,
             context: {
                 scene: {
                     path: 'src/scenes/Menu.scene',
@@ -177,6 +177,38 @@ describe('Editor context selection', () => {
             },
         });
         expect(changed).toHaveBeenCalledWith('src/scenes/Menu.scene');
+
+        socket.emit('message', JSON.stringify({
+            type: 'editorSessionStandby',
+            protocolVersion: 2,
+            reason: 'takenOver',
+            resume: { scenePath: 'src/scenes/Menu.scene', selectedLocator: '0:title' },
+        }));
+        connection.publishContext({
+            scene: {
+                path: 'src/scenes/Menu.scene',
+                revision: 'sha256:ignored',
+                syncState: 'synced',
+            },
+            selection: { kind: 'scene' },
+        });
+        socket.emit('message', JSON.stringify({
+            type: 'projectFileChanged',
+            path: 'src/scenes/Ignored.scene',
+        }));
+        connection.requestTakeover();
+
+        expect(stateChanged).toHaveBeenCalledWith({
+            status: 'standby',
+            reason: 'takenOver',
+            resume: { scenePath: 'src/scenes/Menu.scene', selectedLocator: '0:title' },
+        });
+        expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
+            type: 'editorSessionTakeoverRequested',
+            protocolVersion: 2,
+        });
+        expect(socket.sent).toHaveLength(2);
+        expect(changed).toHaveBeenCalledOnce();
 
         socket.close();
         expect(disconnected).toHaveBeenCalledOnce();

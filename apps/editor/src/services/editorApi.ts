@@ -2,7 +2,7 @@ import type { ProjectFileTreeNode, ProjectFileKind } from './projectFileTree';
 import type { SceneScriptInterface } from 'pixifact/compiler';
 import type { EditorSelectionContext } from './editorContext';
 
-const editorSessionProtocolVersion = 1;
+const editorSessionProtocolVersion = 2;
 
 export interface EditorProjectFile {
     kind: 'image' | 'scene' | 'script' | 'file';
@@ -32,16 +32,24 @@ export interface EditorBrowserContext {
     selection: EditorSelectionContext;
 }
 
-export type EditorSessionConnection =
-    | {
-        status: 'accepted';
-        close(): void;
-        publishContext(context: EditorBrowserContext): void;
-    }
-    | {
-        status: 'occupied';
-        close(): void;
-    };
+export interface EditorSessionResumeState {
+    scenePath: string;
+    selectedLocator?: string;
+}
+
+export interface EditorSessionState {
+    error?: string;
+    reason?: 'takenOver';
+    resume?: EditorSessionResumeState;
+    status: 'active' | 'standby';
+}
+
+export interface EditorSessionConnection {
+    initialState: EditorSessionState;
+    close(): void;
+    publishContext(context: EditorBrowserContext): void;
+    requestTakeover(): void;
+}
 
 export class EditorApiError extends Error {
     constructor(readonly status: number, message: string) {
@@ -88,47 +96,65 @@ export async function readEditorProjectFile(path: string) {
 export function connectEditorSession(
     onProjectFileChanged: (path: string) => void,
     onDisconnected: () => void,
+    onStateChanged: (state: EditorSessionState) => void,
 ) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const socket = new WebSocket(`${protocol}//${window.location.host}/api/events`);
     return new Promise<EditorSessionConnection>((resolve, reject) => {
+        let active = false;
         let connected = false;
         let settled = false;
+        const connection = (initialState: EditorSessionState): EditorSessionConnection => ({
+            initialState,
+            close: () => socket.close(),
+            publishContext(context) {
+                if (!active || socket.readyState !== WebSocket.OPEN) return;
+                socket.send(JSON.stringify({
+                    type: 'editorContextChanged',
+                    protocolVersion: editorSessionProtocolVersion,
+                    context,
+                }));
+            },
+            requestTakeover() {
+                if (active || socket.readyState !== WebSocket.OPEN) return;
+                socket.send(JSON.stringify({
+                    type: 'editorSessionTakeoverRequested',
+                    protocolVersion: editorSessionProtocolVersion,
+                }));
+            },
+        });
         socket.addEventListener('message', (event) => {
             const message = JSON.parse(String(event.data)) as {
+                error?: string;
                 type?: string;
                 path?: string;
                 protocolVersion?: number;
+                reason?: 'takenOver';
+                resume?: EditorSessionResumeState;
             };
             if (message.protocolVersion !== undefined && message.protocolVersion !== editorSessionProtocolVersion) {
                 socket.close();
                 reject(new Error('Editor session protocol version does not match. Restart Pixifact Editor.'));
                 return;
             }
-            if (message.type === 'editorSessionAccepted') {
+            if (message.type === 'editorSessionActive' || message.type === 'editorSessionStandby') {
+                const state: EditorSessionState = {
+                    status: message.type === 'editorSessionActive' ? 'active' : 'standby',
+                    ...(message.resume ? { resume: message.resume } : {}),
+                    ...(message.reason ? { reason: message.reason } : {}),
+                    ...(message.error ? { error: message.error } : {}),
+                };
+                active = state.status === 'active';
                 connected = true;
-                settled = true;
-                resolve({
-                    status: 'accepted',
-                    close: () => socket.close(),
-                    publishContext(context) {
-                        if (socket.readyState !== WebSocket.OPEN) return;
-                        socket.send(JSON.stringify({
-                            type: 'editorContextChanged',
-                            protocolVersion: editorSessionProtocolVersion,
-                            context,
-                        }));
-                    },
-                });
+                if (!settled) {
+                    settled = true;
+                    resolve(connection(state));
+                } else {
+                    onStateChanged(state);
+                }
                 return;
             }
-            if (message.type === 'editorSessionOccupied') {
-                settled = true;
-                resolve({ status: 'occupied', close: () => socket.close() });
-                socket.close();
-                return;
-            }
-            if (message.type === 'projectFileChanged' && message.path) {
+            if (active && message.type === 'projectFileChanged' && message.path) {
                 onProjectFileChanged(message.path);
             }
         });

@@ -163,7 +163,7 @@ describe('Pixifact CLI', () => {
     it('reads the current project Editor context without exposing mutation', async () => {
         const projectRoot = createTempProject();
         const context = {
-            protocolVersion: 1,
+            protocolVersion: 2,
             projectRoot,
             editor: { connected: true, updatedAt: '2026-08-03T08:00:00.000Z' },
             scene: {

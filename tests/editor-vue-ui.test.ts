@@ -34,14 +34,18 @@ function createApi() {
 
 class AcceptedEditorWebSocket {
     static readonly OPEN = 1;
+    static initialMessage: Record<string, unknown> = {
+        type: 'editorSessionActive',
+        protocolVersion: 2,
+    };
+    static instances: AcceptedEditorWebSocket[] = [];
     readonly listeners = new Map<string, Array<(event: { data?: string }) => void>>();
+    readonly sent: string[] = [];
     readyState = AcceptedEditorWebSocket.OPEN;
 
     constructor(_url: string) {
-        queueMicrotask(() => this.emit('message', JSON.stringify({
-            type: 'editorSessionAccepted',
-            protocolVersion: 1,
-        })));
+        AcceptedEditorWebSocket.instances.push(this);
+        queueMicrotask(() => this.emit('message', JSON.stringify(AcceptedEditorWebSocket.initialMessage)));
     }
 
     addEventListener(type: string, listener: (event: { data?: string }) => void) {
@@ -50,7 +54,9 @@ class AcceptedEditorWebSocket {
         this.listeners.set(type, listeners);
     }
 
-    send() {}
+    send(data: string) {
+        this.sent.push(data);
+    }
 
     close() {
         this.readyState = 3;
@@ -65,10 +71,92 @@ class AcceptedEditorWebSocket {
 }
 
 afterEach(() => {
+    AcceptedEditorWebSocket.initialMessage = {
+        type: 'editorSessionActive',
+        protocolVersion: 2,
+    };
+    AcceptedEditorWebSocket.instances = [];
     vi.unstubAllGlobals();
 });
 
 describe('Editor Vue UI', () => {
+    it('allows a standby tab to take over and deactivates it when control moves again', async () => {
+        const project = {
+            name: 'adventure-ui-demo',
+            root: '/demo',
+            scenes: ['src/scenes/Menu.scene'],
+            images: [],
+            files: [
+                { kind: 'scene', path: 'src/scenes/Menu.scene' },
+                { kind: 'script', path: 'src/scenes/Menu.ts' },
+            ],
+        };
+        const fetcher = vi.fn(async (input: string | URL | Request) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+            if (url === '/api/project') return Response.json(project);
+            if (url === '/api/scene-bindings') return Response.json({});
+            if (url.startsWith('/api/scene?')) {
+                return Response.json({
+                    path: 'src/scenes/Menu.scene',
+                    source,
+                    version: 'sha256:before',
+                });
+            }
+            throw new Error(`Unexpected Editor request: ${url}`);
+        });
+        AcceptedEditorWebSocket.initialMessage = {
+            type: 'editorSessionStandby',
+            protocolVersion: 2,
+            resume: {
+                scenePath: 'src/scenes/Menu.scene',
+                selectedLocator: '0:title',
+            },
+        };
+        vi.stubGlobal('fetch', fetcher);
+        vi.stubGlobal('WebSocket', AcceptedEditorWebSocket);
+        const pinia = createPinia();
+        setActivePinia(pinia);
+        const wrapper = mount(EditorApp, {
+            global: {
+                plugins: [pinia],
+                stubs: { SceneCanvas: true },
+            },
+        });
+
+        await vi.waitFor(() => expect(wrapper.find('button[aria-label="在此接管"]').exists()).toBe(true));
+        expect(wrapper.text()).toContain('adventure-ui-demo');
+        expect(wrapper.text()).toContain('src/scenes/Menu.scene');
+        await wrapper.get('button[aria-label="在此接管"]').trigger('click');
+        expect(JSON.parse(AcceptedEditorWebSocket.instances[0].sent[0])).toEqual({
+            type: 'editorSessionTakeoverRequested',
+            protocolVersion: 2,
+        });
+
+        AcceptedEditorWebSocket.instances[0].emit('message', JSON.stringify({
+            type: 'editorSessionActive',
+            protocolVersion: 2,
+            resume: {
+                scenePath: 'src/scenes/Menu.scene',
+                selectedLocator: '0:title',
+            },
+        }));
+        await vi.waitFor(() => expect(wrapper.find('.editor-shell').exists()).toBe(true));
+        expect(useEditorUiStore().selectedLocator).toBe('0:title');
+
+        AcceptedEditorWebSocket.instances[0].emit('message', JSON.stringify({
+            type: 'editorSessionStandby',
+            protocolVersion: 2,
+            reason: 'takenOver',
+            resume: {
+                scenePath: 'src/scenes/Menu.scene',
+                selectedLocator: '0:title',
+            },
+        }));
+        await vi.waitFor(() => expect(wrapper.find('button[aria-label="重新接管"]').exists()).toBe(true));
+        expect(wrapper.text()).toContain('此标签页已停止编辑');
+        wrapper.unmount();
+    });
+
     it('manually reloads project context and rebuilds the current preview', async () => {
         const project = {
             name: 'demo',

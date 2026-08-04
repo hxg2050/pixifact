@@ -17,6 +17,8 @@ import {
     readEditorSceneBindings,
     readEditorProject,
     type EditorSessionConnection,
+    type EditorSessionResumeState,
+    type EditorSessionState,
     type EditorProject,
 } from './services/editorApi';
 import { editorSelectionContext } from './services/editorContext';
@@ -33,9 +35,14 @@ const documentRevision = ref(0);
 const error = ref('');
 const draggedAsset = ref<EditorSceneAsset>();
 const refreshing = ref(false);
-const sessionOccupied = ref(false);
+const sessionState = ref<'connecting' | 'active' | 'standby'>('connecting');
+const sessionStateMessage = ref('');
+const standbyReason = ref<'takenOver'>();
+const standbyScenePath = ref<string>();
+const takeoverPending = ref(false);
 let unsubscribeDocument: (() => void) | undefined;
-let sessionConnection: Extract<EditorSessionConnection, { status: 'accepted' }> | undefined;
+let sessionConnection: EditorSessionConnection | undefined;
+let sessionStateRevision = 0;
 let projectChangeTimer: ReturnType<typeof setTimeout> | undefined;
 let projectRefreshQueue = Promise.resolve();
 const pendingProjectChanges = new Set<string>();
@@ -68,10 +75,13 @@ function bindDocument(next: SceneDocument, selection?: string) {
     });
 }
 
-async function openScene(path: string) {
+async function openScene(path: string, selection?: string) {
+    const revision = sessionStateRevision;
     error.value = '';
     try {
-        bindDocument(await SceneDocument.open(path, editorSceneFileApi));
+        const next = await SceneDocument.open(path, editorSceneFileApi);
+        if (sessionState.value !== 'active' || revision !== sessionStateRevision) return;
+        bindDocument(next, selection);
     } catch (cause) {
         error.value = cause instanceof Error ? cause.message : String(cause);
     }
@@ -196,28 +206,102 @@ function endAssetDrag() {
     draggedAsset.value = undefined;
 }
 
+function clearWorkspace() {
+    unsubscribeDocument?.();
+    unsubscribeDocument = undefined;
+    document.value = undefined;
+    projectTree.value = undefined;
+    sceneInterfaces.value = {};
+    currentScenePath.value = undefined;
+    selectedLocator.value = undefined;
+    syncState.value = 'synced';
+    documentRevision.value += 1;
+    draggedAsset.value = undefined;
+    refreshing.value = false;
+    pendingProjectChanges.clear();
+    if (projectChangeTimer) {
+        clearTimeout(projectChangeTimer);
+        projectChangeTimer = undefined;
+    }
+}
+
+async function loadActiveWorkspace(resume?: EditorSessionResumeState) {
+    const revision = sessionStateRevision;
+    error.value = '';
+    const [nextProject, nextSceneInterfaces] = await Promise.all([
+        readEditorProject(),
+        readSceneInterfaces(),
+    ]);
+    if (sessionState.value !== 'active' || revision !== sessionStateRevision) return;
+    project.value = nextProject;
+    projectTree.value = createEditorProjectTree(nextProject);
+    sceneInterfaces.value = nextSceneInterfaces;
+    const scenePath = resume?.scenePath ?? nextProject.scenes[0];
+    if (scenePath) {
+        await openScene(scenePath, resume?.selectedLocator);
+    }
+}
+
+async function applyEditorSessionState(next: EditorSessionState) {
+    sessionStateRevision += 1;
+    takeoverPending.value = false;
+    sessionStateMessage.value = next.error ?? '';
+    standbyScenePath.value = next.resume?.scenePath;
+    if (next.status === 'standby') {
+        if (next.reason || sessionState.value !== 'standby') {
+            standbyReason.value = next.reason;
+        }
+        sessionState.value = 'standby';
+        clearWorkspace();
+        if (!project.value) {
+            const revision = sessionStateRevision;
+            try {
+                const nextProject = await readEditorProject();
+                if (sessionState.value === 'standby' && revision === sessionStateRevision) {
+                    project.value = nextProject;
+                }
+            } catch (cause) {
+                sessionStateMessage.value = cause instanceof Error ? cause.message : String(cause);
+            }
+        }
+        return;
+    }
+    standbyReason.value = undefined;
+    sessionState.value = 'active';
+    try {
+        await loadActiveWorkspace(next.resume);
+    } catch (cause) {
+        error.value = cause instanceof Error ? cause.message : String(cause);
+    }
+}
+
+function requestTakeover() {
+    if (!sessionConnection || takeoverPending.value) return;
+    takeoverPending.value = true;
+    sessionStateMessage.value = '';
+    sessionConnection.requestTakeover();
+}
+
 onMounted(async () => {
     window.addEventListener('pointerup', endAssetDrag);
     window.addEventListener('pointercancel', endAssetDrag);
     try {
-        const connection = await connectEditorSession(scheduleProjectChange, () => {
-            sessionConnection = undefined;
-            error.value = 'Editor 与本地项目服务的连接已断开。';
-        });
-        if (connection.status === 'occupied') {
-            sessionOccupied.value = true;
-            return;
-        }
+        const connection = await connectEditorSession(
+            scheduleProjectChange,
+            () => {
+                sessionConnection = undefined;
+                takeoverPending.value = false;
+                const message = 'Editor 与本地项目服务的连接已断开。';
+                if (sessionState.value === 'standby') {
+                    sessionStateMessage.value = message;
+                } else {
+                    error.value = message;
+                }
+            },
+            (next) => void applyEditorSessionState(next),
+        );
         sessionConnection = connection;
-        const [nextProject] = await Promise.all([
-            readEditorProject(),
-            refreshSceneInterfaces(),
-        ]);
-        project.value = nextProject;
-        projectTree.value = createEditorProjectTree(project.value);
-        if (project.value.scenes[0]) {
-            await openScene(project.value.scenes[0]);
-        }
+        await applyEditorSessionState(connection.initialState);
     } catch (cause) {
         error.value = cause instanceof Error ? cause.message : String(cause);
     }
@@ -233,11 +317,28 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main v-if="sessionOccupied" class="editor-session-occupied">
-    <div>
-      <strong>项目已在另一个标签页中打开</strong>
-      <span>请在原标签页继续编辑。</span>
-    </div>
+  <main v-if="sessionState === 'standby'" class="editor-session-standby">
+    <section>
+      <span class="standby-product">PIXIFACT EDITOR</span>
+      <h1>{{ standbyReason === 'takenOver' ? '此标签页已停止编辑' : '项目已在另一个标签页中打开' }}</h1>
+      <div class="standby-context">
+        <span>项目</span>
+        <strong>{{ project?.name }}</strong>
+        <span>当前 Scene</span>
+        <strong>{{ standbyScenePath ?? '尚未打开 Scene' }}</strong>
+      </div>
+      <button
+        type="button"
+        class="takeover-button"
+        :aria-label="standbyReason === 'takenOver' ? '重新接管' : '在此接管'"
+        :disabled="takeoverPending"
+        @click="requestTakeover"
+      >
+        {{ takeoverPending ? '正在接管…' : (standbyReason === 'takenOver' ? '重新接管' : '在此接管') }}
+      </button>
+      <p v-if="sessionStateMessage" class="standby-error">{{ sessionStateMessage }}</p>
+      <p class="standby-note">接管后，另一个标签页将停止编辑。Undo / Redo 和画布视图不会迁移。</p>
+    </section>
   </main>
   <main v-else class="editor-shell">
     <header class="topbar">

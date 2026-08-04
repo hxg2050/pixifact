@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { parseSceneTemplate } from 'pixifact/compiler';
 
-export const editorSessionProtocolVersion = 1;
+export const editorSessionProtocolVersion = 2;
 
 export type EditorContextSyncState = 'synced' | 'saving' | 'conflict' | 'error';
 
@@ -45,6 +45,11 @@ export interface EditorBrowserContext {
         syncState: EditorContextSyncState;
     };
     selection: EditorSelectionContext;
+}
+
+export interface EditorSessionResumeState {
+    scenePath: string;
+    selectedLocator?: string;
 }
 
 export interface EditorContext extends EditorBrowserContext {
@@ -147,43 +152,77 @@ function isEditorBrowserContext(value: unknown): value is EditorBrowserContext {
 export function createEditorHostSession(options: EditorHostSessionOptions) {
     const projectRoot = fs.realpathSync(options.projectRoot);
     const now = options.now ?? (() => new Date());
-    let browser: EditorBrowserSocket | undefined;
+    const browsers = new Set<EditorBrowserSocket>();
+    let activeBrowser: EditorBrowserSocket | undefined;
     let context: EditorContext | undefined;
+    let resume: EditorSessionResumeState | undefined;
+
+    function sendState(
+        socket: EditorBrowserSocket,
+        type: 'editorSessionActive' | 'editorSessionStandby',
+        details: { error?: string; reason?: 'takenOver' } = {},
+    ) {
+        socket.send(JSON.stringify({
+            type,
+            protocolVersion: editorSessionProtocolVersion,
+            ...details,
+            ...(resume ? { resume } : {}),
+        }));
+    }
+
+    function notifyStandbyBrowsers() {
+        for (const socket of browsers) {
+            if (socket !== activeBrowser) sendState(socket, 'editorSessionStandby');
+        }
+    }
 
     function open(socket: EditorBrowserSocket) {
-        if (browser) {
-            socket.send(JSON.stringify({
-                type: 'editorSessionOccupied',
-                protocolVersion: editorSessionProtocolVersion,
-            }));
+        browsers.add(socket);
+        if (activeBrowser) {
+            sendState(socket, 'editorSessionStandby');
             return false;
         }
-        browser = socket;
-        socket.send(JSON.stringify({
-            type: 'editorSessionAccepted',
-            protocolVersion: editorSessionProtocolVersion,
-        }));
+        activeBrowser = socket;
+        sendState(socket, 'editorSessionActive');
         return true;
     }
 
     function close(socket: EditorBrowserSocket) {
-        if (socket === browser) {
-            browser = undefined;
+        browsers.delete(socket);
+        if (socket === activeBrowser) {
+            activeBrowser = undefined;
             context = undefined;
         }
     }
 
     function message(socket: EditorBrowserSocket, data: string | ArrayBuffer | Uint8Array) {
-        if (socket !== browser) {
-            return;
-        }
         const parsed = JSON.parse(String(data)) as Record<string, unknown>;
-        if (parsed.type !== 'editorContextChanged') {
-            return;
-        }
         if (parsed.protocolVersion !== editorSessionProtocolVersion) {
             throw new Error('Editor session protocol version does not match. Restart Pixifact Editor.');
         }
+        if (parsed.type === 'editorSessionTakeoverRequested') {
+            if (!browsers.has(socket) || socket === activeBrowser) return;
+            if (activeBrowser && context?.scene.syncState !== 'synced') {
+                sendState(socket, 'editorSessionStandby', {
+                    error: '当前 Editor 尚未同步，暂时无法接管。',
+                });
+                return;
+            }
+            const previous = activeBrowser;
+            activeBrowser = socket;
+            context = undefined;
+            for (const browser of browsers) {
+                if (browser === socket) {
+                    sendState(browser, 'editorSessionActive');
+                } else {
+                    sendState(browser, 'editorSessionStandby', {
+                        ...(browser === previous ? { reason: 'takenOver' as const } : {}),
+                    });
+                }
+            }
+            return;
+        }
+        if (socket !== activeBrowser || parsed.type !== 'editorContextChanged') return;
         if (!isEditorBrowserContext(parsed.context)) {
             throw new Error('Editor context message is invalid.');
         }
@@ -196,10 +235,17 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
             },
             ...structuredClone(parsed.context),
         };
+        resume = {
+            scenePath: context.scene.path,
+            ...(context.selection.kind === 'node'
+                ? { selectedLocator: context.selection.locator }
+                : {}),
+        };
+        notifyStandbyBrowsers();
     }
 
     function contextResponse() {
-        if (!browser) {
+        if (!activeBrowser) {
             return jsonResponse({
                 ok: false,
                 error: 'No active Editor browser session.',
@@ -272,7 +318,7 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
     }
 
     function notifyProjectFileChanged(changedPath: string) {
-        browser?.send(JSON.stringify({ type: 'projectFileChanged', path: changedPath }));
+        activeBrowser?.send(JSON.stringify({ type: 'projectFileChanged', path: changedPath }));
     }
 
     return {

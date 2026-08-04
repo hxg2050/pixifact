@@ -25,7 +25,7 @@
 | `tests/project-file-tree.test.ts` | 浏览器 Editor 项目树与 runtime preview | 浏览器文件读取、Scene binding、Pixi 节点布局和图片 parser |
 | `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
 | `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、Editor context 路由、path guard、旧 live 命令移除、exit code |
-| `tests/editor-session.test.ts` | Editor Host session / context | 单浏览器会话、context auth、revision 一致性、session discovery |
+| `tests/editor-session.test.ts` | Editor Host session / context | 单活动标签页接管、context auth、revision 一致性、session discovery |
 | `tests/editor-context.test.ts` | Editor context / selection | Scene 与节点 context、Compiler locator、外部 revision 选择重定位 |
 | `tests/scene-script-interface.test.ts` | compiler Scene script contract | `@scene` / `@prop` / `@event` / `@slot` / `@part` 提取，primitive 和 structured prop contract |
 | `tests/scene-compiler.test.ts` | compiler `.scene` parser / serializer / validator / codegen | scene source canonicalization、scene instance contract、structured prop dot-path、generated TypeScript |
