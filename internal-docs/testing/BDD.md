@@ -270,6 +270,7 @@ Scenario: User browses supported assets by project directory
   Then the Editor shows one project-relative directory tree containing only Scenes and images
   And folders are shown before files and can be expanded or collapsed
   And Scene and image leaves show their basename with the full project-relative path on hover
+  And image leaves show a compact preview without changing the tree row layout
   And the current Scene remains selected
   But folders and unsupported files cannot be dragged or edited
 

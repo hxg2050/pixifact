@@ -487,9 +487,24 @@ describe('Editor Vue UI', () => {
         const currentScene = wrapper.get('[data-asset-path="src/scenes/Menu.scene"]');
         const buttonScene = wrapper.get('[data-asset-path="src/scenes/Button.scene"]');
         const image = wrapper.get('[data-asset-path="assets/icons/map.svg"]');
+        const thumbnail = image.get('img.asset-thumbnail');
         expect(currentScene.classes()).toContain('selected');
         expect(currentScene.attributes('title')).toBe('src/scenes/Menu.scene');
         expect(image.attributes('title')).toBe('assets/icons/map.svg');
+        expect(thumbnail.attributes()).toMatchObject({
+            alt: '',
+            draggable: 'false',
+            src: '/api/file?path=assets%2Ficons%2Fmap.svg&generation=0',
+        });
+        const currentProject = wrapper.props().project!;
+        await wrapper.setProps({
+            project: {
+                ...currentProject,
+                files: [...currentProject.files],
+            },
+        });
+        expect(wrapper.get('img.asset-thumbnail').attributes('src'))
+            .toBe('/api/file?path=assets%2Ficons%2Fmap.svg&generation=1');
         await buttonScene.trigger('dblclick');
         expect(wrapper.emitted('openScene')).toEqual([['src/scenes/Button.scene']]);
 

@@ -2,12 +2,11 @@
 import {
     ChevronDown,
     ChevronRight,
-    FileImage,
     Folder,
     FolderOpen,
     PanelsTopLeft,
 } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, reactive } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import type { EditorSceneAsset } from '../document/sceneTree';
 import type { EditorProject, EditorProjectFile } from '../services/editorApi';
 
@@ -45,6 +44,7 @@ const emit = defineEmits<{
     openScene: [path: string];
 }>();
 const collapsedDirectories = reactive(new Set<string>());
+const thumbnailGeneration = ref(0);
 let pendingDrag: {
     asset: EditorSceneAsset;
     pointerId: number;
@@ -126,6 +126,10 @@ function toggleDirectory(path: string) {
     collapsedDirectories.add(path);
 }
 
+function imageThumbnailUrl(path: string) {
+    return `/api/file?path=${encodeURIComponent(path)}&generation=${thumbnailGeneration.value}`;
+}
+
 function prepareAssetDrag(event: PointerEvent, asset: EditorSceneAsset) {
     if (event.button !== 0) return;
     cancelPendingDrag();
@@ -156,6 +160,7 @@ function cancelPendingDrag() {
     pendingDrag = undefined;
 }
 
+watch(() => props.project, () => thumbnailGeneration.value += 1);
 onBeforeUnmount(cancelPendingDrag);
 </script>
 
@@ -209,7 +214,12 @@ onBeforeUnmount(cancelPendingDrag);
         @selectstart.prevent
       >
         <span class="asset-row-spacer" />
-        <FileImage :size="15" />
+        <img
+          class="asset-thumbnail"
+          :src="imageThumbnailUrl(row.node.path)"
+          alt=""
+          draggable="false"
+        />
         <span>{{ row.node.name }}</span>
       </div>
     </template>

@@ -492,7 +492,7 @@ button:disabled {
 
 .asset-row {
     display: grid;
-    grid-template-columns: 14px 16px minmax(0, 1fr);
+    grid-template-columns: 14px 18px minmax(0, 1fr);
     align-items: center;
     gap: 5px;
     width: 100%;
@@ -538,6 +538,14 @@ button.asset-row {
 
 .asset-row .asset-row-spacer {
     width: 14px;
+}
+
+.asset-thumbnail {
+    width: 18px;
+    height: 18px;
+    border-radius: 2px;
+    object-fit: contain;
+    pointer-events: none;
 }
 
 .asset-row.asset-draggable {
