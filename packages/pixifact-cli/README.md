@@ -31,6 +31,22 @@ pixifact scene validate --all
 
 其他命令是辅助入口：`scene create` 用于新建 Scene；`node inspect` 用于查看 `scene inspect` 返回的已知 locator；`editor context` 用于读取当前 Scene 和 selection；`editor screenshot --output <png-path>` 用于截取当前 Authoring Scene。不要使用 `scene get`，file mode 只保留 `scene inspect`。旧 `live ...` 命令已经删除。
 
+## Agent Runtime
+
+启用了 `pixifactRuntimePlugin` 且游戏页面已调用 `registerPixiRuntime` 时，外部 Agent 可以直接查询运行中的 Vite Web 游戏：
+
+```bash
+pixifact runtime list
+pixifact runtime tree
+pixifact runtime node <pixi-uid>
+pixifact runtime state
+pixifact runtime logs --after <seq>
+pixifact runtime input click --x <x> --y <y>
+pixifact runtime input key Space
+```
+
+一个项目只有一个游戏页面时自动选择；打开多个页面时先用 `runtime list` 获取 ID，再对其他命令添加 `--runtime <runtime-id>`。Runtime 只支持开发期只读观测和标准输入事件，不提供 eval、节点修改或业务状态修改。完整接入方式见 [Agent Runtime](https://github.com/hxg2050/pixifact/blob/main/docs/zh/runtime-agent.md)。
+
 ## 浏览器 Editor
 
 在目标项目根目录运行：

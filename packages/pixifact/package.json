@@ -42,6 +42,11 @@
       "import": "./dist/runtime/index.js",
       "require": "./dist/runtime/index.js"
     },
+    "./runtime-dev": {
+      "types": "./dist/runtime-dev/index.d.ts",
+      "import": "./dist/runtime-dev/index.js",
+      "require": "./dist/runtime-dev/index.js"
+    },
     "./scene": {
       "types": "./dist/scene/index.d.ts",
       "import": "./dist/scene/index.js",

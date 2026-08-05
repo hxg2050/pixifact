@@ -14,4 +14,10 @@ export class Main extends Group {
     toggleInventory() {
         this.inventoryPanel.visible = !this.inventoryPanel.visible;
     }
+
+    getRuntimeState() {
+        return {
+            inventoryOpen: this.inventoryPanel.visible,
+        };
+    }
 }

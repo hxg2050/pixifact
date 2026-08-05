@@ -13,6 +13,7 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力。Agent 编排、Git 分�
 - [文档入口](./docs/zh/index.md)：按工作场景查找当前中文文档。
 - [Layout](./docs/zh/layout.md)：设计分辨率、视口适配、frame layout、编辑器布局对齐。
 - [Agent Scene Authoring](./docs/zh/agent-scene-authoring.md)：外部 Agent 如何编辑 `.scene`。
+- [Agent Runtime](./docs/zh/runtime-agent.md)：外部 Agent 如何观察和操作运行中的 Vite Web 游戏。
 - [微信小游戏构建](./docs/zh/wechat-minigame.md)：游戏项目的微信 target、平台 runtime、资源分包和构建产物。
 - [内部文档](./internal-docs/index.md)：仓库维护、测试、发布、计划和历史规格。
 
@@ -174,6 +175,20 @@ pixifact editor screenshot --output /tmp/scene.png
 
 `context` 返回项目、Scene revision、同步状态和当前 selection；`screenshot` 将当前 ready 的 Authoring Scene 以设计尺寸写为 PNG，不包含 Editor UI，也不受画布缩放和平移影响。两者都不修改 `.scene` 或执行项目 runtime。Agent 仍然直接修改 `.scene`，再运行文件校验命令。旧 `live ...` 命令和固定端口 bridge 已删除。
 
+## Agent Runtime
+
+Vite Web 游戏可以选择启用开发期 Runtime，让外部 Agent 不依赖浏览器工具读取真实 PixiJS 节点树、显式业务状态和日志，并通过 renderer 坐标或键盘操作游戏：
+
+```bash
+pixifact runtime list
+pixifact runtime tree
+pixifact runtime state
+pixifact runtime logs --after 42
+pixifact runtime input click --x 640 --y 360
+```
+
+游戏只需在 Vite 配置加入 `pixifactRuntimePlugin`，并在开发启动后调用一次 `registerPixiRuntime(app, { getState? })`。Runtime 直接遍历 `app.stage`，不建立 Scene Instance 树，不提供 eval 或状态 mutation，也不接入 Editor Authoring Preview。完整接入和边界见 [Agent Runtime](./docs/zh/runtime-agent.md)。
+
 ## 项目资产边界
 
 Pixifact Editor 提供项目资产浏览、轻量预览、资源引用和校验，但不负责资源编辑。
@@ -189,6 +204,7 @@ Pixifact Editor 提供项目资产浏览、轻量预览、资源引用和校验�
 ```ts
 import { createSceneRevision, parseSceneTemplate } from 'pixifact/compiler';
 import { Group, Control, Rect, Image, HBoxContainer } from 'pixifact/runtime';
+import { registerPixiRuntime } from 'pixifact/runtime-dev';
 import { prepareSceneClass, scene } from 'pixifact/scene';
 import { createWechatPixiApplication } from 'pixifact/platform/wechat';
 import { parsePixifactProjectConfig } from 'pixifact';

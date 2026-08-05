@@ -14,6 +14,7 @@ Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestra
 - [Layout](./docs/en/layout.md): design resolution, viewport adaptation, frame layout, and editor layout controls.
 - [Scene Objects](./docs/en/scene-objects.md): official `.scene` object tags, props, use cases, and examples.
 - [Agent Scene Authoring](./docs/en/agent-scene-authoring.md): how external agents edit `.scene` source.
+- [Agent Runtime](./docs/en/runtime-agent.md): how external agents observe and operate a running Vite Web game.
 - [WeChat Mini Game Builds](./docs/en/wechat-minigame.md): game target, platform runtime, resource delivery, and build output.
 - [Internal Docs](./internal-docs/index.md): repository maintenance, testing, release, plans, and historical specs.
 
@@ -122,6 +123,20 @@ pixifact editor context
 
 This command only returns the project, Scene revision, sync state, and current selection. It does not modify project files. Agents still edit `.scene` directly and run the file validation commands. The retired `live ...` commands and fixed-port bridge remain removed.
 
+## Agent Runtime
+
+A Vite Web game can opt into the development Runtime so an external agent can read the real PixiJS tree, explicit business state, and logs and can operate the game through renderer coordinates or keyboard input without browser tooling:
+
+```bash
+pixifact runtime list
+pixifact runtime tree
+pixifact runtime state
+pixifact runtime logs --after 42
+pixifact runtime input click --x 640 --y 360
+```
+
+Add `pixifactRuntimePlugin` to the Vite config and call `registerPixiRuntime(app, { getState? })` once after development startup. Runtime traverses `app.stage` directly, maintains no Scene Instance tree, exposes no eval or state mutation, and never registers Editor Authoring Preview. See [Agent Runtime](./docs/en/runtime-agent.md) for setup and boundaries.
+
 ## Project Asset Boundary
 
 Pixifact Editor provides project asset browsing, lightweight previews, resource references, and validation. It does not edit source assets.
@@ -136,6 +151,7 @@ Pixifact Editor provides project asset browsing, lightweight previews, resource 
 
 ```ts
 import { Group } from 'pixifact/runtime';
+import { registerPixiRuntime } from 'pixifact/runtime-dev';
 import { prepareSceneClass, scene } from 'pixifact/scene';
 import { createSceneRevision, parseSceneTemplate } from 'pixifact/compiler';
 import { createWechatPixiApplication } from 'pixifact/platform/wechat';

@@ -105,7 +105,12 @@ describe('sample projects', () => {
 
         const viteConfig = await readFile(join(sampleRoot, 'vite.config.ts'), 'utf8');
         expect(viteConfig).toContain("from 'pixifact/compiler-node'");
+        expect(viteConfig).toContain('pixifactRuntimePlugin({ projectRoot })');
         expect(viteConfig).not.toContain('../../packages/');
+
+        const mainSource = await readFile(join(sampleRoot, 'src', 'main.ts'), 'utf8');
+        expect(mainSource).toContain("await import('pixifact/runtime-dev')");
+        expect(mainSource).toContain('registerPixiRuntime(app');
 
         const tsconfig = await readFile(join(sampleRoot, 'tsconfig.json'), 'utf8');
         expect(tsconfig).not.toContain('../../packages/');

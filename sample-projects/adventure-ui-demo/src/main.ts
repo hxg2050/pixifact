@@ -47,5 +47,13 @@ root.append(app.canvas);
 app.stage.addChild(scene);
 resizeViewport();
 
+if (import.meta.env.DEV) {
+    const { registerPixiRuntime } = await import('pixifact/runtime-dev');
+    registerPixiRuntime(app, {
+        getState: () => scene.getRuntimeState(),
+    });
+    console.info('Adventure UI demo ready');
+}
+
 const resizeObserver = new ResizeObserver(resizeViewport);
 resizeObserver.observe(root);

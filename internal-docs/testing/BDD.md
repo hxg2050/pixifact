@@ -689,6 +689,87 @@ Scenario: Editor constructs the same visual node for Authoring Preview
 
 TDD 入口：`tests/scene-compiler.test.ts`、`tests/project-file-tree.test.ts`。
 
+### BDD-RUNTIME-003 Agent inspects the live PixiJS tree
+
+Feature: Runtime PixiJS tree observation
+
+```gherkin
+Scenario: Agent reads the current game display tree
+  Given a Vite Web game has registered one PixiJS Application
+  When the Agent requests runtime tree
+  Then Pixifact traverses the current app.stage children in their original order
+  And returns PixiJS uid, type, label, transform, display, interaction, and child index fields
+  And does not create a Scene Instance tree or Compiler locator
+
+Scenario: Agent reads one node after the game changes the tree
+  Given the game dynamically adds or removes PixiJS children
+  When the Agent requests runtime node with a current PixiJS uid
+  Then Pixifact traverses app.stage at request time
+  And returns detailed transform, bounds, display, interaction, and supported type-specific fields
+```
+
+TDD 入口：`tests/runtime-client.test.ts`。
+
+### BDD-RUNTIME-004 Agent reads explicit game state and logs
+
+Feature: Runtime state and log observation
+
+```gherkin
+Scenario: Agent reads the current business state
+  Given the game registered getState with registerPixiRuntime
+  When the Agent requests runtime state
+  Then Pixifact invokes getState at request time
+  And returns its JSON snapshot without traversing unrelated JavaScript objects
+
+Scenario: Agent reads logs produced after a known sequence
+  Given the game writes console messages and an Error during development
+  When the Agent requests runtime logs after the previous sequence
+  Then Pixifact returns only matching retained entries with level, time, message, args, and stack
+  And the original browser console behavior is unchanged
+```
+
+TDD 入口：`tests/runtime-client.test.ts`。
+
+### BDD-RUNTIME-005 Agent operates the game through normal input
+
+Feature: Runtime user input
+
+```gherkin
+Scenario: Agent clicks a visible PixiJS control
+  Given runtime node details expose the control global bounds
+  When the Agent sends a click at the bounds center in renderer screen coordinates
+  Then Pixifact maps the coordinate through the Canvas DOM bounds
+  And dispatches the normal pointer event sequence
+  And does not invoke a node method or mutate node state directly
+
+Scenario: Agent sends a game key
+  When the Agent sends key, keydown, or keyup input
+  Then Pixifact dispatches corresponding browser keyboard events
+  And reports only that input dispatch completed
+```
+
+TDD 入口：`tests/runtime-client.test.ts`、`tests/pixifact-cli.test.ts`。
+
+### BDD-RUNTIME-006 CLI discovers Vite game runtimes
+
+Feature: Runtime discovery and transport
+
+```gherkin
+Scenario: Agent queries the only open game page
+  Given the Vite Pixifact plugin registered a loopback project session with a private token
+  And one game page is connected through Vite HMR
+  When the Agent runs a runtime query from that project
+  Then Pixifact automatically selects the only runtime and returns its response
+
+Scenario: More than one game page is open
+  Given two runtime ids are connected for the same project
+  When the Agent runs a runtime query without --runtime
+  Then Pixifact refuses the ambiguous query and lists the available runtime ids
+  And the Agent can repeat the query with --runtime
+```
+
+TDD 入口：`tests/runtime-session.test.ts`、`tests/pixifact-cli.test.ts`。
+
 ## 6. Non-Goals
 
 - Pixifact 不提供内置模型服务、模拟 Agent 服务或内置 AI chat 作为主开发路径。

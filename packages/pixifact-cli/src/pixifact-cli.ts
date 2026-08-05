@@ -7,6 +7,8 @@ import { CompileSceneError, compileScenes } from 'pixifact/compiler-node';
 import type { SceneValidationDiagnostic } from 'pixifact/compiler';
 import { startEditorServer } from './editorServer';
 import { captureEditorScreenshot, queryEditorContext } from './editorSession';
+import { queryRuntime, queryRuntimeList } from './runtimeSession';
+import type { RuntimeLogLevel, RuntimeRequest } from 'pixifact/runtime-dev';
 import {
     buildWechatTarget,
     devWechatTarget,
@@ -22,6 +24,8 @@ interface CliOptions {
     captureEditorScreenshot?: typeof captureEditorScreenshot;
     onWechatDevEvent?: (event: WechatDevEvent) => void;
     readEditorContext?: typeof queryEditorContext;
+    listRuntimes?: typeof queryRuntimeList;
+    queryRuntime?: typeof queryRuntime;
     startEditor?: typeof startEditorServer;
 }
 
@@ -83,6 +87,23 @@ function projectRootFlag(flags: Record<string, string | true>) {
         return process.cwd();
     }
     return requireFlag(flags, 'project-root');
+}
+
+function optionalFlag(flags: Record<string, string | true>, name: string) {
+    const value = flags[name];
+    return value === undefined ? undefined : requireFlag(flags, name);
+}
+
+function finiteNumberFlag(flags: Record<string, string | true>, name: string) {
+    const value = Number(requireFlag(flags, name));
+    if (!Number.isFinite(value)) throw new Error(`--${name} must be a finite number.`);
+    return value;
+}
+
+function nonNegativeInteger(value: string | undefined, error: string) {
+    const number = Number(value);
+    if (!Number.isInteger(number) || number < 0) throw new Error(error);
+    return number;
 }
 
 function jsonLine(value: unknown) {
@@ -232,9 +253,65 @@ async function executeFileCommand(
     startEditor: typeof startEditorServer = startEditorServer,
     readEditorContext: typeof queryEditorContext = queryEditorContext,
     captureScreenshot: typeof captureEditorScreenshot = captureEditorScreenshot,
+    listRuntimes: typeof queryRuntimeList = queryRuntimeList,
+    sendRuntimeRequest: typeof queryRuntime = queryRuntime,
 ) {
     const [area, action] = positionals;
     const projectRoot = projectRootFlag(flags);
+
+    if (area === 'runtime' && action === 'list') {
+        return listRuntimes({ projectRoot });
+    }
+
+    if (area === 'runtime' && action !== undefined) {
+        const runtimeId = optionalFlag(flags, 'runtime');
+        let request: RuntimeRequest;
+        if (action === 'tree') {
+            request = { type: 'tree' };
+        } else if (action === 'node') {
+            request = {
+                type: 'node',
+                uid: nonNegativeInteger(
+                    positionals[2],
+                    'Runtime node uid must be a non-negative integer.',
+                ),
+            };
+        } else if (action === 'state') {
+            request = { type: 'state' };
+        } else if (action === 'logs') {
+            const after = flags.after === undefined
+                ? undefined
+                : nonNegativeInteger(requireFlag(flags, 'after'), '--after must be a non-negative integer.');
+            const level = optionalFlag(flags, 'level');
+            if (level && !['debug', 'log', 'info', 'warn', 'error'].includes(level)) {
+                throw new Error('--level must be debug, log, info, warn, or error.');
+            }
+            request = {
+                type: 'logs',
+                ...(after === undefined ? {} : { after }),
+                ...(level === undefined ? {} : { level: level as RuntimeLogLevel }),
+            };
+        } else if (action === 'input') {
+            const inputAction = positionals[2];
+            if (inputAction === 'click' || inputAction === 'move') {
+                request = {
+                    type: 'input',
+                    action: inputAction,
+                    x: finiteNumberFlag(flags, 'x'),
+                    y: finiteNumberFlag(flags, 'y'),
+                };
+            } else if (inputAction === 'key' || inputAction === 'keydown' || inputAction === 'keyup') {
+                const key = positionals[3];
+                if (!key) throw new Error(`runtime input ${inputAction} requires a key.`);
+                request = { type: 'input', action: inputAction, key };
+            } else {
+                throw new Error(`Unknown Pixifact Runtime input "${inputAction ?? ''}".`);
+            }
+        } else {
+            throw new Error(`Unknown Pixifact CLI command "${positionals.join(' ')}".`);
+        }
+        return sendRuntimeRequest({ projectRoot, runtimeId, request });
+    }
 
     if (area === 'editor' && action === undefined) {
         const session = await startEditor({ projectRoot });
@@ -412,6 +489,18 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                     aiValidationAlternatives: [
                         'scene validate --all',
                     ],
+                    runtimeCommands: [
+                        'runtime list',
+                        'runtime tree [--runtime <runtime-id>]',
+                        'runtime node <pixi-uid> [--runtime <runtime-id>]',
+                        'runtime state [--runtime <runtime-id>]',
+                        'runtime logs [--after <seq>] [--level <level>] [--runtime <runtime-id>]',
+                        'runtime input click --x <x> --y <y> [--runtime <runtime-id>]',
+                        'runtime input move --x <x> --y <y> [--runtime <runtime-id>]',
+                        'runtime input key <key> [--runtime <runtime-id>]',
+                        'runtime input keydown <key> [--runtime <runtime-id>]',
+                        'runtime input keyup <key> [--runtime <runtime-id>]',
+                    ],
                     auxiliaryCommands: [
                         'editor',
                         'editor context',
@@ -437,6 +526,8 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
             options.startEditor,
             options.readEditorContext,
             options.captureEditorScreenshot,
+            options.listRuntimes,
+            options.queryRuntime,
         );
         if (isFailedResult(result)) {
             return {

@@ -132,6 +132,18 @@ describe('Pixifact CLI', () => {
             aiValidationAlternatives: [
                 'scene validate --all',
             ],
+            runtimeCommands: [
+                'runtime list',
+                'runtime tree [--runtime <runtime-id>]',
+                'runtime node <pixi-uid> [--runtime <runtime-id>]',
+                'runtime state [--runtime <runtime-id>]',
+                'runtime logs [--after <seq>] [--level <level>] [--runtime <runtime-id>]',
+                'runtime input click --x <x> --y <y> [--runtime <runtime-id>]',
+                'runtime input move --x <x> --y <y> [--runtime <runtime-id>]',
+                'runtime input key <key> [--runtime <runtime-id>]',
+                'runtime input keydown <key> [--runtime <runtime-id>]',
+                'runtime input keyup <key> [--runtime <runtime-id>]',
+            ],
             auxiliaryCommands: [
                 'editor',
                 'editor context',
@@ -144,6 +156,164 @@ describe('Pixifact CLI', () => {
                 projectRoot: 'current working directory',
             },
         });
+    });
+
+    it('lists runtime pages for the current project', async () => {
+        const projectRoot = createTempProject();
+        const listRuntimes = vi.fn(async () => ({
+            ok: true,
+            runtimes: [{
+                runtimeId: 'runtime-a',
+                title: 'Adventure',
+                url: 'http://127.0.0.1:5178/',
+                ready: true,
+            }],
+        }));
+
+        const result = await executePixifactCli([
+            'runtime',
+            'list',
+            '--project-root',
+            projectRoot,
+        ], { listRuntimes });
+
+        expect(result.exitCode).toBe(0);
+        expect(listRuntimes).toHaveBeenCalledWith({ projectRoot });
+        expect(JSON.parse(result.stdout)).toMatchObject({
+            ok: true,
+            runtimes: [{ runtimeId: 'runtime-a' }],
+        });
+    });
+
+    it('queries tree, node, state, and filtered logs through the selected runtime', async () => {
+        const projectRoot = createTempProject();
+        const queryRuntime = vi.fn(async ({ request }: { request: { type: string } }) => ({
+            runtimeId: 'runtime-a',
+            requestType: request.type,
+        }));
+
+        const tree = await executePixifactCli([
+            'runtime',
+            'tree',
+            '--project-root',
+            projectRoot,
+        ], { queryRuntime });
+        const node = await executePixifactCli([
+            'runtime',
+            'node',
+            '42',
+            '--runtime',
+            'runtime-a',
+            '--project-root',
+            projectRoot,
+        ], { queryRuntime });
+        const state = await executePixifactCli([
+            'runtime',
+            'state',
+            '--project-root',
+            projectRoot,
+        ], { queryRuntime });
+        const logs = await executePixifactCli([
+            'runtime',
+            'logs',
+            '--after',
+            '12',
+            '--level',
+            'error',
+            '--project-root',
+            projectRoot,
+        ], { queryRuntime });
+
+        expect([tree, node, state, logs].map((result) => result.exitCode)).toEqual([0, 0, 0, 0]);
+        expect(queryRuntime).toHaveBeenNthCalledWith(1, {
+            projectRoot,
+            runtimeId: undefined,
+            request: { type: 'tree' },
+        });
+        expect(queryRuntime).toHaveBeenNthCalledWith(2, {
+            projectRoot,
+            runtimeId: 'runtime-a',
+            request: { type: 'node', uid: 42 },
+        });
+        expect(queryRuntime).toHaveBeenNthCalledWith(3, {
+            projectRoot,
+            runtimeId: undefined,
+            request: { type: 'state' },
+        });
+        expect(queryRuntime).toHaveBeenNthCalledWith(4, {
+            projectRoot,
+            runtimeId: undefined,
+            request: { type: 'logs', after: 12, level: 'error' },
+        });
+    });
+
+    it('maps pointer and keyboard CLI commands to limited runtime input requests', async () => {
+        const projectRoot = createTempProject();
+        const queryRuntime = vi.fn(async () => ({ runtimeId: 'runtime-a', dispatched: true }));
+
+        const click = await executePixifactCli([
+            'runtime',
+            'input',
+            'click',
+            '--x',
+            '375',
+            '--y',
+            '667',
+            '--project-root',
+            projectRoot,
+        ], { queryRuntime });
+        const key = await executePixifactCli([
+            'runtime',
+            'input',
+            'keydown',
+            'ArrowLeft',
+            '--runtime',
+            'runtime-a',
+            '--project-root',
+            projectRoot,
+        ], { queryRuntime });
+
+        expect(click.exitCode).toBe(0);
+        expect(key.exitCode).toBe(0);
+        expect(queryRuntime).toHaveBeenNthCalledWith(1, {
+            projectRoot,
+            runtimeId: undefined,
+            request: { type: 'input', action: 'click', x: 375, y: 667 },
+        });
+        expect(queryRuntime).toHaveBeenNthCalledWith(2, {
+            projectRoot,
+            runtimeId: 'runtime-a',
+            request: { type: 'input', action: 'keydown', key: 'ArrowLeft' },
+        });
+    });
+
+    it('rejects invalid runtime uid, log filters, and input coordinates before transport', async () => {
+        const queryRuntime = vi.fn();
+
+        const invalidNode = await executePixifactCli(['runtime', 'node', 'hero'], { queryRuntime });
+        const invalidLogs = await executePixifactCli([
+            'runtime',
+            'logs',
+            '--level',
+            'fatal',
+        ], { queryRuntime });
+        const invalidInput = await executePixifactCli([
+            'runtime',
+            'input',
+            'click',
+            '--x',
+            'center',
+            '--y',
+            '10',
+        ], { queryRuntime });
+
+        expect([invalidNode, invalidLogs, invalidInput].map((result) => result.exitCode)).toEqual([1, 1, 1]);
+        expect(queryRuntime).not.toHaveBeenCalled();
+        expect(JSON.parse(invalidNode.stderr).error).toBe('Runtime node uid must be a non-negative integer.');
+        expect(JSON.parse(invalidLogs.stderr).error).toBe(
+            '--level must be debug, log, info, warn, or error.',
+        );
+        expect(JSON.parse(invalidInput.stderr).error).toBe('--x must be a finite number.');
     });
 
     it('starts the browser editor for the current project', async () => {
