@@ -249,6 +249,7 @@ Done:
 - 真实浏览器验收完成 13 张 SVG / PNG 缩略图加载；图片自然尺寸均非零，显示尺寸均为 18 x 18，目录树行高保持 29px，console 无 error。
 - Editor 全局快捷键复用现有 SceneDocument Command：Cmd / Ctrl + Z 撤销、Cmd / Ctrl + Shift + Z 重做、Cmd / Ctrl + D 复制、Delete / Backspace 删除，Escape 优先取消当前直接操作再清空选择。
 - 输入、文本域、下拉框和 contenteditable 保留原生键盘行为；真实浏览器验收完成复制、撤销、重做、两种删除键、Escape 和 Inspector 输入保护，`Button.scene` 最终无 diff，console 无 error。
+- `editor-server` 的 macOS 递归 `fs.watch` 集成测试在写入前保留 100ms 原生 watcher 注册时间，默认并行发布检查已稳定通过。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
@@ -266,10 +267,10 @@ Current State:
 - 资产面板按项目真实目录展示 Scene 和图片，目录可折叠；Scene 双击与既有资产 Pointer 拖拽流程保持不变。
 - 资产目录树的图片行显示紧凑真实缩略图，并保留单列树布局与父行 Pointer 拖拽。
 - Editor 已提供基础编辑快捷键，并在可编辑表单控件聚焦时不接管按键。
-- 当前测试集为 17 个测试文件、245 个测试；本次单 worker 全量测试、`editor:typecheck` 和 `editor:frontend:build` 已通过，前次包内容检查和发布安装 smoke 均通过。
+- 当前测试集为 19 个测试文件、269 个测试；默认并行全量测试、核心包构建、Editor 前端构建、包内容检查和发布安装 smoke 均通过。
 
 Currently Failing:
-- 默认并行 `bun run test` 中，既有 `editor-server` 文件监听合并测试偶发在 1 秒等待窗口内收不到全部 macOS `fs.watch` 事件；该测试单独运行和单 worker 全量运行均通过，与本次快捷键路径无代码交集。
+- 无。
 
 Next:
 1. 继续补齐 `pixifact editor` 启动、本机地址限制和项目级服务发现测试。

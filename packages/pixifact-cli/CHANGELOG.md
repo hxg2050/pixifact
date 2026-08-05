@@ -1,5 +1,16 @@
 # pixifact-cli
 
+## 0.6.0
+
+### Minor Changes
+
+- 3bc36d6: 新增 `pixifact editor screenshot --output <png-path>`，通过当前活动浏览器的 Authoring Preview 输出设计尺寸 PNG；新增 Agent Runtime 观测、标准输入和 `runtime tree --output <json-path>` 节点树快照；同时明确 Compiler locator 来源并精简 `scene validate --all` 的成功输出。
+
+### Patch Changes
+
+- Updated dependencies [3bc36d6]
+  - pixifact@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes

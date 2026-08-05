@@ -52,7 +52,7 @@ describe('Editor project service', () => {
             changedPaths.push(changedPath);
         });
         try {
-            await new Promise((resolve) => setImmediate(resolve));
+            await new Promise((resolve) => setTimeout(resolve, 100));
             fs.appendFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.scene'), '\n');
             fs.appendFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.scene'), '\n');
             fs.appendFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.ts'), '\n');
