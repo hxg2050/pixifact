@@ -116,6 +116,13 @@ function isFailedResult(value: unknown): value is CliJsonResult {
         && (value as CliJsonResult).ok === false;
 }
 
+function isRuntimeTreeResult(value: unknown): value is { runtimeId: string; root: unknown } {
+    return typeof value === 'object'
+        && value !== null
+        && typeof (value as { runtimeId?: unknown }).runtimeId === 'string'
+        && 'root' in value;
+}
+
 function compileScenesFailure(error: unknown): CliJsonResult {
     const message = error instanceof Error ? error.message : String(error);
     if (error instanceof CompileSceneError) {
@@ -310,7 +317,28 @@ async function executeFileCommand(
         } else {
             throw new Error(`Unknown Pixifact CLI command "${positionals.join(' ')}".`);
         }
-        return sendRuntimeRequest({ projectRoot, runtimeId, request });
+        const result = await sendRuntimeRequest({ projectRoot, runtimeId, request });
+        if (action !== 'tree' || flags.output === undefined || isFailedResult(result)) {
+            return result;
+        }
+        if (!isRuntimeTreeResult(result)) {
+            throw new Error('Pixifact Runtime returned an invalid tree response.');
+        }
+        const output = path.resolve(requireFlag(flags, 'output'));
+        const capturedAt = new Date().toISOString();
+        fs.mkdirSync(path.dirname(output), { recursive: true });
+        fs.writeFileSync(output, jsonLine({
+            schemaVersion: 1,
+            capturedAt,
+            runtimeId: result.runtimeId,
+            root: result.root,
+        }), 'utf8');
+        return {
+            ok: true,
+            output,
+            runtimeId: result.runtimeId,
+            capturedAt,
+        };
     }
 
     if (area === 'editor' && action === undefined) {
@@ -491,7 +519,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                     ],
                     runtimeCommands: [
                         'runtime list',
-                        'runtime tree [--runtime <runtime-id>]',
+                        'runtime tree [--output <json-path>] [--runtime <runtime-id>]',
                         'runtime node <pixi-uid> [--runtime <runtime-id>]',
                         'runtime state [--runtime <runtime-id>]',
                         'runtime logs [--after <seq>] [--level <level>] [--runtime <runtime-id>]',

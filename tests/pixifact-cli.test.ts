@@ -134,7 +134,7 @@ describe('Pixifact CLI', () => {
             ],
             runtimeCommands: [
                 'runtime list',
-                'runtime tree [--runtime <runtime-id>]',
+                'runtime tree [--output <json-path>] [--runtime <runtime-id>]',
                 'runtime node <pixi-uid> [--runtime <runtime-id>]',
                 'runtime state [--runtime <runtime-id>]',
                 'runtime logs [--after <seq>] [--level <level>] [--runtime <runtime-id>]',
@@ -244,6 +244,76 @@ describe('Pixifact CLI', () => {
             projectRoot,
             runtimeId: undefined,
             request: { type: 'logs', after: 12, level: 'error' },
+        });
+    });
+
+    it('writes a runtime tree snapshot to a JSON file when requested', async () => {
+        const projectRoot = createTempProject();
+        const output = path.join(projectRoot, '.pixifact', 'runtime', 'tree.json');
+        const queryRuntime = vi.fn(async () => ({
+            runtimeId: 'runtime-a',
+            root: {
+                uid: 1,
+                type: 'Container',
+                label: 'stage',
+                children: [{ uid: 2, type: 'Text', label: '背包', children: [] }],
+            },
+        }));
+
+        const result = await executePixifactCli([
+            'runtime',
+            'tree',
+            '--output',
+            output,
+            '--project-root',
+            projectRoot,
+        ], { queryRuntime });
+
+        expect(result.exitCode).toBe(0);
+        expect(queryRuntime).toHaveBeenCalledWith({
+            projectRoot,
+            runtimeId: undefined,
+            request: { type: 'tree' },
+        });
+        const snapshot = JSON.parse(fs.readFileSync(output, 'utf8')) as Record<string, unknown>;
+        expect(snapshot).toMatchObject({
+            schemaVersion: 1,
+            runtimeId: 'runtime-a',
+            root: {
+                uid: 1,
+                children: [{ uid: 2, label: '背包' }],
+            },
+        });
+        expect(typeof snapshot.capturedAt).toBe('string');
+        expect(JSON.parse(result.stdout)).toMatchObject({
+            ok: true,
+            output: path.resolve(output),
+            runtimeId: 'runtime-a',
+        });
+    });
+
+    it('does not write a runtime tree snapshot when the request fails', async () => {
+        const projectRoot = createTempProject();
+        const output = path.join(projectRoot, 'failed-tree.json');
+        const queryRuntime = vi.fn(async () => ({
+            ok: false,
+            error: 'No Pixifact Runtime game page is connected for this project.',
+        }));
+
+        const result = await executePixifactCli([
+            'runtime',
+            'tree',
+            '--output',
+            output,
+            '--project-root',
+            projectRoot,
+        ], { queryRuntime });
+
+        expect(result.exitCode).toBe(1);
+        expect(fs.existsSync(output)).toBe(false);
+        expect(JSON.parse(result.stderr)).toMatchObject({
+            ok: false,
+            error: 'No Pixifact Runtime game page is connected for this project.',
         });
     });
 

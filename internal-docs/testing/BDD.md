@@ -706,9 +706,16 @@ Scenario: Agent reads one node after the game changes the tree
   When the Agent requests runtime node with a current PixiJS uid
   Then Pixifact traverses app.stage at request time
   And returns detailed transform, bounds, display, interaction, and supported type-specific fields
+
+Scenario: Agent saves a large display tree for local JSON search
+  Given a Vite Web game has registered one PixiJS Application
+  When the Agent requests runtime tree with an output path
+  Then Pixifact saves schemaVersion, capturedAt, runtimeId, and the complete root tree as JSON
+  And stdout returns only the output path and capture metadata
+  And a failed runtime request does not create the output file
 ```
 
-TDD 入口：`tests/runtime-client.test.ts`。
+TDD 入口：`tests/runtime-client.test.ts`、`tests/pixifact-cli.test.ts`。
 
 ### BDD-RUNTIME-004 Agent reads explicit game state and logs
 

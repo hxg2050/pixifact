@@ -48,7 +48,7 @@ Run from the game project root:
 
 ```bash
 pixifact runtime list
-pixifact runtime tree
+pixifact runtime tree --output .pixifact/runtime/tree.json
 pixifact runtime node <pixi-uid>
 pixifact runtime state
 pixifact runtime logs
@@ -61,6 +61,14 @@ pixifact runtime state --runtime <runtime-id>
 ```
 
 Both the `runtime-id` and PixiJS `uid` values may change after a page reload. Agents must rediscover them from the current `runtime list` and `runtime tree` output rather than storing them as project data.
+
+`runtime tree` prints the complete tree by default. When the tree is large or needs repeated searching, save a JSON snapshot instead; stdout then contains only the file path and capture metadata:
+
+```bash
+pixifact runtime tree --output .pixifact/runtime/tree.json
+```
+
+The CLI creates the output directory and stores `schemaVersion`, `capturedAt`, `runtimeId`, and `root`. This is a one-time runtime observation file, not a `.scene` data source; generate a new snapshot after a page reload.
 
 ## PixiJS Tree
 
@@ -105,4 +113,3 @@ Programmatically dispatched browser events have `isTrusted === false`, so they c
 - Editor Authoring Preview is not registered and still executes no project gameplay logic.
 - No eval, node mutation, business state mutation, direct node click, Scenario, assertions, state subscriptions, history, screenshots, or persistent logs.
 - The first version does not support WeChat Mini Games, production builds, gamepads, multi-touch, or network capture.
-

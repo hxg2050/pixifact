@@ -129,7 +129,7 @@ A Vite Web game can opt into the development Runtime so an external agent can re
 
 ```bash
 pixifact runtime list
-pixifact runtime tree
+pixifact runtime tree --output .pixifact/runtime/tree.json
 pixifact runtime state
 pixifact runtime logs --after 42
 pixifact runtime input click --x 640 --y 360

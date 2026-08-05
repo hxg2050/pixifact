@@ -56,7 +56,7 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 1. 读取项目 `package.json` 和 Runtime 接入代码，使用项目已有开发命令启动游戏；不要猜启动命令。
 2. 运行 `pixifact runtime list` 发现当前页面；多个页面时为后续命令显式传 `--runtime <runtime-id>`。
 3. 操作前读取 `runtime state` 和 `runtime logs`，记住日志返回的 `latestSeq`。
-4. 用 `runtime tree` 现场发现当前 PixiJS `uid`，需要 bounds 或详细字段时再查询 `runtime node <uid>`。
+4. 用 `runtime tree --output .pixifact/runtime/tree.json` 保存现场节点树，在 JSON 文件中搜索当前 PixiJS `uid`；需要 bounds 或详细字段时再查询 `runtime node <uid>`。
 5. 通过 renderer 坐标或键盘发送 `runtime input`；不要直接调用节点方法或修改运行时状态。
 6. 操作后重新查询 `state`、`tree` 或 `node`，并用 `runtime logs --after <latestSeq>` 验证结果。
 

@@ -36,7 +36,7 @@ if (import.meta.env.DEV) {
 1. 读取 `package.json`，使用项目已有命令启动 Vite 开发服务器，并确保游戏页面已经打开。
 2. 运行 `pixifact runtime list`。只有一个页面时自动选择；多个页面时记录目标 `runtimeId`，后续命令添加 `--runtime <runtime-id>`。
 3. 查询 `pixifact runtime state` 和 `pixifact runtime logs`，把日志的 `latestSeq` 作为操作前基线。
-4. 用 `pixifact runtime tree` 查找当前节点的 `uid`。需要尺寸、`globalBounds`、交互字段或类型信息时运行 `pixifact runtime node <uid>`。
+4. 用 `pixifact runtime tree --output .pixifact/runtime/tree.json` 保存节点树快照，在 JSON 文件中搜索当前节点的 `uid`。需要尺寸、`globalBounds`、交互字段或类型信息时运行 `pixifact runtime node <uid>`。
 5. 使用 `globalBounds` 中心点发送 click，或发送项目真实使用的键盘输入。
 6. 重新查询 state、tree 或 node，并运行 `pixifact runtime logs --after <latestSeq>`。只有可观察结果符合预期，验证才完成。
 
@@ -46,7 +46,7 @@ if (import.meta.env.DEV) {
 
 ```bash
 pixifact runtime list
-pixifact runtime tree [--runtime <runtime-id>]
+pixifact runtime tree [--output <json-path>] [--runtime <runtime-id>]
 pixifact runtime node <pixi-uid> [--runtime <runtime-id>]
 pixifact runtime state [--runtime <runtime-id>]
 pixifact runtime logs [--after <seq>] [--level <level>] [--runtime <runtime-id>]
@@ -58,6 +58,14 @@ pixifact runtime input keyup <key> [--runtime <runtime-id>]
 ```
 
 点击坐标使用 Pixi renderer screen 坐标。先查询目标节点的 `globalBounds`，使用 `x + width / 2`、`y + height / 2` 计算中心点，不要根据截图猜坐标。
+
+`runtime tree` 默认输出完整树。节点很多或需要反复搜索时，保存一次 JSON 快照；此时终端只返回文件路径和采集元数据：
+
+```bash
+pixifact runtime tree --output .pixifact/runtime/tree.json [--runtime <runtime-id>]
+```
+
+快照包含 `schemaVersion`、`capturedAt`、`runtimeId` 和 `root`。它只代表采集时刻的 `app.stage`，不能作为 `.scene` 数据源；页面刷新后必须重新生成，快照中的 `runtimeId` 和 PixiJS `uid` 也不能长期复用。
 
 ## 状态与诊断
 

@@ -20,6 +20,7 @@
 - Transport 由 `pixifactRuntimePlugin` 复用 Vite 开发服务器和现有 HMR WebSocket，不启动额外 Runtime Host 或固定端口。
 - Vite 插件在系统临时目录登记项目级 `{ projectRoot, origin, token }` descriptor；CLI 按当前项目发现，所有 HTTP 请求限制为 loopback origin 并携带私有 token。
 - 一个 Vite 页面只允许一个注册的 `Application`。多个打开页面以每页生成的 `runtimeId` 区分；只有一个时 CLI 自动选择，多个时要求 `--runtime <runtime-id>`。
+- `runtime tree` 默认输出终端 JSON；传入 `--output <json-path>` 时，CLI 保存带有 `schemaVersion`、`capturedAt`、`runtimeId` 和 `root` 的一次性节点树快照。快照不是项目数据源，页面刷新后必须重新生成。
 - 第一版只支持 Vite Web 开发模式；不接入 Editor Authoring Preview、微信小游戏或 production build。
 
 ## Non-Goals
@@ -61,7 +62,7 @@ CLI 第一版命令：
 
 ```bash
 pixifact runtime list
-pixifact runtime tree [--runtime <runtime-id>]
+pixifact runtime tree [--output <json-path>] [--runtime <runtime-id>]
 pixifact runtime node <pixi-uid> [--runtime <runtime-id>]
 pixifact runtime state [--runtime <runtime-id>]
 pixifact runtime logs [--after <seq>] [--level <level>] [--runtime <runtime-id>]
@@ -91,6 +92,7 @@ pixifact runtime input keyup <key> [--runtime <runtime-id>]
 - [x] 浏览器 Runtime：renderer 坐标到 client 坐标换算、click/move/key/keydown/keyup 事件序列。
 - [x] Transport：项目 descriptor 创建/移除、token 校验、runtime announce/disconnect、多页面选择和请求响应/超时。
 - [x] CLI：list、单 runtime 自动选择、多 runtime 强制选择、tree/node/state/logs/input 参数与失败输出。
+- [x] CLI：按需将完整 Runtime 节点树保存为可搜索的 JSON 快照，失败时不创建文件。
 - [x] 示例项目：Vite production build 不包含启动中的 Runtime 注册；开发模式可由 CLI 完成 tree/state/logs/input 查询。
 
 ## Verification
@@ -131,8 +133,9 @@ Done:
 - 已完成 Runtime v1 产品讨论和实现计划。
 - 已实现 `pixifact/runtime-dev`、Vite Runtime plugin、项目 descriptor、CLI runtime 命令和示例项目接入。
 - Runtime client 已通过全局 Symbol 在模块热更新后复用，公开入口只保留 `registerPixiRuntime`。
-- 已通过 19 个测试文件、267 项单 worker 全量测试、核心包构建、Editor 类型检查、Editor 前端构建和示例生产构建。
+- 已通过 19 个测试文件、269 项单 worker 全量测试、核心包构建、Editor 类型检查、Editor 前端构建和示例生产构建。
 - 已在真实 Vite 页面中通过 CLI 完成 runtime list、tree、node、state、logs 和坐标 click；已验证双页面必须显式选择 `--runtime`。
+- 已完成 `runtime tree --output <json-path>`，快照包含采集元数据和当前 `app.stage`，适合 Agent 在文件中搜索，且不写入 `.scene`。
 
 Current State:
 - Runtime v1 实现和验证完成，当前示例开发服务器可在 `http://127.0.0.1:5178/` 使用。

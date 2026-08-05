@@ -181,7 +181,7 @@ Vite Web 游戏可以选择启用开发期 Runtime，让外部 Agent 不依赖�
 
 ```bash
 pixifact runtime list
-pixifact runtime tree
+pixifact runtime tree --output .pixifact/runtime/tree.json
 pixifact runtime state
 pixifact runtime logs --after 42
 pixifact runtime input click --x 640 --y 360

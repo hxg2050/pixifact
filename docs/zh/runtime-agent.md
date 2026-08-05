@@ -48,7 +48,7 @@ if (import.meta.env.DEV) {
 
 ```bash
 pixifact runtime list
-pixifact runtime tree
+pixifact runtime tree --output .pixifact/runtime/tree.json
 pixifact runtime node <pixi-uid>
 pixifact runtime state
 pixifact runtime logs
@@ -61,6 +61,14 @@ pixifact runtime state --runtime <runtime-id>
 ```
 
 页面刷新后 `runtime-id` 和 PixiJS `uid` 都可能变化。Agent 应从当前 `runtime list` 和 `runtime tree` 重新获取，不要把它们保存成项目数据。
+
+`runtime tree` 默认把完整节点树输出到终端。需要反复搜索或避免终端截断时，可以改为保存 JSON 快照，此时终端只返回文件路径和采集元数据：
+
+```bash
+pixifact runtime tree --output .pixifact/runtime/tree.json
+```
+
+CLI 会创建目标目录，并在快照中写入 `schemaVersion`、`capturedAt`、`runtimeId` 和 `root`。快照是一次性的运行时观测文件，不是 `.scene` 的数据源；页面刷新后必须重新生成。
 
 ## PixiJS 节点树
 
@@ -105,4 +113,3 @@ pixifact runtime input keyup ArrowLeft
 - 不接入 Editor Authoring Preview，不执行 Editor 中的项目游戏逻辑。
 - 不支持 eval、节点 mutation、业务状态 mutation、直接节点 click、Scenario、断言、状态订阅、历史、截图或日志持久化。
 - 第一版不支持微信小游戏、production build、手柄、多指触摸或网络抓包。
-
