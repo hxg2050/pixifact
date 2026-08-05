@@ -166,7 +166,7 @@ async function captureScreenshot() {
     };
 }
 
-defineExpose({ captureScreenshot, captureView, restoreView });
+defineExpose({ cancelCurrentInteraction, captureScreenshot, captureView, restoreView });
 
 function fitPreview() {
     if (!preview || !host.value) return;
@@ -504,6 +504,14 @@ function cancelInteraction() {
     }
     resetCanvasCursor();
     updateSelectionOverlay();
+}
+
+function cancelCurrentInteraction() {
+    const active = !!interaction || !!canvasPan || spacePressed.value;
+    cancelInteraction();
+    finishCanvasPan();
+    spacePressed.value = false;
+    return active;
 }
 
 function resetCanvasCursor() {

@@ -364,6 +364,132 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it('runs global editing shortcuts without intercepting Inspector inputs', async () => {
+        const project = {
+            name: 'demo',
+            root: '/demo',
+            scenes: ['src/scenes/Menu.scene'],
+            images: [],
+            files: [
+                { kind: 'scene', path: 'src/scenes/Menu.scene' },
+                { kind: 'script', path: 'src/scenes/Menu.ts' },
+            ],
+        };
+        let diskSource = source;
+        let version = 0;
+        const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+            if (url === '/api/project') return Response.json(project);
+            if (url === '/api/scene-bindings') return Response.json({});
+            if (url.startsWith('/api/scene?')) {
+                if (init?.method === 'PUT') {
+                    diskSource = (JSON.parse(String(init.body)) as { source: string }).source;
+                    version += 1;
+                    return Response.json({
+                        path: 'src/scenes/Menu.scene',
+                        version: `sha256:${version}`,
+                    });
+                }
+                return Response.json({
+                    path: 'src/scenes/Menu.scene',
+                    source: diskSource,
+                    version: `sha256:${version}`,
+                });
+            }
+            throw new Error(`Unexpected Editor request: ${url}`);
+        });
+        vi.stubGlobal('fetch', fetcher);
+        vi.stubGlobal('WebSocket', AcceptedEditorWebSocket);
+        const pinia = createPinia();
+        setActivePinia(pinia);
+        const host = document.createElement('div');
+        document.body.append(host);
+        const wrapper = mount(EditorApp, {
+            attachTo: host,
+            global: {
+                plugins: [pinia],
+                stubs: { SceneCanvas: true },
+            },
+        });
+        const writeCount = () => fetcher.mock.calls.filter(([, init]) => init?.method === 'PUT').length;
+        const pressWindowKey = (init: KeyboardEventInit) => {
+            const event = new KeyboardEvent('keydown', {
+                bubbles: true,
+                cancelable: true,
+                ...init,
+            });
+            window.dispatchEvent(event);
+            return event;
+        };
+
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="0:title"]').exists()).toBe(true));
+        await wrapper.get('[data-locator="0:title"]').trigger('click');
+        const xInput = wrapper.get('input[data-prop="x"]');
+        const inputDuplicate = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            code: 'KeyD',
+            ctrlKey: true,
+            key: 'd',
+        });
+        xInput.element.dispatchEvent(inputDuplicate);
+        xInput.element.dispatchEvent(new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            code: 'Backspace',
+            key: 'Backspace',
+        }));
+        await flushPromises();
+        expect(inputDuplicate.defaultPrevented).toBe(false);
+        expect(writeCount()).toBe(0);
+        expect(useEditorUiStore().selectedLocator).toBe('0:title');
+
+        expect(pressWindowKey({ code: 'KeyD', ctrlKey: true, key: 'd' }).defaultPrevented).toBe(true);
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(true));
+        expect(writeCount()).toBe(1);
+
+        const duplicateInput = wrapper.get('input[data-prop="x"]');
+        duplicateInput.element.dispatchEvent(new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            code: 'KeyZ',
+            key: 'z',
+            metaKey: true,
+        }));
+        await flushPromises();
+        expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(true);
+        expect(writeCount()).toBe(1);
+
+        pressWindowKey({ code: 'KeyZ', key: 'z', metaKey: true });
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(false));
+        expect(writeCount()).toBe(2);
+        pressWindowKey({ code: 'KeyZ', ctrlKey: true, key: 'z', shiftKey: true });
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(true));
+        expect(writeCount()).toBe(3);
+
+        pressWindowKey({ code: 'Delete', key: 'Delete' });
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(false));
+        expect(writeCount()).toBe(4);
+        await wrapper.get('[data-locator="0:title"]').trigger('click');
+        pressWindowKey({ code: 'KeyD', ctrlKey: true, key: 'd' });
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(true));
+        pressWindowKey({ code: 'Backspace', key: 'Backspace' });
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(false));
+        expect(writeCount()).toBe(6);
+
+        await wrapper.get('[data-locator="0:title"]').trigger('pointerdown');
+        expect(wrapper.get('.hierarchy-panel').classes()).toContain('is-dragging');
+        expect(pressWindowKey({ code: 'Escape', key: 'Escape' }).defaultPrevented).toBe(true);
+        await flushPromises();
+        expect(wrapper.get('.hierarchy-panel').classes()).not.toContain('is-dragging');
+        expect(useEditorUiStore().selectedLocator).toBe('0:title');
+        pressWindowKey({ code: 'Escape', key: 'Escape' });
+        expect(useEditorUiStore().selectedLocator).toBeUndefined();
+        expect(writeCount()).toBe(6);
+        wrapper.unmount();
+        host.remove();
+    });
+
     it('creates Image and Scene Instance nodes from indexed project assets', () => {
         const template = parseSceneTemplate([
             '<Scene name="Menu">',

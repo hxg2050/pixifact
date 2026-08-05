@@ -181,6 +181,7 @@ rtk bun run pixifact -- editor
 - [x] 实现项目图片拖入 Inspector 图片资源字段，支持设置、替换和 Undo，不增加资源选择弹窗。
 - [x] 将资产面板改为过滤后的项目相对目录树，保留 Scene 打开、图片拖拽和当前 Scene 高亮。
 - [x] 在资产目录树的图片行显示紧凑真实缩略图，不增加网格模式或新面板。
+- [x] 实现撤销、重做、复制、删除和 Escape 的基础快捷键，并保护可编辑表单控件。
 
 ## Resume Protocol
 
@@ -246,6 +247,8 @@ Done:
 - 真实浏览器验收完成多级目录缩进、完整路径提示、当前 Scene 高亮、图片与其他 Scene 拖拽光标、`assets` 折叠 / 展开和双击打开 `Main.scene`，console 无 error。
 - 图片资产行使用受项目根保护的 `/api/file` 显示 18 x 18 真实缩略图；项目索引更新会递增 URL generation，避免外部替换图片后继续显示浏览器缓存。
 - 真实浏览器验收完成 13 张 SVG / PNG 缩略图加载；图片自然尺寸均非零，显示尺寸均为 18 x 18，目录树行高保持 29px，console 无 error。
+- Editor 全局快捷键复用现有 SceneDocument Command：Cmd / Ctrl + Z 撤销、Cmd / Ctrl + Shift + Z 重做、Cmd / Ctrl + D 复制、Delete / Backspace 删除，Escape 优先取消当前直接操作再清空选择。
+- 输入、文本域、下拉框和 contenteditable 保留原生键盘行为；真实浏览器验收完成复制、撤销、重做、两种删除键、Escape 和 Inspector 输入保护，`Button.scene` 最终无 diff，console 无 error。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
@@ -262,10 +265,11 @@ Current State:
 - Inspector 已支持把资产面板中的项目图片拖入 `texture` 字段进行设置或替换，不包含点击选择器、搜索或资源管理能力。
 - 资产面板按项目真实目录展示 Scene 和图片，目录可折叠；Scene 双击与既有资产 Pointer 拖拽流程保持不变。
 - 资产目录树的图片行显示紧凑真实缩略图，并保留单列树布局与父行 Pointer 拖拽。
-- 当前测试集为 17 个测试文件、243 个测试；本次最小相关测试、`editor:typecheck` 和 `editor:frontend:build` 已通过，前次单 worker 全量测试、包内容检查和发布安装 smoke 均通过。
+- Editor 已提供基础编辑快捷键，并在可编辑表单控件聚焦时不接管按键。
+- 当前测试集为 17 个测试文件、245 个测试；本次单 worker 全量测试、`editor:typecheck` 和 `editor:frontend:build` 已通过，前次包内容检查和发布安装 smoke 均通过。
 
 Currently Failing:
-- 默认并行 `bun run test` 中，既有 `editor-server` 文件监听合并测试偶发在 1 秒等待窗口内收不到全部 macOS `fs.watch` 事件；该测试单独运行和单 worker 全量运行均通过，与截图路径无代码交集。
+- 默认并行 `bun run test` 中，既有 `editor-server` 文件监听合并测试偶发在 1 秒等待窗口内收不到全部 macOS `fs.watch` 事件；该测试单独运行和单 worker 全量运行均通过，与本次快捷键路径无代码交集。
 
 Next:
 1. 继续补齐 `pixifact editor` 启动、本机地址限制和项目级服务发现测试。

@@ -152,6 +152,14 @@ function endDrag() {
     dropTarget.value = undefined;
 }
 
+function cancelCurrentDrag() {
+    const active = !!draggedLocator.value;
+    endDrag();
+    return active;
+}
+
+defineExpose({ cancelCurrentDrag });
+
 function clearDropTargetOutsideHierarchy(event: PointerEvent) {
     const target = event.target;
     if (!(target instanceof Element) || !target.closest('.hierarchy-panel [data-locator]')) {

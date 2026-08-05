@@ -578,6 +578,34 @@ Scenario: User manually refreshes the synchronized Editor
 
 TDD 入口：`tests/editor-vue-ui.test.ts`、`tests/editor-scene-document.test.ts` 与浏览器验收。
 
+### BDD-EDITOR-015 Editor 基础快捷键复用现有编辑命令
+
+Feature: Editor keyboard shortcuts
+
+```gherkin
+Scenario: User edits the selected node with keyboard shortcuts
+  Given an active Editor has a Scene and a selected node
+  And focus is outside an editable form control
+  When the user presses Cmd or Ctrl with Z
+  Then the Editor undoes the latest committed Scene Command
+  When the user presses Cmd or Ctrl with Shift and Z
+  Then the Editor redoes the latest undone Scene Command
+  When the user presses Cmd or Ctrl with D
+  Then the Editor duplicates the selected node through one Scene Command
+  When the user presses Delete or Backspace
+  Then the Editor deletes the selected node through one Scene Command
+  When the user presses Escape
+  Then the Editor cancels the current direct manipulation or clears the selection
+
+Scenario: Editable controls retain their native keyboard behavior
+  Given focus is in an input, textarea, select, or contenteditable element
+  When the user presses an Editor editing shortcut
+  Then the Editor does not prevent the control's native keyboard behavior
+  And it does not execute a Scene Command or clear the selection
+```
+
+TDD 入口：`tests/editor-vue-ui.test.ts`、Editor 浏览器验收。
+
 ## 5. CLI
 
 ### BDD-CLI-001 Inspect and validate compiler scenes

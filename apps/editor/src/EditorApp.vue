@@ -14,7 +14,12 @@ import InspectorPanel from './panels/InspectorPanel.vue';
 import SceneCanvas from './preview/SceneCanvas.vue';
 import type { SceneCanvasView } from './preview/sceneCanvasGeometry';
 import { SceneDocument } from './document/SceneDocument';
-import { remapSceneSelection, type EditorSceneAsset } from './document/sceneTree';
+import {
+    duplicateSceneNode,
+    findSceneTreeEntry,
+    remapSceneSelection,
+    type EditorSceneAsset,
+} from './document/sceneTree';
 import {
     connectEditorSession,
     createEditorProjectTree,
@@ -47,7 +52,11 @@ const sessionStateMessage = ref('');
 const standbyReason = ref<'takenOver'>();
 const standbyScenePath = ref<string>();
 const takeoverPending = ref(false);
+const hierarchyPanel = ref<{
+    cancelCurrentDrag?: () => boolean;
+}>();
 const sceneCanvas = ref<{
+    cancelCurrentInteraction?: () => boolean;
     captureScreenshot?: () => Promise<{
         path: string;
         revision: string;
@@ -387,6 +396,84 @@ async function redo() {
     }
 }
 
+function eventTargetsEditableControl(event: KeyboardEvent) {
+    const target = event.target;
+    return target instanceof Element && !!target.closest(
+        'input, textarea, select, [contenteditable]:not([contenteditable="false"])',
+    );
+}
+
+async function commitShortcutCommand(command: Parameters<SceneDocument['commitCommand']>[0]) {
+    const current = document.value;
+    if (!current) return;
+    error.value = '';
+    try {
+        await current.commitCommand(command);
+    } catch (cause) {
+        error.value = cause instanceof Error ? cause.message : String(cause);
+    }
+}
+
+function duplicateSelection() {
+    const current = document.value;
+    const selection = selectedLocator.value;
+    if (!current || !selection) return;
+    const entry = findSceneTreeEntry(current.template.children, selection);
+    if (!entry || entry.node.kind === 'slotOutlet') return;
+    void commitShortcutCommand({
+        op: 'insertNode',
+        parent: entry.parentLocator,
+        index: entry.index + 1,
+        node: duplicateSceneNode(current.template, entry.node),
+    });
+}
+
+function deleteSelection() {
+    if (!selectedLocator.value) return;
+    void commitShortcutCommand({ op: 'deleteNode', node: selectedLocator.value });
+}
+
+function cancelEditorInteraction() {
+    const canceledAssetDrag = !!draggedAsset.value;
+    const canceledHierarchyDrag = hierarchyPanel.value?.cancelCurrentDrag?.() ?? false;
+    const canceledCanvasInteraction = sceneCanvas.value?.cancelCurrentInteraction?.() ?? false;
+    endAssetDrag();
+    if (!canceledAssetDrag && !canceledHierarchyDrag && !canceledCanvasInteraction) {
+        selectedLocator.value = undefined;
+    }
+}
+
+function handleEditorKeyDown(event: KeyboardEvent) {
+    if (
+        sessionState.value !== 'active'
+        || !document.value
+        || event.repeat
+        || event.altKey
+        || eventTargetsEditableControl(event)
+    ) return;
+    const commandKey = event.metaKey || event.ctrlKey;
+    if (commandKey && event.code === 'KeyZ') {
+        event.preventDefault();
+        if (event.shiftKey) void redo();
+        else void undo();
+        return;
+    }
+    if (commandKey && !event.shiftKey && event.code === 'KeyD') {
+        event.preventDefault();
+        duplicateSelection();
+        return;
+    }
+    if (!commandKey && !event.shiftKey && (event.code === 'Delete' || event.code === 'Backspace')) {
+        event.preventDefault();
+        deleteSelection();
+        return;
+    }
+    if (!commandKey && !event.shiftKey && event.code === 'Escape') {
+        event.preventDefault();
+        cancelEditorInteraction();
+    }
+}
+
 function startAssetDrag(asset: EditorSceneAsset) {
     draggedAsset.value = asset;
     activeLeftTab.value = 'hierarchy';
@@ -483,6 +570,7 @@ function requestTakeover() {
 onMounted(async () => {
     window.addEventListener('pointerup', endAssetDrag);
     window.addEventListener('pointercancel', endAssetDrag);
+    window.addEventListener('keydown', handleEditorKeyDown);
     try {
         const connection = await connectEditorSession(
             scheduleProjectChange,
@@ -511,6 +599,7 @@ onBeforeUnmount(() => {
     sceneOpenGeneration += 1;
     window.removeEventListener('pointerup', endAssetDrag);
     window.removeEventListener('pointercancel', endAssetDrag);
+    window.removeEventListener('keydown', handleEditorKeyDown);
     if (projectChangeTimer) clearTimeout(projectChangeTimer);
     projectChangeGeneration += 1;
     pendingProjectChanges.clear();
@@ -597,6 +686,7 @@ onBeforeUnmount(() => {
           </TabsList>
           <TabsContent class="tab-content" value="hierarchy">
             <HierarchyPanel
+              ref="hierarchyPanel"
               :document="document"
               :dragged-asset="draggedAsset"
               :revision="documentRevision"
