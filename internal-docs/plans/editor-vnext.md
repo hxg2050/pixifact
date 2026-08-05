@@ -179,6 +179,7 @@ rtk bun run pixifact -- editor
 - [x] 实现单 Scene 导航历史，支持从层级或画布双击 Scene Instance 进入，并在返回 / 前进时恢复 selection 和画布视图。
 - [x] 实现 `pixifact editor screenshot --output <png-path>`，复用活动浏览器 Authoring Preview 输出设计尺寸 PNG。
 - [x] 实现项目图片拖入 Inspector 图片资源字段，支持设置、替换和 Undo，不增加资源选择弹窗。
+- [x] 将资产面板改为过滤后的项目相对目录树，保留 Scene 打开、图片拖拽和当前 Scene 高亮。
 
 ## Resume Protocol
 
@@ -240,6 +241,8 @@ Done:
 - Inspector 通过 Compiler field schema 的 `resource: image` 识别 `texture`，项目图片拖入后设置或替换项目相对路径；普通字符串、Scene 资产和 Binding 字段不接收。
 - 图片资源 Command 复用自动保存与 Undo / Redo，但不走通用字符串增量赋值；Authoring Preview 重建 Scene root 并通过项目资源加载器得到 Pixi Texture，Application 与 Canvas 保持长驻。
 - 真实浏览器验收完成 `map.svg -> bag.svg -> Undo map.svg`，两次均保持“已同步”，新版页面无可见错误，示例 Scene 最终无 diff。
+- 资产面板直接从 `project.files` 构建项目相对目录树，只保留 Scene 和图片；目录默认展开并支持本地折叠，文件夹优先排序，不新增 Pinia 项目状态或资源管理入口。
+- 真实浏览器验收完成多级目录缩进、完整路径提示、当前 Scene 高亮、图片与其他 Scene 拖拽光标、`assets` 折叠 / 展开和双击打开 `Main.scene`，console 无 error。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
@@ -254,6 +257,7 @@ Current State:
 - 顶栏返回 / 前进和 Scene Instance 双击入口已闭环，并按每个历史位置恢复 selection 与画布视图。
 - CLI 已提供 `editor screenshot --output <png-path>`；成功输出 Scene、revision、设计尺寸、字节数和绝对输出路径。
 - Inspector 已支持把资产面板中的项目图片拖入 `texture` 字段进行设置或替换，不包含点击选择器、搜索或资源管理能力。
+- 资产面板按项目真实目录展示 Scene 和图片，目录可折叠；Scene 双击与既有资产 Pointer 拖拽流程保持不变。
 - 当前测试集为 17 个测试文件、243 个测试；本次最小相关测试、`editor:typecheck` 和 `editor:frontend:build` 已通过，前次单 worker 全量测试、包内容检查和发布安装 smoke 均通过。
 
 Currently Failing:

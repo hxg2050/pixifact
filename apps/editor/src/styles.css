@@ -490,13 +490,9 @@ button:disabled {
     padding: 7px 0 14px;
 }
 
-.asset-group-label {
-    padding: 10px 12px 5px;
-}
-
 .asset-row {
     display: grid;
-    grid-template-columns: 18px minmax(0, 1fr);
+    grid-template-columns: 14px 16px minmax(0, 1fr);
     align-items: center;
     gap: 5px;
     width: 100%;
@@ -509,6 +505,14 @@ button:disabled {
 
 button.asset-row {
     cursor: pointer;
+}
+
+.asset-directory {
+    color: var(--muted);
+}
+
+.asset-directory svg:nth-of-type(2) {
+    color: #a9c8f8;
 }
 
 .asset-row[data-asset-draggable="true"] {
@@ -530,6 +534,10 @@ button.asset-row {
     font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.asset-row .asset-row-spacer {
+    width: 14px;
 }
 
 .asset-row.asset-draggable {

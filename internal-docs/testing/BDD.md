@@ -264,6 +264,15 @@ Scenario: User opens a source asset
   Then Pixifact delegates to the system default application
   And Pixifact does not edit the asset bytes
 
+Scenario: User browses supported assets by project directory
+  Given the project index contains Scenes, images, scripts, and data files in nested directories
+  When the user opens the asset panel
+  Then the Editor shows one project-relative directory tree containing only Scenes and images
+  And folders are shown before files and can be expanded or collapsed
+  And Scene and image leaves show their basename with the full project-relative path on hover
+  And the current Scene remains selected
+  But folders and unsupported files cannot be dragged or edited
+
 Scenario: User adds an indexed asset to the current Scene
   Given the project asset index contains an image or another Scene
   When the user drags the image or Scene onto the canvas

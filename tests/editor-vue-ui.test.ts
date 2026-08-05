@@ -411,7 +411,13 @@ describe('Editor Vue UI', () => {
                     root: '/demo',
                     scenes: ['src/scenes/Menu.scene', 'src/scenes/Button.scene'],
                     images: ['assets/icons/map.svg'],
-                    files: [],
+                    files: [
+                        { kind: 'scene', path: 'src/scenes/Menu.scene' },
+                        { kind: 'image', path: 'assets/icons/map.svg' },
+                        { kind: 'file', path: 'data/config.json' },
+                        { kind: 'scene', path: 'src/scenes/Button.scene' },
+                        { kind: 'script', path: 'src/scenes/Menu.ts' },
+                    ],
                 },
             },
         });
@@ -436,6 +442,64 @@ describe('Editor Vue UI', () => {
             [{ kind: 'scene', path: 'src/scenes/Button.scene' }],
             [{ kind: 'image', path: 'assets/icons/map.svg' }],
         ]);
+    });
+
+    it('shows supported assets in a collapsible project-relative directory tree', async () => {
+        const wrapper = mount(AssetsPanel, {
+            props: {
+                currentScene: 'src/scenes/Menu.scene',
+                project: {
+                    name: 'demo',
+                    root: '/demo',
+                    scenes: ['src/scenes/Menu.scene', 'src/scenes/Button.scene'],
+                    images: ['assets/icons/map.svg'],
+                    files: [
+                        { kind: 'image', path: 'assets/icons/map.svg' },
+                        { kind: 'file', path: 'data/config.json' },
+                        { kind: 'scene', path: 'src/scenes/Button.scene' },
+                        { kind: 'scene', path: 'src/scenes/Menu.scene' },
+                        { kind: 'script', path: 'src/scenes/Menu.ts' },
+                    ],
+                },
+            },
+        });
+
+        expect(wrapper.find('[data-asset-directory="assets"]').exists()).toBe(true);
+        expect(wrapper.find('[data-asset-directory="assets/icons"]').exists()).toBe(true);
+        expect(wrapper.find('[data-asset-directory="src"]').exists()).toBe(true);
+        expect(wrapper.find('[data-asset-directory="src/scenes"]').exists()).toBe(true);
+        expect(wrapper.find('[data-asset-path="data/config.json"]').exists()).toBe(false);
+        expect(wrapper.find('[data-asset-path="src/scenes/Menu.ts"]').exists()).toBe(false);
+        expect(wrapper.text()).not.toContain('SCENES');
+        expect(wrapper.text()).not.toContain('IMAGES');
+        expect(wrapper.findAll('.asset-row').map((row) => (
+            row.attributes('data-asset-directory') ?? row.attributes('data-asset-path')
+        ))).toEqual([
+            'assets',
+            'assets/icons',
+            'assets/icons/map.svg',
+            'src',
+            'src/scenes',
+            'src/scenes/Button.scene',
+            'src/scenes/Menu.scene',
+        ]);
+
+        const currentScene = wrapper.get('[data-asset-path="src/scenes/Menu.scene"]');
+        const buttonScene = wrapper.get('[data-asset-path="src/scenes/Button.scene"]');
+        const image = wrapper.get('[data-asset-path="assets/icons/map.svg"]');
+        expect(currentScene.classes()).toContain('selected');
+        expect(currentScene.attributes('title')).toBe('src/scenes/Menu.scene');
+        expect(image.attributes('title')).toBe('assets/icons/map.svg');
+        await buttonScene.trigger('dblclick');
+        expect(wrapper.emitted('openScene')).toEqual([['src/scenes/Button.scene']]);
+
+        const assets = wrapper.get('[data-asset-directory="assets"]');
+        expect(assets.attributes('aria-expanded')).toBe('true');
+        await assets.trigger('click');
+        expect(assets.attributes('aria-expanded')).toBe('false');
+        expect(wrapper.find('[data-asset-path="assets/icons/map.svg"]').exists()).toBe(false);
+        await assets.trigger('click');
+        expect(wrapper.find('[data-asset-path="assets/icons/map.svg"]').exists()).toBe(true);
     });
 
     it('assigns unique ids throughout a duplicated subtree', () => {
