@@ -178,6 +178,7 @@ rtk bun run pixifact -- editor
 - [x] 实现外部当前 Scene、引用 Scene、配对脚本和图片的统一实时刷新，并只应用最新 generation。
 - [x] 实现单 Scene 导航历史，支持从层级或画布双击 Scene Instance 进入，并在返回 / 前进时恢复 selection 和画布视图。
 - [x] 实现 `pixifact editor screenshot --output <png-path>`，复用活动浏览器 Authoring Preview 输出设计尺寸 PNG。
+- [x] 实现项目图片拖入 Inspector 图片资源字段，支持设置、替换和 Undo，不增加资源选择弹窗。
 
 ## Resume Protocol
 
@@ -189,7 +190,7 @@ rtk bun run pixifact -- editor
 
 ## Resume Notes
 
-Last updated: 2026-08-04
+Last updated: 2026-08-05
 
 Done:
 - 完成 `pixifact editor` 本地 Bun 服务、127.0.0.1 绑定、系统浏览器启动、项目索引、受 project root 约束的文件读取和 versioned Scene write。
@@ -236,6 +237,9 @@ Done:
 - 真实浏览器验收完成层级与画布双击 `bagButton` 进入 `Button.scene`，返回恢复 `bagButton`，前进恢复 `labelText`；缩放后的子 Scene 画布往返前后像素一致，console 无 warning/error。
 - `editor screenshot` 通过 session protocol v3 请求活动浏览器捕获当前 Preview root；Host 校验同步状态、preview ready、磁盘 revision 和 PNG 响应后再返回 CLI。
 - 真实浏览器验收完成 `BottomMenu.scene` 设计尺寸 `750 x 154` 截图；zoom / pan 前后 PNG 均为 17,760 字节且 SHA-256 完全一致，截图非空、不含 Editor UI，示例项目无 diff，console 无 warning/error。
+- Inspector 通过 Compiler field schema 的 `resource: image` 识别 `texture`，项目图片拖入后设置或替换项目相对路径；普通字符串、Scene 资产和 Binding 字段不接收。
+- 图片资源 Command 复用自动保存与 Undo / Redo，但不走通用字符串增量赋值；Authoring Preview 重建 Scene root 并通过项目资源加载器得到 Pixi Texture，Application 与 Canvas 保持长驻。
+- 真实浏览器验收完成 `map.svg -> bag.svg -> Undo map.svg`，两次均保持“已同步”，新版页面无可见错误，示例 Scene 最终无 diff。
 
 Current State:
 - 第一条纵向闭环可从 CLI 启动并在浏览器中使用。
@@ -249,7 +253,8 @@ Current State:
 - authoring 画布支持滚轮缩放、空格/中键平移和适应窗口，不修改 `.scene` 数据或替换 Pixi Application / Canvas。
 - 顶栏返回 / 前进和 Scene Instance 双击入口已闭环，并按每个历史位置恢复 selection 与画布视图。
 - CLI 已提供 `editor screenshot --output <png-path>`；成功输出 Scene、revision、设计尺寸、字节数和绝对输出路径。
-- 当前全量测试为 17 个测试文件、240 个测试；单 worker 全量测试、`editor:typecheck`、`editor:frontend:build`、包内容检查和发布安装 smoke 均通过。
+- Inspector 已支持把资产面板中的项目图片拖入 `texture` 字段进行设置或替换，不包含点击选择器、搜索或资源管理能力。
+- 当前测试集为 17 个测试文件、243 个测试；本次最小相关测试、`editor:typecheck` 和 `editor:frontend:build` 已通过，前次单 worker 全量测试、包内容检查和发布安装 smoke 均通过。
 
 Currently Failing:
 - 默认并行 `bun run test` 中，既有 `editor-server` 文件监听合并测试偶发在 1 秒等待窗口内收不到全部 macOS `fs.watch` 事件；该测试单独运行和单 worker 全量运行均通过，与截图路径无代码交集。

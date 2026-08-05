@@ -699,6 +699,20 @@ button.asset-row {
     color: var(--muted);
 }
 
+.property-row.is-image-drop-candidate {
+    background: #162b24;
+    box-shadow: inset 2px 0 var(--success);
+    cursor: copy;
+}
+
+.property-row.is-image-drop-candidate:hover {
+    background: #1b372d;
+}
+
+.property-row.is-image-drop-candidate .property-control input[type="text"] {
+    border-color: var(--success);
+}
+
 .property-control {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 24px;

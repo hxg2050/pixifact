@@ -10,6 +10,7 @@ export type PixiScenePropGroup = 'transform' | 'display' | 'sprite' | 'nineSlice
 
 export interface PixiSceneFieldSchema {
     key: string;
+    resource?: 'image';
     type: PixiSceneFieldType;
     options?: readonly (string | number)[];
 }
@@ -264,7 +265,7 @@ const pixiSceneFieldSchemas: Partial<Record<string, PixiSceneFieldSchema>> = {
     eventMode: { key: 'eventMode', type: 'enum', options: ['none', 'passive', 'auto', 'static', 'dynamic'] },
     cursor: { key: 'cursor', type: 'enum', options: ['default', 'pointer', 'text', 'grab', 'grabbing'] },
     label: { key: 'label', type: 'string' },
-    texture: { key: 'texture', type: 'string' },
+    texture: { key: 'texture', type: 'string', resource: 'image' },
     fit: { key: 'fit', type: 'enum', options: ['stretch', 'contain', 'cover', 'none'] },
     anchorX: { key: 'anchorX', type: 'number' },
     anchorY: { key: 'anchorY', type: 'number' },

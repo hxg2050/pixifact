@@ -17,22 +17,27 @@ import {
 } from 'pixifact/compiler';
 import { computed, nextTick, reactive, watch } from 'vue';
 import type { SceneDocument } from '../document/SceneDocument';
-import { findSceneNodeByLocator } from '../document/sceneTree';
+import { findSceneNodeByLocator, type EditorSceneAsset } from '../document/sceneTree';
 
 interface InspectorField {
     binding?: SceneTemplateBindingValue;
     explicit: boolean;
     key: string;
     options?: readonly (string | number)[];
+    resource?: 'image';
     type: PixiSceneFieldType;
     value: string | number | boolean;
 }
 
 const props = defineProps<{
     document?: SceneDocument;
+    draggedAsset?: EditorSceneAsset;
     revision: number;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
     selected?: string;
+}>();
+const emit = defineEmits<{
+    assetDrop: [];
 }>();
 
 const drafts = reactive<Record<string, string | number | boolean>>({});
@@ -104,22 +109,25 @@ const fields = computed<InspectorField[]>(() => {
         ])];
     return keys.flatMap((key) => {
         const contract = selectedInterface.value?.props[key];
-        const schema = contract ? scenePropSchema(contract) : pixiSceneFieldSchema(key);
+        const pixiSchema = contract ? undefined : pixiSceneFieldSchema(key);
+        const schema = contract ? scenePropSchema(contract) : pixiSchema;
         const explicitValue = node.props[key];
         const binding = isSceneTemplateBindingValue(explicitValue) ? explicitValue : undefined;
         const value = binding
             ? resolvedBindingValue(binding, schema?.type, defaults[key])
             : explicitValue ?? (contract ? scenePropDefault(contract) : defaults[key]);
-        if (!schema || value === undefined || typeof value === 'object') {
+        const displayValue = value ?? (pixiSchema?.resource === 'image' ? '' : undefined);
+        if (!schema || displayValue === undefined || typeof displayValue === 'object') {
             return [];
         }
         return [{
             binding,
             explicit: explicitValue !== undefined,
             key,
+            resource: pixiSchema?.resource,
             type: schema.type,
             options: schema.options,
-            value,
+            value: displayValue,
         }];
     });
 });
@@ -193,7 +201,7 @@ function fieldValue(field: InspectorField): InspectorField['value'] {
 }
 
 function preview(field: InspectorField) {
-    if (!props.document || !props.selected) return;
+    if (!props.document || !props.selected || field.resource) return;
     props.document.previewNodeProp(props.selected, field.key, fieldValue(field));
 }
 
@@ -231,6 +239,27 @@ async function unbind(field: InspectorField) {
         error.message = cause instanceof Error ? cause.message : String(cause);
     }
 }
+
+function canDropImage(field: InspectorField) {
+    return field.resource === 'image'
+        && !field.binding
+        && props.draggedAsset?.kind === 'image';
+}
+
+async function dropAsset(field: InspectorField) {
+    const asset = props.draggedAsset;
+    if (!props.document || !props.selected || !asset || asset.kind !== 'image' || !canDropImage(field)) return;
+    emit('assetDrop');
+    error.message = '';
+    try {
+        const save = props.document.commitNodeProp(props.selected, field.key, asset.path);
+        await nextTick();
+        drafts[field.key] = asset.path;
+        await save;
+    } catch (cause) {
+        error.message = cause instanceof Error ? cause.message : String(cause);
+    }
+}
 </script>
 
 <template>
@@ -247,7 +276,14 @@ async function unbind(field: InspectorField) {
     <div v-else-if="selectedNode.kind === 'slotOutlet'" class="panel-empty compact">Slot 内容通过层级树编辑</div>
     <div v-else class="inspector-fields">
       <div class="inspector-section-title">属性</div>
-      <label v-for="field in fields" :key="field.key" class="property-row">
+      <label
+        v-for="field in fields"
+        :key="field.key"
+        class="property-row"
+        :class="{ 'is-image-drop-candidate': canDropImage(field) }"
+        :data-asset-drop-prop="field.resource === 'image' ? field.key : undefined"
+        @pointerup="dropAsset(field)"
+      >
         <span :class="{ inherited: !field.explicit }">{{ field.key }}</span>
         <div class="property-control">
           <div class="property-value">

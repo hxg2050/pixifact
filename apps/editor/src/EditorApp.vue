@@ -636,9 +636,11 @@ onBeforeUnmount(() => {
         <div class="panel-title">INSPECTOR</div>
         <InspectorPanel
           :document="document"
+          :dragged-asset="draggedAsset"
           :revision="documentRevision"
           :scene-interfaces="sceneInterfaces"
           :selected="selectedLocator"
+          @asset-drop="endAssetDrag"
         />
       </aside>
     </section>

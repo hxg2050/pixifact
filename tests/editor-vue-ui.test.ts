@@ -510,6 +510,146 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it('sets an empty Inspector image resource field with one undoable drop', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: [
+                '<Scene name="Menu">',
+                '  <Image id="icon" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const wrapper = mount(InspectorPanel, {
+            props: {
+                document,
+                draggedAsset: { kind: 'image', path: 'assets/icons/bag.svg' },
+                revision: 0,
+                selected: '0:icon',
+            },
+        });
+        const target = wrapper.get('[data-asset-drop-prop="texture"]');
+
+        expect(target.classes()).toContain('is-image-drop-candidate');
+        await target.trigger('pointerup');
+        await flushPromises();
+
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
+        expect(document.source).toContain('texture="assets/icons/bag.svg"');
+        expect(wrapper.emitted('assetDrop')).toEqual([[]]);
+
+        await document.undo();
+        await flushPromises();
+
+        expect(api.writeScene).toHaveBeenCalledTimes(2);
+        expect(document.source).not.toContain('texture=');
+        wrapper.unmount();
+    });
+
+    it('replaces an Inspector image resource field and Undo restores its previous path', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: [
+                '<Scene name="Menu">',
+                '  <Image id="icon" texture="assets/icons/map.svg" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const wrapper = mount(InspectorPanel, {
+            props: {
+                document,
+                draggedAsset: { kind: 'image', path: 'assets/icons/bag.svg' },
+                revision: 0,
+                selected: '0:icon',
+            },
+        });
+
+        await wrapper.get('[data-asset-drop-prop="texture"]').trigger('pointerup');
+        await flushPromises();
+
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
+        expect(document.source).toContain('texture="assets/icons/bag.svg"');
+        expect(document.source).not.toContain('texture="assets/icons/map.svg"');
+
+        await document.undo();
+        await flushPromises();
+
+        expect(document.source).toContain('texture="assets/icons/map.svg"');
+        wrapper.unmount();
+    });
+
+    it('rejects image drops on ordinary strings and bindings, and rejects Scene assets', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: [
+                '<Scene name="Menu">',
+                '  <Text id="title" text="开始" />',
+                '  <Image id="icon" />',
+                '  <Image id="boundIcon" texture="{iconTexture}" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const selected = ref('0:title');
+        const draggedAsset = ref<{ kind: 'image' | 'scene'; path: string }>({
+            kind: 'image',
+            path: 'assets/icons/bag.svg',
+        });
+        const wrapper = mount(defineComponent({
+            setup() {
+                return () => h(InspectorPanel, {
+                    document,
+                    draggedAsset: draggedAsset.value,
+                    revision: 0,
+                    sceneInterfaces: {
+                        'src/scenes/Menu.scene': {
+                            props: {
+                                iconTexture: { type: 'string', default: 'assets/icons/map.svg' },
+                            },
+                            events: {},
+                            slots: {},
+                        },
+                    },
+                    selected: selected.value,
+                });
+            },
+        }));
+
+        expect(wrapper.find('[data-asset-drop-prop]').exists()).toBe(false);
+        await wrapper.get('input[data-prop="text"]').trigger('pointerup');
+
+        selected.value = '1:icon';
+        draggedAsset.value = { kind: 'scene', path: 'src/scenes/Button.scene' };
+        await flushPromises();
+
+        const texture = wrapper.get('[data-asset-drop-prop="texture"]');
+        expect(texture.classes()).not.toContain('is-image-drop-candidate');
+        await texture.trigger('pointerup');
+
+        selected.value = '2:boundIcon';
+        draggedAsset.value = { kind: 'image', path: 'assets/icons/bag.svg' };
+        await flushPromises();
+
+        const boundTexture = wrapper.get('[data-asset-drop-prop="texture"]');
+        expect(boundTexture.classes()).not.toContain('is-image-drop-candidate');
+        expect((boundTexture.get('input').element as HTMLInputElement).disabled).toBe(true);
+        await boundTexture.trigger('pointerup');
+        await flushPromises();
+
+        expect(api.writeScene).not.toHaveBeenCalled();
+        wrapper.unmount();
+    });
+
     it('shows Label box and typography fields in the Inspector', async () => {
         const api = createApi();
         api.readScene.mockResolvedValueOnce({

@@ -274,9 +274,20 @@ Scenario: User adds an indexed asset to the current Scene
   And the insertion is saved as one undoable Scene Command
   And dragging an asset does not select its label text
   But the current Scene cannot be inserted into itself
+
+Scenario: User assigns an indexed image to an Inspector resource field
+  Given an Image node is selected in the Editor
+  And the project asset index contains "assets/icons/bag.svg"
+  When the user drags that image onto the Inspector texture field
+  Then the field shows that it accepts the dragged image
+  And the Editor writes the project-relative image path with one Scene Command
+  And an existing texture path is replaced while an unset texture path is set
+  And the authoring preview reloads the referenced image without assigning the path string to Pixi texture
+  And Undo restores the previous texture value
+  But Scene assets, bound fields, and ordinary string fields are not accepted
 ```
 
-TDD 入口：`tests/editor-vue-ui.test.ts`、`tests/editor-server.test.ts`；系统程序调用仍需补自动化覆盖。
+TDD 入口：`tests/editor-vue-ui.test.ts`、`tests/project-file-tree.test.ts`、`tests/editor-server.test.ts`；系统程序调用仍需补自动化覆盖。
 
 ### BDD-EDITOR-004 Pinia 不保存项目数据
 

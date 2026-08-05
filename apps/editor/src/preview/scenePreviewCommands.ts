@@ -1,5 +1,6 @@
 import {
     isSceneTemplateBindingValue,
+    pixiSceneFieldSchema,
     type CompilerSceneCommand,
 } from 'pixifact/compiler';
 
@@ -12,7 +13,10 @@ export function incrementalScenePreviewCommands(
     const commands = nodePropCommands(command);
     const inverseCommands = nodePropCommands(inverse);
     if (!commands || !inverseCommands) return undefined;
-    if ([...commands, ...inverseCommands].some((child) => isSceneTemplateBindingValue(child.value))) {
+    if ([...commands, ...inverseCommands].some((child) => (
+        isSceneTemplateBindingValue(child.value)
+        || pixiSceneFieldSchema(child.prop)?.resource !== undefined
+    ))) {
         return undefined;
     }
     return commands;

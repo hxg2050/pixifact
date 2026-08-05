@@ -100,7 +100,7 @@ afterEach(() => {
 });
 
 describe('browser Editor runtime preview', () => {
-    it('rebuilds the Scene root for structure and Binding commands only', () => {
+    it('rebuilds the Scene root for structure, Binding, and resource commands', () => {
         expect(incrementalScenePreviewCommands({
             op: 'setNodeProp',
             node: '0:title',
@@ -138,6 +138,18 @@ describe('browser Editor runtime preview', () => {
             node: '0:title',
             prop: 'text',
             value: { kind: 'binding', path: ['label'] },
+        })).toBeUndefined();
+
+        expect(incrementalScenePreviewCommands({
+            op: 'setNodeProp',
+            node: '0:icon',
+            prop: 'texture',
+            value: 'assets/icons/bag.svg',
+        }, {
+            op: 'setNodeProp',
+            node: '0:icon',
+            prop: 'texture',
+            value: 'assets/icons/map.svg',
         })).toBeUndefined();
     });
 
