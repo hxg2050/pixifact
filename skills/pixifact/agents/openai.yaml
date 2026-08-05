@@ -1,4 +1,4 @@
 interface:
   display_name: "Pixifact"
-  short_description: "在 Pixifact 游戏项目中编辑 .scene、脚本契约并运行 CLI 校验"
-  default_prompt: "使用 $pixifact 处理下游 Pixifact 游戏项目的 Scene、UI、HUD、menu 或 runtime 集成工作。"
+  short_description: "在 Pixifact 项目中编辑 Scene、维护脚本契约并验证运行中游戏"
+  default_prompt: "使用 $pixifact 编辑下游游戏的 Scene 或逻辑，并通过 CLI 校验和 Runtime 验证运行结果。"

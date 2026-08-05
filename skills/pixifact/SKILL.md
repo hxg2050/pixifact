@@ -1,6 +1,6 @@
 ---
 name: pixifact
-description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文件（如 src/scenes/Hud.scene）、维护同名 Scene 脚本契约、读取 pixifact.project.json、运行 pixifact summary / scene inspect / scene validate / compile-scenes；适用于 UI、HUD、menu、轻量 Scene 和 runtime 集成任务。
+description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文件、维护同名 Scene 脚本契约并运行 validate / compile；以及在 Vite Web 开发模式下通过 pixifact runtime 读取运行中游戏的 PixiJS 节点、业务状态和日志，发送标准输入并验证行为。适用于 UI、HUD、menu、轻量 Scene、交互逻辑、运行时验证和诊断任务。
 ---
 
 # Pixifact
@@ -49,9 +49,22 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 
 默认项目根是当前工作目录；不在项目根运行时再加 `--project-root <path>`。项目自己的 `bun run build`、`bun run dev` 等命令只作为后续检查或预览入口。
 
+## 运行时验证工作流
+
+任务影响 Vite Web 游戏行为、交互或运行时状态，或者需要诊断运行中游戏时，先完整阅读 `references/runtime-observation.md`，再按以下顺序操作：
+
+1. 读取项目 `package.json` 和 Runtime 接入代码，使用项目已有开发命令启动游戏；不要猜启动命令。
+2. 运行 `pixifact runtime list` 发现当前页面；多个页面时为后续命令显式传 `--runtime <runtime-id>`。
+3. 操作前读取 `runtime state` 和 `runtime logs`，记住日志返回的 `latestSeq`。
+4. 用 `runtime tree` 现场发现当前 PixiJS `uid`，需要 bounds 或详细字段时再查询 `runtime node <uid>`。
+5. 通过 renderer 坐标或键盘发送 `runtime input`；不要直接调用节点方法或修改运行时状态。
+6. 操作后重新查询 `state`、`tree` 或 `node`，并用 `runtime logs --after <latestSeq>` 验证结果。
+
+不要缓存 `runtime-id` 或 PixiJS `uid`。输入命令返回 `dispatched: true` 只表示事件已分发，不代表行为成功。Runtime 信息足够回答问题时不依赖浏览器工具；需要判断像素、构图或动画观感时仍使用项目已有视觉检查方式。
+
 ## 对象和脚本契约
 
-动手前判断见 `references/scene-authoring-decisions.md`。官方 `.scene` 对象、通用属性、对象专属属性、children 规则、slot、event 和 structured prop 写法见 `references/scene-objects.md`。层级结构组织、root 区块、layout container、scroll、overlay 和 inspect 复核见 `references/scene-hierarchy-patterns.md`。`.scene` 与同名 `.ts` 脚本的配对模板、`@part()` / `@prop()` / `@event()` / `@slot()` 模式和常见诊断修复见 `references/scene-script-patterns.md`。不要在 `SKILL.md` 里复制完整对象清单或模板库；如果不确定某个标签、属性、层级或脚本契约是否可写，先读 reference，再以 `pixifact scene validate` 为准。
+动手前判断见 `references/scene-authoring-decisions.md`。官方 `.scene` 对象、通用属性、对象专属属性、children 规则、slot、event 和 structured prop 写法见 `references/scene-objects.md`。层级结构组织、root 区块、layout container、scroll、overlay 和 inspect 复核见 `references/scene-hierarchy-patterns.md`。`.scene` 与同名 `.ts` 脚本的配对模板、`@part()` / `@prop()` / `@event()` / `@slot()` 模式和常见诊断修复见 `references/scene-script-patterns.md`。运行中 Vite Web 游戏的 Runtime 接入、查询、输入和验证边界见 `references/runtime-observation.md`。不要在 `SKILL.md` 里复制完整对象清单或模板库；如果不确定某个标签、属性、层级或脚本契约是否可写，先读 reference，再以 `pixifact scene validate` 为准。
 
 ## 硬性规则
 
@@ -81,4 +94,4 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 
 ## 完成条件
 
-不要只编辑文件就结束。必须运行 validate、compile 和最小相关 build/dev 检查；如果失败，报告准确的失败命令和 diagnostic。
+不要只编辑文件就结束。Scene 改动必须运行 validate、compile 和最小相关 build/dev 检查。已接入 Runtime 且任务影响运行时行为时，必须查询操作前后状态或节点，并检查增量日志；如果失败，报告准确的失败命令和 diagnostic。
