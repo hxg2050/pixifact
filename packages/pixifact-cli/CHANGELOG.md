@@ -1,5 +1,14 @@
 # pixifact-cli
 
+## 0.6.1
+
+### Patch Changes
+
+- 8e06992: 修复浏览器 Editor 在颜色选择器关闭后把十六进制颜色草稿写成数字、进而产生错误颜色和重复提交的问题。
+- 0dccb73: 修复浏览器 Editor Inspector 漏掉 `left`、`right`、`top`、`bottom`、`horizontal` 和 `vertical` 可选布局属性的问题。
+- c28a27a: 调整浏览器 Editor Inspector 的字段布局，按语义分区展示属性，将 `x/y` 等相关数值字段合并到同一行，并让字段名与输入控件保持横向排列。
+  - pixifact@0.6.1
+
 ## 0.6.0
 
 ### Minor Changes
