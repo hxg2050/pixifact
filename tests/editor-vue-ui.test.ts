@@ -715,6 +715,69 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it('keeps color input as hex through change and blur with one commit', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: [
+                '<Scene name="Menu">',
+                '  <Rect id="panel" fillColor="#09101b" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const events: unknown[] = [];
+        const revision = ref(0);
+        document.subscribe((event) => {
+            events.push(event);
+            if (event.type === 'commandApplied') {
+                revision.value += 1;
+            }
+        });
+        const wrapper = mount(defineComponent({
+            setup() {
+                return () => h(InspectorPanel, {
+                    document,
+                    revision: revision.value,
+                    selected: '0:panel',
+                });
+            },
+        }));
+        const input = wrapper.get('input[data-prop="fillColor"]');
+
+        expect((input.element as HTMLInputElement).value).toBe('#09101b');
+        (input.element as HTMLInputElement).value = '#123456';
+        await input.trigger('input');
+
+        expect(events).toContainEqual({
+            type: 'nodePropPreview',
+            locator: '0:panel',
+            prop: 'fillColor',
+            value: 0x123456,
+        });
+
+        await input.trigger('change');
+        await input.trigger('blur');
+        await flushPromises();
+
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
+        expect(document.source).toContain('fillColor="#123456"');
+        expect((wrapper.get('input[data-prop="fillColor"]').element as HTMLInputElement).value).toBe('#123456');
+        expect(events.filter((event) => (
+            typeof event === 'object'
+            && event !== null
+            && 'type' in event
+            && event.type === 'commandApplied'
+        ))).toHaveLength(1);
+
+        await document.undo();
+        await flushPromises();
+        expect(document.source).toContain('fillColor="#09101b"');
+        wrapper.unmount();
+    });
+
     it('shows optional frame layout fields and commits a new constraint', async () => {
         const api = createApi();
         api.readScene.mockResolvedValueOnce({

@@ -375,6 +375,14 @@ Scenario: Inspector groups related fields without changing their behavior
   And unrelated fields such as rotation remain full-width rows
   And every field keeps its own value, binding source, and reset action
   And Scene Instance contract fields appear under Scene Props
+
+Scenario: User commits a color without corrupting its draft value
+  Given an editable color field is selected in the Inspector
+  When the user chooses a new color and closes the color picker
+  Then the preview and .scene file use that exact color
+  And the Inspector continues to display the color as #rrggbb
+  And change followed by blur produces one Scene Command
+  And one Undo restores the previous color
 ```
 
 TDD 入口：`tests/editor-scene-document.test.ts`、`tests/editor-vue-ui.test.ts`。

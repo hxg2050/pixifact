@@ -290,12 +290,16 @@ watch([() => props.selected, () => props.revision, fields], () => {
         delete drafts[key];
     }
     for (const field of fields.value) {
-        drafts[field.key] = field.type === 'color'
-            ? `#${Number(field.value).toString(16).padStart(6, '0').slice(-6)}`
-            : field.value;
+        drafts[field.key] = fieldDraftValue(field, field.value);
     }
     error.message = '';
 }, { immediate: true, flush: 'post' });
+
+function fieldDraftValue(field: InspectorField, value: InspectorField['value']) {
+    return field.type === 'color'
+        ? `#${Number(value).toString(16).padStart(6, '0').slice(-6)}`
+        : value;
+}
 
 function fieldValue(field: InspectorField): InspectorField['value'] {
     const draft = drafts[field.key];
@@ -321,7 +325,7 @@ async function commit(field: InspectorField) {
     try {
         const save = props.document.commitNodeProp(props.selected, field.key, value);
         await nextTick();
-        drafts[field.key] = value;
+        drafts[field.key] = fieldDraftValue(field, value);
         await save;
     } catch (cause) {
         error.message = cause instanceof Error ? cause.message : String(cause);
