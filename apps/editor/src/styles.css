@@ -240,7 +240,7 @@ button:disabled {
 
 .workspace {
     display: grid;
-    grid-template-columns: minmax(190px, 232px) minmax(360px, 1fr) minmax(250px, 296px);
+    grid-template-columns: minmax(190px, 232px) minmax(360px, 1fr) minmax(270px, 296px);
     min-width: 0;
     min-height: 0;
 }
@@ -704,9 +704,7 @@ button.asset-row {
 
 .property-row.is-paired {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    padding-top: 5px;
-    padding-bottom: 5px;
+    gap: 6px;
 }
 
 .property-field {
@@ -717,9 +715,22 @@ button.asset-row {
 }
 
 .property-row.is-paired .property-field {
-    grid-template-columns: minmax(0, 1fr);
-    align-items: start;
-    gap: 3px;
+    grid-template-columns: max-content minmax(0, 1fr);
+    align-items: center;
+    gap: 4px;
+}
+
+.property-row.is-paired .property-field > span {
+    font-size: 10px;
+}
+
+.property-row.is-paired .property-control {
+    grid-template-columns: minmax(0, 1fr) 20px;
+    gap: 2px;
+}
+
+.property-row.is-paired .reset-button {
+    width: 20px;
 }
 
 .property-field > span {
@@ -848,7 +859,7 @@ button.asset-row {
 
 @media (max-width: 860px) {
     .workspace {
-        grid-template-columns: 190px minmax(320px, 1fr) 250px;
+        grid-template-columns: 190px minmax(320px, 1fr) 270px;
     }
 
     .topbar {

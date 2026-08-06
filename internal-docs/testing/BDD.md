@@ -371,6 +371,7 @@ Scenario: Inspector groups related fields without changing their behavior
   Given a node with transform, layout, display, and node-specific properties is selected
   Then the Inspector shows separate semantic sections without collapsible panels
   And related numeric fields such as x and y share one row
+  And each field name and its input control are aligned on that row
   And unrelated fields such as rotation remain full-width rows
   And every field keeps its own value, binding source, and reset action
   And Scene Instance contract fields appear under Scene Props

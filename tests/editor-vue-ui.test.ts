@@ -804,8 +804,10 @@ describe('Editor Vue UI', () => {
         expect(rowProps('left:right')).toEqual(['left', 'right']);
         expect(rowProps('top:bottom')).toEqual(['top', 'bottom']);
         expect(rowProps('rotation')).toEqual(['rotation']);
-        expect(rowProps('leftWidth:rightWidth')).toEqual(['leftWidth', 'rightWidth']);
-        expect(rowProps('topHeight:bottomHeight')).toEqual(['topHeight', 'bottomHeight']);
+        expect(rowProps('leftWidth')).toEqual(['leftWidth']);
+        expect(rowProps('rightWidth')).toEqual(['rightWidth']);
+        expect(rowProps('topHeight')).toEqual(['topHeight']);
+        expect(rowProps('bottomHeight')).toEqual(['bottomHeight']);
         expect(rowProps('anchorX:anchorY')).toEqual(['anchorX', 'anchorY']);
         wrapper.unmount();
     });

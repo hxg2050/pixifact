@@ -63,10 +63,6 @@ const pairedFieldKeys = [
     ['top', 'bottom'],
     ['horizontal', 'vertical'],
     ['anchorX', 'anchorY'],
-    ['tilePositionX', 'tilePositionY'],
-    ['tileScaleX', 'tileScaleY'],
-    ['leftWidth', 'rightWidth'],
-    ['topHeight', 'bottomHeight'],
 ] as const;
 const pairByFieldKey = new Map<string, readonly [string, string]>();
 for (const pair of pairedFieldKeys) {
