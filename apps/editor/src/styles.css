@@ -696,14 +696,33 @@ button.asset-row {
 
 .property-row {
     display: grid;
-    grid-template-columns: minmax(70px, 0.8fr) minmax(120px, 1.4fr);
-    align-items: center;
+    grid-template-columns: minmax(0, 1fr);
     min-height: 34px;
     padding: 3px 8px 3px 12px;
     border-bottom: 1px solid #21252d;
 }
 
-.property-row > span {
+.property-row.is-paired {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+.property-field {
+    display: grid;
+    grid-template-columns: minmax(70px, 0.8fr) minmax(120px, 1.4fr);
+    align-items: center;
+    min-width: 0;
+}
+
+.property-row.is-paired .property-field {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 3px;
+}
+
+.property-field > span {
     overflow: hidden;
     color: var(--text);
     font-size: 11px;
@@ -711,21 +730,21 @@ button.asset-row {
     white-space: nowrap;
 }
 
-.property-row > span.inherited {
+.property-field > span.inherited {
     color: var(--muted);
 }
 
-.property-row.is-image-drop-candidate {
+.property-field.is-image-drop-candidate {
     background: #162b24;
     box-shadow: inset 2px 0 var(--success);
     cursor: copy;
 }
 
-.property-row.is-image-drop-candidate:hover {
+.property-field.is-image-drop-candidate:hover {
     background: #1b372d;
 }
 
-.property-row.is-image-drop-candidate .property-control input[type="text"] {
+.property-field.is-image-drop-candidate .property-control input[type="text"] {
     border-color: var(--success);
 }
 

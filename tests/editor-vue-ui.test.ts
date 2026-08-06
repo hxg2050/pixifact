@@ -764,6 +764,52 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it('groups related Inspector fields into semantic sections and paired rows', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: [
+                '<Scene name="Menu">',
+                '  <NineImage id="panel" texture="assets/panel.png" anchorX="0.5" anchorY="0.5" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const wrapper = mount(InspectorPanel, {
+            props: {
+                document,
+                revision: 0,
+                selected: '0:panel',
+            },
+        });
+
+        expect(wrapper.findAll('[data-inspector-section]').map((section) => ({
+            key: section.attributes('data-inspector-section'),
+            title: section.get('.inspector-section-title').text(),
+        }))).toEqual([
+            { key: 'transform', title: '变换' },
+            { key: 'layout', title: '布局' },
+            { key: 'display', title: '显示与交互' },
+            { key: 'node', title: '节点属性' },
+        ]);
+
+        const rowProps = (key: string) => wrapper.get(`[data-field-row="${key}"]`)
+            .findAll('[data-prop]')
+            .map((control) => control.attributes('data-prop'));
+
+        expect(rowProps('x:y')).toEqual(['x', 'y']);
+        expect(rowProps('width:height')).toEqual(['width', 'height']);
+        expect(rowProps('left:right')).toEqual(['left', 'right']);
+        expect(rowProps('top:bottom')).toEqual(['top', 'bottom']);
+        expect(rowProps('rotation')).toEqual(['rotation']);
+        expect(rowProps('leftWidth:rightWidth')).toEqual(['leftWidth', 'rightWidth']);
+        expect(rowProps('topHeight:bottomHeight')).toEqual(['topHeight', 'bottomHeight']);
+        expect(rowProps('anchorX:anchorY')).toEqual(['anchorX', 'anchorY']);
+        wrapper.unmount();
+    });
+
     it('sets an empty Inspector image resource field with one undoable drop', async () => {
         const api = createApi();
         api.readScene.mockResolvedValueOnce({
@@ -1050,6 +1096,9 @@ describe('Editor Vue UI', () => {
 
         const label = wrapper.get('input[data-prop="label"]');
         const tone = wrapper.get('select[data-prop="tone"]');
+        expect(wrapper.get('[data-inspector-section="props"] .inspector-section-title').text()).toBe('Scene Props');
+        expect(wrapper.get('[data-inspector-section="props"] input[data-prop="label"]').exists()).toBe(true);
+        expect(wrapper.get('[data-inspector-section="props"] select[data-prop="tone"]').exists()).toBe(true);
         expect(wrapper.find('input[data-prop="left"]').exists()).toBe(true);
         expect(wrapper.find('input[data-prop="right"]').exists()).toBe(true);
         expect(wrapper.find('input[data-prop="top"]').exists()).toBe(true);

@@ -30,6 +30,50 @@ interface InspectorField {
     value: string | number | boolean;
 }
 
+type InspectorSectionKey = 'transform' | 'layout' | 'display' | 'node' | 'props';
+
+interface InspectorFieldRow {
+    fields: InspectorField[];
+    key: string;
+}
+
+interface InspectorFieldSection {
+    key: InspectorSectionKey;
+    rows: InspectorFieldRow[];
+    title: string;
+}
+
+const inspectorSections: readonly { key: InspectorSectionKey; title: string }[] = [
+    { key: 'transform', title: '变换' },
+    { key: 'layout', title: '布局' },
+    { key: 'display', title: '显示与交互' },
+    { key: 'node', title: '节点属性' },
+    { key: 'props', title: 'Scene Props' },
+];
+const transformFieldKeys = new Set<string>(pixiSceneTransformProps);
+const layoutFieldKeys = new Set<string>(pixiSceneLayoutProps);
+const displayFieldKeys = new Set<string>(pixiSceneDisplayProps);
+const pairedFieldKeys = [
+    ['x', 'y'],
+    ['width', 'height'],
+    ['scaleX', 'scaleY'],
+    ['pivotX', 'pivotY'],
+    ['skewX', 'skewY'],
+    ['left', 'right'],
+    ['top', 'bottom'],
+    ['horizontal', 'vertical'],
+    ['anchorX', 'anchorY'],
+    ['tilePositionX', 'tilePositionY'],
+    ['tileScaleX', 'tileScaleY'],
+    ['leftWidth', 'rightWidth'],
+    ['topHeight', 'bottomHeight'],
+] as const;
+const pairByFieldKey = new Map<string, readonly [string, string]>();
+for (const pair of pairedFieldKeys) {
+    pairByFieldKey.set(pair[0], pair);
+    pairByFieldKey.set(pair[1], pair);
+}
+
 const props = defineProps<{
     document?: SceneDocument;
     draggedAsset?: EditorSceneAsset;
@@ -144,6 +188,62 @@ const fields = computed<InspectorField[]>(() => {
         }];
     });
 });
+
+const fieldSections = computed<InspectorFieldSection[]>(() => {
+    const node = selectedNode.value;
+    if (!node || node.kind === 'slotOutlet') return [];
+
+    const grouped: Record<InspectorSectionKey, InspectorField[]> = {
+        transform: [],
+        layout: [],
+        display: [],
+        node: [],
+        props: [],
+    };
+    for (const field of fields.value) {
+        let section: InspectorSectionKey;
+        if (node.kind === 'sceneInstance' && selectedInterface.value?.props[field.key]) {
+            section = 'props';
+        } else if (transformFieldKeys.has(field.key)) {
+            section = 'transform';
+        } else if (layoutFieldKeys.has(field.key)) {
+            section = 'layout';
+        } else if (displayFieldKeys.has(field.key)) {
+            section = 'display';
+        } else {
+            section = node.kind === 'sceneInstance' ? 'props' : 'node';
+        }
+        grouped[section].push(field);
+    }
+
+    return inspectorSections.flatMap(({ key, title }) => {
+        const rows = groupFieldRows(grouped[key]);
+        return rows.length > 0 ? [{ key, title, rows }] : [];
+    });
+});
+
+function groupFieldRows(sectionFields: InspectorField[]): InspectorFieldRow[] {
+    const fieldsByKey = new Map(sectionFields.map((field) => [field.key, field]));
+    const consumed = new Set<string>();
+    const rows: InspectorFieldRow[] = [];
+
+    for (const field of sectionFields) {
+        if (consumed.has(field.key)) continue;
+        const pair = pairByFieldKey.get(field.key);
+        const first = pair ? fieldsByKey.get(pair[0]) : undefined;
+        const second = pair ? fieldsByKey.get(pair[1]) : undefined;
+        if (pair && first && second) {
+            rows.push({ key: `${pair[0]}:${pair[1]}`, fields: [first, second] });
+            consumed.add(pair[0]);
+            consumed.add(pair[1]);
+            continue;
+        }
+        rows.push({ key: field.key, fields: [field] });
+        consumed.add(field.key);
+    }
+
+    return rows;
+}
 
 function scenePropSchema(contract: SceneTemplatePropContract) {
     if (contract.type === 'struct') return undefined;
@@ -288,100 +388,115 @@ async function dropAsset(field: InspectorField) {
     <div v-if="!selectedNode" class="panel-empty compact">选择一个节点以编辑属性</div>
     <div v-else-if="selectedNode.kind === 'slotOutlet'" class="panel-empty compact">Slot 内容通过层级树编辑</div>
     <div v-else class="inspector-fields">
-      <div class="inspector-section-title">属性</div>
-      <label
-        v-for="field in fields"
-        :key="field.key"
-        class="property-row"
-        :class="{ 'is-image-drop-candidate': canDropImage(field) }"
-        :data-asset-drop-prop="field.resource === 'image' ? field.key : undefined"
-        @pointerup="dropAsset(field)"
+      <section
+        v-for="section in fieldSections"
+        :key="section.key"
+        class="inspector-section"
+        :data-inspector-section="section.key"
       >
-        <span :class="{ inherited: !field.explicit }">{{ field.key }}</span>
-        <div class="property-control">
-          <div class="property-value">
-          <input
-            v-if="field.type === 'number'"
-            :data-prop="field.key"
-            v-model="drafts[field.key]"
-            :disabled="!!field.binding"
-            type="number"
-            step="any"
-            @input="preview(field)"
-            @change="commit(field)"
-            @blur="commit(field)"
-            @keydown.enter="commit(field); ($event.currentTarget as HTMLInputElement).blur()"
+        <div class="inspector-section-title">{{ section.title }}</div>
+        <div
+          v-for="row in section.rows"
+          :key="row.key"
+          class="property-row"
+          :class="{ 'is-paired': row.fields.length === 2 }"
+          :data-field-row="row.key"
+        >
+          <label
+            v-for="field in row.fields"
+            :key="field.key"
+            class="property-field"
+            :class="{ 'is-image-drop-candidate': canDropImage(field) }"
+            :data-asset-drop-prop="field.resource === 'image' ? field.key : undefined"
+            @pointerup="dropAsset(field)"
           >
-          <input
-            v-else-if="field.type === 'color'"
-            :data-prop="field.key"
-            v-model="drafts[field.key]"
-            :disabled="!!field.binding"
-            type="color"
-            @input="preview(field)"
-            @change="commit(field)"
-            @blur="commit(field)"
-          >
-          <input
-            v-else-if="field.type === 'boolean'"
-            :data-prop="field.key"
-            v-model="drafts[field.key]"
-            :disabled="!!field.binding"
-            type="checkbox"
-            @change="preview(field); commit(field)"
-          >
-          <select
-            v-else-if="field.type === 'enum'"
-            :data-prop="field.key"
-            v-model="drafts[field.key]"
-            :disabled="!!field.binding"
-            @change="preview(field); commit(field)"
-          >
-            <option v-for="option in field.options" :key="option" :value="option">{{ option }}</option>
-          </select>
-          <input
-            v-else
-            :data-prop="field.key"
-            v-model="drafts[field.key]"
-            :disabled="!!field.binding"
-            type="text"
-            @input="preview(field)"
-            @change="commit(field)"
-            @blur="commit(field)"
-            @keydown.enter="commit(field); ($event.currentTarget as HTMLInputElement).blur()"
-          >
-          <span
-            v-if="field.binding"
-            class="binding-source"
-            :data-binding-source="field.key"
-          >
-            <Link2 :size="11" />绑定：{{ field.binding.path.join('.') }}
-          </span>
-          </div>
-          <button
-            v-if="field.binding"
-            class="reset-button"
-            type="button"
-            :data-unbind-prop="field.key"
-            :title="`解除 ${field.key} 的绑定`"
-            :aria-label="`解除 ${field.key} 的绑定`"
-            @click="unbind(field)"
-          >
-            <Unlink2 :size="13" />
-          </button>
-          <button
-            v-else
-            class="reset-button"
-            :disabled="!field.explicit"
-            type="button"
-            :title="`重置 ${field.key}`"
-            :aria-label="`重置 ${field.key}`"
-            @click="reset(field)"
-          >
-            <RotateCcw :size="13" />
-          </button>
+            <span :class="{ inherited: !field.explicit }">{{ field.key }}</span>
+            <div class="property-control">
+              <div class="property-value">
+                <input
+                  v-if="field.type === 'number'"
+                  :data-prop="field.key"
+                  v-model="drafts[field.key]"
+                  :disabled="!!field.binding"
+                  type="number"
+                  step="any"
+                  @input="preview(field)"
+                  @change="commit(field)"
+                  @blur="commit(field)"
+                  @keydown.enter="commit(field); ($event.currentTarget as HTMLInputElement).blur()"
+                >
+                <input
+                  v-else-if="field.type === 'color'"
+                  :data-prop="field.key"
+                  v-model="drafts[field.key]"
+                  :disabled="!!field.binding"
+                  type="color"
+                  @input="preview(field)"
+                  @change="commit(field)"
+                  @blur="commit(field)"
+                >
+                <input
+                  v-else-if="field.type === 'boolean'"
+                  :data-prop="field.key"
+                  v-model="drafts[field.key]"
+                  :disabled="!!field.binding"
+                  type="checkbox"
+                  @change="preview(field); commit(field)"
+                >
+                <select
+                  v-else-if="field.type === 'enum'"
+                  :data-prop="field.key"
+                  v-model="drafts[field.key]"
+                  :disabled="!!field.binding"
+                  @change="preview(field); commit(field)"
+                >
+                  <option v-for="option in field.options" :key="option" :value="option">{{ option }}</option>
+                </select>
+                <input
+                  v-else
+                  :data-prop="field.key"
+                  v-model="drafts[field.key]"
+                  :disabled="!!field.binding"
+                  type="text"
+                  @input="preview(field)"
+                  @change="commit(field)"
+                  @blur="commit(field)"
+                  @keydown.enter="commit(field); ($event.currentTarget as HTMLInputElement).blur()"
+                >
+                <span
+                  v-if="field.binding"
+                  class="binding-source"
+                  :data-binding-source="field.key"
+                >
+                  <Link2 :size="11" />绑定：{{ field.binding.path.join('.') }}
+                </span>
+              </div>
+              <button
+                v-if="field.binding"
+                class="reset-button"
+                type="button"
+                :data-unbind-prop="field.key"
+                :title="`解除 ${field.key} 的绑定`"
+                :aria-label="`解除 ${field.key} 的绑定`"
+                @click="unbind(field)"
+              >
+                <Unlink2 :size="13" />
+              </button>
+              <button
+                v-else
+                class="reset-button"
+                :disabled="!field.explicit"
+                type="button"
+                :title="`重置 ${field.key}`"
+                :aria-label="`重置 ${field.key}`"
+                @click="reset(field)"
+              >
+                <RotateCcw :size="13" />
+              </button>
+            </div>
+          </label>
         </div>
-      </label>
+      </section>
     </div>
     <p v-if="error.message" class="inline-error">{{ error.message }}</p>
   </div>

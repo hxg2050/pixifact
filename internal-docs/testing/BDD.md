@@ -366,6 +366,14 @@ Scenario: User adds or removes an optional frame layout constraint
   Then the authoring preview updates immediately and the value is saved to the .scene file
   When the user resets that field
   Then the layout property is removed from the .scene file and the field becomes empty again
+
+Scenario: Inspector groups related fields without changing their behavior
+  Given a node with transform, layout, display, and node-specific properties is selected
+  Then the Inspector shows separate semantic sections without collapsible panels
+  And related numeric fields such as x and y share one row
+  And unrelated fields such as rotation remain full-width rows
+  And every field keeps its own value, binding source, and reset action
+  And Scene Instance contract fields appear under Scene Props
 ```
 
 TDD 入口：`tests/editor-scene-document.test.ts`、`tests/editor-vue-ui.test.ts`。
