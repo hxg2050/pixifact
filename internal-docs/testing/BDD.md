@@ -357,6 +357,15 @@ Scenario: User changes a numeric node property
   Then one Scene Command is committed
   And the .scene file is saved with its expected file version
   And Undo restores the previous value and saves again
+
+Scenario: User adds or removes an optional frame layout constraint
+  Given a Pixi node or Scene Instance is selected in the Editor
+  Then the Inspector shows left, right, top, bottom, horizontal, and vertical fields
+  And an unset layout field is empty rather than displaying a numeric default
+  When the user enters a layout value
+  Then the authoring preview updates immediately and the value is saved to the .scene file
+  When the user resets that field
+  Then the layout property is removed from the .scene file and the field becomes empty again
 ```
 
 TDD 入口：`tests/editor-scene-document.test.ts`、`tests/editor-vue-ui.test.ts`。

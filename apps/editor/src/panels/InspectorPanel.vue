@@ -5,6 +5,7 @@ import {
     isPixiSceneNodeType,
     pixiSceneDisplayProps,
     pixiSceneFieldSchema,
+    pixiSceneLayoutProps,
     pixiSceneNodeDefaults,
     pixiSceneNodePropKeys,
     pixiSceneTransformProps,
@@ -82,6 +83,12 @@ const commonDefaults: Record<string, string | number | boolean> = {
     pivotY: 0,
     skewX: 0,
     skewY: 0,
+    left: '',
+    right: '',
+    top: '',
+    bottom: '',
+    horizontal: '',
+    vertical: '',
     alpha: 1,
     visible: true,
     zIndex: 0,
@@ -100,9 +107,15 @@ const fields = computed<InspectorField[]>(() => {
         ? { ...commonDefaults, ...pixiSceneNodeDefaults(node.type) }
         : commonDefaults;
     const keys = node.kind === 'pixi' && isPixiSceneNodeType(node.type)
-        ? [...new Set([...pixiSceneTransformProps, ...pixiSceneDisplayProps, ...pixiSceneNodePropKeys(node.type)])]
+        ? [...new Set([
+            ...pixiSceneTransformProps,
+            ...pixiSceneLayoutProps,
+            ...pixiSceneDisplayProps,
+            ...pixiSceneNodePropKeys(node.type),
+        ])]
         : [...new Set([
             ...pixiSceneTransformProps,
+            ...pixiSceneLayoutProps,
             ...pixiSceneDisplayProps,
             ...Object.keys(selectedInterface.value?.props ?? {}),
             ...Object.keys(node.props),

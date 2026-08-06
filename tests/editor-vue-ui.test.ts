@@ -715,6 +715,55 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it('shows optional frame layout fields and commits a new constraint', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: [
+                '<Scene name="Menu">',
+                '  <Rect id="panel" left="20" top="10" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const events: unknown[] = [];
+        document.subscribe((event) => events.push(event));
+        const wrapper = mount(InspectorPanel, {
+            props: {
+                document,
+                revision: 0,
+                selected: '0:panel',
+            },
+        });
+
+        expect((wrapper.get('input[data-prop="left"]').element as HTMLInputElement).value).toBe('20');
+        expect((wrapper.get('input[data-prop="right"]').element as HTMLInputElement).value).toBe('');
+        expect((wrapper.get('input[data-prop="top"]').element as HTMLInputElement).value).toBe('10');
+        expect((wrapper.get('input[data-prop="bottom"]').element as HTMLInputElement).value).toBe('');
+        expect((wrapper.get('input[data-prop="horizontal"]').element as HTMLInputElement).value).toBe('');
+        expect((wrapper.get('input[data-prop="vertical"]').element as HTMLInputElement).value).toBe('');
+
+        const right = wrapper.get('input[data-prop="right"]');
+        (right.element as HTMLInputElement).value = '30';
+        await right.trigger('input');
+
+        expect(events).toContainEqual({
+            type: 'nodePropPreview',
+            locator: '0:panel',
+            prop: 'right',
+            value: 30,
+        });
+
+        await right.trigger('blur');
+        await flushPromises();
+
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
+        expect(api.writeScene.mock.calls[0]?.[1]).toContain('right="30"');
+        wrapper.unmount();
+    });
+
     it('sets an empty Inspector image resource field with one undoable drop', async () => {
         const api = createApi();
         api.readScene.mockResolvedValueOnce({
@@ -1001,6 +1050,12 @@ describe('Editor Vue UI', () => {
 
         const label = wrapper.get('input[data-prop="label"]');
         const tone = wrapper.get('select[data-prop="tone"]');
+        expect(wrapper.find('input[data-prop="left"]').exists()).toBe(true);
+        expect(wrapper.find('input[data-prop="right"]').exists()).toBe(true);
+        expect(wrapper.find('input[data-prop="top"]').exists()).toBe(true);
+        expect(wrapper.find('input[data-prop="bottom"]').exists()).toBe(true);
+        expect(wrapper.find('input[data-prop="horizontal"]').exists()).toBe(true);
+        expect(wrapper.find('input[data-prop="vertical"]').exists()).toBe(true);
         expect((label.element as HTMLInputElement).value).toBe('背包');
         expect((tone.element as HTMLSelectElement).value).toBe('danger');
         expect(tone.findAll('option').map((option) => option.text())).toEqual(['primary', 'danger']);
