@@ -22,6 +22,7 @@ const defaultMainPackageLimit = 4 * 1024 * 1024;
 export interface MiniGameTargetDescriptor {
     configTargetName: 'wechat' | 'douyin';
     displayName: '微信' | '抖音';
+    ecmascriptTarget: 'es2018' | 'es2020';
     mainPackageLimit(hasSubpackages: boolean): number | undefined;
     platformModule: string;
     targetName: 'wechat' | 'douyin';
@@ -90,6 +91,7 @@ const supportedTextureExtensions = new Set(['.jpeg', '.jpg', '.png', '.webp']);
 export const wechatTargetDescriptor: MiniGameTargetDescriptor = {
     configTargetName: 'wechat',
     displayName: '微信',
+    ecmascriptTarget: 'es2020',
     mainPackageLimit: () => defaultMainPackageLimit,
     platformModule: 'pixifact/platform/wechat',
     targetName: 'wechat',
@@ -101,6 +103,7 @@ export const wechatTargetDescriptor: MiniGameTargetDescriptor = {
 export const douyinTargetDescriptor: MiniGameTargetDescriptor = {
     configTargetName: 'douyin',
     displayName: '抖音',
+    ecmascriptTarget: 'es2018',
     mainPackageLimit: (hasSubpackages) => hasSubpackages ? defaultMainPackageLimit : undefined,
     platformModule: 'pixifact/platform/douyin',
     targetName: 'douyin',
@@ -528,7 +531,7 @@ function targetBuildOptions(
         platform: 'browser',
         plugins: [targetScenesPlugin(context, descriptor, manifest)],
         sourcemap: mode === 'development',
-        target: 'es2020',
+        target: descriptor.ecmascriptTarget,
     };
 }
 

@@ -10,6 +10,7 @@
 - 首版不接上传、审核、发布、登录、广告、支付、分享和开放数据域。
 - 抽取内部小游戏公共 Runtime / builder；保留 `pixifact/platform/wechat` 的现有公开 API，不新增旧入口兼容层。
 - 抖音 Scene 纹理首版只支持 PNG、JPEG、WebP；继续拒绝 SVG、HTMLText 和 DOMContainer，直到真实运行时验证通过。
+- 抖音 bundle 输出目标使用 ES2018；抖音真机调试编译器不接受 ES2020 的 `??` 和 `?.`，微信继续使用 ES2020。
 
 ## Non-Goals
 
@@ -38,10 +39,10 @@
 
 ## Test Plan
 
-- [ ] 先写 Douyin project config、CLI target 和 Runtime mock 的失败测试。
-- [ ] 验证 Douyin `subPackages`、`tt` 触摸字段和条件包体规则。
-- [ ] 验证 bundle 在无 DOM/BOM、仅提供 `tt` 的 VM 中启动。
-- [ ] 构建三目标 sample，检查输出文件、资源 manifest 和分包。
+- [x] 先写 Douyin project config、CLI target 和 Runtime mock 的失败测试。
+- [x] 验证 Douyin `subPackages`、`tt` 触摸字段和条件包体规则。
+- [x] 验证 bundle 在无 DOM/BOM、仅提供 `tt` 的 VM 中启动。
+- [x] 构建三目标 sample，检查输出文件、资源 manifest 和分包。
 - [ ] 在抖音开发者工具中导入产物并完成 WebGL、Text、输入、生命周期、资源检查。
 - [ ] 至少在 Android 和 iOS 真机完成启动、触摸、后台恢复和资源加载验证；工具或设备不可用时记录为外部验证缺口。
 
@@ -83,16 +84,20 @@ Done:
 - 已实现抖音 target、CLI 分发、`pixifact/platform/douyin`、三目标示例、文档和测试。
 - `bun run test`（21 个测试文件、283 个测试）、`bun run build`、示例三目标 validate/build、Changeset 状态和 `git diff --check` 均通过。
 - 抖音 production 示例构建报告：主包 508874 bytes、分包 118 bytes、总计 508992 bytes。
+- 已复现真机调试编译器在 `game.js` 的 `??` 处报 `Unexpected token`，将抖音输出目标从 ES2020 调整为 ES2018，并增加产物语法回归测试。
+- 修复后 `bun run test`（21 个测试文件、283 个测试）、`bun run build`、`bun run build:dy` 和 `git diff --check` 均通过；新抖音产物主包 515838 bytes、总计 515956 bytes。
 
 Current State:
 - 仓库自动验证通过，抖音构建产物可生成于 `sample-projects/wechat-minigame-demo/dist/douyin`。
 - 示例 `platforms/douyin/project.config.json` 使用空 `appid` 占位，导入开发者工具前必须替换为真实 AppID。
+- 已重新生成 ES2018 抖音产物，等待开发者工具清缓存后再次执行真机调试。
 
 Currently Failing:
 - 无仓库内自动化失败。
-- 尚未具备抖音开发者工具、抖音 AppID、Android / iOS 真机，因此外部平台验证尚未完成。
+- 用户报告的旧产物真机编译失败已修复，更新后的产物尚待开发者工具复验。
+- Android / iOS 的完整启动、触摸、后台恢复和资源加载验证尚未完成。
 
 Next:
-1. 使用真实抖音 AppID 将 `sample-projects/wechat-minigame-demo/dist/douyin` 导入抖音小游戏开发者工具。
+1. 在抖音开发者工具中清除旧编译缓存，重新导入或编译 `sample-projects/wechat-minigame-demo/dist/douyin` 并执行真机调试。
 2. 按支持矩阵验证启动、WebGL、Text、Graphics、触摸、生命周期、本地 JSON、分包和远程资源。
 3. 在 Android 和 iOS 真机各完成一次启动、触摸、后台恢复和资源加载验证。

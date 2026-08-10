@@ -52,7 +52,9 @@ describe('Douyin Mini Game target', () => {
             name: 'demo-level',
             root: 'subpackages/demo-level',
         }]);
-        await expect(readFile(join(output, 'game.js'), 'utf8')).resolves.toContain('DouyinMiniGame');
+        const bundle = await readFile(join(output, 'game.js'), 'utf8');
+        expect(bundle).toContain('DouyinMiniGame');
+        expect(bundle).not.toMatch(/\?\?|(?:^|[^\d])\?\.(?=[A-Za-z_$[(])/);
         await expect(readFile(join(output, 'subpackages', 'demo-level', 'level.json'), 'utf8')).resolves.toContain('demo-level');
     });
 
@@ -91,6 +93,7 @@ describe('Douyin Mini Game target', () => {
     });
 
     it('only applies the 4 MiB main package limit when subpackages are configured', () => {
+        expect(douyinTargetDescriptor.ecmascriptTarget).toBe('es2018');
         expect(douyinTargetDescriptor.mainPackageLimit(false)).toBeUndefined();
         expect(douyinTargetDescriptor.mainPackageLimit(true)).toBe(4 * 1024 * 1024);
         expect(douyinTargetDescriptor.totalPackageLimit).toBe(20 * 1024 * 1024);
