@@ -27,6 +27,17 @@
           "root": "subpackages/demo-level"
         }
       }
+    },
+    "douyin": {
+      "entry": "src/douyin/main.ts",
+      "configDir": "platforms/douyin",
+      "outDir": "dist/douyin",
+      "resourcePacks": {
+        "demo-level": {
+          "delivery": "subpackage",
+          "root": "subpackages/demo-level"
+        }
+      }
     }
   },
   "run": {

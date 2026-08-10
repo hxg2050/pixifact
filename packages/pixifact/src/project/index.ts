@@ -22,7 +22,7 @@ export interface PixifactProjectResourcePack {
     root: string;
 }
 
-export type PixifactWechatResourcePack = {
+export type PixifactMiniGameResourcePack = {
     delivery: 'subpackage';
     root: string;
 } | {
@@ -30,15 +30,21 @@ export type PixifactWechatResourcePack = {
     baseUrl: string;
 };
 
-export interface PixifactWechatTargetConfig {
+export interface PixifactMiniGameTargetConfig {
     entry: string;
     configDir: string;
     outDir: string;
-    resourcePacks: Record<string, PixifactWechatResourcePack>;
+    resourcePacks: Record<string, PixifactMiniGameResourcePack>;
 }
+
+export type PixifactWechatResourcePack = PixifactMiniGameResourcePack;
+export type PixifactWechatTargetConfig = PixifactMiniGameTargetConfig;
+export type PixifactDouyinResourcePack = PixifactMiniGameResourcePack;
+export type PixifactDouyinTargetConfig = PixifactMiniGameTargetConfig;
 
 export interface PixifactProjectTargets {
     wechat?: PixifactWechatTargetConfig;
+    douyin?: PixifactDouyinTargetConfig;
 }
 
 export interface PixifactProjectConfig {
@@ -195,25 +201,36 @@ function parseResourcePacks(value: unknown): Record<string, PixifactProjectResou
     }));
 }
 
-function parseWechatResourcePacks(value: unknown) {
-    const packs = assertRecord(value, 'targets.wechat.resourcePacks');
+function parseMiniGameResourcePacks(value: unknown, targetName: 'wechat' | 'douyin') {
+    const packs = assertRecord(value, `targets.${targetName}.resourcePacks`);
     return Object.fromEntries(Object.entries(packs).map(([name, packValue]) => {
-        const pack = assertRecord(packValue, `targets.wechat.resourcePacks.${name}`);
-        const delivery = assertString(pack.delivery, `targets.wechat.resourcePacks.${name}.delivery`);
+        const pack = assertRecord(packValue, `targets.${targetName}.resourcePacks.${name}`);
+        const delivery = assertString(pack.delivery, `targets.${targetName}.resourcePacks.${name}.delivery`);
         if (delivery === 'subpackage') {
             return [name, {
                 delivery,
-                root: normalizeProjectChildPath(pack.root, `targets.wechat.resourcePacks.${name}.root`),
-            } satisfies PixifactWechatResourcePack];
+                root: normalizeProjectChildPath(pack.root, `targets.${targetName}.resourcePacks.${name}.root`),
+            } satisfies PixifactMiniGameResourcePack];
         }
         if (delivery === 'remote') {
             return [name, {
                 delivery,
-                baseUrl: assertString(pack.baseUrl, `targets.wechat.resourcePacks.${name}.baseUrl`).replace(/\/+$/, ''),
-            } satisfies PixifactWechatResourcePack];
+                baseUrl: assertString(pack.baseUrl, `targets.${targetName}.resourcePacks.${name}.baseUrl`).replace(/\/+$/, ''),
+            } satisfies PixifactMiniGameResourcePack];
         }
-        throw new Error(`targets.wechat.resourcePacks.${name}.delivery must be subpackage or remote.`);
+        throw new Error(`targets.${targetName}.resourcePacks.${name}.delivery must be subpackage or remote.`);
     }));
+}
+
+function parseMiniGameTarget(value: unknown, targetName: 'wechat' | 'douyin') {
+    const target = assertRecord(value, `targets.${targetName}`);
+    const outDir = normalizeProjectChildPath(target.outDir, `targets.${targetName}.outDir`);
+    return {
+        entry: normalizeProjectPath(target.entry, `targets.${targetName}.entry`),
+        configDir: normalizeProjectPath(target.configDir, `targets.${targetName}.configDir`),
+        outDir,
+        resourcePacks: parseMiniGameResourcePacks(target.resourcePacks, targetName),
+    } satisfies PixifactMiniGameTargetConfig;
 }
 
 function parseTargets(value: unknown): PixifactProjectTargets | undefined {
@@ -221,18 +238,9 @@ function parseTargets(value: unknown): PixifactProjectTargets | undefined {
         return undefined;
     }
     const targets = assertRecord(value, 'targets');
-    if (targets.wechat === undefined) {
-        return {};
-    }
-    const wechat = assertRecord(targets.wechat, 'targets.wechat');
-    const outDir = normalizeProjectChildPath(wechat.outDir, 'targets.wechat.outDir');
     return {
-        wechat: {
-            entry: normalizeProjectPath(wechat.entry, 'targets.wechat.entry'),
-            configDir: normalizeProjectPath(wechat.configDir, 'targets.wechat.configDir'),
-            outDir,
-            resourcePacks: parseWechatResourcePacks(wechat.resourcePacks),
-        },
+        ...(targets.wechat === undefined ? {} : { wechat: parseMiniGameTarget(targets.wechat, 'wechat') }),
+        ...(targets.douyin === undefined ? {} : { douyin: parseMiniGameTarget(targets.douyin, 'douyin') }),
     };
 }
 
@@ -243,9 +251,11 @@ export function parsePixifactProjectConfig(value: unknown): PixifactProjectConfi
     }
     const resourcePacks = parseResourcePacks(config.resourcePacks);
     const targets = parseTargets(config.targets);
-    for (const name of Object.keys(targets?.wechat?.resourcePacks ?? {})) {
-        if (!resourcePacks?.[name]) {
-            throw new Error(`targets.wechat.resourcePacks.${name} must reference resourcePacks.${name}.`);
+    for (const targetName of ['wechat', 'douyin'] as const) {
+        for (const name of Object.keys(targets?.[targetName]?.resourcePacks ?? {})) {
+            if (!resourcePacks?.[name]) {
+                throw new Error(`targets.${targetName}.resourcePacks.${name} must reference resourcePacks.${name}.`);
+            }
         }
     }
     return {

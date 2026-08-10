@@ -99,6 +99,21 @@ pixifact dev --target wechat
 
 完整配置和支持矩阵见 [微信小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/wechat-minigame.md)，可运行示例见 [wechat-minigame-demo](https://github.com/hxg2050/pixifact/tree/main/sample-projects/wechat-minigame-demo)。
 
+## 抖音小游戏 target
+
+项目在 `pixifact.project.json` 声明 `targets.douyin` 后，可运行：
+
+```bash
+pixifact validate --target douyin
+pixifact build --target douyin
+pixifact build --target douyin --mode development
+pixifact dev --target douyin
+```
+
+输出目录由 `targets.douyin.outDir` 决定，可直接导入抖音小游戏开发者工具。CLI 负责 target 校验、Scene 编译、主包资源 hash、`subPackages` 资源分包 / HTTPS 远程资源映射和包体检查：未配置分包时检查 20 MiB 总包，配置分包时检查 4 MiB 主包和 20 MiB 总包。不负责上传、体验版、审核或发布。
+
+完整配置和支持矩阵见 [抖音小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/douyin-minigame.md)，可运行示例见 [wechat-minigame-demo](https://github.com/hxg2050/pixifact/tree/main/sample-projects/wechat-minigame-demo)。
+
 ## 环境要求
 
 - Bun

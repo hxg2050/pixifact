@@ -128,6 +128,9 @@ describe('Pixifact CLI', () => {
                 'validate --target wechat',
                 'build --target wechat',
                 'dev --target wechat',
+                'validate --target douyin',
+                'build --target douyin',
+                'dev --target douyin',
             ],
             aiValidationAlternatives: [
                 'scene validate --all',

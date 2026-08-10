@@ -84,10 +84,24 @@ describe('sample projects', () => {
                 },
             },
         });
+        expect(project.targets.douyin).toEqual({
+            entry: 'src/douyin/main.ts',
+            configDir: 'platforms/douyin',
+            outDir: 'dist/douyin',
+            resourcePacks: {
+                'demo-level': {
+                    delivery: 'subpackage',
+                    root: 'subpackages/demo-level',
+                },
+            },
+        });
         await expect(exists(join(wechatSampleRoot, 'platforms', 'wechat', 'game.json'))).resolves.toBe(true);
         await expect(exists(join(wechatSampleRoot, 'platforms', 'wechat', 'project.config.json'))).resolves.toBe(true);
+        await expect(exists(join(wechatSampleRoot, 'platforms', 'douyin', 'game.json'))).resolves.toBe(true);
+        await expect(exists(join(wechatSampleRoot, 'platforms', 'douyin', 'project.config.json'))).resolves.toBe(true);
         await expect(exists(join(wechatSampleRoot, 'src', 'scenes', 'Main.scene'))).resolves.toBe(true);
         await expect(exists(join(wechatSampleRoot, 'src', 'scenes', 'Main.ts'))).resolves.toBe(true);
+        await expect(exists(join(wechatSampleRoot, 'src', 'douyin', 'main.ts'))).resolves.toBe(true);
     });
 
     it('keeps every adventure UI demo scene paired with a script', async () => {

@@ -66,6 +66,11 @@
       "types": "./dist/platform/wechat/index.d.ts",
       "import": "./dist/platform/wechat/index.js",
       "require": "./dist/platform/wechat/index.js"
+    },
+    "./platform/douyin": {
+      "types": "./dist/platform/douyin/index.d.ts",
+      "import": "./dist/platform/douyin/index.js",
+      "require": "./dist/platform/douyin/index.js"
     }
   },
   "peerDependencies": {

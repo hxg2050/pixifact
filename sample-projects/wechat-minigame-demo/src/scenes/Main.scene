@@ -1,22 +1,22 @@
 <Scene name="Main" width="750" height="1334">
   <Graphics id="background" shape="rect" width="750" height="1334" fill="#09111a" />
   <Text id="titleText" text="PIXIFACT" x="54" y="68" fontSize="52" fontWeight="700" fill="#f4f7fb" />
-  <Text id="platformText" text="Web / 微信小游戏" x="56" y="132" fontSize="26" fill="#58c7e8" />
+  <Text id="platformText" text="Web / 微信 / 抖音小游戏" x="56" y="132" fontSize="26" fill="#58c7e8" />
   <Graphics id="divider" shape="rect" x="54" y="190" width="642" height="2" fill="#2d4353" />
   <Text id="sectionText" text="可滚动 Scene 内容" x="54" y="232" fontSize="30" fontWeight="600" fill="#f4f7fb" />
   <ScrollContainer id="content" x="54" y="292" width="642" height="720" scrollY="true">
     <Graphics id="panelOne" shape="roundRect" width="642" height="196" radius="18" fill="#152430" />
     <Text id="panelOneTitle" text="普通 Text" x="30" y="28" fontSize="30" fontWeight="600" fill="#ffffff" />
-    <Text id="panelOneBody" text="中文文字、布局与 PixiJS WebGL 已在微信真机运行。" x="30" y="84" fontSize="22" fill="#b9c8d2" wordWrap="true" wordWrapWidth="572" />
+    <Text id="panelOneBody" text="中文文字、布局与 PixiJS WebGL 共享于 Web、微信和抖音。" x="30" y="84" fontSize="22" fill="#b9c8d2" wordWrap="true" wordWrapWidth="572" />
     <Graphics id="panelTwo" shape="roundRect" y="220" width="642" height="196" radius="18" fill="#172b29" />
     <Text id="panelTwoTitle" text="触摸输入" x="30" y="248" fontSize="30" fontWeight="600" fill="#ffffff" />
-    <Text id="panelTwoBody" text="微信触摸事件会转换为 Pixi Federated Pointer Event。" x="30" y="304" fontSize="22" fill="#b9d1ca" wordWrap="true" wordWrapWidth="572" />
+    <Text id="panelTwoBody" text="微信和抖音触摸事件会转换为 Pixi Federated Pointer Event。" x="30" y="304" fontSize="22" fill="#b9d1ca" wordWrap="true" wordWrapWidth="572" />
     <Graphics id="panelThree" shape="roundRect" y="440" width="642" height="196" radius="18" fill="#2a2433" />
     <Text id="panelThreeTitle" text="资源分包" x="30" y="468" fontSize="30" fontWeight="600" fill="#ffffff" />
-    <Text id="panelThreeBody" text="demo-level 资源由微信分包加载，Web 使用同一份源文件。" x="30" y="524" fontSize="22" fill="#d2c4dc" wordWrap="true" wordWrapWidth="572" />
+    <Text id="panelThreeBody" text="demo-level 资源由小游戏分包加载，Web 使用同一份源文件。" x="30" y="524" fontSize="22" fill="#d2c4dc" wordWrap="true" wordWrapWidth="572" />
     <Graphics id="panelFour" shape="roundRect" y="660" width="642" height="196" radius="18" fill="#30291e" />
     <Text id="panelFourTitle" text="目标校验" x="30" y="688" fontSize="30" fontWeight="600" fill="#ffffff" />
-    <Text id="panelFourBody" text="微信构建会拒绝 SVG、HTMLText 和不兼容资源格式。" x="30" y="744" fontSize="22" fill="#d8ccb6" wordWrap="true" wordWrapWidth="572" />
+    <Text id="panelFourBody" text="微信和抖音构建会拒绝 SVG、HTMLText 和不兼容资源格式。" x="30" y="744" fontSize="22" fill="#d8ccb6" wordWrap="true" wordWrapWidth="572" />
   </ScrollContainer>
   <Text id="footerText" text="上下滑动查看内容" x="252" y="1080" fontSize="22" fill="#78909f" />
 </Scene>

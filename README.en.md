@@ -16,6 +16,7 @@ Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestra
 - [Agent Scene Authoring](./docs/en/agent-scene-authoring.md): how external agents edit `.scene` source.
 - [Agent Runtime](./docs/en/runtime-agent.md): how external agents observe and operate a running Vite Web game.
 - [WeChat Mini Game Builds](./docs/en/wechat-minigame.md): game target, platform runtime, resource delivery, and build output.
+- [Douyin Mini Game Builds](./docs/en/douyin-minigame.md): game target, platform runtime, resource delivery, and build output.
 - [Internal Docs](./internal-docs/index.md): repository maintenance, testing, release, plans, and historical specs.
 
 ## npm Quick Start
@@ -56,6 +57,14 @@ Build a WeChat Mini Game:
 pixifact validate --target wechat
 pixifact build --target wechat
 pixifact dev --target wechat
+```
+
+Build a Douyin Mini Game:
+
+```bash
+pixifact validate --target douyin
+pixifact build --target douyin
+pixifact dev --target douyin
 ```
 
 `pixifact-cli` and `create-pixifact` are Bun-first tools in this release, so Bun must be installed locally.
@@ -155,10 +164,11 @@ import { registerPixiRuntime } from 'pixifact/runtime-dev';
 import { prepareSceneClass, scene } from 'pixifact/scene';
 import { createSceneRevision, parseSceneTemplate } from 'pixifact/compiler';
 import { createWechatPixiApplication } from 'pixifact/platform/wechat';
+import { createDouyinPixiApplication } from 'pixifact/platform/douyin';
 import { parsePixifactProjectConfig } from 'pixifact';
 ```
 
-The root `pixifact` entry exports project config helpers, runtime extensions, and common CLI error hints. Scene decorators, events, slots, async preparation, and asset loading are exported from `pixifact/scene`; compiler APIs come from `pixifact/compiler`; the WeChat platform runtime comes from `pixifact/platform/wechat`.
+The root `pixifact` entry exports project config helpers, runtime extensions, and common CLI error hints. Scene decorators, events, slots, async preparation, and asset loading are exported from `pixifact/scene`; compiler APIs come from `pixifact/compiler`; the WeChat and Douyin platform runtimes come from `pixifact/platform/wechat` and `pixifact/platform/douyin`.
 
 ## Verification
 

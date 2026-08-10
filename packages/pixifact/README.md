@@ -17,6 +17,7 @@ import { parseSceneTemplate } from 'pixifact/compiler';
 import { Group } from 'pixifact/runtime';
 import { prepareSceneClass, scene } from 'pixifact/scene';
 import { createWechatPixiApplication } from 'pixifact/platform/wechat';
+import { createDouyinPixiApplication } from 'pixifact/platform/douyin';
 ```
 
 `pixifact/compiler` 只包含解析、校验和生成 API。游戏运行时使用 `pixifact/runtime`、`pixifact/scene` 和具体平台入口，不要从 compiler 入口导入 Scene decorator 或运行时加载 API。
@@ -43,6 +44,16 @@ pixifact dev --target wechat
 ```
 
 完整配置见仓库文档 [微信小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/wechat-minigame.md)。
+
+声明 `targets.douyin` 后，可校验和构建抖音小游戏：
+
+```bash
+pixifact validate --target douyin
+pixifact build --target douyin
+pixifact dev --target douyin
+```
+
+抖音小游戏配置见 [抖音小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/douyin-minigame.md)。
 
 ## Scene 工作流
 

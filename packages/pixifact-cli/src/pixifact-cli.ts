@@ -16,12 +16,20 @@ import {
     type WechatDevEvent,
     WechatTargetError,
 } from './wechatTarget';
+import {
+    buildDouyinTarget,
+    devDouyinTarget,
+    validateDouyinTarget,
+    type DouyinDevEvent,
+    DouyinTargetError,
+} from './douyinTarget';
 
 type Automation = ReturnType<typeof createPixifactAutomation>;
 
 interface CliOptions {
     automation?: Automation;
     captureEditorScreenshot?: typeof captureEditorScreenshot;
+    onDouyinDevEvent?: (event: DouyinDevEvent) => void;
     onWechatDevEvent?: (event: WechatDevEvent) => void;
     readEditorContext?: typeof queryEditorContext;
     listRuntimes?: typeof queryRuntimeList;
@@ -257,6 +265,7 @@ async function executeFileCommand(
     flags: Record<string, string | true>,
     automation: Automation,
     onWechatDevEvent?: (event: WechatDevEvent) => void,
+    onDouyinDevEvent?: (event: DouyinDevEvent) => void,
     startEditor: typeof startEditorServer = startEditorServer,
     readEditorContext: typeof queryEditorContext = queryEditorContext,
     captureScreenshot: typeof captureEditorScreenshot = captureEditorScreenshot,
@@ -372,26 +381,31 @@ async function executeFileCommand(
 
     if ((area === 'build' || area === 'dev' || area === 'validate') && action === undefined) {
         const target = requireFlag(flags, 'target');
-        if (target !== 'wechat') {
+        if (target !== 'wechat' && target !== 'douyin') {
             throw new Error(`Unknown Pixifact target "${target}".`);
         }
+        const isDouyin = target === 'douyin';
         if (area === 'validate') {
-            const result = await validateWechatTarget(projectRoot);
+            const result = isDouyin
+                ? await validateDouyinTarget(projectRoot)
+                : await validateWechatTarget(projectRoot);
             return result.diagnostics.length > 0
                 ? {
                     ok: false,
                     target,
                     diagnostics: result.diagnostics,
-                    hint: 'Fix the listed WeChat target diagnostics, then validate again.',
+                    hint: `Fix the listed ${isDouyin ? 'Douyin' : 'WeChat'} target diagnostics, then validate again.`,
                 }
                 : { ok: true, projectRoot, target };
         }
         if (area === 'dev') {
             if (flags.mode !== undefined) {
-                throw new Error('dev --target wechat always uses development mode; remove --mode.');
+                throw new Error(`dev --target ${target} always uses development mode; remove --mode.`);
             }
             try {
-                const session = await devWechatTarget(projectRoot, onWechatDevEvent);
+                const session = isDouyin
+                    ? await devDouyinTarget(projectRoot, onDouyinDevEvent)
+                    : await devWechatTarget(projectRoot, onWechatDevEvent);
                 return {
                     ok: true,
                     projectRoot,
@@ -401,13 +415,13 @@ async function executeFileCommand(
                     report: session.initialReport,
                 };
             } catch (error) {
-                if (error instanceof WechatTargetError) {
+                if (error instanceof WechatTargetError || error instanceof DouyinTargetError) {
                     return {
                         ok: false,
                         target,
                         error: error.message,
                         diagnostics: error.diagnostics,
-                        hint: 'Fix the listed WeChat target diagnostics, then start dev again.',
+                        hint: `Fix the listed ${isDouyin ? 'Douyin' : 'WeChat'} target diagnostics, then start dev again.`,
                     };
                 }
                 throw error;
@@ -423,16 +437,18 @@ async function executeFileCommand(
                 projectRoot,
                 target,
                 mode,
-                report: await buildWechatTarget(projectRoot, mode),
+                report: isDouyin
+                    ? await buildDouyinTarget(projectRoot, mode)
+                    : await buildWechatTarget(projectRoot, mode),
             };
         } catch (error) {
-            if (error instanceof WechatTargetError) {
+            if (error instanceof WechatTargetError || error instanceof DouyinTargetError) {
                 return {
                     ok: false,
                     target,
                     error: error.message,
                     diagnostics: error.diagnostics,
-                    hint: 'Fix the listed WeChat target diagnostics, then build again.',
+                    hint: `Fix the listed ${isDouyin ? 'Douyin' : 'WeChat'} target diagnostics, then build again.`,
                 };
             }
             throw error;
@@ -513,6 +529,9 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'validate --target wechat',
                         'build --target wechat',
                         'dev --target wechat',
+                        'validate --target douyin',
+                        'build --target douyin',
+                        'dev --target douyin',
                     ],
                     aiValidationAlternatives: [
                         'scene validate --all',
@@ -551,6 +570,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
             parsed.flags,
             automation,
             options.onWechatDevEvent,
+            options.onDouyinDevEvent,
             options.startEditor,
             options.readEditorContext,
             options.captureEditorScreenshot,
@@ -584,6 +604,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
     const result = await executePixifactCli(process.argv.slice(2), {
+        onDouyinDevEvent: (event) => process.stdout.write(jsonLine(event)),
         onWechatDevEvent: (event) => process.stdout.write(jsonLine(event)),
     });
     process.stdout.write(result.stdout);

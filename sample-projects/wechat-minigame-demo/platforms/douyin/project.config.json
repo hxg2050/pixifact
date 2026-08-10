@@ -1,0 +1,11 @@
+{
+  "appid": "",
+  "compileType": "game",
+  "description": "Pixifact 抖音小游戏构建示例",
+  "projectname": "pixifact-douyin-minigame-demo",
+  "setting": {
+    "es6": true,
+    "minified": false,
+    "urlCheck": false
+  }
+}

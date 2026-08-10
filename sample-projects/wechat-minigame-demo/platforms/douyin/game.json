@@ -1,0 +1,10 @@
+{
+  "deviceOrientation": "portrait",
+  "showStatusBar": false,
+  "subPackages": [
+    {
+      "name": "demo-level",
+      "root": "subpackages/demo-level"
+    }
+  ]
+}

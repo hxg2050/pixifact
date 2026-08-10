@@ -218,6 +218,53 @@ describe('Pixifact project run config', () => {
         });
     });
 
+    it('parses Douyin target resource delivery', () => {
+        const config = parsePixifactProjectConfig({
+            version: 1,
+            name: 'Douyin Game',
+            scenes: {
+                main: 'src/scenes/Main.scene',
+            },
+            resourcePacks: {
+                common: { root: 'resources/common' },
+                chapter1: { root: 'resources/chapter1' },
+            },
+            targets: {
+                douyin: {
+                    entry: 'src/douyin/main.ts',
+                    configDir: 'platforms/douyin',
+                    outDir: 'dist/douyin',
+                    resourcePacks: {
+                        common: {
+                            delivery: 'remote',
+                            baseUrl: 'https://cdn.example.com/common/',
+                        },
+                        chapter1: {
+                            delivery: 'subpackage',
+                            root: 'subpackages/chapter1',
+                        },
+                    },
+                },
+            },
+        });
+
+        expect(config.targets?.douyin).toEqual({
+            entry: 'src/douyin/main.ts',
+            configDir: 'platforms/douyin',
+            outDir: 'dist/douyin',
+            resourcePacks: {
+                common: {
+                    delivery: 'remote',
+                    baseUrl: 'https://cdn.example.com/common',
+                },
+                chapter1: {
+                    delivery: 'subpackage',
+                    root: 'subpackages/chapter1',
+                },
+            },
+        });
+    });
+
     it('rejects invalid WeChat target paths and resource pack references', () => {
         expect(() => parsePixifactProjectConfig({
             version: 1,

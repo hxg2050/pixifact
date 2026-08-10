@@ -3,7 +3,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
-import { buildWechatTarget, validateWechatTarget } from '../packages/pixifact-cli/src/wechatTarget';
+import {
+    buildWechatTarget,
+    devWechatTarget,
+    validateWechatTarget,
+    WechatTargetError,
+} from '../packages/pixifact-cli/src/wechatTarget';
 
 const sampleRoot = join(process.cwd(), 'sample-projects', 'wechat-minigame-demo');
 
@@ -147,6 +152,34 @@ describe('WeChat Mini Game target', () => {
             expect(result.diagnostics).toContainEqual({
                 message: '远程资源包 demo-level 的 baseUrl 必须使用 HTTPS。',
             });
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
+    });
+
+    it('preserves platform diagnostics when dev validation fails', async () => {
+        const root = await mkdtemp(join(tmpdir(), 'pixifact-wechat-dev-'));
+        try {
+            await mkdir(join(root, 'src', 'scenes'), { recursive: true });
+            await mkdir(join(root, 'platforms', 'wechat'), { recursive: true });
+            await writeFile(join(root, 'src', 'scenes', 'Main.scene'), '<Scene name="Main" />\n');
+            await writeFile(join(root, 'platforms', 'wechat', 'game.json'), '{}\n');
+            await writeFile(join(root, 'platforms', 'wechat', 'project.config.json'), '{}\n');
+            await writeFile(join(root, 'pixifact.project.json'), JSON.stringify({
+                version: 1,
+                name: 'Invalid WeChat Dev Target',
+                scenes: { main: 'src/scenes/Main.scene' },
+                targets: {
+                    wechat: {
+                        entry: 'src/wechat/missing.ts',
+                        configDir: 'platforms/wechat',
+                        outDir: 'dist/wechat',
+                        resourcePacks: {},
+                    },
+                },
+            }));
+
+            await expect(devWechatTarget(root)).rejects.toBeInstanceOf(WechatTargetError);
         } finally {
             await rm(root, { recursive: true, force: true });
         }

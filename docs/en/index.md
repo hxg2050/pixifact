@@ -3,7 +3,7 @@
 Status: Active
 Authority: Entry point, navigation, and ownership for public English Pixifact documentation
 Upstream: [../../README.en.md](../../README.en.md), [../index.md](../index.md)
-Downstream: [./layout.md](./layout.md), [./scene-objects.md](./scene-objects.md), [./agent-scene-authoring.md](./agent-scene-authoring.md), [./runtime-agent.md](./runtime-agent.md), [./wechat-minigame.md](./wechat-minigame.md)
+Downstream: [./layout.md](./layout.md), [./scene-objects.md](./scene-objects.md), [./agent-scene-authoring.md](./agent-scene-authoring.md), [./runtime-agent.md](./runtime-agent.md), [./wechat-minigame.md](./wechat-minigame.md), [./douyin-minigame.md](./douyin-minigame.md)
 Update rule: Update when public English docs are added, moved, archived, or README links change.
 
 [中文](../zh/index.md)
@@ -17,6 +17,7 @@ If you are new to Pixifact, read:
 3. [Scene Objects](./scene-objects.md)
 4. [Agent Scene Authoring](./agent-scene-authoring.md)
 5. [WeChat Mini Game Builds](./wechat-minigame.md)
+6. [Douyin Mini Game Builds](./douyin-minigame.md)
 
 If you want an external AI agent to edit a downstream game project, read:
 
@@ -36,6 +37,7 @@ If you are maintaining this repository, start from [Internal Docs](../../interna
 | [Agent Scene Authoring](./agent-scene-authoring.md) | Rules, contracts, and validation boundaries for external agents editing `.scene` directly |
 | [Agent Runtime](./runtime-agent.md) | Runtime setup, CLI, and boundaries for external agents observing and operating a Vite Web game |
 | [WeChat Mini Game Builds](./wechat-minigame.md) | WeChat target config, platform runtime, resource delivery, CLI, and output boundary |
+| [Douyin Mini Game Builds](./douyin-minigame.md) | Douyin target config, platform runtime, resource delivery, CLI, and output boundary |
 
 ## Authority
 
@@ -45,4 +47,5 @@ If you are maintaining this repository, start from [Internal Docs](../../interna
 - Agent `.scene` editing workflow belongs to [Agent Scene Authoring](./agent-scene-authoring.md).
 - Live game observation and input workflow belongs to [Agent Runtime](./runtime-agent.md).
 - WeChat Mini Game support, configuration, and build boundaries belong to [WeChat Mini Game Builds](./wechat-minigame.md).
+- Douyin Mini Game support, configuration, and build boundaries belong to [Douyin Mini Game Builds](./douyin-minigame.md).
 - Repository maintenance, testing, release, plans, and historical specs belong to [Internal Docs](../../internal-docs/index.md).

@@ -15,6 +15,7 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力。Agent 编排、Git 分�
 - [Agent Scene Authoring](./docs/zh/agent-scene-authoring.md)：外部 Agent 如何编辑 `.scene`。
 - [Agent Runtime](./docs/zh/runtime-agent.md)：外部 Agent 如何观察和操作运行中的 Vite Web 游戏。
 - [微信小游戏构建](./docs/zh/wechat-minigame.md)：游戏项目的微信 target、平台 runtime、资源分包和构建产物。
+- [抖音小游戏构建](./docs/zh/douyin-minigame.md)：游戏项目的抖音 target、平台 runtime、资源分包和构建产物。
 - [内部文档](./internal-docs/index.md)：仓库维护、测试、发布、计划和历史规格。
 
 ## npm 快速开始
@@ -55,6 +56,14 @@ pixifact editor
 pixifact validate --target wechat
 pixifact build --target wechat
 pixifact dev --target wechat
+```
+
+构建抖音小游戏：
+
+```bash
+pixifact validate --target douyin
+pixifact build --target douyin
+pixifact dev --target douyin
 ```
 
 当前 `pixifact-cli` 和 `create-pixifact` 都是 Bun-first 工具，需要本机安装 Bun。
@@ -207,10 +216,11 @@ import { Group, Control, Rect, Image, HBoxContainer } from 'pixifact/runtime';
 import { registerPixiRuntime } from 'pixifact/runtime-dev';
 import { prepareSceneClass, scene } from 'pixifact/scene';
 import { createWechatPixiApplication } from 'pixifact/platform/wechat';
+import { createDouyinPixiApplication } from 'pixifact/platform/douyin';
 import { parsePixifactProjectConfig } from 'pixifact';
 ```
 
-根入口 `pixifact` 导出项目配置、runtime 扩展和常用错误提示；Scene decorator、事件、slot、异步准备和资源加载从 `pixifact/scene` 导出；compiler API 通过 `pixifact/compiler` 导出；微信平台 runtime 从 `pixifact/platform/wechat` 导出。
+根入口 `pixifact` 导出项目配置、runtime 扩展和常用错误提示；Scene decorator、事件、slot、异步准备和资源加载从 `pixifact/scene` 导出；compiler API 通过 `pixifact/compiler` 导出；微信和抖音平台 runtime 分别从 `pixifact/platform/wechat` 和 `pixifact/platform/douyin` 导出。
 
 ## 仓库目录
 

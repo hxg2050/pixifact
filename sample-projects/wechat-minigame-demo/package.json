@@ -9,7 +9,10 @@
     "build:web": "bun run compile:scenes && vite build . --config vite.config.ts",
     "validate:wx": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts validate --target wechat --project-root .",
     "build:wx": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts build --target wechat --project-root .",
-    "dev:wx": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts dev --target wechat --project-root ."
+    "dev:wx": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts dev --target wechat --project-root .",
+    "validate:dy": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts validate --target douyin --project-root .",
+    "build:dy": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts build --target douyin --project-root .",
+    "dev:dy": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts dev --target douyin --project-root ."
   },
   "dependencies": {
     "pixi.js": "8.18.1",
