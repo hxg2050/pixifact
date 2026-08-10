@@ -10,6 +10,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [unified-vite-platform-build.md](./unified-vite-platform-build.md) | Web、微信、抖音单入口、可选平台包、统一 Vite 构建与 Pixi Assets 资源链路 |
 | [runtime-observation-v1.md](./runtime-observation-v1.md) | 真实 Vite Web 游戏的 Runtime tree、state、logs、input 与 CLI 观测闭环 |
 | [editor-vnext.md](./editor-vnext.md) | 浏览器 Editor vNext 的产品边界、数据流、实现范围和续作记录 |
 | [scene-binding.md](./scene-binding.md) | Scene 静态 Prop、Variant、声明式绑定、Runtime 构造与 Editor Authoring 预览 |
