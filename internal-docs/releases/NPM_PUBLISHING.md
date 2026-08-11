@@ -1,12 +1,14 @@
 # npm Publishing
 
-Pixifact 发布三个公开 npm 包：
+Pixifact 发布五个公开 npm 包：
 
 - `pixifact`
+- `@pixifact/platform-wechat`
+- `@pixifact/platform-douyin`
 - `pixifact-cli`
 - `create-pixifact`
 
-发布顺序仍然是 `pixifact` -> `pixifact-cli` -> `create-pixifact`。仓库使用 Changesets 管版本和 changelog，使用 GitHub Actions Trusted Publishing 发布 npm 包。
+发布顺序是 `pixifact` -> 两个平台包 -> `pixifact-cli` -> `create-pixifact`。仓库使用 Changesets 管版本和 changelog，使用 GitHub Actions Trusted Publishing 发布 npm 包。
 
 ## 当前发布状态
 
@@ -19,7 +21,13 @@ Pixifact 发布三个公开 npm 包：
 本次发布记录见 [`v0.6.1.md`](./v0.6.1.md)。
 首个 npm 发布记录见 [`v0.1.3.md`](./v0.1.3.md)。
 
-Trusted Publishing 已经在 npm 网站为三个包配置完成。正常发布路径不需要本地 npm token。
+Trusted Publishing 已经在 npm 网站为原有三个包配置完成。新平台包首次发布后也必须配置同一 `publish.yml`；此后正常发布路径不需要本地 npm token。
+
+## 新包首次发布
+
+npm Trusted Publishing 只能配置已经存在的包。首次发布 `@pixifact/platform-wechat` 和 `@pixifact/platform-douyin` 时，先执行 `release:version` 生成正式版本并完成 release check，然后使用有 `@pixifact` scope 权限的 npm 账号手动发布两个平台包。发布成功后立即在两个包的 npm Settings 中配置 GitHub Actions Trusted Publisher：repository 为 `hxg2050/pixifact`，workflow filename 为 `publish.yml`，允许 `npm publish`。
+
+随后按正常流程运行 `release:publish`。tag workflow 会跳过已经存在的平台包版本，并通过 Trusted Publishing 发布其余包；下一版本开始五个包都由 workflow 发布。
 
 ## 日常变更
 
@@ -42,7 +50,7 @@ bun run release:version
 这个命令会：
 
 - 执行 `changeset version`
-- 更新三个发布包版本
+- 更新五个发布包版本
 - 更新 `CHANGELOG.md`
 - 删除已消费的 changeset 文件
 - 同步 `packages/create-pixifact/templates/minimal/package.json` 中的 `pixifact` / `pixifact-cli` 版本
@@ -73,7 +81,7 @@ bun run release:check
 - `bun run build`
 - `bun run editor:frontend:build`
 - `packages/create-pixifact` build
-- 三个发布包的 `npm pack --dry-run --json`
+- 五个发布包的 `npm pack --dry-run --json`
 - 当前 `pixifact` / `pixifact-cli` tarball 在仓库外 `adventure-ui-demo` 副本中的安装、CLI、构建和 Editor 启动冒烟
 
 ## 触发发布
@@ -137,6 +145,12 @@ npm whoami --registry https://registry.npmjs.org/
 
 ```bash
 cd packages/pixifact
+npm publish --registry https://registry.npmjs.org/
+
+cd ../platform-wechat
+npm publish --registry https://registry.npmjs.org/
+
+cd ../platform-douyin
 npm publish --registry https://registry.npmjs.org/
 
 cd ../pixifact-cli

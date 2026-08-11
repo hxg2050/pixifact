@@ -30,6 +30,10 @@ for (const dir of packageDirs) {
     }
 
     const packageJson = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'));
+    if (packageJson.repository?.url !== 'https://github.com/hxg2050/pixifact'
+        || packageJson.repository?.directory !== dir) {
+        throw new Error(`${packageJson.name} must identify its GitHub repository directory for Trusted Publishing.`);
+    }
     const pack = JSON.parse(result.stdout)[0];
     const files = new Set(pack.files.map((file) => file.path));
     for (const required of ['package.json', 'README.md', 'LICENSE']) {
