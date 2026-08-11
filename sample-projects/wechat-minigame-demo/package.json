@@ -4,17 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "compile:scenes": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts compile-scenes --project-root .",
-    "dev": "bun run compile:scenes && vite . --host 127.0.0.1 --port 5179 --strictPort",
-    "build:web": "bun run compile:scenes && vite build . --config vite.config.ts",
-    "validate:wx": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts validate --target wechat --project-root .",
-    "build:wx": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts build --target wechat --project-root .",
-    "dev:wx": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts dev --target wechat --project-root .",
-    "validate:dy": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts validate --target douyin --project-root .",
-    "build:dy": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts build --target douyin --project-root .",
-    "dev:dy": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts dev --target douyin --project-root ."
+    "dev": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts dev --mode web --project-root .",
+    "validate:web": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts validate --mode web --project-root .",
+    "build:web": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts build --mode web --project-root .",
+    "validate:wechat": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts validate --mode wechat --project-root .",
+    "build:wechat": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts build --mode wechat --project-root .",
+    "dev:wechat": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts dev --mode wechat --project-root .",
+    "validate:douyin": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts validate --mode douyin --project-root .",
+    "build:douyin": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts build --mode douyin --project-root .",
+    "dev:douyin": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts dev --mode douyin --project-root ."
   },
   "dependencies": {
+    "@pixifact/platform-douyin": "workspace:*",
+    "@pixifact/platform-wechat": "workspace:*",
     "pixi.js": "8.18.1",
     "pixifact": "workspace:*"
   },

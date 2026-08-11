@@ -218,15 +218,15 @@ class CompileContext {
         if (this.#textures.size === 0) {
             return `export async function ${this.#prepareFunctionName()}() {}`;
         }
+        this.#pixiImports.add('Assets');
         this.#pixiImports.add('Texture');
-        this.#runtimeImports.add('loadSceneTexture');
         const entries = [...this.#textures.entries()];
         return [
             ...entries.map(([, variable]) => `let ${variable}: Texture;`),
             '',
             `export async function ${this.#prepareFunctionName()}() {`,
             `  [${entries.map(([, variable]) => variable).join(', ')}] = await Promise.all([`,
-            ...entries.map(([texture]) => `    loadSceneTexture(${JSON.stringify(texture)}),`),
+            ...entries.map(([texture]) => `    Assets.load<Texture>(${JSON.stringify(texture)}),`),
             '  ]);',
             '}',
         ].join('\n');

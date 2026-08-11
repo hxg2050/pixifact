@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchDouyinResource } from '../packages/pixifact/src/platform/douyin/fetch';
-import { bindDouyinLifecycle } from '../packages/pixifact/src/platform/douyin/lifecycle';
-import { bindDouyinPointerEvents } from '../packages/pixifact/src/platform/douyin/input';
-import type { DouyinCanvas, DouyinMiniGameApi } from '../packages/pixifact/src/platform/douyin/types';
+import { createApplication } from '@pixifact/platform-douyin';
+import { fetchDouyinResource } from '../packages/platform-douyin/src/fetch';
+import { bindDouyinLifecycle } from '../packages/platform-douyin/src/lifecycle';
+import { bindDouyinPointerEvents } from '../packages/platform-douyin/src/input';
+import type { DouyinCanvas, DouyinMiniGameApi } from '../packages/platform-douyin/src/types';
 
 const originalDouyinApi = (globalThis as typeof globalThis & { tt?: DouyinMiniGameApi }).tt;
 
@@ -17,6 +18,11 @@ afterEach(() => {
 });
 
 describe('Douyin platform runtime', () => {
+    it('can import the package without a tt global', () => {
+        expect(createApplication).toBeTypeOf('function');
+        expect((globalThis as typeof globalThis & { tt?: unknown }).tt).toBeUndefined();
+    });
+
     it('maps screen coordinates into Pixi pointer events', () => {
         let start: ((event: { changedTouches: Array<{ identifier: number; screenX: number; screenY: number }> }) => void) | undefined;
         const api = {

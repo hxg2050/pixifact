@@ -15,8 +15,8 @@ Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestra
 - [Scene Objects](./docs/en/scene-objects.md): official `.scene` object tags, props, use cases, and examples.
 - [Agent Scene Authoring](./docs/en/agent-scene-authoring.md): how external agents edit `.scene` source.
 - [Agent Runtime](./docs/en/runtime-agent.md): how external agents observe and operate a running Vite Web game.
-- [WeChat Mini Game Builds](./docs/en/wechat-minigame.md): game target, platform runtime, resource delivery, and build output.
-- [Douyin Mini Game Builds](./docs/en/douyin-minigame.md): game target, platform runtime, resource delivery, and build output.
+- [WeChat Mini Game Builds](./docs/en/wechat-minigame.md): Vite modes, optional platform package, resource delivery, and build output.
+- [Douyin Mini Game Builds](./docs/en/douyin-minigame.md): Vite modes, optional platform package, resource delivery, and build output.
 - [Internal Docs](./internal-docs/index.md): repository maintenance, testing, release, plans, and historical specs.
 
 ## npm Quick Start
@@ -24,6 +24,8 @@ Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestra
 The current Pixifact npm packages are:
 
 - `pixifact`: runtime extensions, project config, and compiler APIs.
+- `@pixifact/platform-wechat`: optional WeChat Mini Game PixiJS adapter.
+- `@pixifact/platform-douyin`: optional Douyin Mini Game PixiJS adapter.
 - `pixifact-cli`: Bun-first Scene automation CLI.
 - `create-pixifact`: Bun-first project scaffold.
 
@@ -40,7 +42,7 @@ Use runtime and compiler APIs in an existing Bun project:
 
 ```bash
 bun add pixifact pixi.js
-bun add -d pixifact-cli
+bun add -d pixifact-cli vite
 ```
 
 Common installed CLI commands:
@@ -54,18 +56,22 @@ pixifact editor
 Build a WeChat Mini Game:
 
 ```bash
-pixifact validate --target wechat
-pixifact build --target wechat
-pixifact dev --target wechat
+bun add @pixifact/platform-wechat
+pixifact validate --mode wechat
+pixifact build --mode wechat
+pixifact dev --mode wechat
 ```
 
 Build a Douyin Mini Game:
 
 ```bash
-pixifact validate --target douyin
-pixifact build --target douyin
-pixifact dev --target douyin
+bun add @pixifact/platform-douyin
+pixifact validate --mode douyin
+pixifact build --mode douyin
+pixifact dev --mode douyin
 ```
+
+The standard Vite mode env file selects the platform through `VITE_PLATFORM`; Mini Game AppIDs come from `VITE_APP_ID`. Web, WeChat, and Douyin share `src/main.ts` and load resources through PixiJS `Assets`.
 
 `pixifact-cli` and `create-pixifact` are Bun-first tools in this release, so Bun must be installed locally.
 
@@ -87,9 +93,11 @@ Pixifact's default loop ends at `scene validate`, `compile-scenes`, and optional
 
 ```txt
 packages/pixifact/              core Pixifact package, published as pixifact
+packages/platform-wechat/       optional WeChat Mini Game platform package
+packages/platform-douyin/       optional Douyin Mini Game platform package
 packages/pixifact/src/runtime/  Pixifact runtime extensions such as Group
 packages/pixifact/src/scene/    Scene runtime public entry point
-packages/pixifact/src/platform/ game-target platform runtimes
+packages/pixifact/src/platform/ Web and shared Mini Game runtimes
 packages/pixifact/src/project/  pixifact.project.json parsing and project summaries
 packages/pixifact/src/compiler/ compiler .scene parsing, validation, generation
 packages/pixifact-cli/          Pixifact CLI and local browser Editor service
@@ -163,12 +171,13 @@ import { Group } from 'pixifact/runtime';
 import { registerPixiRuntime } from 'pixifact/runtime-dev';
 import { prepareSceneClass, scene } from 'pixifact/scene';
 import { createSceneRevision, parseSceneTemplate } from 'pixifact/compiler';
-import { createWechatPixiApplication } from 'pixifact/platform/wechat';
-import { createDouyinPixiApplication } from 'pixifact/platform/douyin';
+import { pixifact } from 'pixifact/compiler-node';
+import { createApplication } from 'pixifact:platform';
+import manifest from 'pixifact:assets';
 import { parsePixifactProjectConfig } from 'pixifact';
 ```
 
-The root `pixifact` entry exports project config helpers, runtime extensions, and common CLI error hints. Scene decorators, events, slots, async preparation, and asset loading are exported from `pixifact/scene`; compiler APIs come from `pixifact/compiler`; the WeChat and Douyin platform runtimes come from `pixifact/platform/wechat` and `pixifact/platform/douyin`.
+The root `pixifact` entry exports project config helpers, runtime extensions, and common CLI error hints. Scene decorators, events, slots, and async preparation come from `pixifact/scene`; compiler APIs come from `pixifact/compiler`. Vite config uses `pixifact()`, while game code gets the current Application and Pixi manifest from `pixifact:platform` and `pixifact:assets`.
 
 ## Verification
 

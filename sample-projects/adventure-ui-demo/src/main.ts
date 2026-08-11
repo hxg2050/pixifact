@@ -1,6 +1,8 @@
 import './styles.css';
 import 'pixifact:scenes';
-import { Application, Assets } from 'pixi.js';
+import { Assets } from 'pixi.js';
+import { createApplication } from 'pixifact:platform';
+import manifest from 'pixifact:assets';
 import { prepareSceneClass } from 'pixifact/scene';
 import { applyPixifactViewportLayout, calculatePixifactViewportLayout } from 'pixifact/runtime';
 import { Main } from './scenes/Main';
@@ -13,9 +15,7 @@ if (!root) {
 const resolution = { width: 750, height: 1334 };
 const viewport = { mode: 'fixedWidth' as const };
 const screen = root.getBoundingClientRect();
-await Assets.load('/assets/fonts/ant_count.fnt');
-const app = new Application();
-await app.init({
+const app = await createApplication({
     width: screen.width,
     height: screen.height,
     backgroundColor: 0x070b12,
@@ -23,6 +23,8 @@ await app.init({
     autoDensity: true,
     resolution: Math.min(window.devicePixelRatio || 1, 2),
 });
+await Assets.init({ manifest });
+await Assets.load('/assets/fonts/ant_count.fnt');
 
 await prepareSceneClass(Main);
 const scene = new Main();

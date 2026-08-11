@@ -1,12 +1,13 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process';
-import { chmod, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, chmod, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
-const sampleRelativeRoot = 'sample-projects/adventure-ui-demo';
+const webSampleRoot = 'sample-projects/adventure-ui-demo';
+const multiPlatformSampleRoot = 'sample-projects/wechat-minigame-demo';
 
 function run(command, args, options = {}) {
     console.log(`> ${command} ${args.join(' ')}`);
@@ -38,14 +39,65 @@ function packPackage(packageDirectory, destination) {
     return tarball;
 }
 
-async function copyTrackedSample(destination) {
-    const output = run('git', ['ls-files', '-z', '--', sampleRelativeRoot], { silent: true });
+async function copyProject(sourceRoot, destination) {
+    const output = run('git', [
+        'ls-files',
+        '--cached',
+        '--others',
+        '--exclude-standard',
+        '-z',
+        '--',
+        sourceRoot,
+    ], { silent: true });
     const files = output.split('\0').filter(Boolean);
     for (const file of files) {
-        const relativePath = path.relative(sampleRelativeRoot, file);
+        const source = path.join(repoRoot, file);
+        if (!await exists(source)) continue;
+        const relativePath = path.relative(sourceRoot, file);
         const target = path.join(destination, relativePath);
         await mkdir(path.dirname(target), { recursive: true });
-        await copyFile(path.join(repoRoot, file), target);
+        await copyFile(source, target);
+    }
+}
+
+async function exists(file) {
+    try {
+        await access(file);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function configurePackedProject(projectRoot, artifacts, platformNames = []) {
+    const packageJsonPath = path.join(projectRoot, 'package.json');
+    const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'));
+    packageJson.dependencies.pixifact = `file:${artifacts.pixifact}`;
+    delete packageJson.dependencies['@pixifact/platform-wechat'];
+    delete packageJson.dependencies['@pixifact/platform-douyin'];
+    for (const platformName of platformNames) {
+        packageJson.dependencies[`@pixifact/platform-${platformName}`] = `file:${artifacts[platformName]}`;
+    }
+    packageJson.devDependencies['pixifact-cli'] = `file:${artifacts.cli}`;
+    packageJson.overrides = {
+        pixifact: `file:${artifacts.pixifact}`,
+    };
+    await writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+    await writeFile(path.join(projectRoot, 'vite.config.ts'), [
+        "import { defineConfig } from 'vite';",
+        "import { pixifact } from 'pixifact/compiler-node';",
+        '',
+        'export default defineConfig({ plugins: [pixifact()] });',
+        '',
+    ].join('\n'));
+}
+
+async function verifyMiniGameBuild(projectRoot, mode, excludedMarker) {
+    run('bun', ['run', 'pixifact', 'validate', '--mode', mode], { cwd: projectRoot, silent: true });
+    run('bun', ['run', 'pixifact', 'build', '--mode', mode], { cwd: projectRoot });
+    const bundle = await readFile(path.join(projectRoot, 'dist', mode, 'game.js'), 'utf8');
+    if (bundle.includes(excludedMarker)) {
+        throw new Error(`${mode} bundle contains non-target marker ${excludedMarker}.`);
     }
 }
 
@@ -118,7 +170,7 @@ const temporaryRoot = await mkdtemp(path.join(tmpdir(), 'pixifact-release-instal
 
 try {
     const artifactsRoot = path.join(temporaryRoot, 'artifacts');
-    const projectRoot = path.join(temporaryRoot, 'adventure-ui-demo');
+    const projectRoot = path.join(temporaryRoot, 'web-only');
     const browserStubRoot = path.join(temporaryRoot, 'browser-stub');
     await mkdir(artifactsRoot, { recursive: true });
     await mkdir(projectRoot, { recursive: true });
@@ -126,25 +178,44 @@ try {
 
     const pixifactTarball = packPackage('packages/pixifact', artifactsRoot);
     const cliTarball = packPackage('packages/pixifact-cli', artifactsRoot);
-    await copyTrackedSample(projectRoot);
-
-    const packageJsonPath = path.join(projectRoot, 'package.json');
-    const packageJson = JSON.parse(await readFile(packageJsonPath, 'utf8'));
-    packageJson.dependencies.pixifact = `file:${pixifactTarball}`;
-    packageJson.devDependencies['pixifact-cli'] = `file:${cliTarball}`;
-    packageJson.overrides = {
-        pixifact: `file:${pixifactTarball}`,
+    const wechatTarball = packPackage('packages/platform-wechat', artifactsRoot);
+    const douyinTarball = packPackage('packages/platform-douyin', artifactsRoot);
+    const artifacts = {
+        pixifact: pixifactTarball,
+        cli: cliTarball,
+        wechat: wechatTarball,
+        douyin: douyinTarball,
     };
-    await writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+
+    await copyProject(webSampleRoot, projectRoot);
+    await configurePackedProject(projectRoot, artifacts);
 
     run('bun', ['install'], { cwd: projectRoot });
+    if (await exists(path.join(projectRoot, 'node_modules', '@pixifact', 'platform-wechat'))
+        || await exists(path.join(projectRoot, 'node_modules', '@pixifact', 'platform-douyin'))) {
+        throw new Error('Web-only install unexpectedly contains a Mini Game platform package.');
+    }
     run('bun', ['run', 'pixifact', '--help'], { cwd: projectRoot, silent: true });
     run('bun', ['run', 'pixifact', 'summary'], { cwd: projectRoot, silent: true });
     run('bun', ['run', 'pixifact', 'scene', 'inspect', '--scene', 'src/scenes/BottomMenu.scene'], { cwd: projectRoot, silent: true });
     run('bun', ['run', 'pixifact', 'scene', 'validate', '--all'], { cwd: projectRoot, silent: true });
-    run('bun', ['run', 'compile:scenes'], { cwd: projectRoot, silent: true });
+    run('bun', ['run', 'pixifact', 'compile-scenes'], { cwd: projectRoot, silent: true });
     run('bun', ['run', 'build'], { cwd: projectRoot });
     await verifyEditor(projectRoot, browserStubRoot);
+
+    for (const platformNames of [['wechat'], ['douyin'], ['wechat', 'douyin']]) {
+        const isolatedRoot = path.join(temporaryRoot, platformNames.join('-'));
+        await mkdir(isolatedRoot, { recursive: true });
+        await copyProject(multiPlatformSampleRoot, isolatedRoot);
+        await configurePackedProject(isolatedRoot, artifacts, platformNames);
+        run('bun', ['install'], { cwd: isolatedRoot });
+        if (platformNames.includes('wechat')) {
+            await verifyMiniGameBuild(isolatedRoot, 'wechat', 'DouyinMiniGame');
+        }
+        if (platformNames.includes('douyin')) {
+            await verifyMiniGameBuild(isolatedRoot, 'douyin', 'WeChatMiniGame');
+        }
+    }
 
     console.log('Release install smoke passed.');
 } finally {

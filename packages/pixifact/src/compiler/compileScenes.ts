@@ -1,4 +1,5 @@
-import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { access, mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { SceneScriptInterface, SceneTemplate, SceneTemplateNode } from './spec';
@@ -165,7 +166,7 @@ export async function compileScenes(options: CompileScenesOptions) {
         }
 
         await mkdir(path.dirname(generatedFile), { recursive: true });
-        await writeFile(generatedFile, code);
+        await writeGeneratedFile(generatedFile, code);
         if (record.kind === 'project') {
             projectRegistryImports.push(`import ${JSON.stringify(generatedSceneModuleImport(scenePath))};`);
         } else if (sceneIsReferencedByProjectScenes(scenePath, projectScenePaths, templates)) {
@@ -173,14 +174,23 @@ export async function compileScenes(options: CompileScenesOptions) {
         }
     }
 
-    await writeFile(path.join(generatedDir, 'scenes.generated.ts'), `${[
+    await writeGeneratedFile(path.join(generatedDir, 'scenes.generated.ts'), `${[
         ...builtinRegistryImports,
         ...projectRegistryImports,
     ].join('\n')}\n`);
-    await writeFile(
+    await writeGeneratedFile(
         path.join(generatedDir, generatedSceneAssetsFileName),
         `${JSON.stringify([...projectAssets].sort(), null, 2)}\n`,
     );
+}
+
+async function writeGeneratedFile(filePath: string, content: string) {
+    if (await exists(filePath) && await readFile(filePath, 'utf8') === content) {
+        return;
+    }
+    const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+    await writeFile(temporaryPath, content);
+    await rename(temporaryPath, filePath);
 }
 
 async function readProjectConfig(projectRoot: string): Promise<PixifactProjectConfig | undefined> {

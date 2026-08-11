@@ -1,5 +1,12 @@
 import type { MiniGameApi } from './types';
 
+export function miniGameResourceSubpackage(input: RequestInfo | URL) {
+    const url = typeof input === 'string' ? input : ((input as { url?: string }).url ?? String(input));
+    if (/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(url)) return undefined;
+    const path = url.replace(/[?#].*$/, '').replace(/^\.?\//, '');
+    return path.match(/^subpackages\/([^/]+)\//)?.[1];
+}
+
 export function createMiniGameSubpackageLoader(apiOrFactory: MiniGameApi | (() => MiniGameApi), platformName: string) {
     const getApi = typeof apiOrFactory === 'function' ? apiOrFactory : () => apiOrFactory;
     const loaded = new Set<string>();

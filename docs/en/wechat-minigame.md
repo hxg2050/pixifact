@@ -1,238 +1,111 @@
 # WeChat Mini Game Builds
 
-Status: Active  
-Authority: WeChat Mini Game configuration, runtime, resource delivery, validation, and build boundaries for Pixifact game projects  
-Upstream: [./index.md](./index.md), [../../README.en.md](../../README.en.md)  
-Sample: [../../sample-projects/wechat-minigame-demo](../../sample-projects/wechat-minigame-demo)  
-Update rule: Update when the WeChat target config, CLI, platform runtime, support matrix, or build output changes.
+Pixifact uses Vite for Web, WeChat, and Douyin builds. A single `src/main.ts` binds to the platform selected by `VITE_PLATFORM` in the active Vite mode. There is no target schema or separate WeChat entry in `pixifact.project.json`.
 
-[中文](../zh/wechat-minigame.md)
+## Install
 
-Pixifact treats WeChat Mini Games as a first-class game build target. The same `.scene` files, paired Scene scripts, and game logic can run on Web and WeChat. Platform differences stay in the entry point, PixiJS adapter, resource delivery, and native configuration.
+Install the optional platform package when the project builds for WeChat:
 
-The output is a directory that can be imported directly into WeChat DevTools. Pixifact does not upload code, create trial builds, submit reviews, or publish releases.
+```bash
+bun add pixifact pixi.js @pixifact/platform-wechat
+bun add -d pixifact-cli vite
+```
 
-## Supported Surface
+`@pixifact/platform-wechat` is bundled into the WeChat build. It is absent from Web and Douyin production bundles.
 
-The current target provides:
+## Vite and Modes
 
-- PixiJS WebGL 1 / WebGL 2 initialization with a DOM-free runtime adapter.
-- Regular `Text`, including Chinese text; when a device has no `Intl`, the bundle lets PixiJS use its built-in segmentation fallback.
-- `Graphics`, Pixifact runtime nodes, and compiler Scenes.
-- WeChat touch event forwarding to PixiJS pointer events, including `globalpointermove` for dragging.
-- Ticker pause/resume and active touch cancellation across hide/show lifecycle events.
-- Local assets, WeChat resource subpackages, and HTTPS remote assets.
-- Development and production builds, watch mode, and package-size checks.
+`vite.config.ts` is the only build configuration entry:
 
-The following are explicitly unsupported:
+```ts
+import { defineConfig } from 'vite';
+import { pixifact } from 'pixifact/compiler-node';
 
-- SVG assets. The build does not convert SVG automatically; provide PNG, JPEG, or WebP source assets.
-- `HTMLText`.
-- `DOMContainer`.
+export default defineConfig({ plugins: [pixifact()] });
+```
 
-Scene textures support `.png`, `.jpg`, `.jpeg`, and `.webp`. Target validation reports unsupported nodes, textures, and resource-pack contents before the build.
+For example, `.env.wechat` contains:
 
-The WeChat build installs the `Intl` and `navigator` startup environment required by PixiJS before its modules execute, without relying on browser globals from WeChat DevTools. Regular Chinese, Latin text, and single-code-point characters do not require `Intl`. When `Intl.Segmenter` is unavailable on a device, PixiJS segments text by Unicode code point. Verify layout on target devices when exact wrapping of multi-code-point emoji or combining characters matters.
+```ini
+VITE_PLATFORM=wechat
+VITE_APP_ID=wx123456
+```
 
-## Project Configuration
+Pixifact follows Vite's standard `.env`, `.env.local`, `.env.[mode]`, and `.env.[mode].local` rules. A mode can have any non-empty name, so `.env.game1` may also select WeChat. Every `VITE_*` value is a public client string; do not store secrets there.
 
-Declare resource packs and the WeChat target in `pixifact.project.json`:
+Bun normally preloads `.env`, which makes those values look like existing process variables to Vite and lets them override a mode file. Bun projects should keep the scaffolded root `bunfig.toml`:
+
+```toml
+env = false
+```
+
+This disables only Bun's automatic dotenv loading. Vite still loads every env file in its standard order, while variables explicitly supplied by the shell retain the highest priority.
+
+## Project and Native Config
+
+`pixifact.project.json` uses schema version 2 and contains only Pixifact domain data:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "name": "My Game",
-  "resolution": {
-    "width": 750,
-    "height": 1334
-  },
-  "viewport": {
-    "mode": "fixedWidth"
-  },
-  "scenes": {
-    "main": "src/scenes/Main.scene"
-  },
-  "resourcePacks": {
-    "chapter1": {
-      "root": "resources/chapter1"
-    },
-    "common": {
-      "root": "resources/common"
-    }
-  },
-  "targets": {
-    "wechat": {
-      "entry": "src/wechat/main.ts",
-      "configDir": "platforms/wechat",
-      "outDir": "dist/wechat",
-      "resourcePacks": {
-        "chapter1": {
-          "delivery": "subpackage",
-          "root": "subpackages/chapter1"
-        },
-        "common": {
-          "delivery": "remote",
-          "baseUrl": "https://cdn.example.com/common"
-        }
-      }
-    }
+  "scenes": { "main": "src/scenes/Main.scene" },
+  "resourcePacks": ["chapter1", "common"],
+  "remoteResourcePacks": {
+    "common": "https://cdn.example.com/common"
   }
 }
 ```
 
-| Field | Meaning |
-| --- | --- |
-| `entry` | WeChat Mini Game TypeScript entry point |
-| `configDir` | Directory containing native `game.json` and `project.config.json` |
-| `outDir` | WeChat DevTools import directory; it cannot be the project root or contain project inputs |
-| `resourcePacks` | Delivery strategy for each project resource pack |
-| `subpackage.root` | WeChat resource-subpackage root inside the output directory |
-| `remote.baseUrl` | HTTPS CDN base URL without a trailing slash |
+Local packs live in `resources/<pack-name>/`. Every remote mapping must reference a declared pack and use HTTPS. Remote packs appear in the Pixi manifest but are not written to build output.
 
-Use an empty `resourcePacks` object when the project has no resource packs. Every target pack name must first be declared in the top-level `resourcePacks`, and every top-level pack must select a WeChat delivery strategy.
+Native templates live at:
 
-Names and roots in `platforms/wechat/game.json` must match the target:
-
-```json
-{
-  "deviceOrientation": "portrait",
-  "subpackages": [
-    {
-      "name": "chapter1",
-      "root": "subpackages/chapter1"
-    }
-  ]
-}
+```txt
+platforms/wechat/game.json
+platforms/wechat/project.config.json
 ```
 
-`project.config.json` belongs to WeChat DevTools. Use your own AppID in a real project; the sample uses `touristappid`.
+Pixifact copies these templates, writes `VITE_APP_ID`, and generates WeChat `subpackages` from local resource packs. The source `game.json` must not declare `subpackages` itself.
 
-## Scenes And Entry Point
+## Single Entry and Assets
 
-Scene scripts import decorators from the runtime-only entry point:
-
-```ts
-import { scene } from 'pixifact/scene';
-import { Group } from 'pixifact/runtime';
-
-@scene()
-export class Main extends Group {}
-```
-
-A Scene must be prepared asynchronously before instantiation. Preparation handles nested Scenes first and then loads textures from the target manifest:
-
-```ts
-import { prepareSceneClass } from 'pixifact/scene';
-import { Main } from './scenes/Main';
-
-await prepareSceneClass(Main);
-const scene = new Main();
-```
-
-The WeChat entry imports the generated registry before creating the platform Application:
+All platforms share the same entry:
 
 ```ts
 import 'pixifact:scenes';
-import { createWechatPixiApplication } from 'pixifact/platform/wechat';
-import { startGame } from '../startGame';
+import { Assets } from 'pixi.js';
+import { createApplication } from 'pixifact:platform';
+import manifest from 'pixifact:assets';
 
-const app = await createWechatPixiApplication({ backgroundColor: 0x09111a });
-await startGame({
-  stage: app.stage,
-  width: app.screen.width,
-  height: app.screen.height,
-});
+const app = await createApplication({ backgroundColor: 0x09111a });
+await Assets.init({ manifest });
+await Assets.loadBundle('chapter1');
+const level = await Assets.load('resources/chapter1/level.json');
 ```
 
-`createWechatPixiApplication()` returns `stage`, `renderer`, `ticker`, `screen`, `canvas`, `start()`, `stop()`, and `destroy()`. Shared game logic should not depend directly on `wx`; keep platform startup and platform APIs inside the `src/wechat` boundary.
+`createApplication()` returns a native PixiJS `Application`. It prepares the platform, Canvas, renderer, input, and lifecycle, but never calls `Assets.init()` implicitly. Initialize the manifest once at the point appropriate for the game.
 
-## Resource Delivery
+Use project-relative logical paths without a leading `/`. Before PixiJS reads a subpackage path, the WeChat fetch adapter loads that subpackage automatically. Game code does not call `loadSubpackage()` or a Pixifact-specific resource loader.
 
-`compile-scenes` emits logical resource IDs. Web and WeChat builds map those IDs to platform URLs independently:
+Import genuine platform APIs directly from the optional package and protect their use with a Vite constant branch. Constant folding and tree-shaking remove the branch from non-target production bundles. Pixifact does not currently provide share, login, ads, or payment facades.
 
-- Scene textures outside resource packs are copied to main-package `assets/` with content-hashed names.
-- A `subpackage` resource pack is copied in full. Preparing a Scene texture in that pack first calls `wx.loadSubpackage()`.
-- A `remote` pack is not copied into the code package. Scene textures map to `baseUrl`. Configure the CDN as an allowed domain in the WeChat console as well.
-- JSON, audio, and other non-Scene assets can also live in resource packs. Call `loadWechatSubpackage(name)` before manually reading a subpackage asset.
-
-`fetchWechatResource()` provides its own UTF-8 conversion for `text()` and `json()` and does not require `TextEncoder` or `TextDecoder` on the device.
-
-```ts
-import {
-  fetchWechatResource,
-  loadWechatSubpackage,
-} from 'pixifact/platform/wechat';
-
-await loadWechatSubpackage('chapter1');
-const level = await fetchWechatResource('subpackages/chapter1/level.json')
-  .then((response) => response.json());
-```
-
-Do not place the same resource in nested or overlapping resource packs; that makes delivery ambiguous.
-
-## CLI
-
-Validate the target first:
+## Commands and Output
 
 ```bash
-pixifact validate --target wechat
+pixifact validate --mode wechat
+pixifact build --mode wechat
+pixifact dev --mode wechat
 ```
 
-Production builds are minified by default:
+Without `--mode`, `dev` defaults to `development`; `build` and `validate` default to `production`. Mini Game `dev` uses Vite build watch and rebuilds when tracked Scenes, paired scripts, resources, or native configs change.
 
-```bash
-pixifact build --target wechat
-```
+The default output is `dist/wechat/`; override it with Vite `build.outDir`. It contains one main code file, `game.js`, native config, main-package resources, and `subpackages/<pack>/`. Pixifact enforces the 4 MiB main-package and 20 MiB total limits; source maps and `project.config.json` are excluded from the report.
 
-Generate readable code and a source map when needed:
+Import `dist/wechat/` into WeChat DevTools. Pixifact does not upload, submit, review, or publish the game.
 
-```bash
-pixifact build --target wechat --mode development
-```
+## Support Boundary
 
-Watch the project and rebuild during development:
-
-```bash
-pixifact dev --target wechat
-```
-
-`dev` always uses development mode. Import `targets.wechat.outDir` into WeChat DevTools and leave its file watcher enabled.
-
-## Build Output
-
-Typical output:
-
-```txt
-dist/wechat/
-├── game.js
-├── game.js.map
-├── game.json
-├── project.config.json
-├── assets/
-└── subpackages/
-    └── chapter1/
-        ├── game.js
-        └── ...
-```
-
-Production builds omit `game.js.map`. The builder enforces:
-
-- Main package at or below 4 MiB.
-- All code packages combined at or below 20 MiB.
-
-The report uses emitted file sizes. Source maps and `project.config.json` do not count toward code-package size. A build that exceeds a limit fails with main-package, subpackage, and total byte counts.
-
-## Sample
-
-`sample-projects/wechat-minigame-demo` demonstrates a shared `.scene`, regular Chinese `Text`, `Graphics`, `ScrollContainer`, touch input, and a resource subpackage:
-
-```bash
-cd sample-projects/wechat-minigame-demo
-bun run dev
-bun run build:web
-bun run validate:wx
-bun run build:wx
-bun run dev:wx
-```
-
-Web output goes to `dist/web`; WeChat output goes to `dist/wechat`. The targets do not clean each other's output.
+- Supports PixiJS WebGL, Text, Graphics, Pixifact runtime nodes, touch, foreground/background lifecycle, local assets, resource subpackages, and HTTPS remote packs.
+- Scene textures support PNG, JPEG, and WebP. SVG, HTMLText, and DOMContainer are rejected.
+- Importing the package does not read `wx` or register lifecycle handlers; initialization starts in `createApplication()`.

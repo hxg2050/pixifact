@@ -4,6 +4,8 @@ import { execFileSync } from 'node:child_process';
 
 const packageFiles = [
     'packages/pixifact/package.json',
+    'packages/platform-wechat/package.json',
+    'packages/platform-douyin/package.json',
     'packages/pixifact-cli/package.json',
     'packages/create-pixifact/package.json',
 ];

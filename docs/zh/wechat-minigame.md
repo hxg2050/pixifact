@@ -1,242 +1,116 @@
 # 微信小游戏构建
 
-状态：活跃  
-权威范围：Pixifact 游戏项目的微信小游戏配置、运行时、资源交付、校验和构建边界  
-上游文档：[./index.md](./index.md)、[../../README.md](../../README.md)  
-示例：[../../sample-projects/wechat-minigame-demo](../../sample-projects/wechat-minigame-demo)  
-更新规则：微信 target 配置、CLI、平台 runtime、支持矩阵或构建产物变化时更新
+Pixifact 使用 Vite 同时构建 Web、微信和抖音。一份 `src/main.ts` 根据 Vite mode 中的 `VITE_PLATFORM` 绑定当前平台，不再在 `pixifact.project.json` 中声明 target 或维护微信专用入口。
 
-[English](../en/wechat-minigame.md)
+## 安装
 
-Pixifact 把微信小游戏作为游戏项目的一等构建目标。同一份 `.scene`、同名 Scene 脚本和游戏逻辑可以同时用于 Web 与微信；平台差异集中在入口、PixiJS adapter、资源 delivery 和原生配置中。
+Web 项目只需要核心包；需要构建微信时额外安装平台包：
 
-最终产物是一个可直接导入微信开发者工具的目录。Pixifact 不负责上传代码、生成体验版、提交审核或发布。
+```bash
+bun add pixifact pixi.js @pixifact/platform-wechat
+bun add -d pixifact-cli vite
+```
 
-## 支持范围
+`@pixifact/platform-wechat` 是业务依赖，会进入微信产物。它不会被 Web 或抖音 production bundle 引入。
 
-当前微信 target 提供：
+## Vite 与 mode
 
-- PixiJS WebGL 1 / WebGL 2 初始化和无 DOM runtime adapter。
-- 普通 `Text`，包括中文文字；真机没有 `Intl` 时，构建产物会让 PixiJS 使用自身的字符分段降级路径。
-- `Graphics`、Pixifact runtime 节点和 compiler Scene。
-- 微信触摸事件到 PixiJS pointer event 的桥接，包括拖动所需的 `globalpointermove`。
-- 前后台切换时停止和恢复 ticker，并在隐藏时取消活动触摸。
-- 本地资源、微信资源分包和 HTTPS 远程资源。
-- development / production 构建、watch 开发模式和代码包体积检查。
+`vite.config.ts` 是唯一构建配置入口：
 
-当前明确不支持：
+```ts
+import { defineConfig } from 'vite';
+import { pixifact } from 'pixifact/compiler-node';
 
-- SVG 资源。构建不会自动转换 SVG，项目应在源资产阶段提供 PNG、JPEG 或 WebP。
-- `HTMLText`。
-- `DOMContainer`。
+export default defineConfig({
+  plugins: [pixifact()],
+});
+```
 
-Scene 纹理支持 `.png`、`.jpg`、`.jpeg` 和 `.webp`。target 校验会在构建前报告不支持的节点、纹理和资源包内容。
+例如创建 `.env.wechat`：
 
-微信构建会在 PixiJS 模块执行前安装其初始化所需的 `Intl` 和 `navigator` 启动环境，不依赖微信开发者工具提供的浏览器全局变量。普通中文、拉丁文字和单码点字符不依赖 `Intl`。当真机没有 `Intl.Segmenter` 时，PixiJS 会按 Unicode 码点拆分文字；如果游戏依赖由多个码点组成的 emoji 或组合字符精确换行，应在目标真机上验证排版。
+```ini
+VITE_PLATFORM=wechat
+VITE_APP_ID=wx123456
+```
 
-## 项目配置
+Pixifact 完全遵循 Vite 的 `.env`、`.env.local`、`.env.[mode]` 和 `.env.[mode].local` 规则。`--mode` 可以是任意非空名称；例如 `.env.game1` 也可以声明 `VITE_PLATFORM=wechat`。所有 `VITE_*` 值都是会进入客户端的公开字符串，不要放密钥。
 
-在 `pixifact.project.json` 中声明资源包和微信 target：
+Bun 会默认提前读取 `.env`，这会让其中的变量被 Vite 视为已有进程变量并覆盖 mode 文件。Bun 项目应在根目录保留脚手架生成的 `bunfig.toml`：
+
+```toml
+env = false
+```
+
+这只关闭 Bun 的自动 dotenv；Vite 仍按上述标准顺序加载全部 env 文件，shell 显式传入的变量仍具有最高优先级。
+
+## 项目与原生配置
+
+`pixifact.project.json` 使用 version 2，只保存 Pixifact 领域配置：
 
 ```json
 {
-  "version": 1,
+  "version": 2,
   "name": "My Game",
-  "resolution": {
-    "width": 750,
-    "height": 1334
-  },
-  "viewport": {
-    "mode": "fixedWidth"
-  },
   "scenes": {
     "main": "src/scenes/Main.scene"
   },
-  "resourcePacks": {
-    "chapter1": {
-      "root": "resources/chapter1"
-    },
-    "common": {
-      "root": "resources/common"
-    }
-  },
-  "targets": {
-    "wechat": {
-      "entry": "src/wechat/main.ts",
-      "configDir": "platforms/wechat",
-      "outDir": "dist/wechat",
-      "resourcePacks": {
-        "chapter1": {
-          "delivery": "subpackage",
-          "root": "subpackages/chapter1"
-        },
-        "common": {
-          "delivery": "remote",
-          "baseUrl": "https://cdn.example.com/common"
-        }
-      }
-    }
+  "resourcePacks": ["chapter1", "common"],
+  "remoteResourcePacks": {
+    "common": "https://cdn.example.com/common"
   }
 }
 ```
 
-字段含义：
+本地资源包目录固定为 `resources/<pack-name>/`。`remoteResourcePacks` 的 key 必须先出现在 `resourcePacks` 中，URL 必须是 HTTPS；远程包只进入 Pixi manifest，不写入构建产物。
 
-| 字段 | 含义 |
-| --- | --- |
-| `entry` | 微信小游戏 TypeScript 入口 |
-| `configDir` | 原生 `game.json` 和 `project.config.json` 所在目录 |
-| `outDir` | 可导入微信开发者工具的构建目录，不能是项目根或包含项目输入文件 |
-| `resourcePacks` | 每个项目资源包在微信目标上的 delivery |
-| `subpackage.root` | 输出目录内的微信资源分包根目录 |
-| `remote.baseUrl` | HTTPS CDN 基础地址，不带末尾 `/` |
+微信原生模板位于：
 
-项目没有资源包时，`resourcePacks` 使用空对象。target 中引用的每个名字都必须先在顶层 `resourcePacks` 中声明；顶层声明的每个资源包也必须选择微信 delivery。
-
-`platforms/wechat/game.json` 中的分包名和 root 必须与 target 一致：
-
-```json
-{
-  "deviceOrientation": "portrait",
-  "subpackages": [
-    {
-      "name": "chapter1",
-      "root": "subpackages/chapter1"
-    }
-  ]
-}
+```txt
+platforms/wechat/game.json
+platforms/wechat/project.config.json
 ```
 
-`project.config.json` 属于微信开发者工具配置。正式项目应填写自己的 AppID；示例使用 `touristappid`。
+Pixifact 把模板复制到产物，写入 `VITE_APP_ID`，并根据本地 resource pack 生成 `subpackages`。源 `game.json` 不得自行声明 `subpackages`。
 
-## Scene 与入口
+## 单一入口与 Assets
 
-Scene 脚本从运行时专用入口导入 decorator：
-
-```ts
-import { scene } from 'pixifact/scene';
-import { Group } from 'pixifact/runtime';
-
-@scene()
-export class Main extends Group {}
-```
-
-游戏实例化 Scene 之前必须异步准备它。准备过程会先准备嵌套 Scene，再加载目标 manifest 中的纹理：
-
-```ts
-import { prepareSceneClass } from 'pixifact/scene';
-import { Main } from './scenes/Main';
-
-await prepareSceneClass(Main);
-const scene = new Main();
-```
-
-微信入口先导入生成的 Scene registry，再创建平台 Application：
+三个平台共享同一入口：
 
 ```ts
 import 'pixifact:scenes';
-import { createWechatPixiApplication } from 'pixifact/platform/wechat';
-import { startGame } from '../startGame';
+import { Assets } from 'pixi.js';
+import { createApplication } from 'pixifact:platform';
+import manifest from 'pixifact:assets';
 
-const app = await createWechatPixiApplication({ backgroundColor: 0x09111a });
-await startGame({
-  stage: app.stage,
-  width: app.screen.width,
-  height: app.screen.height,
-});
+const app = await createApplication({ backgroundColor: 0x09111a });
+
+await Assets.init({ manifest });
+await Assets.loadBundle('chapter1');
+const level = await Assets.load('resources/chapter1/level.json');
 ```
 
-`createWechatPixiApplication()` 返回 `stage`、`renderer`、`ticker`、`screen`、`canvas`、`start()`、`stop()` 和 `destroy()`。游戏共享逻辑不应直接依赖 `wx`；把平台启动和平台 API 留在 `src/wechat` 边界内。
+`createApplication()` 返回原生 PixiJS `Application`，只初始化平台、Canvas、renderer、输入和生命周期，不隐式调用 `Assets.init()`。应用应在合适时机初始化一次 manifest。
 
-## 资源交付
+逻辑资源路径使用无前导 `/` 的项目相对路径。微信 fetch adapter 会在 PixiJS 首次读取分包路径前自动加载对应分包；业务代码不调用 `loadSubpackage()`，也不使用 Pixifact 专属资源加载 API。
 
-`compile-scenes` 生成逻辑资源 ID 清单，Web 和微信构建分别把这些 ID 映射到平台 URL：
+平台专属开放能力直接从平台包导入，并用 Vite 常量分支保护；非目标 production build 会通过常量折叠和 tree-shaking 删除该分支。Pixifact 当前不提供分享、登录、广告或支付 facade。
 
-- 未放入资源包的 Scene 纹理复制到微信主包 `assets/`，文件名带内容 hash。
-- `subpackage` 资源包完整复制到指定分包。Scene 首次准备该包内纹理时会先调用 `wx.loadSubpackage()`。
-- `remote` 资源包不复制到代码包，Scene 纹理映射到 `baseUrl`。CDN 域名还需要在微信公众平台配置合法域名。
-- JSON、音频等非 Scene 资源也可以放入资源包。代码手动读取分包资源前，应先调用 `loadWechatSubpackage(name)`。
-
-`fetchWechatResource()` 的 `text()` 和 `json()` 内置 UTF-8 转换，不依赖真机提供 `TextEncoder` 或 `TextDecoder`。
-
-例如：
-
-```ts
-import {
-  fetchWechatResource,
-  loadWechatSubpackage,
-} from 'pixifact/platform/wechat';
-
-await loadWechatSubpackage('chapter1');
-const level = await fetchWechatResource('subpackages/chapter1/level.json')
-  .then((response) => response.json());
-```
-
-不要把同一资源放入多个嵌套或重叠资源包，否则资源 delivery 会产生歧义。
-
-## CLI
-
-先做目标校验：
+## 命令与产物
 
 ```bash
-pixifact validate --target wechat
+pixifact validate --mode wechat
+pixifact build --mode wechat
+pixifact dev --mode wechat
 ```
 
-生产构建默认压缩：
+未传 `--mode` 时，`dev` 默认 `development`，`build` / `validate` 默认 `production`。小游戏 `dev` 使用 Vite build watch；修改已纳入项目的 Scene、配对脚本、资源或原生配置会触发重建。
 
-```bash
-pixifact build --target wechat
-```
+默认输出是 `dist/wechat/`，可通过 Vite `build.outDir` 修改。产物包含单一主代码 `game.js`、原生配置、主包资源和 `subpackages/<pack>/`。微信检查 4 MiB 主包和 20 MiB 总包限制；source map 与 `project.config.json` 不计入报告。
 
-需要可读代码和 source map 时：
+把 `dist/wechat/` 导入微信开发者工具即可调试。Pixifact 不负责上传、体验版、审核或发布。
 
-```bash
-pixifact build --target wechat --mode development
-```
+## 支持边界
 
-开发时持续监听项目变化并重建：
-
-```bash
-pixifact dev --target wechat
-```
-
-`dev` 固定使用 development mode。微信开发者工具直接导入 `targets.wechat.outDir`，并开启其文件变化监听即可。
-
-## 构建产物
-
-典型输出：
-
-```txt
-dist/wechat/
-├── game.js
-├── game.js.map
-├── game.json
-├── project.config.json
-├── assets/
-└── subpackages/
-    └── chapter1/
-        ├── game.js
-        └── ...
-```
-
-production 不生成 `game.js.map`。builder 会检查：
-
-- 主包不超过 4 MiB。
-- 全部代码包合计不超过 20 MiB。
-
-报告按实际输出文件计算，source map 和 `project.config.json` 不计入代码包大小。超限时构建失败，并报告主包、各分包和总包字节数。
-
-## 示例
-
-仓库示例位于 `sample-projects/wechat-minigame-demo`，覆盖共享 `.scene`、普通中文 `Text`、`Graphics`、`ScrollContainer`、触摸输入和资源分包：
-
-```bash
-cd sample-projects/wechat-minigame-demo
-bun run dev
-bun run build:web
-bun run validate:wx
-bun run build:wx
-bun run dev:wx
-```
-
-Web 产物位于 `dist/web`，微信产物位于 `dist/wechat`，两个目标互不清理。
+- 支持 PixiJS WebGL、Text、Graphics、Pixifact runtime 节点、触摸、前后台生命周期、本地资源、资源分包和 HTTPS 远程包。
+- Scene 纹理支持 PNG、JPEG 和 WebP；拒绝 SVG、HTMLText 和 DOMContainer。
+- 平台包顶层 import 不读取 `wx` 或注册生命周期；实际初始化发生在 `createApplication()`。

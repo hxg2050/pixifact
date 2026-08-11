@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "name": "Pixifact 微信小游戏示例",
   "resolution": {
     "width": 750,
@@ -11,35 +11,7 @@
   "scenes": {
     "main": "src/scenes/Main.scene"
   },
-  "resourcePacks": {
-    "demo-level": {
-      "root": "resources/demo-level"
-    }
-  },
-  "targets": {
-    "wechat": {
-      "entry": "src/wechat/main.ts",
-      "configDir": "platforms/wechat",
-      "outDir": "dist/wechat",
-      "resourcePacks": {
-        "demo-level": {
-          "delivery": "subpackage",
-          "root": "subpackages/demo-level"
-        }
-      }
-    },
-    "douyin": {
-      "entry": "src/douyin/main.ts",
-      "configDir": "platforms/douyin",
-      "outDir": "dist/douyin",
-      "resourcePacks": {
-        "demo-level": {
-          "delivery": "subpackage",
-          "root": "subpackages/demo-level"
-        }
-      }
-    }
-  },
+  "resourcePacks": ["demo-level"],
   "run": {
     "command": "bun",
     "args": ["run", "dev"],

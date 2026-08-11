@@ -10,7 +10,7 @@ import {
 describe('Pixifact project run config', () => {
     it('parses a valid pixifact.project.json', () => {
         const config = parsePixifactProjectConfig({
-            version: 1,
+            version: 2,
             name: 'Space HUD Game',
             resolution: {
                 width: 720,
@@ -33,7 +33,7 @@ describe('Pixifact project run config', () => {
 
         expect(pixifactProjectConfigFileName).toBe('pixifact.project.json');
         expect(config).toEqual({
-            version: 1,
+            version: 2,
             name: 'Space HUD Game',
             resolution: {
                 width: 720,
@@ -69,7 +69,7 @@ describe('Pixifact project run config', () => {
 
     it('rejects invalid run command data', () => {
         expect(() => parsePixifactProjectConfig({
-            version: 1,
+            version: 2,
             name: 'Bad Game',
             scenes: {},
             run: {
@@ -79,7 +79,7 @@ describe('Pixifact project run config', () => {
         })).toThrow('run.command must be a non-empty string');
 
         expect(() => parsePixifactProjectConfig({
-            version: 1,
+            version: 2,
             name: 'Bad Game',
             scenes: {},
             run: {
@@ -92,7 +92,7 @@ describe('Pixifact project run config', () => {
 
     it('allows projects without a run config', () => {
         const config = parsePixifactProjectConfig({
-            version: 1,
+            version: 2,
             name: 'Scene Only Project',
             scenes: {
                 hud: 'scenes/Hud.scene',
@@ -114,7 +114,7 @@ describe('Pixifact project run config', () => {
 
     it('rejects invalid viewport mode data', () => {
         expect(() => parsePixifactProjectConfig({
-            version: 1,
+            version: 2,
             name: 'Bad Game',
             viewport: {
                 mode: 'stretch',
@@ -125,7 +125,7 @@ describe('Pixifact project run config', () => {
 
     it('rejects invalid project resolution data', () => {
         expect(() => parsePixifactProjectConfig({
-            version: 1,
+            version: 2,
             name: 'Bad Game',
             resolution: {
                 width: 0,
@@ -135,7 +135,7 @@ describe('Pixifact project run config', () => {
         })).toThrow('resolution.width must be a positive number');
 
         expect(() => parsePixifactProjectConfig({
-            version: 1,
+            version: 2,
             name: 'Bad Game',
             resolution: {
                 width: 750,
@@ -147,7 +147,7 @@ describe('Pixifact project run config', () => {
 
     it('rejects project paths outside projectRoot', () => {
         expect(() => parsePixifactProjectConfig({
-            version: 1,
+            version: 2,
             name: 'Bad Game',
             scenes: {
                 hud: '../Hud.scene',
@@ -160,7 +160,7 @@ describe('Pixifact project run config', () => {
         })).toThrow('scenes.hud must stay inside projectRoot');
 
         expect(() => parsePixifactProjectConfig({
-            version: 1,
+            version: 2,
             name: 'Bad Game',
             scenes: {},
             run: {
@@ -171,132 +171,84 @@ describe('Pixifact project run config', () => {
         })).toThrow('run.cwd must stay inside projectRoot');
     });
 
-    it('parses WeChat target resource delivery', () => {
+    it('parses local and remote resource packs with fixed directory conventions', () => {
         const config = parsePixifactProjectConfig({
-            version: 1,
-            name: 'WeChat Game',
+            version: 2,
+            name: 'Game',
             scenes: {
                 main: 'src/scenes/Main.scene',
             },
-            resourcePacks: {
-                common: { root: 'resources/common' },
-                chapter1: { root: 'resources/chapter1' },
-            },
-            targets: {
-                wechat: {
-                    entry: 'src/wechat/main.ts',
-                    configDir: 'platforms/wechat',
-                    outDir: 'dist/wechat',
-                    resourcePacks: {
-                        common: {
-                            delivery: 'remote',
-                            baseUrl: 'https://cdn.example.com/common/',
-                        },
-                        chapter1: {
-                            delivery: 'subpackage',
-                            root: 'subpackages/chapter1',
-                        },
-                    },
-                },
+            resourcePacks: ['common', 'chapter1'],
+            remoteResourcePacks: {
+                common: 'https://cdn.example.com/common/',
             },
         });
 
-        expect(config.targets?.wechat).toEqual({
-            entry: 'src/wechat/main.ts',
-            configDir: 'platforms/wechat',
-            outDir: 'dist/wechat',
-            resourcePacks: {
-                common: {
-                    delivery: 'remote',
-                    baseUrl: 'https://cdn.example.com/common',
-                },
-                chapter1: {
-                    delivery: 'subpackage',
-                    root: 'subpackages/chapter1',
-                },
-            },
+        expect(config.resourcePacks).toEqual(['common', 'chapter1']);
+        expect(config.remoteResourcePacks).toEqual({
+            common: 'https://cdn.example.com/common',
+        });
+        expect(summarizePixifactProjectConfig(config)).toMatchObject({
+            resourcePacks: ['common', 'chapter1'],
+            remoteResourcePacks: { common: 'https://cdn.example.com/common' },
         });
     });
 
-    it('parses Douyin target resource delivery', () => {
-        const config = parsePixifactProjectConfig({
-            version: 1,
-            name: 'Douyin Game',
-            scenes: {
-                main: 'src/scenes/Main.scene',
-            },
-            resourcePacks: {
-                common: { root: 'resources/common' },
-                chapter1: { root: 'resources/chapter1' },
-            },
-            targets: {
-                douyin: {
-                    entry: 'src/douyin/main.ts',
-                    configDir: 'platforms/douyin',
-                    outDir: 'dist/douyin',
-                    resourcePacks: {
-                        common: {
-                            delivery: 'remote',
-                            baseUrl: 'https://cdn.example.com/common/',
-                        },
-                        chapter1: {
-                            delivery: 'subpackage',
-                            root: 'subpackages/chapter1',
-                        },
-                    },
-                },
-            },
-        });
-
-        expect(config.targets?.douyin).toEqual({
-            entry: 'src/douyin/main.ts',
-            configDir: 'platforms/douyin',
-            outDir: 'dist/douyin',
-            resourcePacks: {
-                common: {
-                    delivery: 'remote',
-                    baseUrl: 'https://cdn.example.com/common',
-                },
-                chapter1: {
-                    delivery: 'subpackage',
-                    root: 'subpackages/chapter1',
-                },
-            },
-        });
-    });
-
-    it('rejects invalid WeChat target paths and resource pack references', () => {
+    it('rejects version 1 and the removed targets schema', () => {
         expect(() => parsePixifactProjectConfig({
             version: 1,
-            name: 'Bad WeChat Game',
+            name: 'Old Game',
+            scenes: {},
+        })).toThrow('pixifact.project.json version must be 2');
+
+        expect(() => parsePixifactProjectConfig({
+            version: 2,
+            name: 'Old Target Game',
             scenes: {},
             targets: {
                 wechat: {
                     entry: 'src/wechat/main.ts',
-                    configDir: 'platforms/wechat',
-                    outDir: '.',
-                    resourcePacks: {},
                 },
             },
-        })).toThrow('targets.wechat.outDir must not be projectRoot');
+        })).toThrow('targets is not supported');
+    });
+
+    it('rejects duplicate pack names and invalid remote pack mappings', () => {
+        expect(() => parsePixifactProjectConfig({
+            version: 2,
+            name: 'Duplicate Packs',
+            scenes: {},
+            resourcePacks: ['common', 'common'],
+        })).toThrow('resourcePacks must not contain duplicate names');
 
         expect(() => parsePixifactProjectConfig({
-            version: 1,
-            name: 'Bad WeChat Game',
+            version: 2,
+            name: 'Missing Remote Pack',
             scenes: {},
-            targets: {
-                wechat: {
-                    entry: 'src/wechat/main.ts',
-                    configDir: 'platforms/wechat',
-                    outDir: 'dist/wechat',
-                    resourcePacks: {
-                        missing: {
-                            delivery: 'subpackage',
-                            root: 'subpackages/missing',
-                        },
-                    },
-                },
+            resourcePacks: ['common'],
+            remoteResourcePacks: {
+                missing: 'https://cdn.example.com/missing',
             },
-        })).toThrow('targets.wechat.resourcePacks.missing must reference resourcePacks.missing');
+        })).toThrow('remoteResourcePacks.missing must reference resourcePacks');
+
+        expect(() => parsePixifactProjectConfig({
+            version: 2,
+            name: 'Insecure Remote Pack',
+            scenes: {},
+            resourcePacks: ['common'],
+            remoteResourcePacks: {
+                common: 'http://cdn.example.com/common',
+            },
+        })).toThrow('remoteResourcePacks.common must be an HTTPS URL');
+
+        expect(() => parsePixifactProjectConfig({
+            version: 2,
+            name: 'Invalid Remote Pack',
+            scenes: {},
+            resourcePacks: ['common'],
+            remoteResourcePacks: {
+                common: 'https://',
+            },
+        })).toThrow('remoteResourcePacks.common must be an HTTPS URL');
     });
 });

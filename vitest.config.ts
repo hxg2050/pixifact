@@ -8,6 +8,18 @@ export default defineConfig({
     resolve: {
         alias: [
             {
+                find: '@pixifact/platform-wechat',
+                replacement: new URL('./packages/platform-wechat/src/index.ts', import.meta.url).pathname,
+            },
+            {
+                find: '@pixifact/platform-douyin',
+                replacement: new URL('./packages/platform-douyin/src/index.ts', import.meta.url).pathname,
+            },
+            {
+                find: 'pixifact/internal/minigame',
+                replacement: `${pixifactSrc}/platform/minigame/index.ts`,
+            },
+            {
                 find: /^pixifact\/(.+)$/,
                 replacement: `${pixifactSrc}/$1`,
             },

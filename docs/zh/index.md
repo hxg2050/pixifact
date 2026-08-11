@@ -36,8 +36,8 @@
 | [Scene Objects](./scene-objects.md) | `.scene` 可写对象、通用属性、对象专属属性、适用场景和示例 |
 | [Agent Scene Authoring](./agent-scene-authoring.md) | 外部 Agent 直接编辑 `.scene` 的规则、契约和校验边界 |
 | [Agent Runtime](./runtime-agent.md) | 外部 Agent 观察和操作 Vite Web 真实游戏的 Runtime 接入、CLI 与边界 |
-| [微信小游戏构建](./wechat-minigame.md) | 微信 target 配置、平台 runtime、资源交付、CLI 和产物边界 |
-| [抖音小游戏构建](./douyin-minigame.md) | 抖音 target 配置、平台 runtime、资源交付、CLI 和产物边界 |
+| [微信小游戏构建](./wechat-minigame.md) | 微信 Vite mode、可选平台包、Pixi Assets、CLI 和产物边界 |
+| [抖音小游戏构建](./douyin-minigame.md) | 抖音 Vite mode、可选平台包、Pixi Assets、CLI 和产物边界 |
 
 ## 权威归属
 

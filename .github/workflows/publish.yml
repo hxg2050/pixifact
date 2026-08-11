@@ -46,6 +46,8 @@ jobs:
           const version = process.argv[2];
           const packages = [
             'packages/pixifact/package.json',
+            'packages/platform-wechat/package.json',
+            'packages/platform-douyin/package.json',
             'packages/pixifact-cli/package.json',
             'packages/create-pixifact/package.json',
           ];
@@ -61,7 +63,7 @@ jobs:
       - name: Test
         run: bun run test
 
-      - name: Build pixifact
+      - name: Build runtime packages
         run: bun run build
 
       - name: Build create-pixifact
@@ -98,5 +100,7 @@ jobs:
           }
 
           publish_package packages/pixifact
+          publish_package packages/platform-wechat
+          publish_package packages/platform-douyin
           publish_package packages/pixifact-cli
           publish_package packages/create-pixifact

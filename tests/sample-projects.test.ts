@@ -52,7 +52,7 @@ describe('sample projects', () => {
 
         const project = JSON.parse(await readFile(join(sampleRoot, 'pixifact.project.json'), 'utf8'));
         expect(project).toMatchObject({
-            version: 1,
+            version: 2,
             name: 'Pixifact Adventure UI Demo',
             resolution: {
                 width: 750,
@@ -71,37 +71,19 @@ describe('sample projects', () => {
             .toEqual(['adventure-ui-demo', 'wechat-minigame-demo']);
     });
 
-    it('keeps the WeChat sample importable by WeChat DevTools', async () => {
+    it('keeps the unified sample importable by both Mini Game developer tools', async () => {
         const project = JSON.parse(await readFile(join(wechatSampleRoot, 'pixifact.project.json'), 'utf8'));
-        expect(project.targets.wechat).toEqual({
-            entry: 'src/wechat/main.ts',
-            configDir: 'platforms/wechat',
-            outDir: 'dist/wechat',
-            resourcePacks: {
-                'demo-level': {
-                    delivery: 'subpackage',
-                    root: 'subpackages/demo-level',
-                },
-            },
-        });
-        expect(project.targets.douyin).toEqual({
-            entry: 'src/douyin/main.ts',
-            configDir: 'platforms/douyin',
-            outDir: 'dist/douyin',
-            resourcePacks: {
-                'demo-level': {
-                    delivery: 'subpackage',
-                    root: 'subpackages/demo-level',
-                },
-            },
-        });
+        expect(project).toMatchObject({ version: 2, resourcePacks: ['demo-level'] });
+        await expect(readFile(join(wechatSampleRoot, 'bunfig.toml'), 'utf8')).resolves.toBe('env = false\n');
         await expect(exists(join(wechatSampleRoot, 'platforms', 'wechat', 'game.json'))).resolves.toBe(true);
         await expect(exists(join(wechatSampleRoot, 'platforms', 'wechat', 'project.config.json'))).resolves.toBe(true);
         await expect(exists(join(wechatSampleRoot, 'platforms', 'douyin', 'game.json'))).resolves.toBe(true);
         await expect(exists(join(wechatSampleRoot, 'platforms', 'douyin', 'project.config.json'))).resolves.toBe(true);
         await expect(exists(join(wechatSampleRoot, 'src', 'scenes', 'Main.scene'))).resolves.toBe(true);
         await expect(exists(join(wechatSampleRoot, 'src', 'scenes', 'Main.ts'))).resolves.toBe(true);
-        await expect(exists(join(wechatSampleRoot, 'src', 'douyin', 'main.ts'))).resolves.toBe(true);
+        await expect(exists(join(wechatSampleRoot, 'src', 'main.ts'))).resolves.toBe(true);
+        await expect(exists(join(wechatSampleRoot, 'src', 'wechat', 'main.ts'))).resolves.toBe(false);
+        await expect(exists(join(wechatSampleRoot, 'src', 'douyin', 'main.ts'))).resolves.toBe(false);
     });
 
     it('keeps every adventure UI demo scene paired with a script', async () => {
@@ -113,18 +95,22 @@ describe('sample projects', () => {
 
     it('keeps the adventure UI demo on public package entrypoints', async () => {
         const packageJson = JSON.parse(await readFile(join(sampleRoot, 'package.json'), 'utf8'));
-        expect(packageJson.scripts['compile:scenes']).toBe('pixifact compile-scenes --project-root .');
+        await expect(readFile(join(sampleRoot, 'bunfig.toml'), 'utf8')).resolves.toBe('env = false\n');
+        expect(packageJson.scripts.build).toBe('pixifact build --mode production --project-root .');
         expect(packageJson.dependencies.pixifact).toBe(`^${pixifactPackage.version}`);
         expect(packageJson.devDependencies['pixifact-cli']).toBe(`^${pixifactCliPackage.version}`);
 
         const viteConfig = await readFile(join(sampleRoot, 'vite.config.ts'), 'utf8');
         expect(viteConfig).toContain("from 'pixifact/compiler-node'");
+        expect(viteConfig).toContain('pixifact({ projectRoot })');
         expect(viteConfig).toContain('pixifactRuntimePlugin({ projectRoot })');
         expect(viteConfig).not.toContain('../../packages/');
 
         const mainSource = await readFile(join(sampleRoot, 'src', 'main.ts'), 'utf8');
         expect(mainSource).toContain("await import('pixifact/runtime-dev')");
         expect(mainSource).toContain('registerPixiRuntime(app');
+        await expect(readFile(join(sampleRoot, 'src', 'vite-env.d.ts'), 'utf8'))
+            .resolves.toContain('pixifact/client');
 
         const tsconfig = await readFile(join(sampleRoot, 'tsconfig.json'), 'utf8');
         expect(tsconfig).not.toContain('../../packages/');

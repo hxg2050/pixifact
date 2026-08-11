@@ -82,5 +82,5 @@ export async function fixDistEsmImports(distRoot = defaultDistRoot()) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-    await fixDistEsmImports();
+    await fixDistEsmImports(process.argv[2] ? path.resolve(process.cwd(), process.argv[2]) : defaultDistRoot());
 }

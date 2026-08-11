@@ -44,7 +44,6 @@ import {
     compileScenes,
     extractSceneScriptInterfaces,
     generatedSceneAssetsFileName,
-    pixifactScenesPlugin,
 } from 'pixifact/compiler-node';
 
 const builtinSceneScriptSources: BuiltinSceneScriptSources = {};
@@ -1458,9 +1457,9 @@ import { Group } from 'pixifact/runtime';`);
         expect(code).toContain('connectSceneEvent(startButton.click, "startGame", root, actions);');
         expect(code).toContain('root.addChild(startButton);');
         expect(code).toContain('__pixifactNodes["0:startButton"] = startButton;');
-        expect(code).toContain("import { connectSceneEvent, loadSceneTexture, mount } from 'pixifact/scene';");
+        expect(code).toContain("import { connectSceneEvent, mount } from 'pixifact/scene';");
         expect(code).toContain('export async function prepareMainMenuScene()');
-        expect(code).toContain('loadSceneTexture("assets/icons/play.png")');
+        expect(code).toContain('Assets.load<Texture>("assets/icons/play.png")');
         expect(code).toContain('const playIcon = new Sprite({ texture: __pixifactTexture1 });');
         expect(code).toContain('playIcon.anchor.set(0.5, 0.5);');
         expect(code).toContain('playIcon.tint = 16711680;');
@@ -1715,9 +1714,8 @@ import { Group } from 'pixifact/runtime';`);
 
         expect(code).toContain('BitmapText');
         expect(code).toContain('NineSliceSprite');
-        expect(code).toContain("import { loadSceneTexture } from 'pixifact/scene';");
-        expect(code).toContain('loadSceneTexture("assets/panel.png")');
-        expect(code).toContain('loadSceneTexture("assets/pattern.png")');
+        expect(code).toContain('Assets.load<Texture>("assets/panel.png")');
+        expect(code).toContain('Assets.load<Texture>("assets/pattern.png")');
         expect(code).toContain('const panel = new NineSliceSprite({ texture: __pixifactTexture1 });');
         expect(code).toContain('panel.leftWidth = 12;');
         expect(code).toContain('panel.bottomHeight = 8;');
@@ -2516,14 +2514,14 @@ import { Group, BitmapLabel } from 'pixifact/runtime';`);
         });
 
         const code = compileSceneTemplateToTs(template);
-        expect(code).toContain(`import { Container, Texture } from 'pixi.js';
+        expect(code).toContain(`import { Container, Assets, Texture } from 'pixi.js';
 import { Group, Image, NineImage, TileImage, setFrameLayout } from 'pixifact/runtime';`);
         expect(code).toContain('hero: Image;');
         expect(code).toContain('panel: NineImage;');
         expect(code).toContain('ground: TileImage;');
-        expect(code).toContain('loadSceneTexture("assets/hero.png")');
-        expect(code).toContain('loadSceneTexture("assets/panel.png")');
-        expect(code).toContain('loadSceneTexture("assets/grass.png")');
+        expect(code).toContain('Assets.load<Texture>("assets/hero.png")');
+        expect(code).toContain('Assets.load<Texture>("assets/panel.png")');
+        expect(code).toContain('Assets.load<Texture>("assets/grass.png")');
         expect(code).toContain('const hero = new Image({ texture: __pixifactTexture1 });');
         expect(code).toContain('hero.width = 320;');
         expect(code).toContain('hero.height = 180;');
@@ -2678,7 +2676,7 @@ import { Group, Image, NineImage, TileImage, setFrameLayout } from 'pixifact/run
             await mkdir(join(root, 'src', 'build'), { recursive: true });
             await mkdir(join(root, 'src', 'generated'), { recursive: true });
             await writeFile(join(root, 'pixifact.project.json'), JSON.stringify({
-                version: 1,
+                version: 2,
                 name: 'Scene Compiler Test',
                 resolution: {
                     width: 720,
@@ -2753,7 +2751,7 @@ import { Group } from 'pixifact/runtime';
             expect(uiGenerated).toContain('registerScene("src/ui/Button.scene"');
             expect(uiGenerated).toContain('registerSceneClass(SceneClass_src_ui_Button, "src/ui/Button.scene");');
             expect(uiGenerated).toContain('import { Button as SceneClass_src_ui_Button } from "../../../../src/ui/Button";');
-            expect(uiGenerated).toContain('loadSceneTexture("src/assets/btn.png")');
+            expect(uiGenerated).toContain('Assets.load<Texture>("src/assets/btn.png")');
             expect(uiGenerated).not.toContain('from "../../../src/ui/Button";');
             expect(uiGenerated).not.toContain('?url');
             expect(menuGenerated).toContain('registerScene("src/menu/Button.scene"');
@@ -2901,36 +2899,6 @@ import { Group } from 'pixifact/runtime';
                     actual: 'string binding',
                 }],
             });
-        } finally {
-            await rm(root, { recursive: true, force: true });
-        }
-    });
-
-    it('resolves the Vite virtual scene registry', () => {
-        const plugin = pixifactScenesPlugin({
-            projectRoot: '/projects/game',
-        });
-
-        expect(plugin.resolveId('pixifact:scenes')).toBe('\0pixifact:scenes');
-        expect(plugin.resolveId('pixifact:other')).toBeUndefined();
-    });
-
-    it('loads the Vite Scene registry with Web asset URLs', async () => {
-        const root = await mkdtemp(join(tmpdir(), 'pixifact-vite-scenes-'));
-        try {
-            const generatedDir = join(root, '.pixifact', 'generated');
-            await mkdir(generatedDir, { recursive: true });
-            await writeFile(join(generatedDir, 'scenes.generated.ts'), 'export {};\n');
-            await writeFile(
-                join(generatedDir, generatedSceneAssetsFileName),
-                '["assets/button.png"]\n',
-            );
-            const plugin = pixifactScenesPlugin({ projectRoot: root });
-            const source = await (plugin.load as (id: string) => Promise<string>)('\0pixifact:scenes');
-
-            expect(source).toContain('?url');
-            expect(source).toContain("import { configureSceneAssets } from 'pixifact/scene';");
-            expect(source).toContain('"assets/button.png"');
         } finally {
             await rm(root, { recursive: true, force: true });
         }

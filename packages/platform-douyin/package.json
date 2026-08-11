@@ -1,0 +1,33 @@
+{
+  "name": "@pixifact/platform-douyin",
+  "version": "0.6.1",
+  "description": "Pixifact 抖音小游戏 PixiJS 平台适配器。",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun ../pixifact/scripts/clean-dist.mjs dist && bunx --no-install tsc -p tsconfig.build.json && bun ../pixifact/scripts/fix-dist-esm-imports.mjs dist"
+  },
+  "peerDependencies": {
+    "pixifact": ">=0.6.1 <1",
+    "pixi.js": ">=8.3.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "MIT"
+}

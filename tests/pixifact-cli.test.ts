@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSceneRevision } from 'pixifact/compiler';
+import { hintForCommandError } from 'pixifact';
 import { executePixifactCli } from '../packages/pixifact-cli/src/pixifact-cli';
 
 const tempRoots: string[] = [];
@@ -53,6 +54,34 @@ function createCompilerSceneProject() {
         'export class Button extends Group {}',
         '',
     ].join('\n'), 'utf8');
+    return root;
+}
+
+function createViteTargetProject() {
+    const root = fs.mkdtempSync(path.join(process.cwd(), '.pixifact-vite-cli-'));
+    tempRoots.push(root);
+    fs.mkdirSync(path.join(root, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'src', 'main.ts'), [
+        "console.info('mode', import.meta.env.MODE, import.meta.env.VITE_PLATFORM);",
+        '',
+    ].join('\n'));
+    fs.writeFileSync(
+        path.join(root, 'index.html'),
+        '<script type="module" src="/src/main.ts"></script>\n',
+    );
+    fs.writeFileSync(path.join(root, 'pixifact.project.json'), JSON.stringify({
+        version: 2,
+        name: 'Vite CLI Fixture',
+        scenes: {},
+    }, null, 2));
+    fs.writeFileSync(path.join(root, '.env.production'), 'VITE_PLATFORM=web\n');
+    fs.writeFileSync(path.join(root, '.env.game1'), 'VITE_PLATFORM=web\n');
+    const compilerNode = path.join(process.cwd(), 'packages/pixifact/src/compiler-node/index.ts');
+    fs.writeFileSync(path.join(root, 'vite.config.ts'), [
+        `import { pixifact } from ${JSON.stringify(compilerNode)};`,
+        `export default { plugins: [pixifact({ projectRoot: ${JSON.stringify(root)} })] };`,
+        '',
+    ].join('\n'));
     return root;
 }
 
@@ -125,12 +154,9 @@ describe('Pixifact CLI', () => {
                 'scene inspect --scene <scene-path>',
                 'scene validate --scene <scene-path>',
                 'compile-scenes',
-                'validate --target wechat',
-                'build --target wechat',
-                'dev --target wechat',
-                'validate --target douyin',
-                'build --target douyin',
-                'dev --target douyin',
+                'validate [--mode <vite-mode>]',
+                'build [--mode <vite-mode>]',
+                'dev [--mode <vite-mode>]',
             ],
             aiValidationAlternatives: [
                 'scene validate --all',
@@ -158,6 +184,85 @@ describe('Pixifact CLI', () => {
             defaults: {
                 projectRoot: 'current working directory',
             },
+        });
+    });
+
+    it('rejects flags outside the Vite mode command contract', async () => {
+        const result = await runCli(['validate', '--target', 'wechat']);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json.error).toBe('Unknown option "--target" for Pixifact validate.');
+    });
+
+    it('provides installation hints for optional platform packages', () => {
+        expect(hintForCommandError('Could not resolve "@pixifact/platform-wechat"')).toBe(
+            'Install the WeChat platform package with: bun add @pixifact/platform-wechat',
+        );
+        expect(hintForCommandError('Cannot find package @pixifact/platform-douyin')).toBe(
+            'Install the Douyin platform package with: bun add @pixifact/platform-douyin',
+        );
+    });
+
+    it('uses production by default and passes arbitrary Vite modes through', async () => {
+        const projectRoot = createViteTargetProject();
+
+        const validated = await runCli(['validate', '--project-root', projectRoot]);
+        const built = await runCli(['build', '--mode', 'game1', '--project-root', projectRoot]);
+
+        expect(validated.exitCode).toBe(0);
+        expect(validated.json).toMatchObject({ mode: 'production', platform: 'web' });
+        expect(built.exitCode, JSON.stringify(built.json)).toBe(0);
+        expect(built.json).toMatchObject({ mode: 'game1', platform: 'web' });
+        expect(fs.existsSync(path.join(projectRoot, 'dist', 'web', 'index.html'))).toBe(true);
+    }, 30_000);
+
+    it('uses development as the default dev mode', async () => {
+        const projectRoot = createViteTargetProject();
+        fs.writeFileSync(path.join(projectRoot, '.env.development'), 'VITE_PLATFORM=invalid\n');
+
+        const result = await runCli(['dev', '--project-root', projectRoot]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json.error).toBe('VITE_PLATFORM must be web, wechat, or douyin.');
+    });
+
+    it('requires VITE_APP_ID only for mini game modes', async () => {
+        const projectRoot = createViteTargetProject();
+        fs.writeFileSync(path.join(projectRoot, '.env.wechat'), 'VITE_PLATFORM=wechat\n');
+
+        const result = await runCli([
+            'validate',
+            '--mode',
+            'wechat',
+            '--project-root',
+            projectRoot,
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json.error).toBe('VITE_APP_ID is required for the wechat platform.');
+    });
+
+    it('reports the install command when the selected platform package is missing', async () => {
+        const projectRoot = createViteTargetProject();
+        fs.mkdirSync(path.join(projectRoot, 'platforms', 'wechat'), { recursive: true });
+        fs.writeFileSync(path.join(projectRoot, 'platforms', 'wechat', 'game.json'), '{}\n');
+        fs.writeFileSync(path.join(projectRoot, 'platforms', 'wechat', 'project.config.json'), '{}\n');
+        fs.writeFileSync(
+            path.join(projectRoot, '.env.wechat'),
+            'VITE_PLATFORM=wechat\nVITE_APP_ID=wx-app-id\n',
+        );
+
+        const result = await runCli([
+            'validate',
+            '--mode',
+            'wechat',
+            '--project-root',
+            projectRoot,
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json.diagnostics).toContainEqual({
+            message: '缺少 @pixifact/platform-wechat；请运行 bun add @pixifact/platform-wechat。',
         });
     });
 
@@ -527,7 +632,7 @@ describe('Pixifact CLI', () => {
     it('includes pixifact project run config in summary without running it', async () => {
         const projectRoot = createTempProject();
         fs.writeFileSync(path.join(projectRoot, 'pixifact.project.json'), JSON.stringify({
-            version: 1,
+            version: 2,
             name: 'Space HUD Game',
             scenes: {
                 hud: 'src/scenes/Button.scene',

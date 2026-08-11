@@ -18,43 +18,14 @@ export interface PixifactProjectResolution {
     height: number;
 }
 
-export interface PixifactProjectResourcePack {
-    root: string;
-}
-
-export type PixifactMiniGameResourcePack = {
-    delivery: 'subpackage';
-    root: string;
-} | {
-    delivery: 'remote';
-    baseUrl: string;
-};
-
-export interface PixifactMiniGameTargetConfig {
-    entry: string;
-    configDir: string;
-    outDir: string;
-    resourcePacks: Record<string, PixifactMiniGameResourcePack>;
-}
-
-export type PixifactWechatResourcePack = PixifactMiniGameResourcePack;
-export type PixifactWechatTargetConfig = PixifactMiniGameTargetConfig;
-export type PixifactDouyinResourcePack = PixifactMiniGameResourcePack;
-export type PixifactDouyinTargetConfig = PixifactMiniGameTargetConfig;
-
-export interface PixifactProjectTargets {
-    wechat?: PixifactWechatTargetConfig;
-    douyin?: PixifactDouyinTargetConfig;
-}
-
 export interface PixifactProjectConfig {
-    version: 1;
+    version: 2;
     name: string;
     resolution: PixifactProjectResolution;
     viewport: PixifactProjectViewport;
     scenes: Record<string, string>;
-    resourcePacks?: Record<string, PixifactProjectResourcePack>;
-    targets?: PixifactProjectTargets;
+    resourcePacks?: string[];
+    remoteResourcePacks?: Record<string, string>;
     run?: PixifactProjectRunConfig;
 }
 
@@ -65,8 +36,8 @@ export interface PixifactProjectSummary {
     resolution: PixifactProjectResolution;
     viewport: PixifactProjectViewport;
     scenes: Record<string, string>;
-    resourcePacks?: Record<string, PixifactProjectResourcePack>;
-    targets?: PixifactProjectTargets;
+    resourcePacks?: string[];
+    remoteResourcePacks?: Record<string, string>;
     run?: PixifactProjectRunConfig;
 }
 
@@ -127,14 +98,6 @@ function normalizeRunCwd(value: unknown) {
     return normalizeProjectPath(input, 'run.cwd');
 }
 
-function normalizeProjectChildPath(value: unknown, name: string) {
-    const input = normalizeProjectPath(value, name);
-    if (input === '.') {
-        throw new Error(`${name} must not be projectRoot.`);
-    }
-    return input;
-}
-
 function parseScenes(value: unknown) {
     const scenes = assertRecord(value, 'scenes');
     return Object.fromEntries(Object.entries(scenes).map(([key, scenePath]) => [
@@ -188,84 +151,71 @@ function parseRun(value: unknown): PixifactProjectRunConfig | undefined {
     };
 }
 
-function parseResourcePacks(value: unknown): Record<string, PixifactProjectResourcePack> | undefined {
+function parseResourcePacks(value: unknown): string[] | undefined {
     if (value === undefined) {
         return undefined;
     }
-    const packs = assertRecord(value, 'resourcePacks');
-    return Object.fromEntries(Object.entries(packs).map(([name, packValue]) => {
-        const pack = assertRecord(packValue, `resourcePacks.${name}`);
-        return [assertString(name, 'resource pack name'), {
-            root: normalizeProjectChildPath(pack.root, `resourcePacks.${name}.root`),
-        }];
-    }));
-}
-
-function parseMiniGameResourcePacks(value: unknown, targetName: 'wechat' | 'douyin') {
-    const packs = assertRecord(value, `targets.${targetName}.resourcePacks`);
-    return Object.fromEntries(Object.entries(packs).map(([name, packValue]) => {
-        const pack = assertRecord(packValue, `targets.${targetName}.resourcePacks.${name}`);
-        const delivery = assertString(pack.delivery, `targets.${targetName}.resourcePacks.${name}.delivery`);
-        if (delivery === 'subpackage') {
-            return [name, {
-                delivery,
-                root: normalizeProjectChildPath(pack.root, `targets.${targetName}.resourcePacks.${name}.root`),
-            } satisfies PixifactMiniGameResourcePack];
+    if (!Array.isArray(value) || !value.every((name) => typeof name === 'string')) {
+        throw new Error('resourcePacks must be an array of strings.');
+    }
+    const packs = value.map((name, index) => {
+        const normalized = normalizeProjectPath(name, `resourcePacks.${index}`);
+        if (normalized.includes('/')) {
+            throw new Error(`resourcePacks.${index} must be a directory name.`);
         }
-        if (delivery === 'remote') {
-            return [name, {
-                delivery,
-                baseUrl: assertString(pack.baseUrl, `targets.${targetName}.resourcePacks.${name}.baseUrl`).replace(/\/+$/, ''),
-            } satisfies PixifactMiniGameResourcePack];
-        }
-        throw new Error(`targets.${targetName}.resourcePacks.${name}.delivery must be subpackage or remote.`);
-    }));
+        return normalized;
+    });
+    if (new Set(packs).size !== packs.length) {
+        throw new Error('resourcePacks must not contain duplicate names.');
+    }
+    return packs;
 }
 
-function parseMiniGameTarget(value: unknown, targetName: 'wechat' | 'douyin') {
-    const target = assertRecord(value, `targets.${targetName}`);
-    const outDir = normalizeProjectChildPath(target.outDir, `targets.${targetName}.outDir`);
-    return {
-        entry: normalizeProjectPath(target.entry, `targets.${targetName}.entry`),
-        configDir: normalizeProjectPath(target.configDir, `targets.${targetName}.configDir`),
-        outDir,
-        resourcePacks: parseMiniGameResourcePacks(target.resourcePacks, targetName),
-    } satisfies PixifactMiniGameTargetConfig;
-}
-
-function parseTargets(value: unknown): PixifactProjectTargets | undefined {
+function parseRemoteResourcePacks(value: unknown, resourcePacks: string[] | undefined) {
     if (value === undefined) {
         return undefined;
     }
-    const targets = assertRecord(value, 'targets');
-    return {
-        ...(targets.wechat === undefined ? {} : { wechat: parseMiniGameTarget(targets.wechat, 'wechat') }),
-        ...(targets.douyin === undefined ? {} : { douyin: parseMiniGameTarget(targets.douyin, 'douyin') }),
-    };
+    const packs = assertRecord(value, 'remoteResourcePacks');
+    return Object.fromEntries(Object.entries(packs).map(([rawName, rawBaseUrl]) => {
+        const name = assertString(rawName, 'remote resource pack name');
+        if (!resourcePacks?.includes(name)) {
+            throw new Error(`remoteResourcePacks.${name} must reference resourcePacks.`);
+        }
+        const baseUrl = assertString(rawBaseUrl, `remoteResourcePacks.${name}`).replace(/\/+$/, '');
+        let url: URL;
+        try {
+            url = new URL(baseUrl);
+        } catch {
+            throw new Error(`remoteResourcePacks.${name} must be an HTTPS URL.`);
+        }
+        if (url.protocol !== 'https:' || url.hostname === '') {
+            throw new Error(`remoteResourcePacks.${name} must be an HTTPS URL.`);
+        }
+        return [name, baseUrl];
+    }));
 }
 
 export function parsePixifactProjectConfig(value: unknown): PixifactProjectConfig {
     const config = assertRecord(value, 'pixifact.project.json');
-    if (config.version !== 1) {
-        throw new Error('pixifact.project.json version must be 1.');
+    if (config.version !== 2) {
+        throw new Error('pixifact.project.json version must be 2.');
+    }
+    if (config.targets !== undefined) {
+        throw new Error('targets is not supported in pixifact.project.json version 2.');
+    }
+    if (config.defines !== undefined) {
+        throw new Error('defines is not supported in pixifact.project.json version 2.');
     }
     const resourcePacks = parseResourcePacks(config.resourcePacks);
-    const targets = parseTargets(config.targets);
-    for (const targetName of ['wechat', 'douyin'] as const) {
-        for (const name of Object.keys(targets?.[targetName]?.resourcePacks ?? {})) {
-            if (!resourcePacks?.[name]) {
-                throw new Error(`targets.${targetName}.resourcePacks.${name} must reference resourcePacks.${name}.`);
-            }
-        }
-    }
+    const remoteResourcePacks = parseRemoteResourcePacks(config.remoteResourcePacks, resourcePacks);
     return {
-        version: 1,
+        version: 2,
         name: assertString(config.name, 'name'),
         resolution: parseResolution(config.resolution),
         viewport: parseViewport(config.viewport),
         scenes: parseScenes(config.scenes),
         ...(resourcePacks === undefined ? {} : { resourcePacks }),
-        ...(targets === undefined ? {} : { targets }),
+        ...(remoteResourcePacks === undefined ? {} : { remoteResourcePacks }),
         run: parseRun(config.run),
     };
 }
@@ -277,7 +227,7 @@ export function summarizePixifactProjectConfig(config: PixifactProjectConfig): P
         viewport: config.viewport,
         scenes: config.scenes,
         ...(config.resourcePacks === undefined ? {} : { resourcePacks: config.resourcePacks }),
-        ...(config.targets === undefined ? {} : { targets: config.targets }),
+        ...(config.remoteResourcePacks === undefined ? {} : { remoteResourcePacks: config.remoteResourcePacks }),
         ...(config.run === undefined ? {} : { run: config.run }),
     };
 }

@@ -2,6 +2,51 @@
 
 本文档描述 Pixifact 当前产品行为和验收边界。详细测试映射见 [TDD.md](./TDD.md)。
 
+## 0. Unified Platform Build
+
+### BDD-BUILD-001 同一入口构建三端
+
+Feature: Vite-driven platform builds
+
+```gherkin
+Scenario: User builds one source entry for Web, WeChat, and Douyin
+  Given a project has one "src/main.ts" and a Vite config using "pixifact()"
+  And each Vite mode defines VITE_PLATFORM
+  When the user runs "pixifact build --mode <mode>"
+  Then Vite builds only the selected platform
+  And Web emits a normal HTML application
+  And WeChat and Douyin each emit one IIFE "game.js" without HTML
+  And the production bundle contains no code from an unselected platform
+```
+
+### BDD-BUILD-002 Vite mode 是平台配置唯一入口
+
+Feature: Standard Vite environment loading
+
+```gherkin
+Scenario: User selects a platform with an arbitrary Vite mode
+  Given ".env.game1" contains "VITE_PLATFORM=wechat" and "VITE_APP_ID=abc123"
+  When the user runs "pixifact validate --mode game1"
+  Then Pixifact loads the files with Vite's standard env precedence
+  And validates the WeChat project and AppID
+  And import.meta.env.MODE remains "game1"
+  But no --target flag, project JSON define, or Pixifact global macro is used
+```
+
+### BDD-ASSETS-001 资源加载复用 PixiJS Assets
+
+Feature: Target-aware Pixi Assets manifest
+
+```gherkin
+Scenario: User initializes and loads project resources
+  Given pixifact.project.json version 2 declares local and HTTPS resource packs
+  When the application imports "pixifact:assets"
+  Then the module exports a PixiJS manifest without initializing Assets
+  And the user controls when to call Assets.init, Assets.load, and Assets.loadBundle
+  And local mini-game packs load their native subpackage before the first asset fetch
+  And remote packs resolve to HTTPS without being emitted into a local build
+```
+
 ## 1. Agent Authoring
 
 ### BDD-AGENT-001 直接编辑 `.scene`

@@ -1,4 +1,10 @@
 export function hintForCommandError(error: string) {
+    if (error.includes('@pixifact/platform-wechat')) {
+        return 'Install the WeChat platform package with: bun add @pixifact/platform-wechat';
+    }
+    if (error.includes('@pixifact/platform-douyin')) {
+        return 'Install the Douyin platform package with: bun add @pixifact/platform-douyin';
+    }
     if (error.includes('inside projectRoot')) {
         return 'Use a project-relative scene path that stays inside projectRoot.';
     }

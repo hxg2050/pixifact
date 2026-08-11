@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "compile:scenes": "pixifact compile-scenes --project-root .",
-    "dev": "bun run compile:scenes && vite . --host 127.0.0.1 --port 5178 --strictPort",
-    "build": "bun run compile:scenes && vite build . --config vite.config.ts"
+    "dev": "pixifact dev --mode development --project-root .",
+    "build": "pixifact build --mode production --project-root .",
+    "validate": "pixifact validate --mode production --project-root ."
   },
   "dependencies": {
     "pixi.js": "8.18.1",

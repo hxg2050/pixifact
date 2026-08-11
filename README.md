@@ -14,8 +14,8 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力。Agent 编排、Git 分�
 - [Layout](./docs/zh/layout.md)：设计分辨率、视口适配、frame layout、编辑器布局对齐。
 - [Agent Scene Authoring](./docs/zh/agent-scene-authoring.md)：外部 Agent 如何编辑 `.scene`。
 - [Agent Runtime](./docs/zh/runtime-agent.md)：外部 Agent 如何观察和操作运行中的 Vite Web 游戏。
-- [微信小游戏构建](./docs/zh/wechat-minigame.md)：游戏项目的微信 target、平台 runtime、资源分包和构建产物。
-- [抖音小游戏构建](./docs/zh/douyin-minigame.md)：游戏项目的抖音 target、平台 runtime、资源分包和构建产物。
+- [微信小游戏构建](./docs/zh/wechat-minigame.md)：Vite mode、可选平台包、资源分包和构建产物。
+- [抖音小游戏构建](./docs/zh/douyin-minigame.md)：Vite mode、可选平台包、资源分包和构建产物。
 - [内部文档](./internal-docs/index.md)：仓库维护、测试、发布、计划和历史规格。
 
 ## npm 快速开始
@@ -23,6 +23,8 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力。Agent 编排、Git 分�
 Pixifact 当前发布包：
 
 - `pixifact`：runtime 扩展、项目配置和 compiler API。
+- `@pixifact/platform-wechat`：按需安装的微信小游戏 PixiJS adapter。
+- `@pixifact/platform-douyin`：按需安装的抖音小游戏 PixiJS adapter。
 - `pixifact-cli`：Bun-first Scene 自动化 CLI。
 - `create-pixifact`：Bun-first 项目脚手架。
 
@@ -39,7 +41,7 @@ bun run build
 
 ```bash
 bun add pixifact pixi.js
-bun add -d pixifact-cli
+bun add -d pixifact-cli vite
 ```
 
 常用 CLI：
@@ -53,18 +55,22 @@ pixifact editor
 构建微信小游戏：
 
 ```bash
-pixifact validate --target wechat
-pixifact build --target wechat
-pixifact dev --target wechat
+bun add @pixifact/platform-wechat
+pixifact validate --mode wechat
+pixifact build --mode wechat
+pixifact dev --mode wechat
 ```
 
 构建抖音小游戏：
 
 ```bash
-pixifact validate --target douyin
-pixifact build --target douyin
-pixifact dev --target douyin
+bun add @pixifact/platform-douyin
+pixifact validate --mode douyin
+pixifact build --mode douyin
+pixifact dev --mode douyin
 ```
+
+平台由标准 Vite mode env 文件中的 `VITE_PLATFORM` 选择，小游戏 AppID 来自 `VITE_APP_ID`。Web、微信和抖音共享 `src/main.ts`；资源统一通过 PixiJS `Assets` 加载。
 
 当前 `pixifact-cli` 和 `create-pixifact` 都是 Bun-first 工具，需要本机安装 Bun。
 
@@ -215,20 +221,23 @@ import { createSceneRevision, parseSceneTemplate } from 'pixifact/compiler';
 import { Group, Control, Rect, Image, HBoxContainer } from 'pixifact/runtime';
 import { registerPixiRuntime } from 'pixifact/runtime-dev';
 import { prepareSceneClass, scene } from 'pixifact/scene';
-import { createWechatPixiApplication } from 'pixifact/platform/wechat';
-import { createDouyinPixiApplication } from 'pixifact/platform/douyin';
+import { pixifact } from 'pixifact/compiler-node';
+import { createApplication } from 'pixifact:platform';
+import manifest from 'pixifact:assets';
 import { parsePixifactProjectConfig } from 'pixifact';
 ```
 
-根入口 `pixifact` 导出项目配置、runtime 扩展和常用错误提示；Scene decorator、事件、slot、异步准备和资源加载从 `pixifact/scene` 导出；compiler API 通过 `pixifact/compiler` 导出；微信和抖音平台 runtime 分别从 `pixifact/platform/wechat` 和 `pixifact/platform/douyin` 导出。
+根入口 `pixifact` 导出项目配置、runtime 扩展和常用错误提示；Scene decorator、事件、slot 和异步准备从 `pixifact/scene` 导出；compiler API 通过 `pixifact/compiler` 导出。Vite 配置使用 `pixifact()`；业务入口通过虚拟模块 `pixifact:platform` 和 `pixifact:assets` 获取当前平台 Application 与 Pixi manifest。
 
 ## 仓库目录
 
 ```txt
 packages/pixifact/              核心 Pixifact 包，包名为 pixifact
+packages/platform-wechat/       可选微信小游戏平台包
+packages/platform-douyin/       可选抖音小游戏平台包
 packages/pixifact/src/runtime/  Pixifact runtime 扩展节点
 packages/pixifact/src/scene/    Scene 运行时公开入口
-packages/pixifact/src/platform/ 游戏目标平台 runtime
+packages/pixifact/src/platform/ Web 与小游戏公共 runtime
 packages/pixifact/src/project/  pixifact.project.json 解析和项目摘要
 packages/pixifact/src/compiler/ compiler .scene 解析、校验、生成
 packages/pixifact-cli/          Pixifact CLI 与浏览器 Editor 本地服务

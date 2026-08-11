@@ -82,37 +82,35 @@ bun run build
 
 不要编辑 `.pixifact/generated/**` 下的生成文件。
 
-## 微信小游戏 target
+## Web / 微信 / 抖音统一构建
 
-项目在 `pixifact.project.json` 声明 `targets.wechat` 后，可运行：
+三个平台共享 `src/main.ts` 和 Vite 配置。平台由标准 Vite mode env 文件选择，例如 `.env.wechat`：
 
-```bash
-pixifact validate --target wechat
-pixifact build --target wechat
-pixifact build --target wechat --mode development
-pixifact dev --target wechat
+```ini
+VITE_PLATFORM=wechat
+VITE_APP_ID=wx123456
 ```
 
-`build` 默认使用 production mode，压缩 `game.js`；development mode 额外输出 source map。`dev` 固定使用 development mode，并在 Scene、脚本、平台配置或资源变化时重建。
-
-输出目录由 `targets.wechat.outDir` 决定，可直接导入微信开发者工具。CLI 负责 target 校验、Scene 编译、主包资源 hash、资源分包 / HTTPS 远程资源映射、原生配置复制和 4 MiB 主包 / 20 MiB 总包检查，不负责上传、体验版、审核或发布。
-
-完整配置和支持矩阵见 [微信小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/wechat-minigame.md)，可运行示例见 [wechat-minigame-demo](https://github.com/hxg2050/pixifact/tree/main/sample-projects/wechat-minigame-demo)。
-
-## 抖音小游戏 target
-
-项目在 `pixifact.project.json` 声明 `targets.douyin` 后，可运行：
+微信项目安装 `@pixifact/platform-wechat` 后运行：
 
 ```bash
-pixifact validate --target douyin
-pixifact build --target douyin
-pixifact build --target douyin --mode development
-pixifact dev --target douyin
+pixifact validate --mode wechat
+pixifact build --mode wechat
+pixifact dev --mode wechat
 ```
 
-输出目录由 `targets.douyin.outDir` 决定，可直接导入抖音小游戏开发者工具。CLI 负责 target 校验、Scene 编译、主包资源 hash、`subPackages` 资源分包 / HTTPS 远程资源映射和包体检查：未配置分包时检查 20 MiB 总包，配置分包时检查 4 MiB 主包和 20 MiB 总包。不负责上传、体验版、审核或发布。
+抖音项目安装 `@pixifact/platform-douyin` 后运行：
 
-完整配置和支持矩阵见 [抖音小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/douyin-minigame.md)，可运行示例见 [wechat-minigame-demo](https://github.com/hxg2050/pixifact/tree/main/sample-projects/wechat-minigame-demo)。
+pixifact validate --mode douyin
+pixifact build --mode douyin
+pixifact dev --mode douyin
+```
+
+Web mode 只需要 `pixifact`，不安装小游戏平台包也能构建。`dev` 默认 mode 为 `development`，`build` 和 `validate` 默认为 `production`；显式 `--mode` 原样交给 Vite。默认产物目录为 `dist/<platform>/`，需要修改时使用 Vite `build.outDir`。
+
+CLI 使用 Vite 完成 env、TypeScript、tree-shaking、watch、静态资源和产物生命周期；Pixifact 插件负责 Scene 编译、当前平台虚拟模块、Pixi manifest、资源分包、原生配置和包体检查。业务代码只使用 PixiJS `Assets`，不需要手动加载分包。
+
+完整配置见 [微信小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/wechat-minigame.md) 和 [抖音小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/douyin-minigame.md)，可运行三端示例见 [wechat-minigame-demo](https://github.com/hxg2050/pixifact/tree/main/sample-projects/wechat-minigame-demo)。
 
 ## 环境要求
 

@@ -6,7 +6,9 @@
     [
       "pixifact",
       "pixifact-cli",
-      "create-pixifact"
+      "create-pixifact",
+      "@pixifact/platform-wechat",
+      "@pixifact/platform-douyin"
     ]
   ],
   "linked": [],
@@ -17,5 +19,8 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
+  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+    "onlyUpdatePeerDependentsWhenOutOfRange": true
+  },
   "ignore": []
 }

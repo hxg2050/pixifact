@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchWechatResource } from '../packages/pixifact/src/platform/wechat/fetch';
-import { bindWechatLifecycle } from '../packages/pixifact/src/platform/wechat/lifecycle';
-import type { WechatMiniGameApi } from '../packages/pixifact/src/platform/wechat/types';
+import { createApplication } from '@pixifact/platform-wechat';
+import { fetchWechatResource } from '../packages/platform-wechat/src/fetch';
+import { bindWechatLifecycle } from '../packages/platform-wechat/src/lifecycle';
+import type { WechatMiniGameApi } from '../packages/platform-wechat/src/types';
 
 const originalWechatApi = (globalThis as typeof globalThis & { wx?: WechatMiniGameApi }).wx;
 
@@ -44,6 +45,11 @@ function installLifecycleApi() {
 }
 
 describe('WeChat platform runtime', () => {
+    it('can import the package without a wx global', () => {
+        expect(createApplication).toBeTypeOf('function');
+        expect((globalThis as typeof globalThis & { wx?: unknown }).wx).toBeUndefined();
+    });
+
     it('reads UTF-8 JSON without TextEncoder or TextDecoder', async () => {
         const jsonText = '{"title":"微信 🎮"}';
         const encoded = new TextEncoder().encode(jsonText);
@@ -52,6 +58,10 @@ describe('WeChat platform runtime', () => {
         encodedWithBom.set(encoded, 3);
         let responseData: ArrayBuffer | string = encodedWithBom.buffer;
         const api = {
+            loadSubpackage(options: { success(): void }) {
+                options.success();
+                return {};
+            },
             getFileSystemManager: () => ({
                 readFile(options: {
                     success(result: { data: ArrayBuffer | string }): void;
@@ -71,6 +81,36 @@ describe('WeChat platform runtime', () => {
         const stringResponse = await fetchWechatResource('subpackages/demo-level/level.json');
         const buffer = await stringResponse.arrayBuffer();
         expect([...new Uint8Array(buffer)]).toEqual([...encoded]);
+    });
+
+    it('deduplicates concurrent subpackage loads and retries after failure', async () => {
+        let attempts = 0;
+        const api = {
+            loadSubpackage(options: { fail(error: { errMsg: string }): void; success(): void }) {
+                attempts += 1;
+                if (attempts === 1) options.fail({ errMsg: 'temporary failure' });
+                else options.success();
+                return {};
+            },
+            getFileSystemManager: () => ({
+                readFile(options: { success(result: { data: string }): void }) {
+                    options.success({ data: '{"ok":true}' });
+                },
+            }),
+        } as unknown as WechatMiniGameApi;
+        (globalThis as typeof globalThis & { wx: WechatMiniGameApi }).wx = api;
+
+        await expect(fetchWechatResource('subpackages/retry-pack/data.json')).rejects.toThrow('temporary failure');
+        const responses = await Promise.all([
+            fetchWechatResource('subpackages/retry-pack/data.json'),
+            fetchWechatResource('subpackages/retry-pack/other.json'),
+        ]);
+
+        await expect(Promise.all(responses.map((response) => response.json()))).resolves.toEqual([
+            { ok: true },
+            { ok: true },
+        ]);
+        expect(attempts).toBe(2);
     });
 
     it('resumes a running ticker after the game returns to the foreground', () => {

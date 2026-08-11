@@ -26,7 +26,7 @@
   "author": "youxia <243802688@qq.com>",
   "license": "MIT",
   "scripts": {
-    "build": "bun scripts/clean-dist.mjs && bunx --no-install tsc -p tsconfig.build.json && bun scripts/fix-dist-esm-imports.mjs"
+    "build": "bun scripts/clean-dist.mjs && bunx --no-install tsc -p tsconfig.build.json && cp src/client.d.ts dist/client.d.ts && bun scripts/fix-dist-esm-imports.mjs"
   },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
@@ -62,19 +62,23 @@
       "import": "./dist/compiler-node/index.js",
       "require": "./dist/compiler-node/index.js"
     },
-    "./platform/wechat": {
-      "types": "./dist/platform/wechat/index.d.ts",
-      "import": "./dist/platform/wechat/index.js",
-      "require": "./dist/platform/wechat/index.js"
+    "./client": {
+      "types": "./dist/client.d.ts"
     },
-    "./platform/douyin": {
-      "types": "./dist/platform/douyin/index.d.ts",
-      "import": "./dist/platform/douyin/index.js",
-      "require": "./dist/platform/douyin/index.js"
+    "./platform/web": {
+      "types": "./dist/platform/web/index.d.ts",
+      "import": "./dist/platform/web/index.js",
+      "require": "./dist/platform/web/index.js"
+    },
+    "./internal/minigame": {
+      "types": "./dist/platform/minigame/index.d.ts",
+      "import": "./dist/platform/minigame/index.js",
+      "require": "./dist/platform/minigame/index.js"
     }
   },
   "peerDependencies": {
-    "pixi.js": ">=8.3.0"
+    "pixi.js": ">=8.3.0",
+    "vite": ">=6.0.0"
   },
   "dependencies": {
     "typescript": "^5.3.3"

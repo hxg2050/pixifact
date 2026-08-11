@@ -1,41 +1,75 @@
 # Douyin Mini Game Builds
 
-Status: Active
-Authority: Pixifact Douyin Mini Game configuration, runtime, resource delivery, validation, and build boundaries
-Upstream: [./index.md](./index.md), [../../README.en.md](../../README.en.md)
-Example: [../../sample-projects/wechat-minigame-demo](../../sample-projects/wechat-minigame-demo)
+Douyin shares Vite, `pixifact.project.json` schema version 2, `src/main.ts`, and the PixiJS Assets model with Web and WeChat. The active mode selects it through `VITE_PLATFORM=douyin`.
 
-The Pixifact Douyin target is for the ordinary JavaScript Mini Game runtime, not the Unity Mini Game solution. It shares `.scene` files, paired Scene scripts, and game logic with Web and WeChat. Platform differences remain in `tt` APIs, entrypoints, native configuration, resource delivery, and package limits.
-
-Pixifact generates a directory that can be imported into Douyin Mini Game Developer Tools. It does not upload, submit for review, or publish builds.
-
-## Support
-
-- PixiJS WebGL 1 / WebGL 2 and a DOM-free runtime adapter.
-- Regular `Text`, `Graphics`, Pixifact runtime nodes, and compiler Scenes.
-- Touch events mapped to Pixi pointer events using `screenX` / `screenY`.
-- Ticker pause/resume on background and foreground transitions.
-- Local resources, Douyin subpackages, and HTTPS remote resources.
-- Development / production builds, watch mode, and package-size checks.
-
-SVG Scene textures, `HTMLText`, and `DOMContainer` are not supported in the first target version.
-
-## CLI
+## Install and Configure
 
 ```bash
-pixifact validate --target douyin
-pixifact build --target douyin
-pixifact build --target douyin --mode development
-pixifact dev --target douyin
+bun add pixifact pixi.js @pixifact/platform-douyin
+bun add -d pixifact-cli vite
 ```
 
-The output directory is controlled by `targets.douyin.outDir` and can be imported into Douyin Mini Game Developer Tools.
+`vite.config.ts`:
 
-`platforms/douyin/project.config.json` belongs to Douyin Developer Tools. The sample leaves `appid` empty as a placeholder; replace it with the project's real AppID before importing the build.
+```ts
+import { defineConfig } from 'vite';
+import { pixifact } from 'pixifact/compiler-node';
 
-## Package limits
+export default defineConfig({ plugins: [pixifact()] });
+```
 
-- Without subpackages: the complete code package is limited to 20 MiB.
-- With subpackages: the main package is limited to 4 MiB and the complete package to 20 MiB; an individual subpackage is limited to 20 MiB.
+`.env.douyin`:
 
-See the Chinese document for the full configuration and verification boundary.
+```ini
+VITE_PLATFORM=douyin
+VITE_APP_ID=tt123456
+```
+
+You may use any Vite mode name, such as `.env.game1` with `--mode game1`. Env precedence, `.local` overrides, and `import.meta.env.MODE` keep their standard Vite behavior.
+
+Bun projects use `env = false` in the root `bunfig.toml` so Bun does not preload `.env`; Vite remains the only env loader. `create-pixifact` generates this setting automatically.
+
+Native templates live at:
+
+```txt
+platforms/douyin/game.json
+platforms/douyin/project.config.json
+```
+
+Pixifact writes `VITE_APP_ID` into the output `project.config.json` and generates Douyin `subPackages` from local `resourcePacks`. The source `game.json` must not duplicate `subPackages`.
+
+Resource pack configuration, remote HTTPS packs, and `pixifact:assets` follow [WeChat Mini Game Builds](./wechat-minigame.md). Game assets use only PixiJS `Assets.init()`, `Assets.load()`, and `Assets.loadBundle()`; the adapter prepares a subpackage before its first read.
+
+## Single Entry
+
+```ts
+import 'pixifact:scenes';
+import { Assets } from 'pixi.js';
+import { createApplication } from 'pixifact:platform';
+import manifest from 'pixifact:assets';
+
+const app = await createApplication();
+await Assets.init({ manifest });
+await Assets.loadBundle('chapter1');
+```
+
+`createApplication()` returns a native PixiJS `Application`. Shared logic should not depend on `tt`. Import genuine Douyin APIs from `@pixifact/platform-douyin` and guard their use with `import.meta.env.VITE_PLATFORM === 'douyin'`.
+
+## Commands and Output
+
+```bash
+pixifact validate --mode douyin
+pixifact build --mode douyin
+pixifact dev --mode douyin
+```
+
+Default output is `dist/douyin/`, containing one main `game.js`, native config, main-package resources, and `subpackages/<pack>/`. Douyin output targets ES2018 so its device compiler does not receive unsupported newer syntax. Without subpackages Pixifact checks the 20 MiB total limit; with subpackages it also checks the 4 MiB main-package limit.
+
+Import `dist/douyin/` into Douyin DevTools. Vite watch rebuilds when tracked Scenes, scripts, resources, or native configs change. Pixifact does not upload, review, or publish the game.
+
+## Support Boundary
+
+- Supports PixiJS WebGL, Text, Graphics, Pixifact runtime nodes, touch, lifecycle, local assets, resource subpackages, and HTTPS remote packs.
+- Scene textures support PNG, JPEG, and WebP. SVG, HTMLText, and DOMContainer are rejected.
+- Importing the package does not read `tt` or initialize the platform.
+- Login, sharing, ads, payments, and open-data capabilities are not part of the unified Application API.

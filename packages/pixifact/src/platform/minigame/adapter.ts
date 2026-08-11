@@ -1,4 +1,3 @@
-import { DOMAdapter, loadTextures } from 'pixi.js';
 import type { MiniGameApi, MiniGameFetch } from './types';
 import type { MiniGameRuntime } from './runtime';
 
@@ -29,11 +28,12 @@ export function createMiniGamePixiAdapter(
     };
 }
 
-export function installMiniGamePixiAdapter(
+export async function installMiniGamePixiAdapter(
     api: MiniGameApi,
     runtime: MiniGameRuntime,
     fetchResource: MiniGameFetch,
 ) {
+    const { DOMAdapter, loadTextures } = await import('pixi.js');
     DOMAdapter.set(createMiniGamePixiAdapter(api, runtime, fetchResource) as unknown as Parameters<typeof DOMAdapter.set>[0]);
     loadTextures.config!.preferCreateImageBitmap = false;
 }

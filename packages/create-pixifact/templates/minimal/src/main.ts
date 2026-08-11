@@ -1,6 +1,8 @@
 import './styles.css';
 import 'pixifact:scenes';
-import { Application } from 'pixi.js';
+import { Assets } from 'pixi.js';
+import { createApplication } from 'pixifact:platform';
+import manifest from 'pixifact:assets';
 import type { PixifactProjectConfig } from 'pixifact';
 import { prepareSceneClass } from 'pixifact/scene';
 import { applyPixifactViewportLayout, calculatePixifactViewportLayout } from 'pixifact/runtime';
@@ -15,8 +17,7 @@ if (!root) {
 const gameRoot = root;
 const projectConfig = projectConfigJson as PixifactProjectConfig;
 const screen = gameRoot.getBoundingClientRect();
-const app = new Application();
-await app.init({
+const app = await createApplication({
     width: screen.width,
     height: screen.height,
     backgroundColor: 0x10131d,
@@ -24,6 +25,7 @@ await app.init({
     autoDensity: true,
     resolution: Math.min(window.devicePixelRatio || 1, 2),
 });
+await Assets.init({ manifest });
 
 await prepareSceneClass(MainMenu);
 const scene = new MainMenu();

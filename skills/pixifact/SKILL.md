@@ -41,10 +41,10 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
    ```bash
    bun run build
    ```
-12. 项目声明 `targets.wechat` 且改动影响微信目标时，再运行：
+12. 改动影响微信或抖音目标时，读取项目对应 mode 的 env 文件，再运行该 mode 的校验与构建。例如微信 mode 为 `wechat`：
    ```bash
-   pixifact validate --target wechat
-   pixifact build --target wechat
+   pixifact validate --mode wechat
+   pixifact build --mode wechat
    ```
 
 默认项目根是当前工作目录；不在项目根运行时再加 `--project-root <path>`。项目自己的 `bun run build`、`bun run dev` 等命令只作为后续检查或预览入口。

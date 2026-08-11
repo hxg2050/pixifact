@@ -41,9 +41,9 @@ describe('create-pixifact scaffold', () => {
             name: 'my-game',
             type: 'module',
             scripts: {
-                'compile:scenes': 'pixifact compile-scenes --project-root .',
-                dev: 'bun run compile:scenes && vite . --host 127.0.0.1 --port 5177 --strictPort',
-                build: 'bun run compile:scenes && vite build . --config vite.config.ts',
+                dev: 'pixifact dev --mode development --project-root .',
+                build: 'pixifact build --mode production --project-root .',
+                validate: 'pixifact validate --mode production --project-root .',
             },
             dependencies: {
                 'pixi.js': '8.18.1',
@@ -56,11 +56,17 @@ describe('create-pixifact scaffold', () => {
             },
         });
         expect(await readProjectFile(projectRoot, 'vite.config.ts')).toContain("from 'pixifact/compiler-node'");
+        expect(await readProjectFile(projectRoot, 'vite.config.ts')).toContain('pixifact()');
         expect(await readProjectFile(projectRoot, 'vite.config.ts')).not.toContain('packages/pixifact/src');
         expect(await readProjectFile(projectRoot, 'src/scenes/MainMenu.scene')).not.toContain('script=');
         expect(await readProjectFile(projectRoot, 'src/scenes/MainMenu.ts')).toContain('export class MainMenu');
         expect(await readProjectFile(projectRoot, 'src/scenes/MainMenu.ts')).toContain('extends Group');
         const mainSource = await readProjectFile(projectRoot, 'src/main.ts');
+        expect(mainSource).toContain("from 'pixifact:platform'");
+        expect(mainSource).toContain("from 'pixifact:assets'");
+        expect(await readProjectFile(projectRoot, '.env')).toBe('VITE_PLATFORM=web\n');
+        expect(await readProjectFile(projectRoot, 'bunfig.toml')).toBe('env = false\n');
+        expect(await readProjectFile(projectRoot, 'src/vite-env.d.ts')).toContain('pixifact/client');
         expect(mainSource).toContain("from '../pixifact.project.json'");
         expect(mainSource).toContain('calculatePixifactViewportLayout');
         expect(mainSource).toContain('applyPixifactViewportLayout');
@@ -72,6 +78,7 @@ describe('create-pixifact scaffold', () => {
             },
         });
         expect(JSON.parse(await readProjectFile(projectRoot, 'pixifact.project.json'))).toMatchObject({
+            version: 2,
             name: 'My Game',
             resolution: {
                 width: 960,

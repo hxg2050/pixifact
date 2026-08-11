@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "strict": true,
     "experimentalDecorators": true,
     "useDefineForClassFields": true,
@@ -11,7 +11,10 @@
     "baseUrl": ".",
     "paths": {
       "pixifact": ["../../packages/pixifact/src/index.ts"],
-      "pixifact/*": ["../../packages/pixifact/src/*"]
+      "pixifact/internal/minigame": ["../../packages/pixifact/src/platform/minigame/index.ts"],
+      "pixifact/*": ["../../packages/pixifact/src/*"],
+      "@pixifact/platform-wechat": ["../../packages/platform-wechat/src/index.ts"],
+      "@pixifact/platform-douyin": ["../../packages/platform-douyin/src/index.ts"]
     }
   },
   "include": ["src/**/*.ts"]

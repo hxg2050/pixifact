@@ -9,7 +9,7 @@
       "ESNext",
       "DOM"
     ],
-    "moduleResolution": "Node",
+    "moduleResolution": "Bundler",
     "strict": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -29,8 +29,17 @@
       "pixifact/compiler-node": [
         "packages/pixifact/src/compiler-node/index.ts"
       ],
+      "pixifact/internal/minigame": [
+        "packages/pixifact/src/platform/minigame/index.ts"
+      ],
       "pixifact/*": [
         "packages/pixifact/src/*"
+      ],
+      "@pixifact/platform-wechat": [
+        "packages/platform-wechat/src/index.ts"
+      ],
+      "@pixifact/platform-douyin": [
+        "packages/platform-douyin/src/index.ts"
       ]
     }
   },

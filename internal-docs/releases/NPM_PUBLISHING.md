@@ -29,7 +29,7 @@ Trusted Publishing 已经在 npm 网站为三个包配置完成。正常发布�
 bun run changeset
 ```
 
-按提示选择包和 semver 类型。当前三个发布包在 `.changeset/config.json` 中配置为 fixed group，因此会保持同版本发布。
+按提示选择包和 semver 类型。当前五个发布包在 `.changeset/config.json` 中配置为 fixed group，因此会保持同版本发布：`pixifact`、`pixifact-cli`、`create-pixifact`、`@pixifact/platform-wechat` 和 `@pixifact/platform-douyin`。
 
 ## 准备发布
 

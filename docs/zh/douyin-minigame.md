@@ -1,62 +1,75 @@
 # 抖音小游戏构建
 
-状态：活跃
-权威范围：Pixifact 抖音小游戏配置、Runtime、资源交付、校验和构建边界
-上游文档：[./index.md](./index.md)、[../../README.md](../../README.md)
-示例：[../../sample-projects/wechat-minigame-demo](../../sample-projects/wechat-minigame-demo)
+抖音与 Web、微信共用 Vite、`pixifact.project.json` version 2、`src/main.ts` 和 PixiJS Assets 心智。平台由 mode env 中的 `VITE_PLATFORM=douyin` 选择。
 
-Pixifact 抖音 target 面向抖音普通小游戏 JavaScript Runtime，不是 Unity 小游戏方案。它与 Web、微信共享 `.scene`、同名 Scene 脚本和游戏逻辑，平台差异集中在 `tt` API、入口、原生配置、资源 delivery 和包体规则。
+## 安装与配置
 
-Pixifact 只生成可直接导入抖音小游戏开发者工具的目录，不负责上传、预览版、审核或发布。
+```bash
+bun add pixifact pixi.js @pixifact/platform-douyin
+bun add -d pixifact-cli vite
+```
 
-## 支持范围
+`vite.config.ts`：
 
-- PixiJS WebGL 1 / WebGL 2 初始化和无 DOM Runtime adapter。
-- 普通 `Text`、`Graphics`、Pixifact Runtime 节点和 compiler Scene。
-- 抖音触摸事件到 Pixi pointer event 的桥接，触摸坐标使用 `screenX` / `screenY`。
-- 前后台切换时停止和恢复 ticker，并在隐藏时取消活动触摸。
-- 本地资源、抖音资源分包和 HTTPS 远程资源。
-- development / production 构建、watch 开发模式和代码包体积检查。
+```ts
+import { defineConfig } from 'vite';
+import { pixifact } from 'pixifact/compiler-node';
 
-首版不支持 SVG Scene 纹理、`HTMLText` 或 `DOMContainer`。抖音允许上传 SVG 不代表当前 PixiJS 无 DOM 图片链路支持 SVG。
+export default defineConfig({ plugins: [pixifact()] });
+```
 
-## 项目配置
+`.env.douyin`：
 
-在 `pixifact.project.json` 中声明 `targets.douyin`，字段结构与微信 target 对齐。`platforms/douyin/game.json` 使用抖音的 `subPackages` 字段。
+```ini
+VITE_PLATFORM=douyin
+VITE_APP_ID=tt123456
+```
 
-`platforms/douyin/project.config.json` 属于抖音开发者工具配置。仓库示例的 `appid` 是空占位，导入开发者工具前必须替换为项目的真实 AppID。
+也可以使用 `.env.game1` 等任意 Vite mode 文件，再通过 `--mode game1` 构建。env 的加载顺序、`.local` 覆盖和 `import.meta.env.MODE` 都遵循 Vite 默认规则。
 
-入口使用抖音平台 Runtime：
+Bun 项目根目录使用 `bunfig.toml` 中的 `env = false` 禁止 Bun 提前读取 `.env`，env 文件统一交给 Vite 加载。`create-pixifact` 会自动生成该配置。
+
+抖音原生模板位于：
+
+```txt
+platforms/douyin/game.json
+platforms/douyin/project.config.json
+```
+
+Pixifact 从 `VITE_APP_ID` 写入输出 `project.config.json`，并根据本地 `resourcePacks` 生成抖音的 `subPackages`。源 `game.json` 不得重复声明 `subPackages`。
+
+资源包配置、远程 HTTPS 包和 `pixifact:assets` 用法与[微信小游戏构建](./wechat-minigame.md)一致。所有业务资源都通过 PixiJS `Assets.init()`、`Assets.load()` 和 `Assets.loadBundle()` 加载；分包由 adapter 在首次读取前自动准备。
+
+## 单一入口
 
 ```ts
 import 'pixifact:scenes';
-import { createDouyinPixiApplication } from 'pixifact/platform/douyin';
+import { Assets } from 'pixi.js';
+import { createApplication } from 'pixifact:platform';
+import manifest from 'pixifact:assets';
+
+const app = await createApplication();
+await Assets.init({ manifest });
+await Assets.loadBundle('chapter1');
 ```
 
-## CLI
+`createApplication()` 返回原生 PixiJS `Application`。共享逻辑不直接依赖 `tt`；确实需要抖音开放能力时，从 `@pixifact/platform-douyin` 静态导入对应 API，并用 `import.meta.env.VITE_PLATFORM === 'douyin'` 分支保护。
+
+## 命令与产物
 
 ```bash
-pixifact validate --target douyin
-pixifact build --target douyin
-pixifact build --target douyin --mode development
-pixifact dev --target douyin
+pixifact validate --mode douyin
+pixifact build --mode douyin
+pixifact dev --mode douyin
 ```
 
-输出目录由 `targets.douyin.outDir` 决定，可直接导入抖音小游戏开发者工具。
+默认输出为 `dist/douyin/`，包含单一主代码 `game.js`、原生配置、主包资源和 `subpackages/<pack>/`。抖音构建目标固定为 ES2018，避免真机编译器无法解析较新语法。没有分包时检查 20 MiB 总包；存在分包时同时检查 4 MiB 主包和 20 MiB 总包。
 
-## 资源交付
+把 `dist/douyin/` 导入抖音小游戏开发者工具。修改已纳入项目的 Scene、脚本、资源或原生配置时，`dev` 由 Vite watch 重建。Pixifact 不负责上传、审核和发布。
 
-- 未放入资源包的 Scene 纹理复制到主包 `assets/`，文件名带内容 hash。
-- `subpackage` 资源包复制到 `subPackages` 声明的目录，并在 Scene 首次准备时调用 `tt.loadSubpackage()`。
-- `remote` 资源包映射到 HTTPS `baseUrl`。通过 `tt.request` 读取远程 JSON 时，还需要在抖音开放平台配置合法域名。
-- 不要把同一资源放入多个重叠资源包。
+## 支持边界
 
-## 包体规则
-
-- 未配置分包：整体代码包不超过 20 MiB。
-- 配置分包：主包不超过 4 MiB，整体代码包不超过 20 MiB，单个分包不超过 20 MiB。
-- `project.config.json` 和 development source map 不计入 Pixifact 的包体报告。
-
-## 验证
-
-先运行仓库自动测试和示例构建，再把 `dist/douyin` 导入抖音开发者工具。至少验证启动、WebGL、中文 Text、纹理、触摸拖动、前后台恢复、本地 JSON、分包和远程资源；最终在 Android 和 iOS 真机各验证一次。
+- 支持 PixiJS WebGL、Text、Graphics、Pixifact runtime 节点、触摸、生命周期、本地资源、资源分包和 HTTPS 远程包。
+- Scene 纹理支持 PNG、JPEG 和 WebP；拒绝 SVG、HTMLText 和 DOMContainer。
+- 平台包顶层 import 不读取 `tt` 或执行初始化。
+- 登录、分享、广告、支付和开放数据域不属于统一 Application API。

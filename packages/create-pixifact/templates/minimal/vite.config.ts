@@ -1,10 +1,8 @@
 import { defineConfig } from 'vite';
-import { pixifactScenesPlugin } from 'pixifact/compiler-node';
-
-const projectRoot = new URL('.', import.meta.url);
+import { pixifact } from 'pixifact/compiler-node';
 
 export default defineConfig({
     plugins: [
-        pixifactScenesPlugin({ projectRoot }),
+        pixifact(),
     ],
 });

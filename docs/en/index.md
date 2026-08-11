@@ -36,8 +36,8 @@ If you are maintaining this repository, start from [Internal Docs](../../interna
 | [Scene Objects](./scene-objects.md) | `.scene` object tags, common props, object-specific props, use cases, and examples |
 | [Agent Scene Authoring](./agent-scene-authoring.md) | Rules, contracts, and validation boundaries for external agents editing `.scene` directly |
 | [Agent Runtime](./runtime-agent.md) | Runtime setup, CLI, and boundaries for external agents observing and operating a Vite Web game |
-| [WeChat Mini Game Builds](./wechat-minigame.md) | WeChat target config, platform runtime, resource delivery, CLI, and output boundary |
-| [Douyin Mini Game Builds](./douyin-minigame.md) | Douyin target config, platform runtime, resource delivery, CLI, and output boundary |
+| [WeChat Mini Game Builds](./wechat-minigame.md) | WeChat Vite modes, optional platform package, Pixi Assets, CLI, and output boundary |
+| [Douyin Mini Game Builds](./douyin-minigame.md) | Douyin Vite modes, optional platform package, Pixi Assets, CLI, and output boundary |
 
 ## Authority
 

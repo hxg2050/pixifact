@@ -31,7 +31,7 @@
   "author": "youxia <243802688@qq.com>",
   "license": "MIT",
   "scripts": {
-    "build": "cd packages/pixifact && bun run build",
+    "build": "cd packages/pixifact && bun run build && cd ../platform-wechat && bun run build && cd ../platform-douyin && bun run build",
     "changeset": "changeset",
     "editor": "bun run editor:frontend:build && bun run pixifact -- editor",
     "editor:typecheck": "bunx --no-install vue-tsc --noEmit -p apps/editor/tsconfig.json",
