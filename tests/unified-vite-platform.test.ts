@@ -51,10 +51,12 @@ async function createProject() {
     await mkdir(path.join(root, 'src/scenes'), { recursive: true });
     await writeFile(path.join(root, 'src/scenes/Main.scene'), [
         '<Scene name="Main">',
-        '  <Graphics id="background" shape="rect" width="100" height="100" fill="#000000" />',
+        '  <Image id="background" texture="assets/background.png" width="100" height="100" />',
         '</Scene>',
         '',
     ].join('\n'));
+    await mkdir(path.join(root, 'assets'), { recursive: true });
+    await writeFile(path.join(root, 'assets/background.png'), 'png');
     await writeFile(path.join(root, 'src/scenes/Main.ts'), [
         "import { Group } from 'pixifact/runtime';",
         "import { scene } from 'pixifact/scene';",
@@ -269,6 +271,8 @@ describe('unified Vite platform build', () => {
         expect(douyin.files).not.toContain('index.html');
         expect(douyin.source).toContain('DouyinMiniGame');
         expect(douyin.source).not.toContain('WeChatMiniGame');
+        expect(douyin.source).toMatch(/src:\s*["'`]assets\//);
+        expect(douyin.source).not.toMatch(/src:\s*["'`]\/assets\//);
         expect(douyin.target).toBe('es2018');
         expect(JSON.parse(await readFile(path.join(douyin.output, 'project.config.json'), 'utf8')).appid)
             .toBe('tt-app-id');

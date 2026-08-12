@@ -289,6 +289,10 @@ function miniGameBuildConfig(
     const descriptor = descriptors[platform];
     return {
         appType: 'custom',
+        experimental: {
+            ...config.experimental,
+            renderBuiltUrl: (filename) => filename,
+        },
         publicDir: false,
         build: {
             assetsInlineLimit: 0,
