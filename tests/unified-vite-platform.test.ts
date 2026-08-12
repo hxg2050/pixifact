@@ -103,6 +103,7 @@ function aliases() {
 }
 
 async function buildMode(root: string, mode: 'web' | 'wechat' | 'douyin') {
+    let dedupe: string[] = [];
     let target: string | string[] | false = false;
     let report: PixifactBuildReport | undefined;
     await build({
@@ -118,6 +119,7 @@ async function buildMode(root: string, mode: 'web' | 'wechat' | 'douyin') {
             {
                 name: 'capture-build-target',
                 configResolved(config) {
+                    dedupe = config.resolve.dedupe;
                     target = config.build.target;
                 },
             },
@@ -131,6 +133,7 @@ async function buildMode(root: string, mode: 'web' | 'wechat' | 'douyin') {
         .map((file) => readFile(file, 'utf8')))).join('\n');
     return {
         files: files.map((file) => path.relative(output, file).replaceAll(path.sep, '/')),
+        dedupe,
         output,
         source,
         target,
@@ -248,6 +251,7 @@ describe('unified Vite platform build', () => {
         expect(web.source).toContain('https://cdn.example.com/game/config.json');
         expect(web.source).not.toContain('WeChatMiniGame');
         expect(web.source).not.toContain('DouyinMiniGame');
+        expect(web.dedupe).toContain('pixi.js');
 
         expect(wechat.files.filter((file) => !file.includes('/') && file.endsWith('.js'))).toEqual(['game.js']);
         expect(wechat.files).toContain('subpackages/local/config.json');
@@ -259,6 +263,7 @@ describe('unified Vite platform build', () => {
         expect(wechat.files).not.toContain('index.html');
         expect(wechat.source).toContain('WeChatMiniGame');
         expect(wechat.source).not.toContain('DouyinMiniGame');
+        expect(wechat.dedupe).toContain('pixi.js');
         expect(JSON.parse(await readFile(path.join(wechat.output, 'project.config.json'), 'utf8')).appid)
             .toBe('wx-app-id');
         expect(wechat.report.subpackages.local).toBeGreaterThan(0);
@@ -271,6 +276,7 @@ describe('unified Vite platform build', () => {
         expect(douyin.files).not.toContain('index.html');
         expect(douyin.source).toContain('DouyinMiniGame');
         expect(douyin.source).not.toContain('WeChatMiniGame');
+        expect(douyin.dedupe).toContain('pixi.js');
         expect(douyin.source).toMatch(/src:\s*["'`]assets\//);
         expect(douyin.source).not.toMatch(/src:\s*["'`]\/assets\//);
         expect(douyin.target).toBe('es2018');
@@ -280,6 +286,7 @@ describe('unified Vite platform build', () => {
 
     it('keeps safe user Vite options while enforcing Mini Game output invariants', async () => {
         const root = await createProject();
+        let dedupe: string[] = [];
         let report: PixifactBuildReport | undefined;
         await build({
             root,
@@ -291,8 +298,14 @@ describe('unified Vite platform build', () => {
                 pixifactBuildReporter('wechat', (value) => {
                     report = value;
                 }),
+                {
+                    name: 'capture-resolve-dedupe',
+                    configResolved(config) {
+                        dedupe = config.resolve.dedupe;
+                    },
+                },
             ],
-            resolve: { alias: aliases() },
+            resolve: { alias: aliases(), dedupe: ['user-runtime', 'pixi.js'] },
             build: {
                 minify: false,
                 outDir: 'custom-output',
@@ -301,6 +314,8 @@ describe('unified Vite platform build', () => {
         });
 
         expect(report?.outputDirectory).toBe(path.join(root, 'custom-output'));
+        expect(dedupe).toEqual(expect.arrayContaining(['user-runtime', 'pixi.js']));
+        expect(dedupe.filter((dependency) => dependency === 'pixi.js')).toHaveLength(1);
         const files = (await collectFiles(path.join(root, 'custom-output')))
             .map((file) => path.relative(path.join(root, 'custom-output'), file).replaceAll(path.sep, '/'));
         expect(files).toContain('game.js');

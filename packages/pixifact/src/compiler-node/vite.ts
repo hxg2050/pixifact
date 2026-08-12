@@ -102,6 +102,9 @@ function scenePlugin(state: PixifactPluginState, options: PixifactPluginOptions)
             return {
                 ...output,
                 root: projectRoot,
+                resolve: {
+                    dedupe: config.resolve?.dedupe?.includes('pixi.js') ? [] : ['pixi.js'],
+                },
                 build: {
                     outDir: path.resolve(projectRoot, config.build?.outDir ?? `dist/${platform}`),
                     ...output.build,
