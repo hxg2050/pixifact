@@ -251,6 +251,7 @@ describe('unified Vite platform build', () => {
         expect(web.source).toContain('https://cdn.example.com/game/config.json');
         expect(web.source).not.toContain('WeChatMiniGame');
         expect(web.source).not.toContain('DouyinMiniGame');
+        expect(web.source).not.toContain('pixifact-douyin-image');
         expect(web.dedupe).toContain('pixi.js');
 
         expect(wechat.files.filter((file) => !file.includes('/') && file.endsWith('.js'))).toEqual(['game.js']);
@@ -263,6 +264,7 @@ describe('unified Vite platform build', () => {
         expect(wechat.files).not.toContain('index.html');
         expect(wechat.source).toContain('WeChatMiniGame');
         expect(wechat.source).not.toContain('DouyinMiniGame');
+        expect(wechat.source).not.toContain('pixifact-douyin-image');
         expect(wechat.dedupe).toContain('pixi.js');
         expect(JSON.parse(await readFile(path.join(wechat.output, 'project.config.json'), 'utf8')).appid)
             .toBe('wx-app-id');
@@ -276,6 +278,7 @@ describe('unified Vite platform build', () => {
         expect(douyin.files).not.toContain('index.html');
         expect(douyin.source).toContain('DouyinMiniGame');
         expect(douyin.source).not.toContain('WeChatMiniGame');
+        expect(douyin.source).toContain('pixifact-douyin-image');
         expect(douyin.dedupe).toContain('pixi.js');
         expect(douyin.source).toMatch(/src:\s*["'`]assets\//);
         expect(douyin.source).not.toMatch(/src:\s*["'`]\/assets\//);

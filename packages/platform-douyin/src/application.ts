@@ -1,6 +1,7 @@
 import type { Application, ApplicationOptions } from 'pixi.js';
 import { createMiniGameApplication, type MiniGameTouch } from 'pixifact/internal/minigame';
 import { fetchDouyinResource } from './fetch';
+import { installDouyinImageAssets } from './imageAssets';
 import { douyinApi } from './types';
 
 function douyinTouchCoordinates(touch: MiniGameTouch) {
@@ -13,6 +14,7 @@ function douyinTouchCoordinates(touch: MiniGameTouch) {
 export function createApplication(
     options: Partial<ApplicationOptions> = {},
 ): Promise<Application> {
+    installDouyinImageAssets();
     return createMiniGameApplication(
         douyinApi(),
         'DouyinMiniGame',
