@@ -10,7 +10,6 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
-| [douyin-image-loading.md](./douyin-image-loading.md) | 抖音小游戏冷启动图片解码时序与 PixiJS Assets loader 修复 |
 | [unified-vite-platform-build.md](./unified-vite-platform-build.md) | Web、微信、抖音单入口、可选平台包、统一 Vite 构建与 Pixi Assets 资源链路 |
 | [runtime-observation-v1.md](./runtime-observation-v1.md) | 真实 Vite Web 游戏的 Runtime tree、state、logs、input 与 CLI 观测闭环 |
 | [editor-vnext.md](./editor-vnext.md) | 浏览器 Editor vNext 的产品边界、数据流、实现范围和续作记录 |
@@ -22,6 +21,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [douyin-image-loading.md](./douyin-image-loading.md) | 抖音小游戏冷启动图片解码时序与 PixiJS Assets loader 修复 |
 | [release-install-smoke.md](./release-install-smoke.md) | 真实 npm tarball 的仓库外安装、CLI、构建和 Editor 发布前验收 |
 | [adventure-ui-demo.md](./adventure-ui-demo.md) | 示例项目计划 |
 | [viewport-adaptation-v1.md](./viewport-adaptation-v1.md) | 视口适配第一版 |

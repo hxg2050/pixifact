@@ -1,6 +1,6 @@
 # Douyin Image Loading
 
-状态：自动化验证完成，待抖音开发者工具冷启动验收
+状态：已完成
 最后更新：2026-08-12
 
 ## Goal
@@ -65,7 +65,7 @@ git diff --check
 - [x] 增加失败测试。
 - [x] 实现抖音图片 loader。
 - [x] 完成框架和下游自动验证。
-- [ ] 完成抖音开发者工具冷启动验收。
+- [x] 完成抖音开发者工具冷启动验收。
 
 ## Resume Protocol
 
@@ -88,15 +88,14 @@ Done:
 - `bun run build` 通过：`pixifact`、`@pixifact/platform-wechat`、`@pixifact/platform-douyin`。
 - 三端隔离测试确认只有抖音 bundle 包含 `pixifact-douyin-image` loader。
 - 下游 `/Users/youxia/work/ai-agent-games/dflld` 的 6 项游戏测试、TypeScript、抖音 validate/build 均通过；最终主包 1,852,743 bytes。
+- 用户已完成抖音开发者工具冷启动验收：图片首次启动正常显示，原 `texImage2D: bad image data` / `invalid image` 问题未再出现。
 
 Current State:
-- 框架修复和下游抖音产物已生成，等待开发者工具清缓存后的首次冷启动验收。
+- 框架自动化、下游构建和抖音开发者工具冷启动验收全部通过，本计划完成。
 
 Currently Failing:
 - 无自动化失败。
-- 尚未完成抖音开发者工具和真机的冷启动复验。
+- 无已知手工验收失败。
 
 Next:
-1. 在抖音开发者工具清理缓存并重新导入 `/Users/youxia/work/ai-agent-games/dflld/dist/douyin`。
-2. 不先刷新，直接冷启动验证首屏和场景图片均显示。
-3. 确认控制台不再出现 `texImage2D: bad image data` 或 `texImage2D: invalid image`。
+1. 无；后续若出现新的抖音图片契约证据，再创建独立计划处理。
