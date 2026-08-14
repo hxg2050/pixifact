@@ -6,6 +6,10 @@
 
 - d4e052a: 统一 Web、微信和抖音的 Vite 构建链、单入口、mode/env 与 PixiJS Assets 资源加载，并将微信和抖音 Runtime 拆为按需安装的平台包。
 
+### Patch Changes
+
+- 修复小游戏 Vite 构建的资源 URL：保持相对路径，并在构建时去重 PixiJS，避免平台产物包含重复运行时。
+
 ## 0.6.1
 
 ## 0.6.0

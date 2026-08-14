@@ -465,7 +465,7 @@ function walkFiles(root: string, directory: string, depth: number, maxDepth: num
 
     for (const entry of entries) {
         const absolute = path.join(directory, entry.name);
-        const relative = path.relative(root, absolute);
+        const relative = toPosixPath(path.relative(root, absolute));
         if (entry.isDirectory()) {
             results.push({
                 path: relative,

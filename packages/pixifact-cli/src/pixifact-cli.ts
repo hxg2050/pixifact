@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { createPixifactAutomation } from './automation';
 import { hintForCommandError } from 'pixifact';
 import { CompileSceneError, compileScenes } from 'pixifact/compiler-node';
@@ -586,7 +587,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
     }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
     const result = await executePixifactCli(process.argv.slice(2), {
         onDevEvent: (event) => process.stdout.write(jsonLine(event)),
     });

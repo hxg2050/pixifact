@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { runInNewContext } from 'node:vm';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
     buildPixifactTarget,
     devPixifactTarget,
@@ -10,7 +10,19 @@ import {
     validatePixifactTarget,
 } from '../packages/pixifact-cli/src/viteTarget';
 
-const sampleRoot = path.join(process.cwd(), 'sample-projects', 'wechat-minigame-demo');
+const checkedInSampleRoot = path.join(process.cwd(), 'sample-projects', 'wechat-minigame-demo');
+let fixtureRoot: string;
+let sampleRoot: string;
+
+beforeAll(async () => {
+    fixtureRoot = await mkdtemp(path.join(process.cwd(), '.pixifact-wechat-target-'));
+    sampleRoot = path.join(fixtureRoot, 'sample');
+    await cp(checkedInSampleRoot, sampleRoot, { recursive: true });
+});
+
+afterAll(async () => {
+    await rm(fixtureRoot, { recursive: true, force: true });
+});
 
 async function createInvalidProject() {
     const root = await mkdtemp(path.join(tmpdir(), 'pixifact-wechat-target-'));

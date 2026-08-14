@@ -9,11 +9,19 @@ const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const webSampleRoot = 'sample-projects/adventure-ui-demo';
 const multiPlatformSampleRoot = 'sample-projects/wechat-minigame-demo';
 
+function commandEnv(env = process.env) {
+    const currentPath = env.PATH ?? env.Path ?? '';
+    return {
+        ...env,
+        PATH: `${path.dirname(process.execPath)}${path.delimiter}${currentPath}`,
+    };
+}
+
 function run(command, args, options = {}) {
     console.log(`> ${command} ${args.join(' ')}`);
-    const result = spawnSync(command, args, {
+    const result = spawnSync(command === 'bun' ? process.execPath : command, args, {
         cwd: options.cwd ?? repoRoot,
-        env: options.env ?? process.env,
+        env: commandEnv(options.env),
         encoding: 'utf8',
     });
     if (result.status !== 0) {
@@ -110,14 +118,28 @@ async function createBrowserCommandStub(directory) {
     return `${directory}${path.delimiter}${process.env.PATH ?? ''}`;
 }
 
+function stopEditorProcess(child) {
+    if (process.platform === 'win32') {
+        if (child.pid === undefined) {
+            throw new Error('Editor process did not expose a pid.');
+        }
+        const result = spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f']);
+        if (result.status !== 0) {
+            throw new Error(`taskkill exited with status ${result.status ?? 'unknown'}.`);
+        }
+        return;
+    }
+    child.kill('SIGTERM');
+}
+
 async function verifyEditor(projectRoot, stubDirectory) {
     console.log('> bun run pixifact editor --project-root .');
-    const child = spawn('bun', ['run', 'pixifact', 'editor', '--project-root', '.'], {
+    const child = spawn(process.execPath, ['run', 'pixifact', 'editor', '--project-root', '.'], {
         cwd: projectRoot,
-        env: {
+        env: commandEnv({
             ...process.env,
             PATH: await createBrowserCommandStub(stubDirectory),
-        },
+        }),
         stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';
@@ -155,7 +177,7 @@ async function verifyEditor(projectRoot, stubDirectory) {
             throw new Error(`Editor frontend at ${url} did not return the expected HTML.`);
         }
     } finally {
-        child.kill('SIGTERM');
+        stopEditorProcess(child);
         await new Promise((resolve) => {
             if (child.exitCode !== null || child.signalCode !== null) {
                 resolve();

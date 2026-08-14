@@ -1,13 +1,25 @@
-import { readFile } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { runInNewContext } from 'node:vm';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
     buildPixifactTarget,
     validatePixifactTarget,
 } from '../packages/pixifact-cli/src/viteTarget';
 
-const sampleRoot = path.join(process.cwd(), 'sample-projects', 'wechat-minigame-demo');
+const checkedInSampleRoot = path.join(process.cwd(), 'sample-projects', 'wechat-minigame-demo');
+let fixtureRoot: string;
+let sampleRoot: string;
+
+beforeAll(async () => {
+    fixtureRoot = await mkdtemp(path.join(process.cwd(), '.pixifact-douyin-target-'));
+    sampleRoot = path.join(fixtureRoot, 'sample');
+    await cp(checkedInSampleRoot, sampleRoot, { recursive: true });
+});
+
+afterAll(async () => {
+    await rm(fixtureRoot, { recursive: true, force: true });
+});
 
 describe('Douyin Mini Game target', () => {
     it('builds the checked-in one-entry sample for Douyin', async () => {

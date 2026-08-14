@@ -74,7 +74,7 @@ describe('sample projects', () => {
     it('keeps the unified sample importable by both Mini Game developer tools', async () => {
         const project = JSON.parse(await readFile(join(wechatSampleRoot, 'pixifact.project.json'), 'utf8'));
         expect(project).toMatchObject({ version: 2, resourcePacks: ['demo-level'] });
-        await expect(readFile(join(wechatSampleRoot, 'bunfig.toml'), 'utf8')).resolves.toBe('env = false\n');
+        expect((await readFile(join(wechatSampleRoot, 'bunfig.toml'), 'utf8')).replaceAll('\r\n', '\n')).toBe('env = false\n');
         await expect(exists(join(wechatSampleRoot, 'platforms', 'wechat', 'game.json'))).resolves.toBe(true);
         await expect(exists(join(wechatSampleRoot, 'platforms', 'wechat', 'project.config.json'))).resolves.toBe(true);
         await expect(exists(join(wechatSampleRoot, 'platforms', 'douyin', 'game.json'))).resolves.toBe(true);
@@ -95,7 +95,7 @@ describe('sample projects', () => {
 
     it('keeps the adventure UI demo on public package entrypoints', async () => {
         const packageJson = JSON.parse(await readFile(join(sampleRoot, 'package.json'), 'utf8'));
-        await expect(readFile(join(sampleRoot, 'bunfig.toml'), 'utf8')).resolves.toBe('env = false\n');
+        expect((await readFile(join(sampleRoot, 'bunfig.toml'), 'utf8')).replaceAll('\r\n', '\n')).toBe('env = false\n');
         expect(packageJson.scripts.build).toBe('pixifact build --mode production --project-root .');
         expect(packageJson.dependencies.pixifact).toBe(`^${pixifactPackage.version}`);
         expect(packageJson.devDependencies['pixifact-cli']).toBe(`^${pixifactCliPackage.version}`);

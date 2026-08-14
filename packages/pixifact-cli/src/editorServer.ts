@@ -274,7 +274,12 @@ export function watchEditorProject(projectRoot: string, onProjectFileChanged: (p
     const changedPathTimers = new Map<string, ReturnType<typeof setTimeout>>();
     const watcher = fs.watch(projectRoot, { recursive: true }, (_event, fileName) => {
         if (!fileName) return;
-        const changedPath = String(fileName).split(path.sep).join('/');
+        const filePath = String(fileName);
+        const absolutePath = path.resolve(projectRoot, filePath);
+        if (fs.existsSync(absolutePath) && fs.statSync(absolutePath).isDirectory()) {
+            return;
+        }
+        const changedPath = filePath.split(path.sep).join('/');
         const pending = changedPathTimers.get(changedPath);
         if (pending) clearTimeout(pending);
         changedPathTimers.set(changedPath, setTimeout(() => {

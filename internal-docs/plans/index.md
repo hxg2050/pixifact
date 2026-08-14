@@ -21,6 +21,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [release-v0.7.0.md](./release-v0.7.0.md) | `0.7.0` 五个公开 npm 包的发布准备与验证 |
 | [douyin-image-loading.md](./douyin-image-loading.md) | 抖音小游戏冷启动图片解码时序与 PixiJS Assets loader 修复 |
 | [release-install-smoke.md](./release-install-smoke.md) | 真实 npm tarball 的仓库外安装、CLI、构建和 Editor 发布前验收 |
 | [adventure-ui-demo.md](./adventure-ui-demo.md) | 示例项目计划 |

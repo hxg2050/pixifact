@@ -64,8 +64,8 @@ describe('create-pixifact scaffold', () => {
         const mainSource = await readProjectFile(projectRoot, 'src/main.ts');
         expect(mainSource).toContain("from 'pixifact:platform'");
         expect(mainSource).toContain("from 'pixifact:assets'");
-        expect(await readProjectFile(projectRoot, '.env')).toBe('VITE_PLATFORM=web\n');
-        expect(await readProjectFile(projectRoot, 'bunfig.toml')).toBe('env = false\n');
+        expect((await readProjectFile(projectRoot, '.env')).replaceAll('\r\n', '\n')).toBe('VITE_PLATFORM=web\n');
+        expect((await readProjectFile(projectRoot, 'bunfig.toml')).replaceAll('\r\n', '\n')).toBe('env = false\n');
         expect(await readProjectFile(projectRoot, 'src/vite-env.d.ts')).toContain('pixifact/client');
         expect(mainSource).toContain("from '../pixifact.project.json'");
         expect(mainSource).toContain('calculatePixifactViewportLayout');

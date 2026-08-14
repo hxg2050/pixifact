@@ -469,11 +469,12 @@ function projectRootPath(projectRoot: string | URL | undefined) {
 }
 
 function assertSafeOutputDirectory(projectRoot: string, outputDirectory: string) {
-    const output = path.resolve(outputDirectory);
-    if (output === projectRoot || !output.startsWith(`${projectRoot}${path.sep}`)) {
+    const root = path.resolve(projectRoot);
+    const output = path.resolve(root, outputDirectory);
+    if (output === root || !output.startsWith(`${root}${path.sep}`)) {
         throw new Error('Vite build.outDir must be a directory inside the project root.');
     }
-    const relative = projectPath(projectRoot, output);
+    const relative = projectPath(root, output);
     const inputRoots = ['.pixifact', 'platforms', 'resources', 'src'];
     if (inputRoots.some((input) => relative === input || relative.startsWith(`${input}/`))) {
         throw new Error('Vite build.outDir must not contain project inputs.');

@@ -249,7 +249,9 @@ describe('Pixifact Runtime session descriptor', () => {
         writeRuntimeSessionDescriptor(descriptor, sessionsRoot);
 
         expect(readRuntimeSessionDescriptor(projectRoot, sessionsRoot)).toEqual(descriptor);
-        expect(fs.statSync(runtimeSessionDescriptorPath(projectRoot, sessionsRoot)).mode & 0o777).toBe(0o600);
+        if (process.platform !== 'win32') {
+            expect(fs.statSync(runtimeSessionDescriptorPath(projectRoot, sessionsRoot)).mode & 0o777).toBe(0o600);
+        }
 
         removeRuntimeSessionDescriptor({ ...descriptor, token: 'other' }, sessionsRoot);
         expect(readRuntimeSessionDescriptor(projectRoot, sessionsRoot)).toEqual(descriptor);

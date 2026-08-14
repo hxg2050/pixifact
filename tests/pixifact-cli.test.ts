@@ -1,12 +1,15 @@
 import fs from 'node:fs';
+import { execFile } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSceneRevision } from 'pixifact/compiler';
 import { hintForCommandError } from 'pixifact';
 import { executePixifactCli } from '../packages/pixifact-cli/src/pixifact-cli';
 
 const tempRoots: string[] = [];
+const execFileAsync = promisify(execFile);
 
 function createTempProject() {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-cli-'));
@@ -58,7 +61,7 @@ function createCompilerSceneProject() {
 }
 
 function createViteTargetProject() {
-    const root = fs.mkdtempSync(path.join(process.cwd(), '.pixifact-vite-cli-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-vite-cli-'));
     tempRoots.push(root);
     fs.mkdirSync(path.join(root, 'src'), { recursive: true });
     fs.writeFileSync(path.join(root, 'src', 'main.ts'), [
@@ -103,6 +106,18 @@ describe('Pixifact CLI', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         localStorage.clear();
+    });
+
+    it('runs the CLI entry when Bun executes its source file', async () => {
+        if (!process.versions.bun) return;
+
+        const cliPath = path.join(process.cwd(), 'packages/pixifact-cli/src/pixifact-cli.ts');
+        const { stdout, stderr } = await execFileAsync(process.execPath, [cliPath, '--help']);
+
+        expect(stderr).toBe('');
+        expect(JSON.parse(stdout)).toMatchObject({
+            aiPrimaryCommands: expect.arrayContaining(['summary', 'scene inspect --scene <scene-path>']),
+        });
     });
 
     it('outputs a project summary as JSON', async () => {

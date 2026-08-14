@@ -194,6 +194,7 @@ afterEach(async () => {
 
 describe('unified Vite platform build', () => {
     it('lets Vite load mode env without Bun preloading the base file', async () => {
+        if (!process.versions.bun) return;
         const root = await createProject();
         await writeFile(path.join(root, '.env'), 'VITE_PLATFORM=web\n');
         await writeFile(path.join(root, '.env.game1'), 'VITE_PLATFORM=wechat\nVITE_APP_ID=game1-app\n');
@@ -206,7 +207,7 @@ describe('unified Vite platform build', () => {
         delete env.VITE_PLATFORM;
         delete env.VITE_APP_ID;
 
-        const { stdout } = await execFileAsync('bun', ['run', 'check-env.ts'], { cwd: root, env });
+        const { stdout } = await execFileAsync(process.execPath, ['run', 'check-env.ts'], { cwd: root, env });
 
         expect(JSON.parse(stdout)).toMatchObject({
             preloaded: null,
