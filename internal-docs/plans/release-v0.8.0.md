@@ -38,14 +38,15 @@ Status: In Progress
 - `rtk bunx --no-install vitest run tests/pixifact-cli.test.ts -t 'uses production by default and passes arbitrary Vite modes through'` 通过。
 - `rtk bunx --no-install vitest run tests/pixifact-cli.test.ts` 通过，55 项测试。
 - `rtk bunx --no-install vitest run tests/unified-vite-platform.test.ts` 通过，6 项测试。
+- `rtk bun run release:check` 通过：25 个测试文件、305 项测试，以及五包构建、打包检查、仓库外安装冒烟。
 
 ## Progress
 
 - [x] 确认 `0.7.0` 已发布，不能复用该版本号。
 - [x] 确定 `0.8.0` 版本策略。
 - [x] 修复 Vite 8 临时目录构建门禁。
-- [ ] 创建并消费 Changeset。
-- [ ] 完成 release check。
+- [x] 创建并消费 Changeset。
+- [x] 完成 release check。
 - [ ] 推送 `v0.8.0` 并验证 npm 发布。
 
 ## Resume Protocol
@@ -61,14 +62,16 @@ Last updated: 2026-08-15
 
 Done:
 - 确认 `pixifact`、`pixifact-cli`、`create-pixifact` 和两个平台包均已发布 `0.7.0`。
-- 定位 macOS 临时目录下 Vite 8 因 `/var` 与 `/private/var` 路径不一致而失败。
+- 修复 macOS 临时目录下 Vite 8 因 `/var` 与 `/private/var` 路径不一致导致的构建失败。
+- 完成 `0.8.0` Changeset、version、Release commit 和 `release:check`。
 
 Current State:
-- 正在修复发布前测试门禁，尚未创建 `0.8.0` Changeset 或 tag。
+- 本地已创建 `v0.8.0` 标签，`main` 已包含 Release commit；`release:publish` 因 GitHub HTTPS 凭据不可用而失败，SSH 无可用密钥，远端尚未推送。
 
 Currently Failing:
-- 无。
+- 无代码或测试失败；发布被 GitHub 认证阻塞。
 
 Next:
-1. 消费 `0.8.0` Changeset，运行 version 和 release check。
-2. 推送 tag 并确认 GitHub Actions 与 npm registry。
+1. 完成 GitHub 认证（`gh auth login --hostname github.com --git-protocol https --web` 或提供有效 token）。
+2. 推送 `main` 与 `v0.8.0` 标签，触发 workflow。
+3. 验证五个 npm 包 `0.8.0` 已发布，并创建 GitHub Release。
