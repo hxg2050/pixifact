@@ -801,6 +801,12 @@ Scenario: Agent saves the current PixiJS Canvas as PNG
   And the PNG contains PixiJS Canvas rendering but no browser UI or HTML/CSS overlay
   And stdout returns the runtime id, dimensions, byte count, and output path
 
+Scenario: Agent saves a screenshot to the default path
+  Given a Vite Web game has registered one PixiJS Application
+  When the Agent runs "pixifact runtime screenshot" from the project root
+  Then Pixifact writes the PNG to ".pixifact/runtime/frame.png"
+  And stdout returns that absolute output path
+
 Scenario: Runtime screenshot capture fails
   Given the selected Runtime page is disconnected or returns invalid PNG data
   When the Agent requests a Runtime screenshot

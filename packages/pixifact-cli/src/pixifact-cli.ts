@@ -47,6 +47,8 @@ interface ParsedArgs {
     flags: Record<string, string | true>;
 }
 
+const runtimeScreenshotDefaultOutput = '.pixifact/runtime/frame.png';
+
 function parseArgs(argv: string[]): ParsedArgs {
     const positionals: string[] = [];
     const flags: Record<string, string | true> = {};
@@ -286,7 +288,9 @@ async function executeFileCommand(
 
     if (area === 'runtime' && action === 'screenshot') {
         assertAllowedFlags(flags, ['output', 'project-root', 'runtime'], 'runtime screenshot');
-        const output = path.resolve(requireFlag(flags, 'output'));
+        const output = flags.output === undefined
+            ? path.resolve(projectRoot, runtimeScreenshotDefaultOutput)
+            : path.resolve(requireFlag(flags, 'output'));
         const screenshot = await captureRuntime({
             projectRoot,
             runtimeId: optionalFlag(flags, 'runtime'),
@@ -549,7 +553,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                     runtimeCommands: [
                         'runtime list',
                         'runtime tree [--output <json-path>] [--runtime <runtime-id>]',
-                        'runtime screenshot --output <png-path> [--runtime <runtime-id>]',
+                        'runtime screenshot [--output <png-path>] [--runtime <runtime-id>]',
                         'runtime node <pixi-uid> [--runtime <runtime-id>]',
                         'runtime state [--runtime <runtime-id>]',
                         'runtime logs [--after <seq>] [--level <level>] [--runtime <runtime-id>]',
@@ -569,6 +573,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                     nodeLocatorSource: 'scene inspect --scene <scene-path> returns node locator values',
                     defaults: {
                         projectRoot: 'current working directory',
+                        runtimeScreenshotOutput: runtimeScreenshotDefaultOutput,
                     },
                 }),
                 stderr: '',

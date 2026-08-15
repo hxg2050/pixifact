@@ -49,7 +49,7 @@ if (import.meta.env.DEV) {
 ```bash
 pixifact runtime list
 pixifact runtime tree --output .pixifact/runtime/tree.json
-pixifact runtime screenshot --output .pixifact/runtime/frame.png
+pixifact runtime screenshot
 pixifact runtime node <pixi-uid>
 pixifact runtime state
 pixifact runtime logs
@@ -74,11 +74,11 @@ CLI 会创建目标目录，并在快照中写入 `schemaVersion`、`capturedAt`
 ## 截图
 
 ```bash
-pixifact runtime screenshot --output .pixifact/runtime/frame.png
+pixifact runtime screenshot
 pixifact runtime screenshot --output /tmp/game.png --runtime <runtime-id>
 ```
 
-截图捕获当前已注册 PixiJS `Application` 的 `app.stage`，输出 PNG，尺寸为当前 `app.screen` 的逻辑尺寸，固定使用 `resolution: 1` 和 renderer 当前背景色。CLI 会创建目标目录，并在成功后输出 `runtimeId`、宽高、字节数和绝对路径；失败时不会创建目标文件。
+省略 `--output` 时，CLI 将 PNG 写入项目根下的 `.pixifact/runtime/frame.png`；传入 `--output <png-path>` 可以覆盖默认路径。截图捕获当前已注册 PixiJS `Application` 的 `app.stage`，输出 PNG，尺寸为当前 `app.screen` 的逻辑尺寸，固定使用 `resolution: 1` 和 renderer 当前背景色。CLI 会创建目标目录，并在成功后输出 `runtimeId`、宽高、字节数和绝对路径；失败时不会创建目标文件。
 
 截图只包含 PixiJS Canvas 的渲染内容，不包含浏览器 UI、HTML/CSS 或 DOM overlay。它是一次性的当前状态观测，不提供截图历史或等待条件；依赖前帧 framebuffer 残留的特殊效果不保证逐像素复现。
 

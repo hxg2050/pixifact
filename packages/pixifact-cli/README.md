@@ -38,7 +38,7 @@ pixifact scene validate --all
 ```bash
 pixifact runtime list
 pixifact runtime tree --output .pixifact/runtime/tree.json
-pixifact runtime screenshot --output .pixifact/runtime/frame.png
+pixifact runtime screenshot
 pixifact runtime node <pixi-uid>
 pixifact runtime state
 pixifact runtime logs --after <seq>
@@ -50,7 +50,7 @@ pixifact runtime input key Space
 
 `runtime tree` 默认将节点树输出到终端；传入 `--output <json-path>` 时，改为保存运行时快照 JSON，终端只返回路径和采集元数据。快照包含 `schemaVersion`、`capturedAt`、当前 `runtimeId` 和 `root` 节点树，适合 Agent 使用文本搜索或 JSON 工具分析。快照中的 `runtimeId` 和 PixiJS `uid` 只对本次运行有效，不应写回项目源文件。
 
-`runtime screenshot --output <png-path>` 保存当前 PixiJS Canvas 的 PNG 截图。截图使用当前 `app.screen` 逻辑尺寸和 renderer 背景色，只包含 `app.stage` 的 PixiJS 渲染内容，不包含浏览器 UI、HTML/CSS 或 DOM overlay；多个页面时添加 `--runtime <runtime-id>`。
+`runtime screenshot` 默认将当前 PixiJS Canvas 的 PNG 截图写入项目根下的 `.pixifact/runtime/frame.png`，也可用 `--output <png-path>` 指定路径。截图使用当前 `app.screen` 逻辑尺寸和 renderer 背景色，只包含 `app.stage` 的 PixiJS 渲染内容，不包含浏览器 UI、HTML/CSS 或 DOM overlay；多个页面时添加 `--runtime <runtime-id>`。
 
 ## 浏览器 Editor
 

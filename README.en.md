@@ -147,13 +147,13 @@ A Vite Web game can opt into the development Runtime so an external agent can re
 ```bash
 pixifact runtime list
 pixifact runtime tree --output .pixifact/runtime/tree.json
-pixifact runtime screenshot --output .pixifact/runtime/frame.png
+pixifact runtime screenshot
 pixifact runtime state
 pixifact runtime logs --after 42
 pixifact runtime input click --x 640 --y 360
 ```
 
-Add `pixifactRuntimePlugin` to the Vite config and call `registerPixiRuntime(app, { getState? })` once after development startup. Runtime traverses `app.stage` directly, maintains no Scene Instance tree, exposes no eval or state mutation, and never registers Editor Authoring Preview. `runtime screenshot --output <png-path>` saves the current Pixi Canvas as PNG without browser UI or HTML/CSS. See [Agent Runtime](./docs/en/runtime-agent.md) for setup and boundaries.
+Add `pixifactRuntimePlugin` to the Vite config and call `registerPixiRuntime(app, { getState? })` once after development startup. Runtime traverses `app.stage` directly, maintains no Scene Instance tree, exposes no eval or state mutation, and never registers Editor Authoring Preview. `runtime screenshot` saves the current Pixi Canvas to `.pixifact/runtime/frame.png` under the project root by default; use `--output <png-path>` to override it. The screenshot excludes browser UI and HTML/CSS. See [Agent Runtime](./docs/en/runtime-agent.md) for setup and boundaries.
 
 ## Project Asset Boundary
 

@@ -179,7 +179,7 @@ describe('Pixifact CLI', () => {
             runtimeCommands: [
                 'runtime list',
                 'runtime tree [--output <json-path>] [--runtime <runtime-id>]',
-                'runtime screenshot --output <png-path> [--runtime <runtime-id>]',
+                'runtime screenshot [--output <png-path>] [--runtime <runtime-id>]',
                 'runtime node <pixi-uid> [--runtime <runtime-id>]',
                 'runtime state [--runtime <runtime-id>]',
                 'runtime logs [--after <seq>] [--level <level>] [--runtime <runtime-id>]',
@@ -199,6 +199,7 @@ describe('Pixifact CLI', () => {
             nodeLocatorSource: 'scene inspect --scene <scene-path> returns node locator values',
             defaults: {
                 projectRoot: 'current working directory',
+                runtimeScreenshotOutput: '.pixifact/runtime/frame.png',
             },
         });
     });
@@ -441,7 +442,7 @@ describe('Pixifact CLI', () => {
         });
     });
 
-    it('writes a runtime screenshot to the required output path', async () => {
+    it('writes a runtime screenshot to the explicit output path', async () => {
         const projectRoot = createTempProject();
         const output = path.join(projectRoot, '.pixifact', 'runtime', 'frame.png');
         const data = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
@@ -479,9 +480,17 @@ describe('Pixifact CLI', () => {
         });
     });
 
-    it('requires an output path before requesting a runtime screenshot', async () => {
+    it('uses the project runtime frame path when output is omitted', async () => {
         const projectRoot = createTempProject();
-        const captureRuntimeScreenshot = vi.fn();
+        const output = path.join(projectRoot, '.pixifact', 'runtime', 'frame.png');
+        const data = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 4, 5, 6]);
+        const captureRuntimeScreenshot = vi.fn(async () => ({
+            ok: true as const,
+            runtimeId: 'runtime-a',
+            width: 750,
+            height: 1334,
+            data,
+        }));
 
         const result = await executePixifactCli([
             'runtime',
@@ -490,11 +499,20 @@ describe('Pixifact CLI', () => {
             projectRoot,
         ], { captureRuntimeScreenshot });
 
-        expect(result.exitCode).toBe(1);
-        expect(captureRuntimeScreenshot).not.toHaveBeenCalled();
-        expect(JSON.parse(result.stderr)).toMatchObject({
-            ok: false,
-            error: '--output must include a value.',
+        expect(result.exitCode).toBe(0);
+        expect(captureRuntimeScreenshot).toHaveBeenCalledWith({
+            projectRoot,
+            runtimeId: undefined,
+        });
+        expect(fs.readFileSync(output)).toEqual(Buffer.from(data));
+        expect(JSON.parse(result.stdout)).toEqual({
+            ok: true,
+            runtimeId: 'runtime-a',
+            width: 750,
+            height: 1334,
+            bytes: data.byteLength,
+            output,
+            capturedAt: expect.any(String),
         });
     });
 
@@ -513,6 +531,29 @@ describe('Pixifact CLI', () => {
             projectRoot,
             '--output',
             output,
+        ], { captureRuntimeScreenshot });
+
+        expect(result.exitCode).toBe(1);
+        expect(fs.existsSync(output)).toBe(false);
+        expect(JSON.parse(result.stderr)).toMatchObject({
+            ok: false,
+            error: 'No Pixifact Runtime game page is connected for this project.',
+        });
+    });
+
+    it('does not write the default runtime screenshot when capture fails', async () => {
+        const projectRoot = createTempProject();
+        const output = path.join(projectRoot, '.pixifact', 'runtime', 'frame.png');
+        const captureRuntimeScreenshot = vi.fn(async () => ({
+            ok: false as const,
+            error: 'No Pixifact Runtime game page is connected for this project.',
+        }));
+
+        const result = await executePixifactCli([
+            'runtime',
+            'screenshot',
+            '--project-root',
+            projectRoot,
         ], { captureRuntimeScreenshot });
 
         expect(result.exitCode).toBe(1);

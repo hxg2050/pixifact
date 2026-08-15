@@ -49,7 +49,7 @@ Run from the game project root:
 ```bash
 pixifact runtime list
 pixifact runtime tree --output .pixifact/runtime/tree.json
-pixifact runtime screenshot --output .pixifact/runtime/frame.png
+pixifact runtime screenshot
 pixifact runtime node <pixi-uid>
 pixifact runtime state
 pixifact runtime logs
@@ -74,11 +74,11 @@ The CLI creates the output directory and stores `schemaVersion`, `capturedAt`, `
 ## Screenshots
 
 ```bash
-pixifact runtime screenshot --output .pixifact/runtime/frame.png
+pixifact runtime screenshot
 pixifact runtime screenshot --output /tmp/game.png --runtime <runtime-id>
 ```
 
-The screenshot captures the registered PixiJS `Application`'s `app.stage` as a PNG. It uses the current `app.screen` logical dimensions, `resolution: 1`, and the renderer's current background color. The CLI creates the output directory and, on success, reports the `runtimeId`, dimensions, byte count, and absolute path; failures do not create the target file.
+When `--output` is omitted, the CLI writes the PNG to `.pixifact/runtime/frame.png` under the project root; pass `--output <png-path>` to override it. The screenshot captures the registered PixiJS `Application`'s `app.stage` as a PNG. It uses the current `app.screen` logical dimensions, `resolution: 1`, and the renderer's current background color. The CLI creates the output directory and, on success, reports the `runtimeId`, dimensions, byte count, and absolute path; failures do not create the target file.
 
 It contains PixiJS Canvas rendering only. Browser UI, HTML/CSS, and DOM overlays are excluded. This is a one-time observation of the current state, with no screenshot history or wait conditions; effects that depend on framebuffer contents from previous frames are not guaranteed to be pixel-identical.
 

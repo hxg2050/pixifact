@@ -47,6 +47,7 @@ if (import.meta.env.DEV) {
 ```bash
 pixifact runtime list
 pixifact runtime tree [--output <json-path>] [--runtime <runtime-id>]
+pixifact runtime screenshot [--output <png-path>] [--runtime <runtime-id>]
 pixifact runtime node <pixi-uid> [--runtime <runtime-id>]
 pixifact runtime state [--runtime <runtime-id>]
 pixifact runtime logs [--after <seq>] [--level <level>] [--runtime <runtime-id>]
@@ -67,6 +68,8 @@ pixifact runtime tree --output .pixifact/runtime/tree.json [--runtime <runtime-i
 
 快照包含 `schemaVersion`、`capturedAt`、`runtimeId` 和 `root`。它只代表采集时刻的 `app.stage`，不能作为 `.scene` 数据源；页面刷新后必须重新生成，快照中的 `runtimeId` 和 PixiJS `uid` 也不能长期复用。
 
+`runtime screenshot` 捕获当前 `app.stage` 的 PixiJS Canvas PNG。省略 `--output` 时写入项目根下的 `.pixifact/runtime/frame.png`；传入 `--output <png-path>` 可覆盖路径。截图不包含浏览器 UI、HTML/CSS 或 DOM overlay。
+
 ## 状态与诊断
 
 - `state` 回答“现在是什么状态”，只包含项目通过 `getState` 明确暴露的 JSON。
@@ -78,7 +81,7 @@ pixifact runtime tree --output .pixifact/runtime/tree.json [--runtime <runtime-i
 ## 边界
 
 - Runtime 只支持 Vite Web 开发模式，不用于 production、微信小游戏或 Editor Authoring Preview。
-- Runtime 不提供 eval、节点 mutation、业务状态 mutation、直接节点 click、方法调用、截图或日志持久化。
+- Runtime 不提供 eval、节点 mutation、业务状态 mutation、直接节点 click、方法调用或日志持久化。
 - `input` 只分发标准 pointer / keyboard 事件，不绕过 PixiJS 命中测试。
 - `dispatched: true` 不代表动画、异步加载或业务流程已经稳定；由 Agent 重复查询可观察结果并控制超时。
 - 程序生成的输入事件 `isTrusted` 为 `false`，不能完成全屏或音频解锁等受信任手势。
