@@ -1,6 +1,6 @@
 # Release v0.8.0
 
-Status: In Progress
+Status: Complete
 
 ## Goal
 
@@ -39,6 +39,8 @@ Status: In Progress
 - `rtk bunx --no-install vitest run tests/pixifact-cli.test.ts` 通过，55 项测试。
 - `rtk bunx --no-install vitest run tests/unified-vite-platform.test.ts` 通过，6 项测试。
 - `rtk bun run release:check` 通过：25 个测试文件、305 项测试，以及五包构建、打包检查、仓库外安装冒烟。
+- `rtk gh run watch 31890542973 --exit-status` 通过，GitHub Actions Publish npm packages 在 1m32s 内完成。
+- npm registry 五个包的 `0.8.0` 版本均已确认。
 
 ## Progress
 
@@ -47,7 +49,7 @@ Status: In Progress
 - [x] 修复 Vite 8 临时目录构建门禁。
 - [x] 创建并消费 Changeset。
 - [x] 完成 release check。
-- [ ] 推送 `v0.8.0` 并验证 npm 发布。
+- [x] 推送 `v0.8.0` 并验证 npm 发布。
 
 ## Resume Protocol
 
@@ -66,12 +68,10 @@ Done:
 - 完成 `0.8.0` Changeset、version、Release commit 和 `release:check`。
 
 Current State:
-- 本地已创建 `v0.8.0` 标签，`main` 已包含 Release commit；`release:publish` 因 GitHub HTTPS 凭据不可用而失败，SSH 无可用密钥，远端尚未推送。
+- `main` 与 `v0.8.0` 已推送，GitHub Actions Trusted Publishing 已成功发布五个 npm 包，npm registry 均可见 `0.8.0`。
 
 Currently Failing:
-- 无代码或测试失败；发布被 GitHub 认证阻塞。
+- 无。
 
 Next:
-1. 完成 GitHub 认证（`gh auth login --hostname github.com --git-protocol https --web` 或提供有效 token）。
-2. 推送 `main` 与 `v0.8.0` 标签，触发 workflow。
-3. 验证五个 npm 包 `0.8.0` 已发布，并创建 GitHub Release。
+1. 无。

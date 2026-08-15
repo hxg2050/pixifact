@@ -12,13 +12,13 @@ Pixifact 发布五个公开 npm 包：
 
 ## 当前发布状态
 
-当前发布版本为 `0.6.1`：
+当前发布版本为 `0.8.0`：
 
-- npm packages: `0.6.1`
-- git tag: `v0.6.1`
+- npm packages: `0.8.0`
+- git tag: `v0.8.0`
 - changelog sources: [`pixifact`](../../packages/pixifact/CHANGELOG.md)、[`pixifact-cli`](../../packages/pixifact-cli/CHANGELOG.md)、[`create-pixifact`](../../packages/create-pixifact/CHANGELOG.md)
 
-本次发布记录见 [`v0.6.1.md`](./v0.6.1.md)。
+本次发布记录见 [`v0.8.0.md`](./v0.8.0.md)。
 首个 npm 发布记录见 [`v0.1.3.md`](./v0.1.3.md)。
 
 Trusted Publishing 已经在 npm 网站为原有三个包配置完成。新平台包首次发布后也必须配置同一 `publish.yml`；此后正常发布路径不需要本地 npm token。
