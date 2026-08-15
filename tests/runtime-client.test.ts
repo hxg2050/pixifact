@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Bounds, Container, Sprite, Text, Texture, type Application } from 'pixi.js';
+import { Bounds, Container, Rectangle, Sprite, Text, Texture, type Application } from 'pixi.js';
 import {
     createPixifactRuntimeClient,
     type PixifactRuntimeHotContext,
@@ -35,7 +35,13 @@ function createConsole() {
     } as unknown as Console;
 }
 
-function createApplication(stage = new Container()) {
+function createApplication(
+    stage = new Container(),
+    renderer = {
+        background: { colorRgba: [0.03, 0.04, 0.05, 1] },
+        extract: { base64: vi.fn(async () => 'data:image/png;base64,iVBORw0KGgo=') },
+    },
+) {
     const canvas = document.createElement('canvas');
     Object.defineProperty(canvas, 'getBoundingClientRect', {
         value: () => ({
@@ -54,6 +60,7 @@ function createApplication(stage = new Container()) {
         stage,
         canvas,
         screen: { width: 750, height: 1334 },
+        renderer,
     } as unknown as Application;
 }
 
@@ -283,6 +290,37 @@ describe('Pixifact Runtime client', () => {
             available: false,
             state: null,
         });
+    });
+
+    it('captures the current Pixi stage at logical screen size with the renderer background', async () => {
+        const stage = new Container({ label: 'stage' });
+        const base64 = vi.fn(async (options: {
+            target: Container;
+            frame: Rectangle;
+            resolution: number;
+            format: string;
+            clearColor: unknown;
+        }) => {
+            expect(options.target).toBe(stage);
+            expect(options.frame).toEqual(new Rectangle(0, 0, 750, 1334));
+            expect(options.resolution).toBe(1);
+            expect(options.format).toBe('png');
+            expect(options.clearColor).toEqual([0.03, 0.04, 0.05, 1]);
+            return 'data:image/png;base64,iVBORw0KGgo=';
+        });
+        const { client } = createClient();
+        client.register(createApplication(stage, {
+            background: { colorRgba: [0.03, 0.04, 0.05, 1] },
+            extract: { base64 },
+        }));
+
+        await expect(client.handleRequest({ type: 'screenshot' })).resolves.toEqual({
+            runtimeId: 'runtime-test',
+            width: 750,
+            height: 1334,
+            dataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+        });
+        expect(base64).toHaveBeenCalledTimes(1);
     });
 
     it('returns a structured HMR failure when getState cannot produce JSON', async () => {

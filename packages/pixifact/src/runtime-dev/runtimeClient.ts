@@ -2,6 +2,7 @@ import {
     BitmapText,
     Container,
     Graphics,
+    Rectangle,
     Sprite,
     Text,
     type Application,
@@ -16,6 +17,7 @@ import {
     type RuntimeLogLevel,
     type RuntimePageDescriptor,
     type RuntimeRequest,
+    type RuntimeScreenshotResult,
 } from './protocol';
 
 const maxRetainedLogs = 500;
@@ -23,7 +25,7 @@ const runtimeRequestEvent = 'pixifact:runtime:request';
 const runtimeResponseEvent = 'pixifact:runtime:response';
 const runtimeAnnounceEvent = 'pixifact:runtime:announce';
 
-type RuntimeApplication = Pick<Application, 'canvas' | 'screen' | 'stage'>;
+type RuntimeApplication = Pick<Application, 'canvas' | 'renderer' | 'screen' | 'stage'>;
 
 export interface RegisterPixiRuntimeOptions {
     getState?: () => RuntimeJsonValue;
@@ -373,6 +375,24 @@ export function createPixifactRuntimeClient(options: RuntimeClientOptions) {
         return app;
     }
 
+    async function captureScreenshot(currentApp: RuntimeApplication): Promise<RuntimeScreenshotResult> {
+        const width = Math.max(1, Math.floor(currentApp.screen.width));
+        const height = Math.max(1, Math.floor(currentApp.screen.height));
+        const dataUrl = await currentApp.renderer.extract.base64({
+            target: currentApp.stage,
+            frame: new Rectangle(0, 0, width, height),
+            resolution: 1,
+            format: 'png',
+            clearColor: currentApp.renderer.background.colorRgba,
+        });
+        return {
+            runtimeId: options.runtimeId,
+            width,
+            height,
+            dataUrl,
+        };
+    }
+
     async function handleRequest(request: RuntimeRequest): Promise<RuntimeJsonValue> {
         if (request.type === 'logs') {
             return {
@@ -412,6 +432,9 @@ export function createPixifactRuntimeClient(options: RuntimeClientOptions) {
                     available: false,
                     state: null,
                 };
+        }
+        if (request.type === 'screenshot') {
+            return captureScreenshot(currentApp);
         }
         if (request.type === 'input') {
             dispatchRuntimeInput(options.window, currentApp, request);

@@ -4,6 +4,8 @@ import {
 } from 'pixifact/compiler-node';
 import type { RuntimePageDescriptor, RuntimeRequest } from 'pixifact/runtime-dev';
 
+const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
 interface RuntimeSessionLookupOptions {
     projectRoot: string;
     sessionsRoot?: string;
@@ -130,4 +132,62 @@ export async function queryRuntime(options: RuntimeQueryOptions) {
             request: options.request,
         }),
     });
+}
+
+export async function captureRuntimeScreenshot(
+    options: RuntimeSessionLookupOptions & { runtimeId?: string },
+): Promise<
+    | { ok: true; runtimeId: string; width: number; height: number; data: Uint8Array }
+    | { ok: false; error: string; [key: string]: unknown }
+> {
+    const active = await activeDescriptor(options);
+    if (!active.ok) return active;
+    const fetcher = options.fetch ?? fetch;
+    const listed = await runtimeHostFetch(active.descriptor, 'list', fetcher);
+    if (listed.ok !== true || !Array.isArray(listed.runtimes)) return listed;
+    const selected = selectRuntime(
+        listed.runtimes as Array<RuntimePageDescriptor & { connectedAt: string }>,
+        options.runtimeId,
+    );
+    if (!selected.ok) return selected;
+
+    let response: Response;
+    try {
+        response = await fetcher(`${active.descriptor.origin}/__pixifact_runtime__/screenshot`, {
+            method: 'POST',
+            headers: {
+                authorization: `Bearer ${active.descriptor.token}`,
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({ runtimeId: selected.runtime.runtimeId }),
+        });
+    } catch {
+        return {
+            ok: false,
+            error: 'Pixifact Runtime Vite server is not reachable for this project.',
+        };
+    }
+    if (!response.ok) {
+        return await response.json() as { ok: false; error: string; [key: string]: unknown };
+    }
+
+    const runtimeId = response.headers.get('x-pixifact-runtime');
+    const width = Number(response.headers.get('x-pixifact-width'));
+    const height = Number(response.headers.get('x-pixifact-height'));
+    if (
+        response.headers.get('content-type') !== 'image/png'
+        || runtimeId !== selected.runtime.runtimeId
+        || !Number.isInteger(width)
+        || width <= 0
+        || !Number.isInteger(height)
+        || height <= 0
+    ) {
+        return { ok: false, error: 'Pixifact Runtime Host returned invalid screenshot metadata.' };
+    }
+
+    const data = new Uint8Array(await response.arrayBuffer());
+    if (!Buffer.from(data.subarray(0, pngSignature.length)).equals(pngSignature)) {
+        return { ok: false, error: 'Pixifact Runtime Host did not return PNG screenshot data.' };
+    }
+    return { ok: true, runtimeId, width, height, data };
 }

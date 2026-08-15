@@ -197,12 +197,13 @@ Vite Web 游戏可以选择启用开发期 Runtime，让外部 Agent 不依赖�
 ```bash
 pixifact runtime list
 pixifact runtime tree --output .pixifact/runtime/tree.json
+pixifact runtime screenshot --output .pixifact/runtime/frame.png
 pixifact runtime state
 pixifact runtime logs --after 42
 pixifact runtime input click --x 640 --y 360
 ```
 
-游戏只需在 Vite 配置加入 `pixifactRuntimePlugin`，并在开发启动后调用一次 `registerPixiRuntime(app, { getState? })`。Runtime 直接遍历 `app.stage`，不建立 Scene Instance 树，不提供 eval 或状态 mutation，也不接入 Editor Authoring Preview。完整接入和边界见 [Agent Runtime](./docs/zh/runtime-agent.md)。
+游戏只需在 Vite 配置加入 `pixifactRuntimePlugin`，并在开发启动后调用一次 `registerPixiRuntime(app, { getState? })`。Runtime 直接遍历 `app.stage`，不建立 Scene Instance 树，不提供 eval 或状态 mutation，也不接入 Editor Authoring Preview。`runtime screenshot --output <png-path>` 可保存当前 Pixi Canvas 的 PNG，不包含浏览器 UI 或 HTML/CSS。完整接入和边界见 [Agent Runtime](./docs/zh/runtime-agent.md)。
 
 ## 项目资产边界
 

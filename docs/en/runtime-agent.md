@@ -49,6 +49,7 @@ Run from the game project root:
 ```bash
 pixifact runtime list
 pixifact runtime tree --output .pixifact/runtime/tree.json
+pixifact runtime screenshot --output .pixifact/runtime/frame.png
 pixifact runtime node <pixi-uid>
 pixifact runtime state
 pixifact runtime logs
@@ -69,6 +70,17 @@ pixifact runtime tree --output .pixifact/runtime/tree.json
 ```
 
 The CLI creates the output directory and stores `schemaVersion`, `capturedAt`, `runtimeId`, and `root`. This is a one-time runtime observation file, not a `.scene` data source; generate a new snapshot after a page reload.
+
+## Screenshots
+
+```bash
+pixifact runtime screenshot --output .pixifact/runtime/frame.png
+pixifact runtime screenshot --output /tmp/game.png --runtime <runtime-id>
+```
+
+The screenshot captures the registered PixiJS `Application`'s `app.stage` as a PNG. It uses the current `app.screen` logical dimensions, `resolution: 1`, and the renderer's current background color. The CLI creates the output directory and, on success, reports the `runtimeId`, dimensions, byte count, and absolute path; failures do not create the target file.
+
+It contains PixiJS Canvas rendering only. Browser UI, HTML/CSS, and DOM overlays are excluded. This is a one-time observation of the current state, with no screenshot history or wait conditions; effects that depend on framebuffer contents from previous frames are not guaranteed to be pixel-identical.
 
 ## PixiJS Tree
 
@@ -111,5 +123,5 @@ Programmatically dispatched browser events have `isTrusted === false`, so they c
 - Vite Web development and loopback servers only.
 - Transport reuses the Vite HMR WebSocket and a token-protected project descriptor in the system temporary directory. There is no fixed port or additional Runtime Host.
 - Editor Authoring Preview is not registered and still executes no project gameplay logic.
-- No eval, node mutation, business state mutation, direct node click, Scenario, assertions, state subscriptions, history, screenshots, or persistent logs.
+- No eval, node mutation, business state mutation, direct node click, Scenario, assertions, state subscriptions, history, or persistent logs.
 - The first version does not support WeChat Mini Games, production builds, gamepads, multi-touch, or network capture.

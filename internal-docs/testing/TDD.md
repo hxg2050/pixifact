@@ -165,6 +165,23 @@ bun run editor:frontend:build
 bunx --no-install vitest run tests/pixifact-cli.test.ts tests/editor-session.test.ts tests/editor-context.test.ts
 ```
 
+### 修改 Runtime 截图
+
+必须先覆盖：
+
+- Runtime client 使用当前 `app.stage`、`app.screen` 逻辑尺寸、`resolution: 1` 和 renderer background 生成 PNG data URL。
+- Runtime Host 只接受专用 screenshot endpoint，并校验 runtime id、尺寸、PNG data URL 和 PNG 文件头。
+- Runtime Host 断连、超时或无效 PNG 时返回结构化失败，不返回部分图像。
+- CLI 的 `runtime screenshot --output` 正确选择 runtime、创建父目录、写入 PNG，并在失败时不创建目标文件。
+- 截图不捕获浏览器 UI、HTML/CSS 或 Editor Authoring Preview。
+
+验证命令：
+
+```bash
+bunx --no-install vitest run tests/runtime-client.test.ts tests/runtime-session.test.ts tests/pixifact-cli.test.ts
+bun run build
+```
+
 ### 修改 compiler scene 内部命令
 
 必须先覆盖：

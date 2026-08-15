@@ -37,5 +37,8 @@ export type {
     RuntimeJsonValue,
     RuntimeLogLevel,
     RuntimePageDescriptor,
+    RuntimeObservationRequest,
     RuntimeRequest,
+    RuntimeScreenshotRequest,
+    RuntimeScreenshotResult,
 } from './protocol';

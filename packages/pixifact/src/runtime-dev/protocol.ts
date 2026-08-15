@@ -20,12 +20,24 @@ export type RuntimeInputRequest =
     | { type: 'input'; action: 'click' | 'move'; x: number; y: number }
     | { type: 'input'; action: 'key' | 'keydown' | 'keyup'; key: string };
 
-export type RuntimeRequest =
+export type RuntimeObservationRequest =
     | { type: 'tree' }
     | { type: 'node'; uid: number }
     | { type: 'state' }
     | { type: 'logs'; after?: number; level?: RuntimeLogLevel }
     | RuntimeInputRequest;
+
+export type RuntimeScreenshotRequest = { type: 'screenshot' };
+
+export type RuntimeRequest = RuntimeObservationRequest | RuntimeScreenshotRequest;
+
+export interface RuntimeScreenshotResult {
+    [key: string]: RuntimeJsonValue;
+    runtimeId: string;
+    width: number;
+    height: number;
+    dataUrl: string;
+}
 
 export interface RuntimePageDescriptor {
     runtimeId: string;
@@ -53,4 +65,3 @@ export type RuntimeHmrResponse =
         ok: false;
         error: string;
     };
-

@@ -8,7 +8,7 @@ import { CompileSceneError, compileScenes } from 'pixifact/compiler-node';
 import type { SceneValidationDiagnostic } from 'pixifact/compiler';
 import { startEditorServer } from './editorServer';
 import { captureEditorScreenshot, queryEditorContext } from './editorSession';
-import { queryRuntime, queryRuntimeList } from './runtimeSession';
+import { captureRuntimeScreenshot, queryRuntime, queryRuntimeList } from './runtimeSession';
 import type { RuntimeLogLevel, RuntimeRequest } from 'pixifact/runtime-dev';
 import {
     buildPixifactTarget,
@@ -23,6 +23,7 @@ type Automation = ReturnType<typeof createPixifactAutomation>;
 interface CliOptions {
     automation?: Automation;
     captureEditorScreenshot?: typeof captureEditorScreenshot;
+    captureRuntimeScreenshot?: typeof captureRuntimeScreenshot;
     onDevEvent?: (event: PixifactDevEvent) => void;
     readEditorContext?: typeof queryEditorContext;
     listRuntimes?: typeof queryRuntimeList;
@@ -274,12 +275,35 @@ async function executeFileCommand(
     captureScreenshot: typeof captureEditorScreenshot = captureEditorScreenshot,
     listRuntimes: typeof queryRuntimeList = queryRuntimeList,
     sendRuntimeRequest: typeof queryRuntime = queryRuntime,
+    captureRuntime: typeof captureRuntimeScreenshot = captureRuntimeScreenshot,
 ) {
     const [area, action] = positionals;
     const projectRoot = projectRootFlag(flags);
 
     if (area === 'runtime' && action === 'list') {
         return listRuntimes({ projectRoot });
+    }
+
+    if (area === 'runtime' && action === 'screenshot') {
+        assertAllowedFlags(flags, ['output', 'project-root', 'runtime'], 'runtime screenshot');
+        const output = path.resolve(requireFlag(flags, 'output'));
+        const screenshot = await captureRuntime({
+            projectRoot,
+            runtimeId: optionalFlag(flags, 'runtime'),
+        });
+        if (!screenshot.ok) return screenshot;
+        const capturedAt = new Date().toISOString();
+        fs.mkdirSync(path.dirname(output), { recursive: true });
+        fs.writeFileSync(output, screenshot.data);
+        return {
+            ok: true,
+            runtimeId: screenshot.runtimeId,
+            width: screenshot.width,
+            height: screenshot.height,
+            bytes: screenshot.data.byteLength,
+            output,
+            capturedAt,
+        };
     }
 
     if (area === 'runtime' && action !== undefined) {
@@ -525,6 +549,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                     runtimeCommands: [
                         'runtime list',
                         'runtime tree [--output <json-path>] [--runtime <runtime-id>]',
+                        'runtime screenshot --output <png-path> [--runtime <runtime-id>]',
                         'runtime node <pixi-uid> [--runtime <runtime-id>]',
                         'runtime state [--runtime <runtime-id>]',
                         'runtime logs [--after <seq>] [--level <level>] [--runtime <runtime-id>]',
@@ -561,6 +586,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
             options.captureEditorScreenshot,
             options.listRuntimes,
             options.queryRuntime,
+            options.captureRuntimeScreenshot,
         );
         if (isFailedResult(result)) {
             return {

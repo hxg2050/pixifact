@@ -49,6 +49,7 @@ if (import.meta.env.DEV) {
 ```bash
 pixifact runtime list
 pixifact runtime tree --output .pixifact/runtime/tree.json
+pixifact runtime screenshot --output .pixifact/runtime/frame.png
 pixifact runtime node <pixi-uid>
 pixifact runtime state
 pixifact runtime logs
@@ -69,6 +70,17 @@ pixifact runtime tree --output .pixifact/runtime/tree.json
 ```
 
 CLI 会创建目标目录，并在快照中写入 `schemaVersion`、`capturedAt`、`runtimeId` 和 `root`。快照是一次性的运行时观测文件，不是 `.scene` 的数据源；页面刷新后必须重新生成。
+
+## 截图
+
+```bash
+pixifact runtime screenshot --output .pixifact/runtime/frame.png
+pixifact runtime screenshot --output /tmp/game.png --runtime <runtime-id>
+```
+
+截图捕获当前已注册 PixiJS `Application` 的 `app.stage`，输出 PNG，尺寸为当前 `app.screen` 的逻辑尺寸，固定使用 `resolution: 1` 和 renderer 当前背景色。CLI 会创建目标目录，并在成功后输出 `runtimeId`、宽高、字节数和绝对路径；失败时不会创建目标文件。
+
+截图只包含 PixiJS Canvas 的渲染内容，不包含浏览器 UI、HTML/CSS 或 DOM overlay。它是一次性的当前状态观测，不提供截图历史或等待条件；依赖前帧 framebuffer 残留的特殊效果不保证逐像素复现。
 
 ## PixiJS 节点树
 
@@ -111,5 +123,5 @@ pixifact runtime input keyup ArrowLeft
 - 仅支持 Vite Web 开发模式和 loopback 开发服务器。
 - Transport 复用 Vite HMR WebSocket，并通过系统临时目录中的项目 descriptor 与私有 token 供 CLI 发现；不使用固定端口或额外 Runtime Host。
 - 不接入 Editor Authoring Preview，不执行 Editor 中的项目游戏逻辑。
-- 不支持 eval、节点 mutation、业务状态 mutation、直接节点 click、Scenario、断言、状态订阅、历史、截图或日志持久化。
+- 不支持 eval、节点 mutation、业务状态 mutation、直接节点 click、Scenario、断言、状态订阅、历史或日志持久化。
 - 第一版不支持微信小游戏、production build、手柄、多指触摸或网络抓包。

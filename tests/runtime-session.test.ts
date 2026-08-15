@@ -14,6 +14,7 @@ import {
     type RuntimeSessionDescriptor,
 } from '../packages/pixifact/src/compiler-node/runtimeVite';
 import {
+    captureRuntimeScreenshot,
     queryRuntime,
     queryRuntimeList,
 } from '../packages/pixifact-cli/src/runtimeSession';
@@ -105,6 +106,7 @@ describe('Pixifact Runtime host session', () => {
             '/__pixifact_runtime__/health',
             '/__pixifact_runtime__/list',
             '/__pixifact_runtime__/request',
+            '/__pixifact_runtime__/screenshot',
         ]) {
             const response = await session.fetch(new Request(`http://127.0.0.1:5178${pathname}`));
             expect(response?.status).toBe(401);
@@ -157,6 +159,97 @@ describe('Pixifact Runtime host session', () => {
         expect(await response?.json()).toEqual({
             runtimeId: 'runtime-a',
             root: { uid: 1 },
+        });
+    });
+
+    it('routes a screenshot request and returns validated PNG bytes', async () => {
+        const socket = createSocket();
+        const session = createRuntimeHostSession({ projectRoot: '/project', token: 'secret' });
+        session.open(socket);
+        session.message(socket, 'pixifact:runtime:announce', {
+            runtimeId: 'runtime-a',
+            url: 'http://127.0.0.1:5178/',
+            title: 'Game',
+            ready: true,
+        });
+
+        const responsePromise = session.fetch(authorizedRequest(
+            'http://127.0.0.1:5178/__pixifact_runtime__/screenshot',
+            'secret',
+            {
+                method: 'POST',
+                body: JSON.stringify({ runtimeId: 'runtime-a' }),
+            },
+        ));
+        await vi.waitFor(() => expect(socket.send).toHaveBeenCalledTimes(1));
+        const [, request] = socket.send.mock.calls[0] as [string, {
+            requestId: string;
+            runtimeId: string;
+            request: { type: string };
+        }];
+        expect(request.request).toEqual({ type: 'screenshot' });
+
+        session.message(socket, 'pixifact:runtime:response', {
+            requestId: request.requestId,
+            runtimeId: 'runtime-a',
+            ok: true,
+            result: {
+                runtimeId: 'runtime-a',
+                width: 750,
+                height: 1334,
+                dataUrl: 'data:image/png;base64,iVBORw0KGgo=',
+            },
+        });
+        const response = await responsePromise;
+
+        expect(response?.status).toBe(200);
+        expect(response?.headers.get('content-type')).toBe('image/png');
+        expect(response?.headers.get('x-pixifact-runtime')).toBe('runtime-a');
+        expect(response?.headers.get('x-pixifact-width')).toBe('750');
+        expect(response?.headers.get('x-pixifact-height')).toBe('1334');
+        expect(Buffer.from(await response!.arrayBuffer())).toEqual(
+            Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+        );
+    });
+
+    it('rejects an invalid Runtime screenshot payload', async () => {
+        const socket = createSocket();
+        const session = createRuntimeHostSession({ projectRoot: '/project', token: 'secret' });
+        session.open(socket);
+        session.message(socket, 'pixifact:runtime:announce', {
+            runtimeId: 'runtime-a',
+            url: 'http://127.0.0.1:5178/',
+            title: 'Game',
+            ready: true,
+        });
+
+        const responsePromise = session.fetch(authorizedRequest(
+            'http://127.0.0.1:5178/__pixifact_runtime__/screenshot',
+            'secret',
+            {
+                method: 'POST',
+                body: JSON.stringify({ runtimeId: 'runtime-a' }),
+            },
+        ));
+        await vi.waitFor(() => expect(socket.send).toHaveBeenCalledTimes(1));
+        const [, request] = socket.send.mock.calls[0] as [string, { requestId: string; runtimeId: string }];
+        session.message(socket, 'pixifact:runtime:response', {
+            requestId: request.requestId,
+            runtimeId: 'runtime-a',
+            ok: true,
+            result: {
+                runtimeId: 'runtime-a',
+                width: 1,
+                height: 1,
+                dataUrl: 'data:image/png;base64,not-a-png',
+            },
+        });
+
+        const response = await responsePromise;
+        expect(response?.status).toBe(502);
+        expect(await response?.json()).toEqual({
+            ok: false,
+            error: 'Pixifact Runtime returned invalid screenshot data.',
         });
     });
 
@@ -354,6 +447,59 @@ describe('Pixifact Runtime session descriptor', () => {
                 body: JSON.stringify({ runtimeId: 'runtime-b', request: { type: 'tree' } }),
             }),
         );
+    });
+
+    it('discovers the active runtime and captures PNG bytes for the selected page', async () => {
+        const { projectRoot, sessionsRoot } = createTempProject();
+        const descriptor: RuntimeSessionDescriptor = {
+            protocolVersion: runtimeSessionProtocolVersion,
+            projectRoot,
+            pid: 123,
+            origin: 'http://127.0.0.1:5178',
+            token: 'secret',
+        };
+        writeRuntimeSessionDescriptor(descriptor, sessionsRoot);
+        const pngBytes = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
+        const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+            const url = String(input);
+            if (url.endsWith('/health')) {
+                return Response.json({ protocolVersion: runtimeSessionProtocolVersion, projectRoot });
+            }
+            if (url.endsWith('/list')) {
+                return Response.json({ ok: true, runtimes: [{
+                    runtimeId: 'runtime-a',
+                    url: 'http://127.0.0.1:5178/',
+                    title: 'Game',
+                    ready: true,
+                    connectedAt: '2026-08-05T11:00:00.000Z',
+                }] });
+            }
+            expect(url).toBe('http://127.0.0.1:5178/__pixifact_runtime__/screenshot');
+            expect(init).toMatchObject({
+                method: 'POST',
+                body: JSON.stringify({ runtimeId: 'runtime-a' }),
+            });
+            return new Response(pngBytes, {
+                headers: {
+                    'content-type': 'image/png',
+                    'x-pixifact-runtime': 'runtime-a',
+                    'x-pixifact-width': '750',
+                    'x-pixifact-height': '1334',
+                },
+            });
+        });
+
+        await expect(captureRuntimeScreenshot({
+            projectRoot,
+            sessionsRoot,
+            fetch: fetcher as typeof fetch,
+        })).resolves.toMatchObject({
+            ok: true,
+            runtimeId: 'runtime-a',
+            width: 750,
+            height: 1334,
+            data: pngBytes,
+        });
     });
 
     it('reports the missing Vite Runtime host without a fixed-port fallback', async () => {

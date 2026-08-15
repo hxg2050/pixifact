@@ -38,6 +38,7 @@ pixifact scene validate --all
 ```bash
 pixifact runtime list
 pixifact runtime tree --output .pixifact/runtime/tree.json
+pixifact runtime screenshot --output .pixifact/runtime/frame.png
 pixifact runtime node <pixi-uid>
 pixifact runtime state
 pixifact runtime logs --after <seq>
@@ -48,6 +49,8 @@ pixifact runtime input key Space
 一个项目只有一个游戏页面时自动选择；打开多个页面时先用 `runtime list` 获取 ID，再对其他命令添加 `--runtime <runtime-id>`。Runtime 只支持开发期只读观测和标准输入事件，不提供 eval、节点修改或业务状态修改。完整接入方式见 [Agent Runtime](https://github.com/hxg2050/pixifact/blob/main/docs/zh/runtime-agent.md)。
 
 `runtime tree` 默认将节点树输出到终端；传入 `--output <json-path>` 时，改为保存运行时快照 JSON，终端只返回路径和采集元数据。快照包含 `schemaVersion`、`capturedAt`、当前 `runtimeId` 和 `root` 节点树，适合 Agent 使用文本搜索或 JSON 工具分析。快照中的 `runtimeId` 和 PixiJS `uid` 只对本次运行有效，不应写回项目源文件。
+
+`runtime screenshot --output <png-path>` 保存当前 PixiJS Canvas 的 PNG 截图。截图使用当前 `app.screen` 逻辑尺寸和 renderer 背景色，只包含 `app.stage` 的 PixiJS 渲染内容，不包含浏览器 UI、HTML/CSS 或 DOM overlay；多个页面时添加 `--runtime <runtime-id>`。
 
 ## 浏览器 Editor
 

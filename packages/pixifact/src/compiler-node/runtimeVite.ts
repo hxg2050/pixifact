@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import {
     pixifactRuntimeProtocolVersion,
     type RuntimeHmrResponse,
+    type RuntimeObservationRequest,
     type RuntimePageDescriptor,
     type RuntimeRequest,
 } from '../runtime-dev/protocol';
@@ -17,8 +18,10 @@ const runtimeAnnounceEvent = 'pixifact:runtime:announce';
 const runtimeRequestEvent = 'pixifact:runtime:request';
 const runtimeResponseEvent = 'pixifact:runtime:response';
 const runtimeApiRoot = '/__pixifact_runtime__';
+const runtimeScreenshotPath = `${runtimeApiRoot}/screenshot`;
 const virtualRuntimeClientId = 'virtual:pixifact-runtime-client';
 const resolvedVirtualRuntimeClientId = `\0${virtualRuntimeClientId}`;
+const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
 export interface RuntimeSessionDescriptor {
     protocolVersion: typeof runtimeSessionProtocolVersion;
@@ -86,6 +89,7 @@ interface PendingRuntimeRequest {
     resolve(response: Response): void;
     runtimeId: string;
     socket: RuntimeHostBrowserSocket;
+    responseType: 'json' | 'screenshot';
     timeout: ReturnType<typeof setTimeout>;
 }
 
@@ -122,7 +126,7 @@ function isRuntimeHmrResponse(value: unknown): value is RuntimeHmrResponse {
     return value.ok ? 'result' in value : typeof value.error === 'string';
 }
 
-function isRuntimeRequest(value: unknown): value is RuntimeRequest {
+function isRuntimeRequest(value: unknown): value is RuntimeObservationRequest {
     if (!isRecord(value) || typeof value.type !== 'string') return false;
     if (value.type === 'tree' || value.type === 'state') return true;
     if (value.type === 'node') return Number.isInteger(value.uid) && Number(value.uid) >= 0;
@@ -137,6 +141,29 @@ function isRuntimeRequest(value: unknown): value is RuntimeRequest {
     return ['key', 'keydown', 'keyup'].includes(value.action)
         && typeof value.key === 'string'
         && value.key.length > 0;
+}
+
+function runtimeScreenshotResult(value: unknown) {
+    if (
+        !isRecord(value)
+        || typeof value.runtimeId !== 'string'
+        || !Number.isInteger(value.width)
+        || Number(value.width) <= 0
+        || !Number.isInteger(value.height)
+        || Number(value.height) <= 0
+        || typeof value.dataUrl !== 'string'
+    ) {
+        return undefined;
+    }
+    const match = value.dataUrl.match(/^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/);
+    const png = match ? Buffer.from(match[1], 'base64') : undefined;
+    if (!png || !png.subarray(0, pngSignature.length).equals(pngSignature)) return undefined;
+    return {
+        runtimeId: value.runtimeId,
+        width: Number(value.width),
+        height: Number(value.height),
+        png,
+    };
 }
 
 export function createRuntimeHostSession(options: RuntimeHostSessionOptions) {
@@ -180,6 +207,34 @@ export function createRuntimeHostSession(options: RuntimeHostSessionOptions) {
         }
     }
 
+    function forwardRequest(
+        runtime: ConnectedRuntime,
+        request: RuntimeRequest,
+        responseType: PendingRuntimeRequest['responseType'],
+    ) {
+        const requestId = `runtime-${++requestSequence}`;
+        return new Promise<Response>((resolve) => {
+            const timeout = setTimeout(() => {
+                settle(requestId, jsonResponse({
+                    ok: false,
+                    error: 'Pixifact Runtime request timed out.',
+                }, 504));
+            }, requestTimeoutMs);
+            pending.set(requestId, {
+                resolve,
+                runtimeId: runtime.runtimeId,
+                socket: runtime.socket,
+                responseType,
+                timeout,
+            });
+            runtime.socket.send(runtimeRequestEvent, {
+                requestId,
+                runtimeId: runtime.runtimeId,
+                request,
+            });
+        });
+    }
+
     function message(socket: RuntimeHostBrowserSocket, event: string, data: unknown) {
         if (!sockets.has(socket)) return;
         if (event === runtimeAnnounceEvent) {
@@ -201,9 +256,38 @@ export function createRuntimeHostSession(options: RuntimeHostSessionOptions) {
         if (event !== runtimeResponseEvent || !isRuntimeHmrResponse(data)) return;
         const current = pending.get(data.requestId);
         if (!current || current.socket !== socket || current.runtimeId !== data.runtimeId) return;
-        settle(data.requestId, data.ok
-            ? jsonResponse(data.result)
-            : jsonResponse({ ok: false, error: data.error }, 422));
+        if (!data.ok) {
+            settle(data.requestId, jsonResponse({ ok: false, error: data.error }, 422));
+            return;
+        }
+        if (current.responseType === 'json') {
+            settle(data.requestId, jsonResponse(data.result));
+            return;
+        }
+        const screenshot = runtimeScreenshotResult(data.result);
+        if (!screenshot) {
+            settle(data.requestId, jsonResponse({
+                ok: false,
+                error: 'Pixifact Runtime returned invalid screenshot data.',
+            }, 502));
+            return;
+        }
+        if (screenshot.runtimeId !== data.runtimeId) {
+            settle(data.requestId, jsonResponse({
+                ok: false,
+                error: 'Pixifact Runtime returned a screenshot for a different runtime.',
+            }, 502));
+            return;
+        }
+        settle(data.requestId, new Response(screenshot.png, {
+            headers: {
+                'cache-control': 'no-store',
+                'content-type': 'image/png',
+                'x-pixifact-height': String(screenshot.height),
+                'x-pixifact-runtime': screenshot.runtimeId,
+                'x-pixifact-width': String(screenshot.width),
+            },
+        }));
     }
 
     async function fetchRequest(request: Request) {
@@ -229,6 +313,23 @@ export function createRuntimeHostSession(options: RuntimeHostSessionOptions) {
                     .sort((left, right) => left.connectedAt.localeCompare(right.connectedAt)),
             });
         }
+        if (pathname === runtimeScreenshotPath) {
+            if (request.method !== 'POST') {
+                return jsonResponse({ ok: false, error: 'Pixifact Runtime screenshot requests require POST.' }, 405);
+            }
+            const body = await request.json() as unknown;
+            if (!isRecord(body) || typeof body.runtimeId !== 'string') {
+                return jsonResponse({ ok: false, error: 'Pixifact Runtime screenshot request is invalid.' }, 400);
+            }
+            const runtime = runtimes.get(body.runtimeId);
+            if (!runtime) {
+                return jsonResponse({
+                    ok: false,
+                    error: `Pixifact Runtime "${body.runtimeId}" is not connected.`,
+                }, 404);
+            }
+            return forwardRequest(runtime, { type: 'screenshot' }, 'screenshot');
+        }
         if (pathname !== `${runtimeApiRoot}/request`) return undefined;
         if (request.method !== 'POST') {
             return jsonResponse({ ok: false, error: 'Pixifact Runtime requests require POST.' }, 405);
@@ -244,26 +345,7 @@ export function createRuntimeHostSession(options: RuntimeHostSessionOptions) {
                 error: `Pixifact Runtime "${body.runtimeId}" is not connected.`,
             }, 404);
         }
-        const requestId = `runtime-${++requestSequence}`;
-        return new Promise<Response>((resolve) => {
-            const timeout = setTimeout(() => {
-                settle(requestId, jsonResponse({
-                    ok: false,
-                    error: 'Pixifact Runtime request timed out.',
-                }, 504));
-            }, requestTimeoutMs);
-            pending.set(requestId, {
-                resolve,
-                runtimeId: runtime.runtimeId,
-                socket: runtime.socket,
-                timeout,
-            });
-            runtime.socket.send(runtimeRequestEvent, {
-                requestId,
-                runtimeId: runtime.runtimeId,
-                request: body.request,
-            });
-        });
+        return forwardRequest(runtime, body.request, 'json');
     }
 
     return {

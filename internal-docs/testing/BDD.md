@@ -788,6 +788,28 @@ Scenario: Agent saves a large display tree for local JSON search
 
 TDD 入口：`tests/runtime-client.test.ts`、`tests/pixifact-cli.test.ts`。
 
+### BDD-RUNTIME-003A Agent captures the live PixiJS Canvas
+
+Feature: Runtime Canvas screenshot
+
+```gherkin
+Scenario: Agent saves the current PixiJS Canvas as PNG
+  Given a Vite Web game has registered one PixiJS Application
+  When the Agent runs "pixifact runtime screenshot --output <png-path>"
+  Then Pixifact captures the current app.stage with the app.screen logical dimensions
+  And returns a valid PNG with the renderer background color
+  And the PNG contains PixiJS Canvas rendering but no browser UI or HTML/CSS overlay
+  And stdout returns the runtime id, dimensions, byte count, and output path
+
+Scenario: Runtime screenshot capture fails
+  Given the selected Runtime page is disconnected or returns invalid PNG data
+  When the Agent requests a Runtime screenshot
+  Then Pixifact returns a structured failure
+  And Pixifact does not create the output file
+```
+
+TDD 入口：`tests/runtime-client.test.ts`、`tests/runtime-session.test.ts`、`tests/pixifact-cli.test.ts`。
+
 ### BDD-RUNTIME-004 Agent reads explicit game state and logs
 
 Feature: Runtime state and log observation
