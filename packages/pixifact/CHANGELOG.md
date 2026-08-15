@@ -1,5 +1,11 @@
 # pixifact
 
+## 0.8.0
+
+### Patch Changes
+
+- 新增 `pixifact runtime screenshot`，可捕获已注册 PixiJS Application 的 Canvas PNG；省略 `--output` 时默认写入项目根下 `.pixifact/runtime/frame.png`。
+
 ## 0.7.0
 
 ### Minor Changes

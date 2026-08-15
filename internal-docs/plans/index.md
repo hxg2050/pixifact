@@ -14,6 +14,7 @@
 | [runtime-observation-v1.md](./runtime-observation-v1.md) | 真实 Vite Web 游戏的 Runtime tree、state、logs、input 与 CLI 观测闭环 |
 | [editor-vnext.md](./editor-vnext.md) | 浏览器 Editor vNext 的产品边界、数据流、实现范围和续作记录 |
 | [scene-binding.md](./scene-binding.md) | Scene 静态 Prop、Variant、声明式绑定、Runtime 构造与 Editor Authoring 预览 |
+| [release-v0.8.0.md](./release-v0.8.0.md) | Runtime Canvas 截图与 Vite 8 路径修复的五包 `0.8.0` 发布 |
 
 继续 Editor vNext 时，先读取对应计划的 `Resume Notes`，不要从旧 Tauri Editor 或归档工作台方案重新推导产品边界。
 

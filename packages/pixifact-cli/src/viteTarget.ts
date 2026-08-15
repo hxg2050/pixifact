@@ -1,4 +1,4 @@
-import { access, readFile, readdir, stat } from 'node:fs/promises';
+import { access, readFile, readdir, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import {
     build,
@@ -55,7 +55,7 @@ export class PixifactTargetError extends Error {
 }
 
 export async function validatePixifactTarget(projectRootInput: string, mode: string) {
-    const projectRoot = path.resolve(projectRootInput);
+    const projectRoot = await realpath(path.resolve(projectRootInput));
     const { platform } = loadPixifactEnv(projectRoot, mode);
     const config = parsePixifactProjectConfig(JSON.parse(await readFile(
         path.join(projectRoot, pixifactProjectConfigFileName),

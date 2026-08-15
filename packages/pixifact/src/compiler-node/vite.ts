@@ -1,4 +1,5 @@
 import { access, readFile, readdir, stat } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -273,7 +274,7 @@ async function configureState(
     env: ConfigEnv,
 ) {
     const configuredRoot = options.projectRoot ?? config.root;
-    const projectRoot = path.resolve(projectRootPath(configuredRoot));
+    const projectRoot = realpathSync(path.resolve(projectRootPath(configuredRoot)));
     const loaded = loadPixifactEnv(projectRoot, env.mode);
     state.projectRoot = projectRoot;
     state.mode = env.mode;
