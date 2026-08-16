@@ -29,7 +29,13 @@ pixifact scene validate --all
 
 默认使用当前工作目录作为项目根目录；不在项目根目录运行时再加 `--project-root <path>`。
 
-其他命令是辅助入口：`scene create` 用于新建 Scene；`node inspect` 用于查看 `scene inspect` 返回的已知 locator；`editor context` 用于读取当前 Scene 和 selection；`editor screenshot --output <png-path>` 用于截取当前 Authoring Scene。不要使用 `scene get`，file mode 只保留 `scene inspect`。旧 `live ...` 命令已经删除。
+新建空 Scene 文件对使用：
+
+```bash
+pixifact scene create src/scenes/Hud.scene
+```
+
+路径必须是项目相对的 `.scene` 路径。命令会按路径 basename 推导 `Hud`，并创建 `Hud.scene` 和 `Hud.ts`。其他辅助入口包括：`node inspect` 用于查看 `scene inspect` 返回的已知 locator；`editor context` 用于读取当前 Scene 和 selection；`editor screenshot --output <png-path>` 用于截取当前 Authoring Scene。不要使用 `scene get`，file mode 只保留 `scene inspect`。旧 `live ...` 命令已经删除。
 
 ## Agent Runtime
 

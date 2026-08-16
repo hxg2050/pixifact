@@ -48,6 +48,7 @@ bun add -d pixifact-cli vite
 Common installed CLI commands:
 
 ```bash
+pixifact scene create src/scenes/Hud.scene
 pixifact scene validate --all
 pixifact compile-scenes
 pixifact editor
@@ -124,6 +125,7 @@ Common commands:
 
 ```bash
 pixifact summary
+pixifact scene create src/scenes/Button.scene
 pixifact scene inspect --scene src/scenes/Button.scene
 pixifact scene validate --scene src/scenes/Button.scene
 pixifact scene validate --all

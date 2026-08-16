@@ -24,7 +24,11 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
    ```bash
    pixifact scene inspect --scene src/scenes/MainMenu.scene
    ```
-8. 直接编辑 `.scene`，必要时同步同名 `.ts` 脚本契约。
+8. 新建空 Scene 文件对时执行：
+   ```bash
+   pixifact scene create src/scenes/MainMenu.scene
+   ```
+   命令按路径 basename 创建同名 `.scene` 与 `.ts`；随后直接编辑 `.scene`，必要时同步脚本契约。
 9. 校验被编辑的 Scene：
    ```bash
    pixifact scene validate --scene src/scenes/MainMenu.scene

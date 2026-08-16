@@ -33,7 +33,6 @@ interface ToolInput {
     projectRoot?: unknown;
     scenePath?: unknown;
     node?: unknown;
-    name?: unknown;
 }
 
 type CompilerSceneValidationSuccess = ReturnType<typeof validateCompilerSceneFile> & { ok: true };
@@ -576,8 +575,8 @@ export function createPixifactAutomation() {
         createScene(input: unknown) {
             const args = assertRecord(input, 'input') as ToolInput;
             const { root, target } = resolveProjectPath(args.projectRoot, args.scenePath);
-            const sceneName = assertString(args.name, 'name');
             const scenePath = normalizeSceneAssetId(path.relative(root, target));
+            const sceneName = sceneLocalName(scenePath);
             const sourceRootFailure = compilerSceneSourceRootFailure(scenePath);
             if (sourceRootFailure) {
                 return sourceRootFailure;

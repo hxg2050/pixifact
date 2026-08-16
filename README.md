@@ -47,6 +47,7 @@ bun add -d pixifact-cli vite
 常用 CLI：
 
 ```bash
+pixifact scene create src/scenes/Hud.scene
 pixifact scene validate --all
 pixifact compile-scenes
 pixifact editor
@@ -173,6 +174,7 @@ CLI 是外部 Agent 操作 Pixifact 项目的主入口。Pixifact 不把内置�
 
 ```bash
 pixifact summary
+pixifact scene create src/scenes/Button.scene
 pixifact scene inspect --scene src/scenes/Button.scene
 pixifact scene validate --scene src/scenes/Button.scene
 pixifact scene validate --all

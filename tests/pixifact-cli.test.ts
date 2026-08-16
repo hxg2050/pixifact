@@ -193,7 +193,7 @@ describe('Pixifact CLI', () => {
                 'editor',
                 'editor context',
                 'editor screenshot --output <png-path>',
-                'scene create --scene <scene-path> --name <SceneName>',
+                'scene create <scene-path>',
                 'node inspect --scene <scene-path> --node <locator>',
             ],
             nodeLocatorSource: 'scene inspect --scene <scene-path> returns node locator values',
@@ -816,10 +816,7 @@ describe('Pixifact CLI', () => {
             'create',
             '--project-root',
             projectRoot,
-            '--scene',
             'src/scenes/Login.scene',
-            '--name',
-            'Login',
         ]);
         const savedScene = fs.readFileSync(path.join(projectRoot, 'src/scenes/Login.scene'), 'utf8');
         const savedScript = fs.readFileSync(path.join(projectRoot, 'src/scenes/Login.ts'), 'utf8');
@@ -836,6 +833,45 @@ describe('Pixifact CLI', () => {
         });
         expect(savedScene).toBe('<Scene name="Login">\n</Scene>\n');
         expect(savedScript).toContain('export class Login extends Group');
+    });
+
+    it('does not retain redundant Scene creation flags', async () => {
+        const projectRoot = createCompilerSceneProject();
+
+        const result = await runCli([
+            'scene',
+            'create',
+            '--project-root',
+            projectRoot,
+            '--scene',
+            'src/scenes/Login.scene',
+            '--name',
+            'Login',
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            error: 'Unknown option "--scene" for Pixifact scene create.',
+        });
+        expect(fs.existsSync(path.join(projectRoot, 'src/scenes/Login.scene'))).toBe(false);
+    });
+
+    it('requires a Scene path when creating a Scene', async () => {
+        const projectRoot = createCompilerSceneProject();
+
+        const result = await runCli([
+            'scene',
+            'create',
+            '--project-root',
+            projectRoot,
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json).toMatchObject({
+            ok: false,
+            error: 'Scene create requires a project-relative .scene path.',
+        });
     });
 
 
@@ -1694,10 +1730,7 @@ import { Group } from 'pixifact/runtime';
             'create',
             '--project-root',
             projectRoot,
-            '--scene',
             'src/scenes/Button.scene',
-            '--name',
-            'Existing',
         ]);
         const saved = fs.readFileSync(path.join(projectRoot, 'src/scenes/Button.scene'), 'utf8');
 
@@ -1719,10 +1752,7 @@ import { Group } from 'pixifact/runtime';
             'create',
             '--project-root',
             projectRoot,
-            '--scene',
             '../Login.scene',
-            '--name',
-            'Login',
         ]);
 
         expect(result.exitCode).toBe(1);

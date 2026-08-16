@@ -491,10 +491,17 @@ async function executeFileCommand(
     }
 
     if (area === 'scene' && action === 'create') {
+        assertAllowedFlags(flags, ['project-root'], 'scene create');
+        const scenePath = positionals[2];
+        if (!scenePath) {
+            throw new Error('Scene create requires a project-relative .scene path.');
+        }
+        if (positionals[3] !== undefined) {
+            throw new Error('Scene create accepts exactly one scene path.');
+        }
         return automation.createScene({
             projectRoot,
-            scenePath: requireFlag(flags, 'scene'),
-            name: requireFlag(flags, 'name'),
+            scenePath,
         });
     }
 
@@ -567,7 +574,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'editor',
                         'editor context',
                         'editor screenshot --output <png-path>',
-                        'scene create --scene <scene-path> --name <SceneName>',
+                        'scene create <scene-path>',
                         'node inspect --scene <scene-path> --node <locator>',
                     ],
                     nodeLocatorSource: 'scene inspect --scene <scene-path> returns node locator values',
