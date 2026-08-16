@@ -1,5 +1,16 @@
 # pixifact-cli
 
+## 0.9.0
+
+### Minor Changes
+
+- `pixifact scene create <scene-path>` 直接由文件路径 basename 推导 Scene 类名，并移除冗余的 `--scene`、`--name` 参数。
+- 浏览器 Editor 的资产树默认收起目录，并在重开 Editor 后恢复用户此前的目录展开状态。
+
+### Patch Changes
+
+- pixifact@0.9.0
+
 ## 0.8.0
 
 ### Minor Changes
