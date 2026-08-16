@@ -12,22 +12,22 @@ Pixifact 发布五个公开 npm 包：
 
 ## 当前发布状态
 
-当前发布版本为 `0.8.0`：
+当前发布版本为 `0.9.0`：
 
-- npm packages: `0.8.0`
-- git tag: `v0.8.0`
+- npm packages: `0.9.0`
+- git tag: `v0.9.0`
 - changelog sources: [`pixifact`](../../packages/pixifact/CHANGELOG.md)、[`pixifact-cli`](../../packages/pixifact-cli/CHANGELOG.md)、[`create-pixifact`](../../packages/create-pixifact/CHANGELOG.md)
 
-本次发布记录见 [`v0.8.0.md`](./v0.8.0.md)。
+本次发布记录见 [`v0.9.0.md`](./v0.9.0.md)。
 首个 npm 发布记录见 [`v0.1.3.md`](./v0.1.3.md)。
 
-Trusted Publishing 已经在 npm 网站为原有三个包配置完成。新平台包首次发布后也必须配置同一 `publish.yml`；此后正常发布路径不需要本地 npm token。
+Trusted Publishing 已经在 npm 网站为五个公开包配置完成，正常发布路径不需要本地 npm token。
 
 ## 新包首次发布
 
-npm Trusted Publishing 只能配置已经存在的包。首次发布 `@pixifact/platform-wechat` 和 `@pixifact/platform-douyin` 时，先执行 `release:version` 生成正式版本并完成 release check，然后使用有 `@pixifact` scope 权限的 npm 账号手动发布两个平台包。发布成功后立即在两个包的 npm Settings 中配置 GitHub Actions Trusted Publisher：repository 为 `hxg2050/pixifact`，workflow filename 为 `publish.yml`，允许 `npm publish`。
+npm Trusted Publishing 只能配置已经存在的包。首次发布新的公开包时，先执行 `release:version` 生成正式版本并完成 release check，然后使用有对应发布权限的 npm 账号手动发布该包。发布成功后立即在该包的 npm Settings 中配置 GitHub Actions Trusted Publisher：repository 为 `hxg2050/pixifact`，workflow filename 为 `publish.yml`，允许 `npm publish`。
 
-随后按正常流程运行 `release:publish`。tag workflow 会跳过已经存在的平台包版本，并通过 Trusted Publishing 发布其余包；下一版本开始五个包都由 workflow 发布。
+随后按正常流程运行 `release:publish`。tag workflow 会跳过已经存在的版本，并通过 Trusted Publishing 发布其余包；下一版本开始该包也由 workflow 发布。
 
 ## 日常变更
 

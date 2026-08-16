@@ -1,6 +1,6 @@
 # Release v0.9.0
 
-Status: In Progress
+Status: Complete
 
 ## Goal
 
@@ -33,7 +33,11 @@ Status: In Progress
 
 ## Verification
 
-- 待执行。
+- `rtk bun run release:status` 在生成版本前显示五个公开包均将升至 `0.9.0`。
+- `rtk bun run release:check` 通过：25 个测试文件、310 项测试，五包构建与内容检查，以及 Web / 微信 / 抖音仓库外 tarball 安装和构建冒烟。
+- `rtk gh run watch 31960859492 --exit-status` 通过，GitHub Actions Publish npm packages 在 1 分 27 秒内完成。
+- `rtk npm view` 已确认五个公开包的 npm registry 版本均为 `0.9.0`。
+- `rtk gh release create v0.9.0` 已创建公开 GitHub Release。
 
 ## Progress
 
@@ -41,9 +45,9 @@ Status: In Progress
 - [x] 确认本地 `main` 仅比远端多 `a68339e` 与 `d2867bf` 两项待发布功能提交。
 - [x] 创建 `pixifact-cli` minor Changeset，确定 fixed group 版本为 `0.9.0`。
 - [x] 生成五个包的 `0.9.0` 版本、changelog 和模板依赖版本。
-- [ ] 提交 release commit。
-- [ ] 运行完整发布前检查。
-- [ ] 推送 `v0.9.0` 并验证 GitHub Actions 与 npm 发布。
+- [x] 提交 `Release v0.9.0`。
+- [x] 运行完整发布前检查。
+- [x] 推送 `v0.9.0` 并验证 GitHub Actions 与 npm 发布。
 
 ## Resume Protocol
 
@@ -62,11 +66,11 @@ Done:
 - 已建立并消费 `pixifact-cli` minor Changeset；fixed group 已生成统一的 `0.9.0` 版本与 changelog。
 
 Current State:
-- `release:version` 已完成；未创建 `v0.9.0` tag，也没有本地 npm 发布。
+- `main` 与 `v0.9.0` 已推送；GitHub Actions Trusted Publishing 已成功发布五个 npm 包，npm registry 均可见 `0.9.0`。
+- 公开 GitHub Release 已创建。
 
 Currently Failing:
 - 无。
 
 Next:
-1. 审阅版本与 changelog，提交 release commit。
-2. 运行 `rtk bun run release:check`，通过后推送 tag 并验证发布。
+1. 无。
