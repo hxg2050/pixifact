@@ -38,13 +38,19 @@ interface VisibleAssetNode {
     node: AssetTreeNode;
 }
 
-const props = defineProps<{ project?: EditorProject; currentScene?: string }>();
+const props = defineProps<{
+    currentScene?: string;
+    expandedDirectories?: readonly string[];
+    project?: EditorProject;
+}>();
 const emit = defineEmits<{
     assetDragStart: [asset: EditorSceneAsset];
+    assetTreeExpansionChange: [directories: string[]];
     openScene: [path: string];
 }>();
-const collapsedDirectories = reactive(new Set<string>());
+const expandedDirectories = reactive(new Set<string>());
 const thumbnailGeneration = ref(0);
+let initializedProjectRoot: string | undefined;
 let pendingDrag: {
     asset: EditorSceneAsset;
     pointerId: number;
@@ -112,7 +118,7 @@ const visibleAssets = computed(() => {
     function visit(nodes: AssetTreeNode[], level: number) {
         for (const node of nodes) {
             result.push({ level, node });
-            if (node.type === 'directory' && !collapsedDirectories.has(node.path)) {
+            if (node.type === 'directory' && expandedDirectories.has(node.path)) {
                 visit(node.children, level + 1);
             }
         }
@@ -121,9 +127,29 @@ const visibleAssets = computed(() => {
     return result;
 });
 
+function sceneDirectoryPaths(scenePath: string) {
+    const segments = scenePath.split('/');
+    segments.pop();
+    return segments.map((_, index) => segments.slice(0, index + 1).join('/'));
+}
+
+function initializeExpandedDirectories() {
+    const projectRoot = props.project?.root;
+    if (!projectRoot || initializedProjectRoot === projectRoot) return;
+    const persistedDirectories = props.expandedDirectories;
+    if (!persistedDirectories && !props.currentScene) return;
+    expandedDirectories.clear();
+    for (const path of persistedDirectories ?? sceneDirectoryPaths(props.currentScene!)) {
+        expandedDirectories.add(path);
+    }
+    initializedProjectRoot = projectRoot;
+}
+
 function toggleDirectory(path: string) {
-    if (collapsedDirectories.delete(path)) return;
-    collapsedDirectories.add(path);
+    if (!expandedDirectories.delete(path)) {
+        expandedDirectories.add(path);
+    }
+    emit('assetTreeExpansionChange', [...expandedDirectories].toSorted());
 }
 
 function imageThumbnailUrl(path: string) {
@@ -160,6 +186,11 @@ function cancelPendingDrag() {
     pendingDrag = undefined;
 }
 
+watch(
+    [() => props.project?.root, () => props.currentScene, () => props.expandedDirectories],
+    initializeExpandedDirectories,
+    { immediate: true },
+);
 watch(() => props.project, () => thumbnailGeneration.value += 1);
 onBeforeUnmount(cancelPendingDrag);
 </script>
@@ -173,13 +204,13 @@ onBeforeUnmount(cancelPendingDrag);
         class="asset-row asset-directory"
         :style="{ paddingLeft: `${8 + row.level * 16}px` }"
         :data-asset-directory="row.node.path"
-        :aria-expanded="!collapsedDirectories.has(row.node.path)"
+        :aria-expanded="expandedDirectories.has(row.node.path)"
         type="button"
         @click="toggleDirectory(row.node.path)"
       >
-        <ChevronRight v-if="collapsedDirectories.has(row.node.path)" :size="14" />
+        <ChevronRight v-if="!expandedDirectories.has(row.node.path)" :size="14" />
         <ChevronDown v-else :size="14" />
-        <Folder v-if="collapsedDirectories.has(row.node.path)" :size="15" />
+        <Folder v-if="!expandedDirectories.has(row.node.path)" :size="15" />
         <FolderOpen v-else :size="15" />
         <span>{{ row.node.name }}</span>
       </button>

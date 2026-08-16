@@ -57,6 +57,8 @@ describe('Editor project service', () => {
             fs.appendFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.scene'), '\n');
             fs.appendFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.ts'), '\n');
             fs.writeFileSync(path.join(fixture.projectRoot, 'assets', 'button.png'), 'changed-png');
+            fs.mkdirSync(path.join(fixture.projectRoot, '.pixifact', 'editor'), { recursive: true });
+            fs.writeFileSync(path.join(fixture.projectRoot, '.pixifact', 'editor', 'ui-state.json'), '{}\n');
 
             await vi.waitFor(() => {
                 expect(new Set(changedPaths)).toEqual(new Set([
@@ -67,6 +69,7 @@ describe('Editor project service', () => {
             });
             await new Promise((resolve) => setTimeout(resolve, 60));
             expect(changedPaths.filter((changedPath) => changedPath === 'src/scenes/Menu.scene')).toHaveLength(1);
+            expect(changedPaths).not.toContain('.pixifact/editor/ui-state.json');
         } finally {
             stopWatcher();
         }
@@ -90,6 +93,30 @@ describe('Editor project service', () => {
         ]));
         expect(index.status).toBe(200);
         expect(await index.text()).toContain('Pixifact Editor');
+    });
+
+    it('persists asset tree expansion separately from the project asset index', async () => {
+        const fixture = createFixture();
+        const service = createEditorProjectService(fixture);
+
+        const initial = await json(await service.fetch(new Request('http://localhost/api/editor-ui-state')));
+        const savedResponse = await service.fetch(new Request('http://localhost/api/editor-ui-state', {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ assetTreeExpandedDirectories: ['assets', 'src/scenes'] }),
+        }));
+        const reloadedService = createEditorProjectService(fixture);
+        const restored = await json(await reloadedService.fetch(new Request('http://localhost/api/editor-ui-state')));
+        const project = await json(await reloadedService.fetch(new Request('http://localhost/api/project')));
+
+        expect(initial).toEqual({});
+        expect(savedResponse.status).toBe(200);
+        expect(restored).toEqual({ assetTreeExpandedDirectories: ['assets', 'src/scenes'] });
+        expect(fs.readFileSync(path.join(fixture.projectRoot, '.pixifact', 'editor', 'ui-state.json'), 'utf8'))
+            .toBe('{\n  "assetTreeExpandedDirectories": [\n    "assets",\n    "src/scenes"\n  ]\n}\n');
+        expect(project.files).not.toEqual(expect.arrayContaining([
+            expect.objectContaining({ path: '.pixifact/editor/ui-state.json' }),
+        ]));
     });
 
     it('writes a scene only when the expected version still matches', async () => {

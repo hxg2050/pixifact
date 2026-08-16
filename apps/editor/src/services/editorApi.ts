@@ -17,6 +17,10 @@ export interface EditorProject {
     scenes: string[];
 }
 
+export interface EditorUiState {
+    assetTreeExpandedDirectories?: string[];
+}
+
 export interface EditorSceneFile {
     path: string;
     source: string;
@@ -80,6 +84,20 @@ async function checkedResponse(response: Response) {
 export async function readEditorProject() {
     const response = await checkedResponse(await fetch('/api/project'));
     return response.json() as Promise<EditorProject>;
+}
+
+export async function readEditorUiState() {
+    const response = await checkedResponse(await fetch('/api/editor-ui-state'));
+    return response.json() as Promise<EditorUiState>;
+}
+
+export async function writeEditorUiState(assetTreeExpandedDirectories: readonly string[]) {
+    const response = await checkedResponse(await fetch('/api/editor-ui-state', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ assetTreeExpandedDirectories }),
+    }));
+    return response.json() as Promise<EditorUiState>;
 }
 
 export async function readEditorScene(path: string) {

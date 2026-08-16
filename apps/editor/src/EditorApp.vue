@@ -26,6 +26,8 @@ import {
     editorSceneFileApi,
     readEditorSceneBindings,
     readEditorProject,
+    readEditorUiState,
+    writeEditorUiState,
     type EditorScreenshotRequest,
     type EditorSessionConnection,
     type EditorSessionResumeState,
@@ -41,6 +43,7 @@ const { activeLeftTab, currentScenePath, selectedLocator, syncState } = storeToR
 const project = ref<EditorProject>();
 const projectTree = ref<ProjectFileTreeNode>();
 const sceneInterfaces = ref<Record<string, SceneTemplateInterface>>({});
+const assetTreeExpandedDirectories = ref<string[]>();
 const document = ref<SceneDocument>();
 const documentRevision = ref(0);
 const error = ref('');
@@ -78,6 +81,8 @@ let projectChangeGeneration = 0;
 let projectRefreshRunning = false;
 let editorDisposed = false;
 let sceneOpenGeneration = 0;
+let assetTreeStateSaveGeneration = 0;
+let assetTreeStateSaving = false;
 const pendingProjectChanges = new Set<string>();
 
 interface SceneNavigationEntry {
@@ -479,6 +484,27 @@ function startAssetDrag(asset: EditorSceneAsset) {
     activeLeftTab.value = 'hierarchy';
 }
 
+function saveAssetTreeExpansion(directories: string[]) {
+    assetTreeExpandedDirectories.value = directories;
+    assetTreeStateSaveGeneration += 1;
+    if (!assetTreeStateSaving) void flushAssetTreeState();
+}
+
+async function flushAssetTreeState() {
+    assetTreeStateSaving = true;
+    try {
+        while (true) {
+            const saveGeneration = assetTreeStateSaveGeneration;
+            await writeEditorUiState(assetTreeExpandedDirectories.value ?? []);
+            if (saveGeneration === assetTreeStateSaveGeneration) return;
+        }
+    } catch (cause) {
+        error.value = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+        assetTreeStateSaving = false;
+    }
+}
+
 function endAssetDrag() {
     draggedAsset.value = undefined;
 }
@@ -489,6 +515,7 @@ function clearWorkspace() {
     unsubscribeDocument?.();
     unsubscribeDocument = undefined;
     document.value = undefined;
+    assetTreeExpandedDirectories.value = undefined;
     projectTree.value = undefined;
     sceneInterfaces.value = {};
     currentScenePath.value = undefined;
@@ -511,14 +538,16 @@ function clearWorkspace() {
 async function loadActiveWorkspace(resume?: EditorSessionResumeState) {
     const revision = sessionStateRevision;
     error.value = '';
-    const [nextProject, nextSceneInterfaces] = await Promise.all([
+    const [nextProject, nextSceneInterfaces, nextUiState] = await Promise.all([
         readEditorProject(),
         readSceneInterfaces(),
+        readEditorUiState(),
     ]);
     if (sessionState.value !== 'active' || revision !== sessionStateRevision) return;
     project.value = nextProject;
     projectTree.value = createEditorProjectTree(nextProject);
     sceneInterfaces.value = nextSceneInterfaces;
+    assetTreeExpandedDirectories.value = nextUiState.assetTreeExpandedDirectories;
     const scenePath = resume?.scenePath ?? nextProject.scenes[0];
     if (scenePath) {
         if (await openScene(scenePath, resume?.selectedLocator)) {
@@ -700,7 +729,9 @@ onBeforeUnmount(() => {
             <AssetsPanel
               :project="project"
               :current-scene="currentScenePath"
+              :expanded-directories="assetTreeExpandedDirectories"
               @asset-drag-start="startAssetDrag"
+              @asset-tree-expansion-change="saveAssetTreeExpansion"
               @open-scene="navigateToScene"
             />
           </TabsContent>

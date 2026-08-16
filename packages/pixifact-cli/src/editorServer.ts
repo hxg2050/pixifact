@@ -36,6 +36,10 @@ interface EditorProjectFile {
     path: string;
 }
 
+interface EditorUiState {
+    assetTreeExpandedDirectories?: string[];
+}
+
 interface BunServer {
     hostname: string;
     port: number;
@@ -163,6 +167,35 @@ function requestPath(url: URL) {
     return url.searchParams.get('path') ?? '';
 }
 
+function editorUiStatePath(projectRoot: string) {
+    return path.join(projectRoot, '.pixifact', 'editor', 'ui-state.json');
+}
+
+function parseEditorUiState(value: unknown): EditorUiState {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error('Editor UI state must be a JSON object.');
+    }
+    const directories = (value as Record<string, unknown>).assetTreeExpandedDirectories;
+    if (directories === undefined) return {};
+    if (!Array.isArray(directories) || directories.some((directory) => typeof directory !== 'string')) {
+        throw new Error('Editor UI state assetTreeExpandedDirectories must be a string array.');
+    }
+    return { assetTreeExpandedDirectories: directories };
+}
+
+function readEditorUiState(projectRoot: string): EditorUiState {
+    const statePath = editorUiStatePath(projectRoot);
+    if (!fs.existsSync(statePath)) return {};
+    return parseEditorUiState(JSON.parse(fs.readFileSync(statePath, 'utf8')));
+}
+
+function writeEditorUiState(projectRoot: string, state: EditorUiState) {
+    const statePath = editorUiStatePath(projectRoot);
+    fs.mkdirSync(path.dirname(statePath), { recursive: true });
+    fs.writeFileSync(statePath, JSON.stringify(state, null, 2) + '\n', 'utf8');
+    return state;
+}
+
 async function readJsonBody(request: Request) {
     const value = await request.json();
     if (!value || typeof value !== 'object') {
@@ -204,6 +237,17 @@ export function createEditorProjectService(options: EditorProjectServiceOptions)
                     scenes: files.filter((file) => file.kind === 'scene').map((file) => file.path),
                     images: files.filter((file) => file.kind === 'image').map((file) => file.path),
                 });
+            }
+            if (url.pathname === '/api/editor-ui-state' && request.method === 'GET') {
+                return jsonResponse(readEditorUiState(projectRoot));
+            }
+            if (url.pathname === '/api/editor-ui-state' && request.method === 'PUT') {
+                const body = await readJsonBody(request);
+                const state = parseEditorUiState(body);
+                if (!state.assetTreeExpandedDirectories) {
+                    throw new EditorRequestError(400, 'Editor UI state requires assetTreeExpandedDirectories.');
+                }
+                return jsonResponse(writeEditorUiState(projectRoot, state));
             }
             if (url.pathname === '/api/scene' && request.method === 'GET') {
                 const scenePath = requestPath(url);
@@ -275,6 +319,9 @@ export function watchEditorProject(projectRoot: string, onProjectFileChanged: (p
     const watcher = fs.watch(projectRoot, { recursive: true }, (_event, fileName) => {
         if (!fileName) return;
         const filePath = String(fileName);
+        if (filePath.split(/[\\/]/).some((segment) => ignoredDirectories.has(segment))) {
+            return;
+        }
         const absolutePath = path.resolve(projectRoot, filePath);
         if (fs.existsSync(absolutePath) && fs.statSync(absolutePath).isDirectory()) {
             return;

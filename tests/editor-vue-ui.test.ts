@@ -94,6 +94,7 @@ describe('Editor Vue UI', () => {
         const fetcher = vi.fn(async (input: string | URL | Request) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
             if (url === '/api/project') return Response.json(project);
+            if (url === '/api/editor-ui-state') return Response.json({});
             if (url === '/api/scene-bindings') return Response.json({});
             if (url.startsWith('/api/scene?')) {
                 return Response.json({
@@ -202,6 +203,7 @@ describe('Editor Vue UI', () => {
         const fetcher = vi.fn(async (input: string | URL | Request) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
             if (url === '/api/project') return Response.json(project);
+            if (url === '/api/editor-ui-state') return Response.json({});
             if (url === '/api/scene-bindings') return Response.json({});
             if (url.startsWith('/api/scene?')) {
                 const scenePath = new URL(url, 'http://localhost').searchParams.get('path')!;
@@ -300,6 +302,7 @@ describe('Editor Vue UI', () => {
         const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
             if (url === '/api/project') return Response.json(project);
+            if (url === '/api/editor-ui-state') return Response.json({});
             if (url === '/api/scene-bindings') return Response.json(bindings);
             if (url.startsWith('/api/scene?')) {
                 if (init?.method === 'PUT') {
@@ -380,6 +383,7 @@ describe('Editor Vue UI', () => {
         const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
             if (url === '/api/project') return Response.json(project);
+            if (url === '/api/editor-ui-state') return Response.json({});
             if (url === '/api/scene-bindings') return Response.json({});
             if (url.startsWith('/api/scene?')) {
                 if (init?.method === 'PUT') {
@@ -532,6 +536,7 @@ describe('Editor Vue UI', () => {
         const wrapper = mount(AssetsPanel, {
             props: {
                 currentScene: 'src/scenes/Menu.scene',
+                expandedDirectories: ['assets', 'assets/icons', 'src', 'src/scenes'],
                 project: {
                     name: 'demo',
                     root: '/demo',
@@ -570,7 +575,65 @@ describe('Editor Vue UI', () => {
         ]);
     });
 
-    it('shows supported assets in a collapsible project-relative directory tree', async () => {
+    it('restores and writes asset tree expansion through the Editor service', async () => {
+        const project = {
+            name: 'demo',
+            root: '/demo',
+            scenes: ['src/scenes/Menu.scene'],
+            images: ['assets/icons/map.svg'],
+            files: [
+                { kind: 'image', path: 'assets/icons/map.svg' },
+                { kind: 'scene', path: 'src/scenes/Menu.scene' },
+                { kind: 'script', path: 'src/scenes/Menu.ts' },
+            ],
+        };
+        let assetTreeExpandedDirectories = ['assets', 'assets/icons'];
+        const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+            if (url === '/api/project') return Response.json(project);
+            if (url === '/api/editor-ui-state') {
+                if (init?.method === 'PUT') {
+                    assetTreeExpandedDirectories = (
+                        JSON.parse(String(init.body)) as { assetTreeExpandedDirectories: string[] }
+                    ).assetTreeExpandedDirectories;
+                }
+                return Response.json({ assetTreeExpandedDirectories });
+            }
+            if (url === '/api/scene-bindings') return Response.json({});
+            if (url.startsWith('/api/scene?')) {
+                return Response.json({
+                    path: 'src/scenes/Menu.scene',
+                    source,
+                    version: 'sha256:before',
+                });
+            }
+            throw new Error('Unexpected Editor request: ' + url);
+        });
+        vi.stubGlobal('fetch', fetcher);
+        vi.stubGlobal('WebSocket', AcceptedEditorWebSocket);
+        const pinia = createPinia();
+        setActivePinia(pinia);
+        const wrapper = mount(EditorApp, {
+            global: {
+                plugins: [pinia],
+                stubs: { SceneCanvas: true },
+            },
+        });
+
+        await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Menu.scene'));
+        useEditorUiStore().activeLeftTab = 'assets';
+        await vi.waitFor(() => expect(wrapper.find('[data-asset-path="assets/icons/map.svg"]').exists()).toBe(true));
+        expect(wrapper.get('[data-asset-directory="src"]').attributes('aria-expanded')).toBe('false');
+        await wrapper.get('[data-asset-directory="assets"]').trigger('click');
+        await vi.waitFor(() => expect(assetTreeExpandedDirectories).toEqual(['assets/icons']));
+        expect(fetcher.mock.calls.some(([input, init]) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+            return url === '/api/editor-ui-state' && init?.method === 'PUT';
+        })).toBe(true);
+        wrapper.unmount();
+    });
+
+    it('starts the asset tree folded except for the current Scene path and persists user changes', async () => {
         const wrapper = mount(AssetsPanel, {
             props: {
                 currentScene: 'src/scenes/Menu.scene',
@@ -591,9 +654,9 @@ describe('Editor Vue UI', () => {
         });
 
         expect(wrapper.find('[data-asset-directory="assets"]').exists()).toBe(true);
-        expect(wrapper.find('[data-asset-directory="assets/icons"]').exists()).toBe(true);
         expect(wrapper.find('[data-asset-directory="src"]').exists()).toBe(true);
         expect(wrapper.find('[data-asset-directory="src/scenes"]').exists()).toBe(true);
+        expect(wrapper.find('[data-asset-directory="assets/icons"]').exists()).toBe(false);
         expect(wrapper.find('[data-asset-path="data/config.json"]').exists()).toBe(false);
         expect(wrapper.find('[data-asset-path="src/scenes/Menu.ts"]').exists()).toBe(false);
         expect(wrapper.text()).not.toContain('SCENES');
@@ -602,8 +665,6 @@ describe('Editor Vue UI', () => {
             row.attributes('data-asset-directory') ?? row.attributes('data-asset-path')
         ))).toEqual([
             'assets',
-            'assets/icons',
-            'assets/icons/map.svg',
             'src',
             'src/scenes',
             'src/scenes/Button.scene',
@@ -612,16 +673,31 @@ describe('Editor Vue UI', () => {
 
         const currentScene = wrapper.get('[data-asset-path="src/scenes/Menu.scene"]');
         const buttonScene = wrapper.get('[data-asset-path="src/scenes/Button.scene"]');
-        const image = wrapper.get('[data-asset-path="assets/icons/map.svg"]');
-        const thumbnail = image.get('img.asset-thumbnail');
         expect(currentScene.classes()).toContain('selected');
         expect(currentScene.attributes('title')).toBe('src/scenes/Menu.scene');
+        await buttonScene.trigger('dblclick');
+        expect(wrapper.emitted('openScene')).toEqual([['src/scenes/Button.scene']]);
+
+        const assets = wrapper.get('[data-asset-directory="assets"]');
+        expect(assets.attributes('aria-expanded')).toBe('false');
+        await assets.trigger('click');
+        expect(assets.attributes('aria-expanded')).toBe('true');
+        expect(wrapper.find('[data-asset-path="assets/icons/map.svg"]').exists()).toBe(false);
+        const icons = wrapper.get('[data-asset-directory="assets/icons"]');
+        expect(icons.attributes('aria-expanded')).toBe('false');
+        await icons.trigger('click');
+        const image = wrapper.get('[data-asset-path="assets/icons/map.svg"]');
+        const thumbnail = image.get('img.asset-thumbnail');
         expect(image.attributes('title')).toBe('assets/icons/map.svg');
         expect(thumbnail.attributes()).toMatchObject({
             alt: '',
             draggable: 'false',
             src: '/api/file?path=assets%2Ficons%2Fmap.svg&generation=0',
         });
+        expect(wrapper.emitted('assetTreeExpansionChange')).toEqual([
+            [['assets', 'src', 'src/scenes']],
+            [['assets', 'assets/icons', 'src', 'src/scenes']],
+        ]);
         const currentProject = wrapper.props().project!;
         await wrapper.setProps({
             project: {
@@ -631,16 +707,31 @@ describe('Editor Vue UI', () => {
         });
         expect(wrapper.get('img.asset-thumbnail').attributes('src'))
             .toBe('/api/file?path=assets%2Ficons%2Fmap.svg&generation=1');
-        await buttonScene.trigger('dblclick');
-        expect(wrapper.emitted('openScene')).toEqual([['src/scenes/Button.scene']]);
+    });
 
-        const assets = wrapper.get('[data-asset-directory="assets"]');
-        expect(assets.attributes('aria-expanded')).toBe('true');
-        await assets.trigger('click');
-        expect(assets.attributes('aria-expanded')).toBe('false');
-        expect(wrapper.find('[data-asset-path="assets/icons/map.svg"]').exists()).toBe(false);
-        await assets.trigger('click');
+    it('restores an explicitly saved asset tree expansion set', () => {
+        const wrapper = mount(AssetsPanel, {
+            props: {
+                currentScene: 'src/scenes/Menu.scene',
+                expandedDirectories: ['assets', 'assets/icons'],
+                project: {
+                    name: 'demo',
+                    root: '/demo',
+                    scenes: ['src/scenes/Menu.scene'],
+                    images: ['assets/icons/map.svg'],
+                    files: [
+                        { kind: 'image', path: 'assets/icons/map.svg' },
+                        { kind: 'scene', path: 'src/scenes/Menu.scene' },
+                    ],
+                },
+            },
+        });
+
+        expect(wrapper.get('[data-asset-directory="assets"]').attributes('aria-expanded')).toBe('true');
+        expect(wrapper.get('[data-asset-directory="assets/icons"]').attributes('aria-expanded')).toBe('true');
         expect(wrapper.find('[data-asset-path="assets/icons/map.svg"]').exists()).toBe(true);
+        expect(wrapper.get('[data-asset-directory="src"]').attributes('aria-expanded')).toBe('false');
+        expect(wrapper.find('[data-asset-path="src/scenes/Menu.scene"]').exists()).toBe(false);
     });
 
     it('assigns unique ids throughout a duplicated subtree', () => {

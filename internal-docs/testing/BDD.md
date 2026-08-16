@@ -319,6 +319,15 @@ Scenario: User browses supported assets by project directory
   And the current Scene remains selected
   But folders and unsupported files cannot be dragged or edited
 
+Scenario: User restores the asset directory expansion state
+  Given the project has no saved asset tree preference
+  When the user opens the asset panel
+  Then all directories are collapsed except the ancestors of the current Scene
+  When the user changes which directories are expanded
+  Then the Editor saves that local UI preference outside the project asset index and source control
+  When the user starts the Editor for the same project again
+  Then the same directory expansion state is restored exactly
+
 Scenario: User adds an indexed asset to the current Scene
   Given the project asset index contains an image or another Scene
   When the user drags the image or Scene onto the canvas
