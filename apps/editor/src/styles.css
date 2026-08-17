@@ -674,18 +674,9 @@ button.asset-row {
     white-space: nowrap;
 }
 
-.inspector-heading small,
-.node-id {
+.inspector-heading small {
     color: var(--muted);
     font-size: 10px;
-}
-
-.node-id {
-    max-width: 90px;
-    overflow: hidden;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .inspector-section-title {
@@ -764,6 +755,10 @@ button.asset-row {
     grid-template-columns: minmax(0, 1fr) 24px;
     align-items: start;
     gap: 3px;
+}
+
+.node-id-control {
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .property-value {

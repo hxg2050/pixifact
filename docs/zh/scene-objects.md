@@ -57,7 +57,7 @@
 | --- | --- | --- |
 | `id` | string | 节点稳定 ID。可编辑节点必须写，compiler 会把它暴露为 `@part` 可访问对象。 |
 
-`id` 不是 runtime prop，不会出现在 Inspector 的普通属性组里。compiler 会同时把节点的 Pixi `label` 设为这个 ID，方便调试和选择。
+`id` 不是 runtime prop，但可以在 Editor Inspector 的“节点”区域编辑。compiler 会同时把节点的 Pixi `label` 设为这个 ID，方便调试和选择；修改后如果配对脚本通过 `@part` 引用了旧 ID，需要同步更新脚本。
 
 ### Transform
 

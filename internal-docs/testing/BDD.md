@@ -437,6 +437,16 @@ Scenario: User commits a color without corrupting its draft value
   And the Inspector continues to display the color as #rrggbb
   And change followed by blur produces one Scene Command
   And one Undo restores the previous color
+
+Scenario: User renames a Scene node ID
+  Given a Scene node is selected in the Editor
+  When the user changes its ID in the Inspector Node section
+  And the input loses focus or the user presses Enter
+  Then one setNodeId Scene Command is committed and the .scene file is saved
+  And the hierarchy, Inspector, and authoring preview follow the node's new locator
+  And Undo and Redo restore the old and new IDs respectively
+  But an empty or duplicate ID is rejected and the previous ID remains
+  And the paired TypeScript @part contract is not edited automatically
 ```
 
 TDD 入口：`tests/editor-scene-document.test.ts`、`tests/editor-vue-ui.test.ts`。

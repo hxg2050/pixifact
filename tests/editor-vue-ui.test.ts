@@ -806,6 +806,82 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it('edits a node id in the Inspector and follows the relocated selection', async () => {
+        const api = createApi();
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const revision = ref(0);
+        const selected = ref('0:title');
+        document.subscribe((event) => {
+            if (event.type === 'commandApplied') {
+                revision.value += 1;
+                if (event.selection?.type === 'node') {
+                    selected.value = event.selection.node;
+                }
+            }
+        });
+        const wrapper = mount(defineComponent({
+            setup() {
+                return () => h(InspectorPanel, {
+                    document,
+                    revision: revision.value,
+                    selected: selected.value,
+                });
+            },
+        }));
+        const input = wrapper.get('input[data-node-id]');
+
+        expect((input.element as HTMLInputElement).value).toBe('title');
+        (input.element as HTMLInputElement).value = 'headline';
+        await input.trigger('input');
+        await input.trigger('blur');
+        await flushPromises();
+
+        expect(document.source).toContain('<Text id="headline"');
+        expect(selected.value).toBe('0:headline');
+        expect((wrapper.get('input[data-node-id]').element as HTMLInputElement).value).toBe('headline');
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
+        wrapper.unmount();
+    });
+
+    it('keeps invalid node id edits visible and restores the previous id', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: [
+                '<Scene name="Menu">',
+                '  <Text id="title" text="开始" />',
+                '  <Text id="footer" text="结束" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const wrapper = mount(InspectorPanel, {
+            props: {
+                document,
+                revision: 0,
+                selected: '0:title',
+            },
+        });
+        const input = wrapper.get('input[data-node-id]');
+
+        (input.element as HTMLInputElement).value = '';
+        await input.trigger('input');
+        await input.trigger('blur');
+        expect((wrapper.get('input[data-node-id]').element as HTMLInputElement).value).toBe('title');
+        expect(wrapper.text()).toContain('节点 ID 不能为空。');
+
+        (input.element as HTMLInputElement).value = 'footer';
+        await input.trigger('input');
+        await input.trigger('blur');
+        await flushPromises();
+        expect((wrapper.get('input[data-node-id]').element as HTMLInputElement).value).toBe('title');
+        expect(wrapper.text()).toContain('Scene node id "footer" is already in use.');
+        expect(api.writeScene).not.toHaveBeenCalled();
+        wrapper.unmount();
+    });
+
     it('keeps color input as hex through change and blur with one commit', async () => {
         const api = createApi();
         api.readScene.mockResolvedValueOnce({
@@ -943,6 +1019,7 @@ describe('Editor Vue UI', () => {
             key: section.attributes('data-inspector-section'),
             title: section.get('.inspector-section-title').text(),
         }))).toEqual([
+            { key: 'identity', title: '节点' },
             { key: 'transform', title: '变换' },
             { key: 'layout', title: '布局' },
             { key: 'display', title: '显示与交互' },

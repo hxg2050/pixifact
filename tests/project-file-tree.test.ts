@@ -129,6 +129,16 @@ describe('browser Editor runtime preview', () => {
         })).toBeUndefined();
 
         expect(incrementalScenePreviewCommands({
+            op: 'setNodeId',
+            node: '0:title',
+            value: 'headline',
+        }, {
+            op: 'setNodeId',
+            node: '0:headline',
+            value: 'title',
+        })).toBeUndefined();
+
+        expect(incrementalScenePreviewCommands({
             op: 'setNodeProp',
             node: '0:title',
             prop: 'text',

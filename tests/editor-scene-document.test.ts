@@ -54,6 +54,29 @@ describe('SceneDocument', () => {
         expect(document.canUndo).toBe(true);
     });
 
+    it('commits node id changes with a relocated selection and supports undo and redo', async () => {
+        const api = createApi();
+        const document = await SceneDocument.open('src/scenes/Menu.scene', api);
+        const events: unknown[] = [];
+        document.subscribe((event) => events.push(event));
+
+        const selection = await document.commitNodeId('0:title', 'headline');
+
+        expect(selection).toEqual({ type: 'node', node: '0:headline' });
+        expect(document.source).toContain('<Text id="headline"');
+        expect(events).toContainEqual(expect.objectContaining({
+            type: 'commandApplied',
+            command: { op: 'setNodeId', node: '0:title', value: 'headline' },
+            selection: { type: 'node', node: '0:headline' },
+        }));
+
+        await document.undo();
+        expect(document.source).toContain('<Text id="title"');
+
+        await document.redo();
+        expect(document.source).toContain('<Text id="headline"');
+    });
+
     it('undoes the committed command and saves the restored source', async () => {
         const api = createApi();
         const document = await SceneDocument.open('src/scenes/Menu.scene', api);

@@ -75,6 +75,7 @@
 - authoring 预览不触发 Scene 的游戏生命周期和交互事件。
 - authoring 预览不导入或执行项目 TypeScript；Bun Host 静态提取配对脚本契约，浏览器只解释 `.scene` 与只读 interface。
 - Inspector 由 Pixi 节点 schema 和 Scene interface 驱动，负责 Scene 根、节点、Scene Instance props 和 events。
+- Inspector 的“节点”区域提供可编辑的稳定 `id`；失焦或 Enter 提交 `setNodeId`，空值和重复 ID 拒绝，成功后选区跟随新的 locator 并支持 Undo / Redo；不自动修改配对脚本的 `@part` 契约。
 - Slot 内容通过层级树编辑；Inspector 只显示 slot 名称与节点数量。
 - 属性控件区分显式值与 schema 默认值；重置操作从 `.scene` 删除显式属性。
 - Inspector 不显示 binding 原始数据、contract dump、compiler 调试信息和修复命令。
@@ -142,6 +143,7 @@
 - [ ] 使用 Vitest 与 Vue Test Utils 为固定三栏、单 Scene 导航、层级、资产、画布和 Inspector 补 UI 测试；当前已覆盖 Pinia 边界、单 Scene 导航、层级结构操作、资产拖入与 Inspector preview / commit。
 - [x] 为外部 `.scene` / 脚本 / 图片变化补集成测试。
 - [x] 为新的只读 Editor context 补 CLI / 服务集成测试，不恢复旧 `live ...` 命令。
+- [x] 为 Inspector 节点 ID 编辑补提交、重复 ID、选区重定位和 Undo / Redo 测试。
 - [x] 为只读 `editor screenshot` 补 Host / 浏览器 session / CLI 测试，并验证 Scene 设计尺寸、zoom / pan 无关和 PNG 非空。
 - [ ] 在桌面浏览器视口完成布局、无重叠、拖拽与 Inspector 实时反馈的人工验证；当前已完成固定三栏、Canvas 非空、属性实时反馈、层级添加、自动保存和 Undo 验收。
 
@@ -183,6 +185,7 @@ rtk bun run pixifact -- editor
 - [x] 在资产目录树的图片行显示紧凑真实缩略图，不增加网格模式或新面板。
 - [x] 让资产目录首次仅展开当前 Scene 路径，并将用户展开集合保存为项目本地 UI 状态。
 - [x] 实现撤销、重做、复制、删除和 Escape 的基础快捷键，并保护可编辑表单控件。
+- [x] 接入 Inspector 节点 ID 编辑，保持稳定 locator、预览重建和配对脚本契约边界。
 
 ## Resume Protocol
 
@@ -223,6 +226,7 @@ Done:
 - `editor context` 返回 Scene root 或 Compiler node selection，并在磁盘 revision 不一致、Scene 未同步或解析失败时拒绝返回旧 selection。
 - 外部 Scene 重载按路径合并并串行执行，选择只在原位修改、id rename 或唯一 id 移动时保守重定位。
 - 真实浏览器验收已完成外部 `BottomMenu.scene` 的 `背包 -> 背包验收 -> 背包` 往返修改；Editor 自动刷新 revision 并保留确定的选择，Canvas 始终只有一个，示例 Scene 最终无 diff，当前 Host 无 console warning/error。
+- Inspector 节点 ID 已支持失焦 / Enter 提交、重复与空值拒绝、选区迁移、预览重建和 Undo / Redo；不自动修改配对脚本 `@part` 契约。
 - 全量测试为 16 个测试文件、222 个测试，`editor:typecheck`、`editor:frontend:build` 和包构建均通过。
 - 顶栏手动刷新会等待当前 Scene 同步，重新读取项目索引、脚本接口和 Scene；同 revision 保留选择与 Undo / Redo，并通过更新 project tree 强制重建图片预览。
 - 真实浏览器验收已完成 `背包 -> 背包刷新 -> 手动刷新 -> Undo 背包`；刷新前后选择保持为 `bagButton`、Undo 仍可用、Canvas 始终只有一个，示例 Scene 最终无 diff，当前 Host 无 console warning/error。
@@ -268,7 +272,8 @@ Current State:
 - 资产面板按项目真实目录展示 Scene 和图片，首次仅展开当前 Scene 路径并持久恢复用户的目录展开集合；Scene 双击与既有资产 Pointer 拖拽流程保持不变。
 - 资产目录树的图片行显示紧凑真实缩略图，并保留单列树布局与父行 Pointer 拖拽。
 - Editor 已提供基础编辑快捷键，并在可编辑表单控件聚焦时不接管按键。
-- 当前测试集为 25 个测试文件、310 个测试；默认并行全量测试、核心包构建和 Editor 前端构建均通过。
+- Inspector 节点 ID 支持在“节点”区域编辑，提交后沿用新 locator，重复与空值被拒绝，Undo / Redo 和预览重建保持可用；配对脚本 `@part` 不由 Editor 自动修改。
+- 当前测试集为 25 个测试文件、314 个测试；默认并行全量测试、核心包构建和 Editor 前端构建均通过。
 
 Currently Failing:
 - 无。

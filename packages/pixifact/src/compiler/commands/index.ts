@@ -293,7 +293,15 @@ function setNodeId(
         return { ok: false, command, error: 'Node was not found.' };
     }
     const previous = located.node.id;
-    located.node.id = command.value?.trim() || undefined;
+    const next = command.value?.trim() || undefined;
+    if (next && next !== previous && sceneNodeIdIsUsed(template.children, next, located.node)) {
+        return {
+            ok: false,
+            command,
+            error: `Scene node id "${next}" is already in use.`,
+        };
+    }
+    located.node.id = next;
     const locator = childCompilerSceneNodeLocator(located.parentLocator, located.node, located.index);
     return {
         ok: true,
@@ -305,6 +313,20 @@ function setNodeId(
         },
         selection: { type: 'node', node: locator },
     };
+}
+
+function sceneNodeIdIsUsed(nodes: readonly SceneTemplateNode[], id: string, ignored: SceneTemplateNode): boolean {
+    for (const node of nodes) {
+        if (node.kind === 'slotOutlet') continue;
+        if (node !== ignored && node.id === id) return true;
+        if (node.kind === 'pixi' && sceneNodeIdIsUsed(node.children, id, ignored)) return true;
+        if (node.kind === 'sceneInstance') {
+            for (const children of Object.values(node.slots)) {
+                if (sceneNodeIdIsUsed(children, id, ignored)) return true;
+            }
+        }
+    }
+    return false;
 }
 
 function setNodeProp(

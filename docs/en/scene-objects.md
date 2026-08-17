@@ -57,7 +57,7 @@ All official base objects and project child Scene instances can use these common
 | --- | --- | --- |
 | `id` | string | Stable node ID. Editable nodes must have one; the compiler exposes it as a `@part`-accessible object. |
 
-`id` is not a runtime prop and does not appear in the ordinary Inspector prop groups. The compiler also sets the Pixi `label` to this ID for debugging and selection.
+`id` is not a runtime prop, but it can be edited in the Inspector's Node section. The compiler also sets the Pixi `label` to this ID for debugging and selection; if the paired script references the old ID through `@part`, update that script as well.
 
 ### Transform
 

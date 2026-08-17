@@ -93,6 +93,22 @@ export class SceneDocument {
         await this.commitCommand(command);
     }
 
+    async commitNodeId(locator: string, id: string) {
+        const node = findSceneNodeByLocator(this.template.children, locator);
+        if (!node || node.kind === 'slotOutlet') {
+            throw new Error(`Scene node "${locator}" was not found.`);
+        }
+        const value = id.trim();
+        if (!value) {
+            throw new Error('Node id cannot be empty.');
+        }
+        if (node.id === value) {
+            return undefined;
+        }
+        const command = { op: 'setNodeId', node: locator, value } satisfies CompilerSceneCommand;
+        return this.commitCommand(command);
+    }
+
     async commitCommand(command: CompilerSceneCommand, context: CompilerSceneCommandContext = {}) {
         const result = this.#commandStack.execute(this.template, command, {}, context);
         if (!result.ok) {

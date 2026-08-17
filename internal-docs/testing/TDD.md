@@ -18,7 +18,7 @@
 
 | 文件 | 责任边界 | 当前覆盖重点 |
 | --- | --- | --- |
-| `tests/editor-vue-ui.test.ts` | Vue Editor UI / Pinia | Inspector preview / commit、手动刷新与 Pinia 项目数据边界 |
+| `tests/editor-vue-ui.test.ts` | Vue Editor UI / Pinia | Inspector preview / commit、节点 ID 编辑、手动刷新与 Pinia 项目数据边界 |
 | `tests/editor-external-sync.test.ts` | Editor 外部文件同步集成 | 最新 Scene revision、引用 Scene、配对脚本、图片字节与 Canvas 长驻 |
 | `tests/editor-scene-canvas.test.ts` | Editor authoring 画布几何 | 节点移动、resize、布局所有权、缩放、平移、适应窗口与视口尺寸变化 |
 | `tests/editor-scene-document.test.ts` | vNext `SceneDocument` | versioned auto-save、Undo / Redo、文件通知协调 |
@@ -219,6 +219,7 @@ bun run build
 必须先覆盖：
 
 - 数据流写入 compiler scene document。
+- 节点 ID 使用 `setNodeId` Command，重复或空值不写入文件，成功后 selection 使用新的 locator。
 - 节点类型专属 display 字段过滤正确。
 - Pinia 只保存 UI 偏好。
 - 纯图标按钮有 `aria-label` 和 `title`。

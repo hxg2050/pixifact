@@ -161,6 +161,24 @@ describe('compiler scene commands', () => {
         });
     });
 
+    it('rejects a node id that is already used in the scene', () => {
+        const document = template();
+
+        const result = applyCompilerSceneCommand(document, {
+            op: 'setNodeId',
+            node: '0:panel/0:title',
+            value: 'footer',
+        });
+
+        expect(result).toMatchObject({
+            ok: false,
+            error: 'Scene node id "footer" is already in use.',
+        });
+        expect((document.children[0] as Extract<SceneTemplateNode, { kind: 'pixi' }>).children[0]).toMatchObject({
+            id: 'title',
+        });
+    });
+
     it('inserts, deletes, and moves nodes with structural inverse commands', () => {
         const document = template();
         const insertedNode = pixiNode('Text', 'subtitle');

@@ -16,7 +16,7 @@ import {
     type SceneTemplatePropContract,
     type SceneTemplateScalarValue,
 } from 'pixifact/compiler';
-import { computed, nextTick, reactive, watch } from 'vue';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
 import type { SceneDocument } from '../document/SceneDocument';
 import { findSceneNodeByLocator, type EditorSceneAsset } from '../document/sceneTree';
 
@@ -82,6 +82,7 @@ const emit = defineEmits<{
 }>();
 
 const drafts = reactive<Record<string, string | number | boolean>>({});
+const nodeIdDraft = ref('');
 const error = reactive({ message: '' });
 const selectedNode = computed(() => {
     void props.revision;
@@ -292,6 +293,8 @@ watch([() => props.selected, () => props.revision, fields], () => {
     for (const field of fields.value) {
         drafts[field.key] = fieldDraftValue(field, field.value);
     }
+    const node = selectedNode.value;
+    nodeIdDraft.value = node && node.kind !== 'slotOutlet' ? node.id ?? '' : '';
     error.message = '';
 }, { immediate: true, flush: 'post' });
 
@@ -316,6 +319,34 @@ function fieldValue(field: InspectorField): InspectorField['value'] {
 function preview(field: InspectorField) {
     if (!props.document || !props.selected || field.resource) return;
     props.document.previewNodeProp(props.selected, field.key, fieldValue(field));
+}
+
+async function commitNodeId() {
+    const node = selectedNode.value;
+    const locator = props.selected;
+    if (!props.document || !locator || !node || node.kind === 'slotOutlet') return;
+    const value = nodeIdDraft.value.trim();
+    if (value === (node.id ?? '')) {
+        nodeIdDraft.value = value;
+        return;
+    }
+    error.message = '';
+    if (!value) {
+        nodeIdDraft.value = node.id ?? '';
+        error.message = '节点 ID 不能为空。';
+        return;
+    }
+    try {
+        await props.document.commitNodeId(locator, value);
+    } catch (cause) {
+        nodeIdDraft.value = node.id ?? '';
+        error.message = cause instanceof Error ? cause.message : String(cause);
+    }
+}
+
+async function commitNodeIdAndBlur(input: HTMLInputElement) {
+    await commitNodeId();
+    input.blur();
 }
 
 async function commit(field: InspectorField) {
@@ -382,12 +413,33 @@ async function dropAsset(field: InspectorField) {
         <strong>{{ selectedTitle }}</strong>
         <small>{{ selectedType }}</small>
       </div>
-      <span v-if="selectedNode && selectedNode.kind !== 'slotOutlet' && selectedNode.id" class="node-id">#{{ selectedNode.id }}</span>
     </header>
 
     <div v-if="!selectedNode" class="panel-empty compact">选择一个节点以编辑属性</div>
     <div v-else-if="selectedNode.kind === 'slotOutlet'" class="panel-empty compact">Slot 内容通过层级树编辑</div>
     <div v-else class="inspector-fields">
+      <section class="inspector-section" data-inspector-section="identity">
+        <div class="inspector-section-title">节点</div>
+        <div class="property-row">
+          <label class="property-field">
+            <span>id</span>
+            <div class="property-control node-id-control">
+              <div class="property-value">
+                <input
+                  v-model="nodeIdDraft"
+                  aria-label="节点 ID"
+                  data-node-id
+                  type="text"
+                  autocomplete="off"
+                  spellcheck="false"
+                  @blur="commitNodeId"
+                  @keydown.enter.prevent="commitNodeIdAndBlur($event.currentTarget as HTMLInputElement)"
+                >
+              </div>
+            </div>
+          </label>
+        </div>
+      </section>
       <section
         v-for="section in fieldSections"
         :key="section.key"
