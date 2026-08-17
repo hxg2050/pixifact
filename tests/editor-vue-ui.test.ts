@@ -870,13 +870,20 @@ describe('Editor Vue UI', () => {
         await input.trigger('input');
         await input.trigger('blur');
         expect((wrapper.get('input[data-node-id]').element as HTMLInputElement).value).toBe('title');
+        expect(wrapper.get('input[data-node-id]').classes()).toContain('is-invalid');
         expect(wrapper.text()).toContain('节点 ID 不能为空。');
+
+        (input.element as HTMLInputElement).value = 'headline';
+        await input.trigger('input');
+        expect(wrapper.get('input[data-node-id]').classes()).not.toContain('is-invalid');
+        expect(wrapper.get('input[data-node-id]').attributes('aria-invalid')).toBeUndefined();
 
         (input.element as HTMLInputElement).value = 'footer';
         await input.trigger('input');
         await input.trigger('blur');
         await flushPromises();
         expect((wrapper.get('input[data-node-id]').element as HTMLInputElement).value).toBe('title');
+        expect(wrapper.get('input[data-node-id]').classes()).toContain('is-invalid');
         expect(wrapper.text()).toContain('Scene node id "footer" is already in use.');
         expect(api.writeScene).not.toHaveBeenCalled();
         wrapper.unmount();

@@ -787,6 +787,11 @@ button.asset-row {
     border-color: var(--focus);
 }
 
+.property-control input[type="text"].is-invalid,
+.property-control input[type="text"].is-invalid:focus {
+    border-color: var(--danger);
+}
+
 .property-control input:disabled,
 .property-control select:disabled {
     border-color: #303640;

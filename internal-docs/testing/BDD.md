@@ -446,6 +446,7 @@ Scenario: User renames a Scene node ID
   And the hierarchy, Inspector, and authoring preview follow the node's new locator
   And Undo and Redo restore the old and new IDs respectively
   But an empty or duplicate ID is rejected and the previous ID remains
+  And the ID input has a red error border with the rejection reason
   And the paired TypeScript @part contract is not edited automatically
 ```
 

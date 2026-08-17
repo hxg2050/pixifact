@@ -83,6 +83,7 @@ const emit = defineEmits<{
 
 const drafts = reactive<Record<string, string | number | boolean>>({});
 const nodeIdDraft = ref('');
+const nodeIdError = ref('');
 const error = reactive({ message: '' });
 const selectedNode = computed(() => {
     void props.revision;
@@ -295,6 +296,7 @@ watch([() => props.selected, () => props.revision, fields], () => {
     }
     const node = selectedNode.value;
     nodeIdDraft.value = node && node.kind !== 'slotOutlet' ? node.id ?? '' : '';
+    nodeIdError.value = '';
     error.message = '';
 }, { immediate: true, flush: 'post' });
 
@@ -326,6 +328,7 @@ async function commitNodeId() {
     const locator = props.selected;
     if (!props.document || !locator || !node || node.kind === 'slotOutlet') return;
     const value = nodeIdDraft.value.trim();
+    nodeIdError.value = '';
     if (value === (node.id ?? '')) {
         nodeIdDraft.value = value;
         return;
@@ -333,15 +336,19 @@ async function commitNodeId() {
     error.message = '';
     if (!value) {
         nodeIdDraft.value = node.id ?? '';
-        error.message = '节点 ID 不能为空。';
+        nodeIdError.value = '节点 ID 不能为空。';
         return;
     }
     try {
         await props.document.commitNodeId(locator, value);
     } catch (cause) {
         nodeIdDraft.value = node.id ?? '';
-        error.message = cause instanceof Error ? cause.message : String(cause);
+        nodeIdError.value = cause instanceof Error ? cause.message : String(cause);
     }
+}
+
+function clearNodeIdError() {
+    nodeIdError.value = '';
 }
 
 async function commitNodeIdAndBlur(input: HTMLInputElement) {
@@ -429,9 +436,12 @@ async function dropAsset(field: InspectorField) {
                   v-model="nodeIdDraft"
                   aria-label="节点 ID"
                   data-node-id
+                  :aria-invalid="nodeIdError ? 'true' : undefined"
+                  :class="{ 'is-invalid': !!nodeIdError }"
                   type="text"
                   autocomplete="off"
                   spellcheck="false"
+                  @input="clearNodeIdError"
                   @blur="commitNodeId"
                   @keydown.enter.prevent="commitNodeIdAndBlur($event.currentTarget as HTMLInputElement)"
                 >
@@ -550,6 +560,6 @@ async function dropAsset(field: InspectorField) {
         </div>
       </section>
     </div>
-    <p v-if="error.message" class="inline-error">{{ error.message }}</p>
+    <p v-if="nodeIdError || error.message" class="inline-error">{{ nodeIdError || error.message }}</p>
   </div>
 </template>
