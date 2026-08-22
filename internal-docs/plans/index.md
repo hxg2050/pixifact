@@ -14,7 +14,6 @@
 | [runtime-observation-v1.md](./runtime-observation-v1.md) | 真实 Vite Web 游戏的 Runtime tree、state、logs、input 与 CLI 观测闭环 |
 | [editor-vnext.md](./editor-vnext.md) | 浏览器 Editor vNext 的产品边界、数据流、实现范围和续作记录 |
 | [scene-binding.md](./scene-binding.md) | Scene 静态 Prop、Variant、声明式绑定、Runtime 构造与 Editor Authoring 预览 |
-| [release-v0.11.0.md](./release-v0.11.0.md) | Editor 素材定位与预览节点选择改进的五包 `0.11.0` 发布 |
 | [release-v0.9.0.md](./release-v0.9.0.md) | 简化 Scene 创建命令和资产树展开状态持久化的五包 `0.9.0` 发布 |
 | [release-v0.8.0.md](./release-v0.8.0.md) | Runtime Canvas 截图与 Vite 8 路径修复的五包 `0.8.0` 发布 |
 
@@ -24,6 +23,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [release-v0.11.0.md](./release-v0.11.0.md) | Editor 素材定位与预览节点选择改进的五包 `0.11.0` 发布 |
 | [release-v0.7.0.md](./release-v0.7.0.md) | `0.7.0` 五个公开 npm 包的发布准备与验证 |
 | [douyin-image-loading.md](./douyin-image-loading.md) | 抖音小游戏冷启动图片解码时序与 PixiJS Assets loader 修复 |
 | [release-install-smoke.md](./release-install-smoke.md) | 真实 npm tarball 的仓库外安装、CLI、构建和 Editor 发布前验收 |

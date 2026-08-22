@@ -1,6 +1,6 @@
 # Release v0.11.0
 
-Status: In Progress
+Status: Complete
 
 ## Goal
 
@@ -33,16 +33,18 @@ Status: In Progress
 ## Verification
 
 - `bun run release:check` 已通过：25 个测试文件、318 项测试，五包构建与内容检查，以及 Web / 微信 / 抖音仓库外 tarball 安装和构建冒烟。
-- 待完成：推送 `v0.11.0`、等待 Trusted Publishing、验证 npm registry 和创建 GitHub Release。
+- GitHub Actions [Publish npm packages](https://github.com/hxg2050/pixifact/actions/runs/32579578377) 已成功完成 Trusted Publishing。
+- npm registry 五个公开包均已确认版本 `0.11.0`；真实 npm registry 安装和 Bun `1.3.13` Web production build 已通过。
+- GitHub Release 已创建：[v0.11.0](https://github.com/hxg2050/pixifact/releases/tag/v0.11.0)。
 
 ## Progress
 
 - [x] 确认当前 `main` 比远端多一个 Editor 功能提交。
 - [x] 创建并消费 `pixifact-cli` minor Changeset，生成五包统一 `0.11.0` 版本。
 - [x] 运行完整发布前检查。
-- [ ] 提交 `Release v0.11.0`。
-- [ ] 推送 `v0.11.0` 并验证 GitHub Actions 与 npm 发布。
-- [ ] 创建 GitHub Release 并完成发布记录。
+- [x] 提交 `Release v0.11.0`。
+- [x] 推送 `v0.11.0` 并验证 GitHub Actions 与 npm 发布。
+- [x] 创建 GitHub Release 并完成发布记录。
 
 ## Resume Protocol
 
@@ -60,7 +62,7 @@ Done:
 
 Current State:
 
-- 工作区包含待提交的 `0.11.0` 发布文件，尚未创建 release commit、tag 或 GitHub Release。
+- `main`、`v0.11.0` 和五个 npm 包均已发布，发布文档已完成。
 
 Currently Failing:
 
@@ -68,5 +70,4 @@ Currently Failing:
 
 Next:
 
-1. 提交并推送 release commit。
-2. 等待 workflow，验证 npm registry，然后创建 GitHub Release。
+1. 无。

@@ -14,6 +14,7 @@
 | [pixifact CHANGELOG](../../packages/pixifact/CHANGELOG.md) | `pixifact` 版本记录 |
 | [pixifact-cli CHANGELOG](../../packages/pixifact-cli/CHANGELOG.md) | `pixifact-cli` 版本记录 |
 | [create-pixifact CHANGELOG](../../packages/create-pixifact/CHANGELOG.md) | `create-pixifact` 版本记录 |
+| [v0.11.0.md](./v0.11.0.md) | Editor 素材定位与预览节点选择改进版本记录 |
 | [v0.10.0.md](./v0.10.0.md) | Editor Scene 节点 ID 编辑版本记录 |
 | [v0.9.0.md](./v0.9.0.md) | Scene 创建命令简化与资产树状态持久化版本记录 |
 | [v0.8.0.md](./v0.8.0.md) | Runtime Canvas 截图与 Vite 8 路径修复版本记录 |
