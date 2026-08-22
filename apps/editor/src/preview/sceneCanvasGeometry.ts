@@ -25,6 +25,10 @@ export interface SceneCanvasView {
     y: number;
 }
 
+export function sceneCanvasNodeCanStartDrag(selectedLocator: string | undefined, locator: string) {
+    return selectedLocator === locator;
+}
+
 export interface SceneCanvasSize {
     width: number;
     height: number;

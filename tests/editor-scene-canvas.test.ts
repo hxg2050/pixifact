@@ -10,11 +10,18 @@ import {
     resizeSceneCanvasView,
     resizeSceneCanvasGeometry,
     sceneCanvasNodePositionIsLayoutManaged,
+    sceneCanvasNodeCanStartDrag,
     zoomSceneCanvasView,
 } from '../apps/editor/src/preview/sceneCanvasGeometry';
 import { redrawSceneCanvasGraphics } from '../apps/editor/src/preview/sceneCanvasGraphics';
 
 describe('Editor Scene canvas geometry', () => {
+    it('only starts node dragging from the currently selected node', () => {
+        expect(sceneCanvasNodeCanStartDrag(undefined, '0:panel')).toBe(false);
+        expect(sceneCanvasNodeCanStartDrag('0:title', '0:panel')).toBe(false);
+        expect(sceneCanvasNodeCanStartDrag('0:panel', '0:panel')).toBe(true);
+    });
+
     it('fits a Scene in the viewport without scaling it above 100%', () => {
         expect(fitSceneCanvasView(
             { width: 1_000, height: 600 },

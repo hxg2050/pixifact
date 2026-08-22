@@ -633,6 +633,58 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it('locates an Inspector image reference in the asset tree', async () => {
+        const imageSource = [
+            '<Scene name="Menu">',
+            '  <Image id="icon" texture="assets/icons/map.svg" />',
+            '</Scene>',
+            '',
+        ].join('\n');
+        const project = {
+            name: 'demo',
+            root: '/demo',
+            scenes: ['src/scenes/Menu.scene'],
+            images: ['assets/icons/map.svg'],
+            files: [
+                { kind: 'image', path: 'assets/icons/map.svg' },
+                { kind: 'scene', path: 'src/scenes/Menu.scene' },
+            ],
+        };
+        const fetcher = vi.fn(async (input: string | URL | Request) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+            if (url === '/api/project') return Response.json(project);
+            if (url === '/api/editor-ui-state') return Response.json({});
+            if (url === '/api/scene-bindings') return Response.json({});
+            if (url.startsWith('/api/scene?')) {
+                return Response.json({
+                    path: 'src/scenes/Menu.scene',
+                    source: imageSource,
+                    version: 'sha256:before',
+                });
+            }
+            throw new Error('Unexpected Editor request: ' + url);
+        });
+        vi.stubGlobal('fetch', fetcher);
+        vi.stubGlobal('WebSocket', AcceptedEditorWebSocket);
+        const pinia = createPinia();
+        setActivePinia(pinia);
+        const wrapper = mount(EditorApp, {
+            global: {
+                plugins: [pinia],
+                stubs: { SceneCanvas: true },
+            },
+        });
+
+        await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Menu.scene'));
+        useEditorUiStore().selectedLocator = '0:icon';
+        await flushPromises();
+        await wrapper.get('input[data-prop="texture"]').trigger('click');
+        await vi.waitFor(() => expect(useEditorUiStore().activeLeftTab).toBe('assets'));
+        await vi.waitFor(() => expect(wrapper.get('[data-asset-path="assets/icons/map.svg"]').classes())
+            .toContain('focused'));
+        wrapper.unmount();
+    });
+
     it('starts the asset tree folded except for the current Scene path and persists user changes', async () => {
         const wrapper = mount(AssetsPanel, {
             props: {
@@ -732,6 +784,29 @@ describe('Editor Vue UI', () => {
         expect(wrapper.find('[data-asset-path="assets/icons/map.svg"]').exists()).toBe(true);
         expect(wrapper.get('[data-asset-directory="src"]').attributes('aria-expanded')).toBe('false');
         expect(wrapper.find('[data-asset-path="src/scenes/Menu.scene"]').exists()).toBe(false);
+    });
+
+    it('locates an asset by expanding its directories and focusing its row', async () => {
+        const wrapper = mount(AssetsPanel, {
+            props: {
+                focusAsset: { generation: 1, path: 'assets/icons/map.svg' },
+                project: {
+                    name: 'demo',
+                    root: '/demo',
+                    scenes: [],
+                    images: ['assets/icons/map.svg'],
+                    files: [{ kind: 'image', path: 'assets/icons/map.svg' }],
+                },
+            },
+        });
+
+        await flushPromises();
+
+        expect(wrapper.get('[data-asset-directory="assets"]').attributes('aria-expanded')).toBe('true');
+        expect(wrapper.get('[data-asset-directory="assets/icons"]').attributes('aria-expanded')).toBe('true');
+        expect(wrapper.get('[data-asset-path="assets/icons/map.svg"]').classes()).toContain('focused');
+        expect(wrapper.emitted('assetTreeExpansionChange')).toEqual([[['assets', 'assets/icons']]]);
+        wrapper.unmount();
     });
 
     it('assigns unique ids throughout a duplicated subtree', () => {
@@ -1047,6 +1122,33 @@ describe('Editor Vue UI', () => {
         expect(rowProps('topHeight')).toEqual(['topHeight']);
         expect(rowProps('bottomHeight')).toEqual(['bottomHeight']);
         expect(rowProps('anchorX:anchorY')).toEqual(['anchorX', 'anchorY']);
+        wrapper.unmount();
+    });
+
+    it('emits an asset location request when an Inspector image path is clicked', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: [
+                '<Scene name="Menu">',
+                '  <Image id="icon" texture="assets/icons/map.svg" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const wrapper = mount(InspectorPanel, {
+            props: {
+                document,
+                revision: 0,
+                selected: '0:icon',
+            },
+        });
+
+        await wrapper.get('input[data-prop="texture"]').trigger('click');
+
+        expect(wrapper.emitted('locateAsset')).toEqual([['assets/icons/map.svg']]);
         wrapper.unmount();
     });
 

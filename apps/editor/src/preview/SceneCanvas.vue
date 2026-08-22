@@ -35,6 +35,7 @@ import {
     resizeSceneCanvasView,
     resizeSceneCanvasGeometry,
     sceneCanvasNodePositionIsLayoutManaged,
+    sceneCanvasNodeCanStartDrag,
     zoomSceneCanvasView,
     type SceneCanvasGeometry,
     type SceneCanvasPropChange,
@@ -229,13 +230,15 @@ async function rebuildPreview() {
         for (const [locator, target] of preview.nodes) {
             target.eventMode = 'static';
             target.cursor = nodeCanMove(locator, target) ? 'move' : 'default';
-            target.on('pointerdown', (event) => beginMove(locator, event));
-            const node = findSceneNodeByLocator(document.template.children, locator);
-            if (node?.kind === 'sceneInstance') {
-                target.on('click', (event) => {
-                    if (event.detail === 2) emit('openScene', node.scene);
-                });
-            }
+            target.on('pointerdown', (event) => beginMove(locator, target, event));
+            target.on('click', (event) => {
+                event.stopPropagation();
+                emit('select', locator);
+                const node = findSceneNodeByLocator(document.template.children, locator);
+                if (event.detail === 2 && node?.kind === 'sceneInstance') {
+                    emit('openScene', node.scene);
+                }
+            });
         }
         app.stage.addChild(preview.root);
         if (selectionLayer) app.stage.addChild(selectionLayer);
@@ -380,11 +383,12 @@ function nodeCanResize(locator: string, target: Container, handle: SceneCanvasRe
     return resize(node.props, targetGeometry(target), handle, delta) !== undefined;
 }
 
-function beginMove(locator: string, event: FederatedPointerEvent) {
+function beginMove(locator: string, hitTarget: Container, event: FederatedPointerEvent) {
     if (spacePressed.value || isPanning.value) return;
-    event.stopPropagation();
     if (event.button !== 0) return;
-    emit('select', locator);
+    if (event.target !== hitTarget) return;
+    if (!sceneCanvasNodeCanStartDrag(props.selected, locator)) return;
+    event.stopPropagation();
     const target = selectedTarget(locator);
     if (!target || !nodeCanMove(locator, target)) {
         updateSelectionOverlay(locator);

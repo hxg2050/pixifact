@@ -79,6 +79,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
     assetDrop: [];
+    locateAsset: [path: string];
 }>();
 
 const drafts = reactive<Record<string, string | number | boolean>>({});
@@ -323,6 +324,11 @@ function preview(field: InspectorField) {
     props.document.previewNodeProp(props.selected, field.key, fieldValue(field));
 }
 
+function locateAsset(field: InspectorField) {
+    if (field.resource !== 'image' || typeof field.value !== 'string' || !field.value) return;
+    emit('locateAsset', field.value);
+}
+
 async function commitNodeId() {
     const node = selectedNode.value;
     const locator = props.selected;
@@ -519,7 +525,10 @@ async function dropAsset(field: InspectorField) {
                   :data-prop="field.key"
                   v-model="drafts[field.key]"
                   :disabled="!!field.binding"
+                  :class="{ 'resource-reference': field.resource === 'image' && typeof field.value === 'string' && !!field.value }"
+                  :title="field.resource === 'image' && typeof field.value === 'string' && field.value ? '点击定位素材' : undefined"
                   type="text"
+                  @click="locateAsset(field)"
                   @input="preview(field)"
                   @change="commit(field)"
                   @blur="commit(field)"

@@ -6,7 +6,7 @@ import {
     FolderOpen,
     PanelsTopLeft,
 } from 'lucide-vue-next';
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import type { EditorSceneAsset } from '../document/sceneTree';
 import type { EditorProject, EditorProjectFile } from '../services/editorApi';
 
@@ -41,6 +41,7 @@ interface VisibleAssetNode {
 const props = defineProps<{
     currentScene?: string;
     expandedDirectories?: readonly string[];
+    focusAsset?: { generation: number; path: string };
     project?: EditorProject;
 }>();
 const emit = defineEmits<{
@@ -49,7 +50,9 @@ const emit = defineEmits<{
     openScene: [path: string];
 }>();
 const expandedDirectories = reactive(new Set<string>());
+const focusedAssetPath = ref<string>();
 const thumbnailGeneration = ref(0);
+const assetList = ref<HTMLElement>();
 let initializedProjectRoot: string | undefined;
 let pendingDrag: {
     asset: EditorSceneAsset;
@@ -133,6 +136,24 @@ function sceneDirectoryPaths(scenePath: string) {
     return segments.map((_, index) => segments.slice(0, index + 1).join('/'));
 }
 
+function assetDirectoryPaths(assetPath: string) {
+    const segments = assetPath.split('/');
+    segments.pop();
+    return segments.map((_, index) => segments.slice(0, index + 1).join('/'));
+}
+
+async function focusAsset(path: string) {
+    focusedAssetPath.value = path;
+    for (const directory of assetDirectoryPaths(path)) {
+        expandedDirectories.add(directory);
+    }
+    emit('assetTreeExpansionChange', [...expandedDirectories].toSorted());
+    await nextTick();
+    const element = Array.from(assetList.value?.querySelectorAll<HTMLElement>('[data-asset-path]') ?? [])
+        .find((candidate) => candidate.dataset.assetPath === path);
+    element?.scrollIntoView?.({ block: 'nearest' });
+}
+
 function initializeExpandedDirectories() {
     const projectRoot = props.project?.root;
     if (!projectRoot || initializedProjectRoot === projectRoot) return;
@@ -191,12 +212,15 @@ watch(
     initializeExpandedDirectories,
     { immediate: true },
 );
+watch(() => props.focusAsset, (request) => {
+    if (request) void focusAsset(request.path);
+}, { immediate: true });
 watch(() => props.project, () => thumbnailGeneration.value += 1);
 onBeforeUnmount(cancelPendingDrag);
 </script>
 
 <template>
-  <div v-if="project" class="asset-list">
+  <div v-if="project" ref="assetList" class="asset-list">
     <div v-if="visibleAssets.length === 0" class="asset-empty">暂无 Scene 或图片</div>
     <template v-for="row in visibleAssets" :key="row.node.type + ':' + row.node.path">
       <button
@@ -220,6 +244,7 @@ onBeforeUnmount(cancelPendingDrag);
         :class="{
           'asset-draggable': row.node.path !== currentScene,
           selected: row.node.path === currentScene,
+          focused: row.node.path === focusedAssetPath,
         }"
         :style="{ paddingLeft: `${8 + row.level * 16}px` }"
         :data-asset-path="row.node.path"
@@ -237,6 +262,7 @@ onBeforeUnmount(cancelPendingDrag);
       <div
         v-else
         class="asset-row asset-draggable"
+        :class="{ focused: row.node.path === focusedAssetPath }"
         :style="{ paddingLeft: `${8 + row.level * 16}px` }"
         :data-asset-path="row.node.path"
         data-asset-draggable="true"

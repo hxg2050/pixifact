@@ -529,6 +529,11 @@ button.asset-row {
     color: #a9ccff;
 }
 
+.asset-row.focused {
+    background: #2a3a52;
+    box-shadow: inset 2px 0 var(--focus);
+}
+
 .asset-row span {
     overflow: hidden;
     font-size: 12px;
@@ -780,6 +785,10 @@ button.asset-row {
     background: var(--control);
     color: var(--text);
     font-size: 11px;
+}
+
+.property-control input.resource-reference {
+    cursor: alias;
 }
 
 .property-control input:focus,

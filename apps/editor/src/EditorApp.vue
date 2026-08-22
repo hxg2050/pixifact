@@ -48,6 +48,7 @@ const document = ref<SceneDocument>();
 const documentRevision = ref(0);
 const error = ref('');
 const draggedAsset = ref<EditorSceneAsset>();
+const assetFocusRequest = ref<{ generation: number; path: string }>();
 const refreshing = ref(false);
 const previewState = ref<'loading' | 'ready' | 'error'>('loading');
 const sessionState = ref<'connecting' | 'active' | 'standby'>('connecting');
@@ -83,6 +84,7 @@ let editorDisposed = false;
 let sceneOpenGeneration = 0;
 let assetTreeStateSaveGeneration = 0;
 let assetTreeStateSaving = false;
+let assetFocusGeneration = 0;
 const pendingProjectChanges = new Set<string>();
 
 interface SceneNavigationEntry {
@@ -484,6 +486,11 @@ function startAssetDrag(asset: EditorSceneAsset) {
     activeLeftTab.value = 'hierarchy';
 }
 
+function locateAsset(path: string) {
+    activeLeftTab.value = 'assets';
+    assetFocusRequest.value = { generation: ++assetFocusGeneration, path };
+}
+
 function saveAssetTreeExpansion(directories: string[]) {
     assetTreeExpandedDirectories.value = directories;
     assetTreeStateSaveGeneration += 1;
@@ -523,6 +530,7 @@ function clearWorkspace() {
     syncState.value = 'synced';
     documentRevision.value += 1;
     draggedAsset.value = undefined;
+    assetFocusRequest.value = undefined;
     refreshing.value = false;
     previewState.value = 'loading';
     navigationEntries.value = [];
@@ -730,6 +738,7 @@ onBeforeUnmount(() => {
               :project="project"
               :current-scene="currentScenePath"
               :expanded-directories="assetTreeExpandedDirectories"
+              :focus-asset="assetFocusRequest"
               @asset-drag-start="startAssetDrag"
               @asset-tree-expansion-change="saveAssetTreeExpansion"
               @open-scene="navigateToScene"
@@ -762,6 +771,7 @@ onBeforeUnmount(() => {
           :scene-interfaces="sceneInterfaces"
           :selected="selectedLocator"
           @asset-drop="endAssetDrag"
+          @locate-asset="locateAsset"
         />
       </aside>
     </section>
