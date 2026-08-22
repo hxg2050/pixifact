@@ -1,5 +1,15 @@
 # pixifact-cli
 
+## 0.11.0
+
+### Minor Changes
+
+- 增强浏览器 Editor 的素材定位与预览节点选择交互：点击 Inspector 中的素材地址可定位资产，预览节点通过 click 选中并改善拖动体验。
+
+### Patch Changes
+
+- pixifact@0.11.0
+
 ## 0.10.0
 
 ### Minor Changes
