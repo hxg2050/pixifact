@@ -27,7 +27,7 @@ Trusted Publishing 已经在 npm 网站为五个公开包配置完成，正常�
 
 ## 新包首次发布
 
-npm Trusted Publishing 只能配置已经存在的包。首次发布新的公开包时，先执行 `release:version` 生成正式版本并完成 release check，然后使用有对应发布权限的 npm 账号手动发布该包。发布成功后立即在该包的 npm Settings 中配置 GitHub Actions Trusted Publisher：repository 为 `hxg2050/pixifact`，workflow filename 为 `publish.yml`，允许 `npm publish`。
+npm Trusted Publishing 只能配置已经存在的包。首次发布新的公开包时，先执行 `release:version` 生成正式版本并推送 tag，由 `publish.yml` 完成发布前检查；然后使用有对应发布权限的 npm 账号手动发布该包。发布成功后立即在该包的 npm Settings 中配置 GitHub Actions Trusted Publisher：repository 为 `hxg2050/pixifact`，workflow filename 为 `publish.yml`，允许 `npm publish`。
 
 随后按正常流程运行 `release:publish`。tag workflow 会跳过已经存在的版本，并通过 Trusted Publishing 发布其余包；下一版本开始该包也由 workflow 发布。
 
@@ -67,17 +67,28 @@ git diff
 提交 release commit：
 
 ```bash
-git add .
+git add <本次发布相关文件>
 git commit -m "Release vX.Y.Z"
 ```
 
-## 发布前检查
+不要使用 `git add .`，避免把工作区中无关改动带入 release commit。
 
-```bash
-bun run release:check
-```
+## 快速发布流程
 
-这个命令会运行：
+日常 patch / minor / major 发布使用以下快速路径：
+
+1. 创建 changeset。
+2. 运行 `bun run release:version` 生成版本和 changelog。
+3. 审阅 `git diff`，只暂存本次发布相关文件并提交 release commit。
+4. 确认工作区干净后运行 `bun run release:publish`。
+5. 等待 `publish.yml` 对 tag 执行完整验证和 Trusted Publishing。
+6. 发布完成后核对 GitHub Actions、npm registry 和 GitHub Release。
+
+本地不再运行完整发布检查，也不执行 `npm publish`。本地只负责生成版本、提交变更和推送 `main` / `vX.Y.Z` tag。工作区中已有的无关改动必须留在发布提交之外；`release:publish` 要求工作区干净。
+
+## 发布前检查（GitHub Actions）
+
+推送 `vX.Y.Z` tag 后，`.github/workflows/publish.yml` 自动运行：
 
 - `bun run test`
 - `bun run build`
@@ -85,6 +96,7 @@ bun run release:check
 - `packages/create-pixifact` build
 - 五个发布包的 `npm pack --dry-run --json`
 - 当前 `pixifact` / `pixifact-cli` tarball 在仓库外 `adventure-ui-demo` 副本中的安装、CLI、构建和 Editor 启动冒烟
+- 五个包的 npm Trusted Publishing
 
 ## 触发发布
 
@@ -104,7 +116,7 @@ bun run release:publish
 
 ## 发布后验证
 
-确认 npm registry 看到新版本：
+等待 GitHub Actions 成功后，确认 npm registry 看到新版本：
 
 ```bash
 npm view pixifact version --registry https://registry.npmjs.org/
@@ -112,16 +124,7 @@ npm view pixifact-cli version --registry https://registry.npmjs.org/
 npm view create-pixifact version --registry https://registry.npmjs.org/
 ```
 
-做一次真实安装冒烟：
-
-```bash
-tmp="$(mktemp -d)"
-cd "$tmp"
-bun create pixifact npm-smoke
-cd npm-smoke
-bun install
-bun run build
-```
+不再要求本地执行 npm registry 安装冒烟；发布 workflow 已完成发布包 tarball 的仓库外安装、CLI、构建和 Editor 启动冒烟。
 
 创建 GitHub Release：
 
