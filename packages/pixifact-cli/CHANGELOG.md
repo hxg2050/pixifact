@@ -1,5 +1,12 @@
 # pixifact-cli
 
+## 0.11.1
+
+### Patch Changes
+
+- 修复 Editor 中布局节点属性编辑和画布拖拽交互的问题。
+  - pixifact@0.11.1
+
 ## 0.11.0
 
 ### Minor Changes

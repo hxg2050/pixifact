@@ -31,6 +31,7 @@ export default defineConfig({
     },
     test: {
         environment: 'happy-dom',
+        fileParallelism: false,
         include: ['tests/**/*.test.ts'],
     },
 });

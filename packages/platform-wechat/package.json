@@ -1,6 +1,6 @@
 {
   "name": "@pixifact/platform-wechat",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Pixifact 微信小游戏 PixiJS 平台适配器。",
   "type": "module",
   "main": "./dist/index.js",
@@ -27,7 +27,7 @@
     "build": "bun ../pixifact/scripts/clean-dist.mjs dist && bunx --no-install tsc -p tsconfig.build.json && bun ../pixifact/scripts/fix-dist-esm-imports.mjs dist"
   },
   "peerDependencies": {
-    "pixifact": ">=0.11.0 <1",
+    "pixifact": ">=0.11.1 <1",
     "pixi.js": ">=8.3.0"
   },
   "publishConfig": {
