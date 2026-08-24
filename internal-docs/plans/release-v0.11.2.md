@@ -1,6 +1,6 @@
 # Release v0.11.2
 
-Status: Ready to publish
+Status: Complete
 
 ## Goal
 
@@ -38,26 +38,32 @@ Status: Ready to publish
 - [x] 创建 `pixifact-cli` patch changeset。
 - [x] 生成 `0.11.2` 版本文件。
 - [x] 完成发布前检查。
-- [ ] 提交 release commit 并推送 tag。
-- [ ] 验证 GitHub Actions、npm registry 和 GitHub Release。
+- [x] 提交 release commit 并推送 tag。
+- [x] 验证 GitHub Actions、npm registry 和 GitHub Release。
+
+## Resume Protocol
+
+1. 检查 `main`、`v0.11.2` tag、远端和 npm registry 状态。
+2. 已完成发布时不要重复创建 tag 或重新发布同一版本。
+3. 仅在发布后验证缺失时补充对应记录。
 
 ## Resume Notes
 
 Last updated: 2026-08-24
 
-Current State:
+Done:
 
 - Editor 修复和回归测试已在工作区，用户已完成人工验收。
 - 五个公开包版本已统一为 `0.11.2`，发布前检查已通过。
+- 已提交 `b51fccb 发布 v0.11.2` 并推送 `main` 与 `v0.11.2` tag。
+- GitHub Actions [Publish npm packages](https://github.com/hxg2050/pixifact/actions/runs/32746924848) 已成功完成 Trusted Publishing。
+- npm registry 五个公开包均已确认版本 `0.11.2`。
+- GitHub Release 已创建：[v0.11.2](https://github.com/hxg2050/pixifact/releases/tag/v0.11.2)。
 
-## Resume Protocol
+Currently Failing:
 
-1. 检查 `main`、`v0.11.2` tag、远端和 npm registry 状态。
-2. 若 release commit 尚未提交，从 `Next` 的第一项继续；若 tag 已推送，不要重复创建 tag。
-3. 发布后补充 GitHub Actions、npm registry 和 GitHub Release 验证结果。
+- 无。
 
 Next:
 
-1. 提交 release commit。
-2. 推送 `main` 和 `v0.11.2` tag。
-3. 验证 GitHub Actions、npm registry 和 GitHub Release。
+- 无。
