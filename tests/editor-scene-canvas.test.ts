@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Graphics } from 'pixi.js';
+import { Container, Graphics } from 'pixi.js';
 import { parseSceneTemplate } from 'pixifact/compiler';
 import { SceneDocument } from '../apps/editor/src/document/SceneDocument';
 import {
@@ -9,6 +9,7 @@ import {
     resizeLayoutManagedSceneCanvasGeometry,
     resizeSceneCanvasView,
     resizeSceneCanvasGeometry,
+    sceneCanvasEventTargetIsWithinNode,
     sceneCanvasNodePositionIsLayoutManaged,
     sceneCanvasNodeCanStartDrag,
     zoomSceneCanvasView,
@@ -20,6 +21,19 @@ describe('Editor Scene canvas geometry', () => {
         expect(sceneCanvasNodeCanStartDrag(undefined, '0:panel')).toBe(false);
         expect(sceneCanvasNodeCanStartDrag('0:title', '0:panel')).toBe(false);
         expect(sceneCanvasNodeCanStartDrag('0:panel', '0:panel')).toBe(true);
+        expect(sceneCanvasNodeCanStartDrag('0:panel', '1:panel')).toBe(false);
+    });
+
+    it('allows a selected container to start dragging from a descendant target', () => {
+        const parent = new Container();
+        const child = new Container();
+        parent.addChild(child);
+
+        expect(sceneCanvasEventTargetIsWithinNode(parent, parent)).toBe(true);
+        expect(sceneCanvasEventTargetIsWithinNode(parent, child)).toBe(true);
+        expect(sceneCanvasEventTargetIsWithinNode(child, parent)).toBe(false);
+
+        parent.destroy({ children: true });
     });
 
     it('fits a Scene in the viewport without scaling it above 100%', () => {

@@ -3,6 +3,7 @@ import {
     type SceneTemplate,
     type SceneTemplateValue,
 } from 'pixifact/compiler';
+import type { Container } from 'pixi.js';
 import { findSceneTreeEntry } from '../document/sceneTree';
 
 export type SceneCanvasResizeHandle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
@@ -27,6 +28,15 @@ export interface SceneCanvasView {
 
 export function sceneCanvasNodeCanStartDrag(selectedLocator: string | undefined, locator: string) {
     return selectedLocator === locator;
+}
+
+export function sceneCanvasEventTargetIsWithinNode(node: Container, target: unknown) {
+    let current = target as Container | null;
+    while (current) {
+        if (current === node) return true;
+        current = current.parent;
+    }
+    return false;
 }
 
 export interface SceneCanvasSize {

@@ -15,6 +15,7 @@ import {
     type SceneTemplateInterface,
     type SceneTemplatePropContract,
     type SceneTemplateScalarValue,
+    type SceneTemplateValue,
 } from 'pixifact/compiler';
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 import type { SceneDocument } from '../document/SceneDocument';
@@ -24,6 +25,7 @@ interface InspectorField {
     binding?: SceneTemplateBindingValue;
     explicit: boolean;
     key: string;
+    layoutControlled: boolean;
     options?: readonly (string | number)[];
     resource?: 'image';
     type: PixiSceneFieldType;
@@ -68,6 +70,14 @@ const pairByFieldKey = new Map<string, readonly [string, string]>();
 for (const pair of pairedFieldKeys) {
     pairByFieldKey.set(pair[0], pair);
     pairByFieldKey.set(pair[1], pair);
+}
+
+function isLayoutControlled(props: Record<string, SceneTemplateValue>, key: string) {
+    if (key === 'x') return props.left !== undefined || props.right !== undefined || props.horizontal !== undefined;
+    if (key === 'width') return props.left !== undefined && props.right !== undefined;
+    if (key === 'y') return props.top !== undefined || props.bottom !== undefined || props.vertical !== undefined;
+    if (key === 'height') return props.top !== undefined && props.bottom !== undefined;
+    return false;
 }
 
 const props = defineProps<{
@@ -180,6 +190,7 @@ const fields = computed<InspectorField[]>(() => {
             binding,
             explicit: explicitValue !== undefined,
             key,
+            layoutControlled: isLayoutControlled(node.props, key),
             resource: pixiSchema?.resource,
             type: schema.type,
             options: schema.options,
@@ -320,7 +331,7 @@ function fieldValue(field: InspectorField): InspectorField['value'] {
 }
 
 function preview(field: InspectorField) {
-    if (!props.document || !props.selected || field.resource) return;
+    if (!props.document || !props.selected || field.resource || field.layoutControlled) return;
     props.document.previewNodeProp(props.selected, field.key, fieldValue(field));
 }
 
@@ -363,7 +374,7 @@ async function commitNodeIdAndBlur(input: HTMLInputElement) {
 }
 
 async function commit(field: InspectorField) {
-    if (!props.document || !props.selected) return;
+    if (!props.document || !props.selected || field.layoutControlled) return;
     error.message = '';
     const value = fieldValue(field);
     try {
@@ -478,14 +489,18 @@ async function dropAsset(field: InspectorField) {
             :data-asset-drop-prop="field.resource === 'image' ? field.key : undefined"
             @pointerup="dropAsset(field)"
           >
-            <span :class="{ inherited: !field.explicit }">{{ field.key }}</span>
+            <span
+              :class="{ inherited: !field.explicit }"
+              :title="field.layoutControlled ? '由布局属性控制，请修改布局字段' : undefined"
+            >{{ field.key }}</span>
             <div class="property-control">
               <div class="property-value">
                 <input
                   v-if="field.type === 'number'"
                   :data-prop="field.key"
                   v-model="drafts[field.key]"
-                  :disabled="!!field.binding"
+                  :disabled="!!field.binding || field.layoutControlled"
+                  :title="field.layoutControlled ? '由布局属性控制，请修改布局字段' : undefined"
                   type="number"
                   step="any"
                   @input="preview(field)"
@@ -497,7 +512,7 @@ async function dropAsset(field: InspectorField) {
                   v-else-if="field.type === 'color'"
                   :data-prop="field.key"
                   v-model="drafts[field.key]"
-                  :disabled="!!field.binding"
+                  :disabled="!!field.binding || field.layoutControlled"
                   type="color"
                   @input="preview(field)"
                   @change="commit(field)"
@@ -507,7 +522,7 @@ async function dropAsset(field: InspectorField) {
                   v-else-if="field.type === 'boolean'"
                   :data-prop="field.key"
                   v-model="drafts[field.key]"
-                  :disabled="!!field.binding"
+                  :disabled="!!field.binding || field.layoutControlled"
                   type="checkbox"
                   @change="preview(field); commit(field)"
                 >
@@ -515,7 +530,7 @@ async function dropAsset(field: InspectorField) {
                   v-else-if="field.type === 'enum'"
                   :data-prop="field.key"
                   v-model="drafts[field.key]"
-                  :disabled="!!field.binding"
+                  :disabled="!!field.binding || field.layoutControlled"
                   @change="preview(field); commit(field)"
                 >
                   <option v-for="option in field.options" :key="option" :value="option">{{ option }}</option>
@@ -524,7 +539,7 @@ async function dropAsset(field: InspectorField) {
                   v-else
                   :data-prop="field.key"
                   v-model="drafts[field.key]"
-                  :disabled="!!field.binding"
+                  :disabled="!!field.binding || field.layoutControlled"
                   :class="{ 'resource-reference': field.resource === 'image' && typeof field.value === 'string' && !!field.value }"
                   :title="field.resource === 'image' && typeof field.value === 'string' && field.value ? '点击定位素材' : undefined"
                   type="text"
@@ -556,7 +571,7 @@ async function dropAsset(field: InspectorField) {
               <button
                 v-else
                 class="reset-button"
-                :disabled="!field.explicit"
+                :disabled="!field.explicit || field.layoutControlled"
                 type="button"
                 :title="`重置 ${field.key}`"
                 :aria-label="`重置 ${field.key}`"

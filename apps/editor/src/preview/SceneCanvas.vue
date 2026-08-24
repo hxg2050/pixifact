@@ -34,6 +34,7 @@ import {
     resizeLayoutManagedSceneCanvasGeometry,
     resizeSceneCanvasView,
     resizeSceneCanvasGeometry,
+    sceneCanvasEventTargetIsWithinNode,
     sceneCanvasNodePositionIsLayoutManaged,
     sceneCanvasNodeCanStartDrag,
     zoomSceneCanvasView,
@@ -386,7 +387,7 @@ function nodeCanResize(locator: string, target: Container, handle: SceneCanvasRe
 function beginMove(locator: string, hitTarget: Container, event: FederatedPointerEvent) {
     if (spacePressed.value || isPanning.value) return;
     if (event.button !== 0) return;
-    if (event.target !== hitTarget) return;
+    if (!sceneCanvasEventTargetIsWithinNode(hitTarget, event.target)) return;
     if (!sceneCanvasNodeCanStartDrag(props.selected, locator)) return;
     event.stopPropagation();
     const target = selectedTarget(locator);

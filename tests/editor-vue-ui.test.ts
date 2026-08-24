@@ -1076,6 +1076,49 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it('makes transform fields read-only when frame layout controls their result', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Battle.scene',
+            source: [
+                '<Scene name="Battle">',
+                '  <Group id="battleArea" x="0" y="80" width="720" height="1100" left="0" right="0" top="0" bottom="0" />',
+                '  <Group id="enemyArea" x="0" y="0" width="720" height="600" horizontal="0" vertical="-232.11" />',
+                '  <Group id="playerArea" x="0" y="600" width="720" height="500" bottom="0" />',
+                '</Scene>',
+                '',
+            ].join('\n'),
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Battle.scene', api));
+        const wrapper = mount(InspectorPanel, {
+            props: {
+                document,
+                revision: 0,
+                selected: '0:battleArea',
+            },
+        });
+
+        for (const prop of ['x', 'y', 'width', 'height']) {
+            expect(wrapper.get(`[data-prop="${prop}"]`).attributes('disabled')).toBeDefined();
+        }
+        expect(wrapper.get('[data-prop="left"]').attributes('disabled')).toBeUndefined();
+        expect(wrapper.get('[data-prop="x"]').attributes('title')).toContain('布局');
+
+        await wrapper.setProps({ selected: '1:enemyArea' });
+        await flushPromises();
+        expect(wrapper.get('input[data-prop="x"]').attributes('disabled')).toBeDefined();
+        expect(wrapper.get('input[data-prop="y"]').attributes('disabled')).toBeDefined();
+        expect(wrapper.get('input[data-prop="width"]').attributes('disabled')).toBeUndefined();
+        expect(wrapper.get('input[data-prop="height"]').attributes('disabled')).toBeUndefined();
+
+        await wrapper.setProps({ selected: '2:playerArea' });
+        await flushPromises();
+        expect(wrapper.get('input[data-prop="y"]').attributes('disabled')).toBeDefined();
+        expect(wrapper.get('input[data-prop="x"]').attributes('disabled')).toBeUndefined();
+        wrapper.unmount();
+    });
+
     it('groups related Inspector fields into semantic sections and paired rows', async () => {
         const api = createApi();
         api.readScene.mockResolvedValueOnce({
