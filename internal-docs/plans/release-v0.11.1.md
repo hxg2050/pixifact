@@ -1,6 +1,6 @@
 # Release v0.11.1
 
-Status: Ready to Publish
+Status: Complete
 
 ## Goal
 
@@ -45,9 +45,9 @@ Status: Ready to Publish
 - [x] 确认当前 npm registry 和 Git tag 的最新版本为 `0.11.0`。
 - [x] 创建 patch Changeset 并生成五包统一 `0.11.1` 版本。
 - [x] 运行完整发布前检查。
-- [ ] 提交 release commit。
-- [ ] 推送 `v0.11.1` 并验证 GitHub Actions 与 npm 发布。
-- [ ] 创建 GitHub Release 并完成发布记录。
+- [x] 提交 `Release v0.11.1`。
+- [x] 推送 `v0.11.1` 并验证 GitHub Actions 与 npm 发布。
+- [x] 创建 GitHub Release 并完成发布记录。
 
 ## Resume Protocol
 
@@ -64,10 +64,15 @@ Done:
 - 已将发布前用户未提交改动保存到本地 stash，未纳入本次发布。
 - 已完成版本生成和 changelog 更新。
 - 已完成完整 `release:check`。
+- 已提交 `e895e65 Release v0.11.1`，并推送 `main` 与 `v0.11.1`。
+- GitHub Actions [Publish npm packages](https://github.com/hxg2050/pixifact/actions/runs/32733071678) 已成功完成 Trusted Publishing。
+- npm registry 五个公开包均已确认版本 `0.11.1`。
+- 已从 npm registry 创建项目并使用 Bun `1.3.13` 完成安装和 Web production build。
+- GitHub Release 已创建：[v0.11.1](https://github.com/hxg2050/pixifact/releases/tag/v0.11.1)。
 
 Current State:
 
-- 五个公开包 manifest 均为 `0.11.1`，工作区只包含本次 release 变更；发布前门禁已通过。
+- 五个公开包 manifest 均为 `0.11.1`，发布、registry 验证和 GitHub Release 均已完成。
 
 Currently Failing:
 
@@ -75,5 +80,4 @@ Currently Failing:
 
 Next:
 
-1. 提交 `Release v0.11.1`。
-2. 推送 `v0.11.1`，验证 GitHub Actions 和 npm registry。
+1. 无。
