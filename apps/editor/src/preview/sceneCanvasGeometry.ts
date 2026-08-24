@@ -20,14 +20,29 @@ export interface SceneCanvasPoint {
     y: number;
 }
 
+export interface SceneCanvasSelectionCycle {
+    candidates: string[];
+    index: number;
+    point: SceneCanvasPoint;
+}
+
 export interface SceneCanvasView {
     scale: number;
     x: number;
     y: number;
 }
 
-export function sceneCanvasNodeCanStartDrag(selectedLocator: string | undefined, locator: string) {
-    return selectedLocator === locator;
+export function sceneCanvasNodeCanStartDrag(
+    selectedLocator: string | undefined,
+    hitLocator: string,
+    hitCandidates: readonly string[] = [],
+) {
+    return selectedLocator === hitLocator
+        || (
+            selectedLocator !== undefined
+            && hitCandidates.includes(hitLocator)
+            && hitCandidates.includes(selectedLocator)
+        );
 }
 
 export function sceneCanvasEventTargetIsWithinNode(node: Container, target: unknown) {
@@ -37,6 +52,43 @@ export function sceneCanvasEventTargetIsWithinNode(node: Container, target: unkn
         current = current.parent;
     }
     return false;
+}
+
+export function sceneCanvasHitTestOrder(
+    root: Container,
+    nodes: ReadonlyMap<string, Container>,
+    point: SceneCanvasPoint,
+) {
+    const locatorsByNode = new Map<Container, string>();
+    for (const [locator, node] of nodes) {
+        locatorsByNode.set(node, locator);
+    }
+
+    const candidates: string[] = [];
+    visitSceneCanvasHitTargets(root, point, locatorsByNode, candidates);
+    return candidates;
+}
+
+export function cycleSceneCanvasSelection(
+    candidates: readonly string[],
+    point: SceneCanvasPoint,
+    previous: SceneCanvasSelectionCycle | undefined,
+    selected: string | undefined,
+) {
+    if (candidates.length === 0) return undefined;
+    const sameCycle = previous !== undefined
+        && sameSceneCanvasPoint(previous.point, point)
+        && sameStringSequence(previous.candidates, candidates)
+        && selected === previous.candidates[previous.index];
+    const index = sameCycle ? (previous.index + 1) % candidates.length : 0;
+    return {
+        locator: candidates[index],
+        cycle: {
+            candidates: [...candidates],
+            index,
+            point: normalizedSceneCanvasPoint(point),
+        } satisfies SceneCanvasSelectionCycle,
+    };
 }
 
 export interface SceneCanvasSize {
@@ -329,4 +381,48 @@ function setGeometryNumber(
 
 function roundGeometry(value: number) {
     return Math.round(value * 100) / 100;
+}
+
+function visitSceneCanvasHitTargets(
+    current: Container,
+    point: SceneCanvasPoint,
+    locatorsByNode: ReadonlyMap<Container, string>,
+    candidates: string[],
+) {
+    if (current.destroyed || !current.visible || !current.renderable || !current.measurable) return;
+    if (current.hitArea && !containsSceneCanvasPoint(current, point)) return;
+    if (current.sortableChildren) current.sortChildren();
+
+    for (let index = current.children.length - 1; index >= 0; index -= 1) {
+        visitSceneCanvasHitTargets(current.children[index], point, locatorsByNode, candidates);
+    }
+
+    const locator = locatorsByNode.get(current);
+    if (locator && containsSceneCanvasPoint(current, point)) {
+        candidates.push(locator);
+    }
+}
+
+function containsSceneCanvasPoint(target: Container, point: SceneCanvasPoint) {
+    const local = target.toLocal(point);
+    if (target.hitArea) return target.hitArea.contains(local.x, local.y);
+    const hitTester = target as Container & { containsPoint?: (point: SceneCanvasPoint) => boolean };
+    if (hitTester.containsPoint) return hitTester.containsPoint(local);
+    return target.getBounds().containsPoint(point.x, point.y);
+}
+
+function sameSceneCanvasPoint(left: SceneCanvasPoint, right: SceneCanvasPoint) {
+    return normalizedSceneCanvasPoint(left).x === normalizedSceneCanvasPoint(right).x
+        && normalizedSceneCanvasPoint(left).y === normalizedSceneCanvasPoint(right).y;
+}
+
+function normalizedSceneCanvasPoint(point: SceneCanvasPoint) {
+    return {
+        x: Math.round(point.x * 100) / 100,
+        y: Math.round(point.y * 100) / 100,
+    };
+}
+
+function sameStringSequence(left: readonly string[], right: readonly string[]) {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
 }

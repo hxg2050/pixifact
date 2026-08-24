@@ -10,6 +10,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [release-v0.11.2.md](./release-v0.11.2.md) | Editor 覆盖层拖拽修复的五包 `0.11.2` 发布 |
 | [release-v0.11.1.md](./release-v0.11.1.md) | Editor 布局节点编辑和画布拖拽修复的五包 `0.11.1` 发布 |
 | [unified-vite-platform-build.md](./unified-vite-platform-build.md) | Web、微信、抖音单入口、可选平台包、统一 Vite 构建与 Pixi Assets 资源链路 |
 | [runtime-observation-v1.md](./runtime-observation-v1.md) | 真实 Vite Web 游戏的 Runtime tree、state、logs、input 与 CLI 观测闭环 |

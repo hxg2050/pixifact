@@ -14,6 +14,7 @@
 | [pixifact CHANGELOG](../../packages/pixifact/CHANGELOG.md) | `pixifact` 版本记录 |
 | [pixifact-cli CHANGELOG](../../packages/pixifact-cli/CHANGELOG.md) | `pixifact-cli` 版本记录 |
 | [create-pixifact CHANGELOG](../../packages/create-pixifact/CHANGELOG.md) | `create-pixifact` 版本记录 |
+| [v0.11.2.md](./v0.11.2.md) | Editor 覆盖层拖拽修复版本记录 |
 | [v0.11.1.md](./v0.11.1.md) | Editor 布局节点编辑和画布拖拽修复版本记录 |
 | [v0.11.0.md](./v0.11.0.md) | Editor 素材定位与预览节点选择改进版本记录 |
 | [v0.10.0.md](./v0.10.0.md) | Editor Scene 节点 ID 编辑版本记录 |

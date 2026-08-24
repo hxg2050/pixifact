@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Rectangle } from 'pixi.js';
 import { parseSceneTemplate } from 'pixifact/compiler';
 import { SceneDocument } from '../apps/editor/src/document/SceneDocument';
 import {
@@ -9,6 +9,8 @@ import {
     resizeLayoutManagedSceneCanvasGeometry,
     resizeSceneCanvasView,
     resizeSceneCanvasGeometry,
+    cycleSceneCanvasSelection,
+    sceneCanvasHitTestOrder,
     sceneCanvasEventTargetIsWithinNode,
     sceneCanvasNodePositionIsLayoutManaged,
     sceneCanvasNodeCanStartDrag,
@@ -24,6 +26,19 @@ describe('Editor Scene canvas geometry', () => {
         expect(sceneCanvasNodeCanStartDrag('0:panel', '1:panel')).toBe(false);
     });
 
+    it('allows the selected node to drag through a covering node', () => {
+        expect(sceneCanvasNodeCanStartDrag(
+            '0:child',
+            '1:actionArea',
+            ['1:actionArea', '0:child'],
+        )).toBe(true);
+        expect(sceneCanvasNodeCanStartDrag(
+            '0:child',
+            '1:actionArea',
+            ['1:actionArea'],
+        )).toBe(false);
+    });
+
     it('allows a selected container to start dragging from a descendant target', () => {
         const parent = new Container();
         const child = new Container();
@@ -34,6 +49,33 @@ describe('Editor Scene canvas geometry', () => {
         expect(sceneCanvasEventTargetIsWithinNode(child, parent)).toBe(false);
 
         parent.destroy({ children: true });
+    });
+
+    it('collects overlapping nodes from front to back and cycles at one point', () => {
+        const root = new Container();
+        const back = new Container();
+        back.hitArea = new Rectangle(0, 0, 100, 100);
+        const front = new Container();
+        front.hitArea = new Rectangle(0, 0, 100, 100);
+        root.addChild(back, front);
+        const nodes = new Map([
+            ['0:back', back],
+            ['1:front', front],
+        ]);
+
+        const candidates = sceneCanvasHitTestOrder(root, nodes, { x: 40, y: 40 });
+        expect(candidates).toEqual(['1:front', '0:back']);
+
+        const first = cycleSceneCanvasSelection(candidates, { x: 40, y: 40 }, undefined, undefined)!;
+        expect(first.locator).toBe('1:front');
+        const second = cycleSceneCanvasSelection(candidates, { x: 40, y: 40 }, first.cycle, first.locator)!;
+        expect(second.locator).toBe('0:back');
+        const third = cycleSceneCanvasSelection(candidates, { x: 40, y: 40 }, second.cycle, second.locator)!;
+        expect(third.locator).toBe('1:front');
+
+        const newPoint = cycleSceneCanvasSelection(candidates, { x: 41, y: 40 }, third.cycle, third.locator)!;
+        expect(newPoint.locator).toBe('1:front');
+        root.destroy({ children: true });
     });
 
     it('fits a Scene in the viewport without scaling it above 100%', () => {

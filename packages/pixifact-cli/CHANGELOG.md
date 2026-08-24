@@ -1,5 +1,12 @@
 # pixifact-cli
 
+## 0.11.2
+
+### Patch Changes
+
+- 修复 Editor 画布中被覆盖层遮挡的 Scene 子节点无法拖拽的问题。
+  - pixifact@0.11.2
+
 ## 0.11.1
 
 ### Patch Changes

@@ -34,6 +34,8 @@ import {
     resizeLayoutManagedSceneCanvasGeometry,
     resizeSceneCanvasView,
     resizeSceneCanvasGeometry,
+    cycleSceneCanvasSelection,
+    sceneCanvasHitTestOrder,
     sceneCanvasEventTargetIsWithinNode,
     sceneCanvasNodePositionIsLayoutManaged,
     sceneCanvasNodeCanStartDrag,
@@ -41,6 +43,7 @@ import {
     type SceneCanvasGeometry,
     type SceneCanvasPropChange,
     type SceneCanvasResizeHandle,
+    type SceneCanvasSelectionCycle,
     type SceneCanvasSize,
     type SceneCanvasView,
 } from './sceneCanvasGeometry';
@@ -78,6 +81,7 @@ let buildRevision = 0;
 let selectionLayer: Container | undefined;
 let selectionOutline: Graphics | undefined;
 let interaction: CanvasInteraction | undefined;
+let selectionCycle: SceneCanvasSelectionCycle | undefined;
 const selectionHandles = new Map<SceneCanvasResizeHandle, Graphics>();
 const resizeHandles: SceneCanvasResizeHandle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 const resizeCursors: Record<SceneCanvasResizeHandle, string> = {
@@ -228,18 +232,12 @@ async function rebuildPreview() {
         }
         preview = next;
         previewDocument = document;
+        selectionCycle = undefined;
         for (const [locator, target] of preview.nodes) {
             target.eventMode = 'static';
             target.cursor = nodeCanMove(locator, target) ? 'move' : 'default';
             target.on('pointerdown', (event) => beginMove(locator, target, event));
-            target.on('click', (event) => {
-                event.stopPropagation();
-                emit('select', locator);
-                const node = findSceneNodeByLocator(document.template.children, locator);
-                if (event.detail === 2 && node?.kind === 'sceneInstance') {
-                    emit('openScene', node.scene);
-                }
-            });
+            target.on('click', (event) => handleNodeClick(locator, event, document));
         }
         app.stage.addChild(preview.root);
         if (selectionLayer) app.stage.addChild(selectionLayer);
@@ -254,6 +252,31 @@ async function rebuildPreview() {
         if (revision !== buildRevision) return;
         status.value = error instanceof Error ? error.message : String(error);
         emit('previewState', 'error');
+    }
+}
+
+function handleNodeClick(
+    locator: string,
+    event: FederatedPointerEvent,
+    document: SceneDocument,
+) {
+    event.stopPropagation();
+    const point = { x: event.global.x, y: event.global.y };
+    const candidates = preview
+        ? sceneCanvasHitTestOrder(preview.root, preview.nodes, point)
+        : [];
+    const choice = cycleSceneCanvasSelection(
+        candidates.length > 0 ? candidates : [locator],
+        point,
+        selectionCycle,
+        props.selected,
+    );
+    if (!choice) return;
+    selectionCycle = choice.cycle;
+    emit('select', choice.locator);
+    const node = findSceneNodeByLocator(document.template.children, choice.locator);
+    if (event.detail === 2 && choice.locator === props.selected && node?.kind === 'sceneInstance') {
+        emit('openScene', node.scene);
     }
 }
 
@@ -388,14 +411,20 @@ function beginMove(locator: string, hitTarget: Container, event: FederatedPointe
     if (spacePressed.value || isPanning.value) return;
     if (event.button !== 0) return;
     if (!sceneCanvasEventTargetIsWithinNode(hitTarget, event.target)) return;
-    if (!sceneCanvasNodeCanStartDrag(props.selected, locator)) return;
+    const point = { x: event.global.x, y: event.global.y };
+    const candidates = preview
+        ? sceneCanvasHitTestOrder(preview.root, preview.nodes, point)
+        : [];
+    if (!sceneCanvasNodeCanStartDrag(props.selected, locator, candidates)) return;
     event.stopPropagation();
-    const target = selectedTarget(locator);
-    if (!target || !nodeCanMove(locator, target)) {
-        updateSelectionOverlay(locator);
+    const dragLocator = props.selected;
+    if (!dragLocator) return;
+    const target = selectedTarget(dragLocator);
+    if (!target || !nodeCanMove(dragLocator, target)) {
+        updateSelectionOverlay(dragLocator);
         return;
     }
-    beginInteraction(locator, target, event, 'move');
+    beginInteraction(dragLocator, target, event, 'move');
 }
 
 function beginResize(handle: SceneCanvasResizeHandle, event: FederatedPointerEvent) {
