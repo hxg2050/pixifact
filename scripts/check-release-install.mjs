@@ -6,7 +6,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
-const webSampleRoot = 'sample-projects/adventure-ui-demo';
 const multiPlatformSampleRoot = 'sample-projects/wechat-minigame-demo';
 
 function commandEnv(env = process.env) {
@@ -90,6 +89,7 @@ async function configurePackedProject(projectRoot, artifacts, platformNames = []
     packageJson.overrides = {
         pixifact: `file:${artifacts.pixifact}`,
     };
+    packageJson.scripts.build = 'pixifact build --mode web --project-root .';
     await writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
     await writeFile(path.join(projectRoot, 'vite.config.ts'), [
         "import { defineConfig } from 'vite';",
@@ -209,7 +209,7 @@ try {
         douyin: douyinTarball,
     };
 
-    await copyProject(webSampleRoot, projectRoot);
+    await copyProject(multiPlatformSampleRoot, projectRoot);
     await configurePackedProject(projectRoot, artifacts);
 
     run('bun', ['install'], { cwd: projectRoot });
@@ -219,7 +219,7 @@ try {
     }
     run('bun', ['run', 'pixifact', '--help'], { cwd: projectRoot, silent: true });
     run('bun', ['run', 'pixifact', 'summary'], { cwd: projectRoot, silent: true });
-    run('bun', ['run', 'pixifact', 'scene', 'inspect', '--scene', 'src/scenes/BottomMenu.scene'], { cwd: projectRoot, silent: true });
+    run('bun', ['run', 'pixifact', 'scene', 'inspect', '--scene', 'src/scenes/Main.scene'], { cwd: projectRoot, silent: true });
     run('bun', ['run', 'pixifact', 'scene', 'validate', '--all'], { cwd: projectRoot, silent: true });
     run('bun', ['run', 'pixifact', 'compile-scenes'], { cwd: projectRoot, silent: true });
     run('bun', ['run', 'build'], { cwd: projectRoot });

@@ -95,7 +95,7 @@ git commit -m "Release vX.Y.Z"
 - `bun run editor:frontend:build`
 - `packages/create-pixifact` build
 - 五个发布包的 `npm pack --dry-run --json`
-- 当前 `pixifact` / `pixifact-cli` tarball 在仓库外 `adventure-ui-demo` 副本中的安装、CLI、构建和 Editor 启动冒烟
+- 当前 `pixifact` / `pixifact-cli` tarball 在仓库外 Pixifact 项目副本中的安装、CLI、构建和 Editor 启动冒烟
 - 五个包的 npm Trusted Publishing
 
 ## 触发发布

@@ -82,7 +82,7 @@ afterEach(() => {
 describe('Editor Vue UI', () => {
     it('allows a standby tab to take over and deactivates it when control moves again', async () => {
         const project = {
-            name: 'adventure-ui-demo',
+            name: 'editor-fixture',
             root: '/demo',
             scenes: ['src/scenes/Menu.scene'],
             images: [],
@@ -125,7 +125,7 @@ describe('Editor Vue UI', () => {
         });
 
         await vi.waitFor(() => expect(wrapper.find('button[aria-label="在此接管"]').exists()).toBe(true));
-        expect(wrapper.text()).toContain('adventure-ui-demo');
+        expect(wrapper.text()).toContain('editor-fixture');
         expect(wrapper.text()).toContain('src/scenes/Menu.scene');
         await wrapper.get('button[aria-label="在此接管"]').trigger('click');
         expect(JSON.parse(AcceptedEditorWebSocket.instances[0].sent[0])).toEqual({

@@ -1,23 +1,10 @@
 import { access, readFile, readdir } from 'node:fs/promises';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import { cwd } from 'node:process';
 import { describe, expect, it } from 'vitest';
-import { compileScenes, extractSceneScriptInterfaces } from 'pixifact/compiler-node';
-import { validateSceneContent } from 'pixifact/compiler';
-import pixifactPackage from '../packages/pixifact/package.json' with { type: 'json' };
-import pixifactCliPackage from '../packages/pixifact-cli/package.json' with { type: 'json' };
 
 const repoRoot = cwd();
-const sampleRoot = join(repoRoot, 'sample-projects', 'adventure-ui-demo');
 const wechatSampleRoot = join(repoRoot, 'sample-projects', 'wechat-minigame-demo');
-const sceneNames = [
-    'Main',
-    'Hud',
-    'BottomMenu',
-    'InventoryPanel',
-    'Button',
-    'ItemSlot',
-] as const;
 
 async function exists(filePath: string) {
     try {
@@ -28,47 +15,11 @@ async function exists(filePath: string) {
     }
 }
 
-async function collectFiles(root: string, suffix: string) {
-    const files: string[] = [];
-    async function walk(directory: string) {
-        for (const entry of await readdir(directory, { withFileTypes: true })) {
-            const absolutePath = join(directory, entry.name);
-            if (entry.isDirectory()) {
-                await walk(absolutePath);
-                continue;
-            }
-            if (entry.isFile() && entry.name.endsWith(suffix)) {
-                files.push(relative(root, absolutePath).replaceAll('\\', '/'));
-            }
-        }
-    }
-    await walk(root);
-    return files.sort();
-}
-
 describe('sample projects', () => {
-    it('keeps both mobile portrait sample projects discoverable', async () => {
-        await expect(exists(join(sampleRoot, 'pixifact.project.json'))).resolves.toBe(true);
-
-        const project = JSON.parse(await readFile(join(sampleRoot, 'pixifact.project.json'), 'utf8'));
-        expect(project).toMatchObject({
-            version: 2,
-            name: 'Pixifact Adventure UI Demo',
-            resolution: {
-                width: 750,
-                height: 1334,
-            },
-            viewport: {
-                mode: 'fixedWidth',
-            },
-            scenes: {
-                main: 'src/scenes/Main.scene',
-            },
-        });
-
+    it('keeps the unified mobile portrait sample discoverable', async () => {
         const sampleProjectDirectories = await readdir(join(repoRoot, 'sample-projects'), { withFileTypes: true });
         expect(sampleProjectDirectories.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort())
-            .toEqual(['adventure-ui-demo', 'wechat-minigame-demo']);
+            .toEqual(['wechat-minigame-demo']);
     });
 
     it('keeps the unified sample importable by both Mini Game developer tools', async () => {
@@ -84,60 +35,5 @@ describe('sample projects', () => {
         await expect(exists(join(wechatSampleRoot, 'src', 'main.ts'))).resolves.toBe(true);
         await expect(exists(join(wechatSampleRoot, 'src', 'wechat', 'main.ts'))).resolves.toBe(false);
         await expect(exists(join(wechatSampleRoot, 'src', 'douyin', 'main.ts'))).resolves.toBe(false);
-    });
-
-    it('keeps every adventure UI demo scene paired with a script', async () => {
-        for (const sceneName of sceneNames) {
-            await expect(exists(join(sampleRoot, 'src', 'scenes', `${sceneName}.scene`)), `${sceneName}.scene`).resolves.toBe(true);
-            await expect(exists(join(sampleRoot, 'src', 'scenes', `${sceneName}.ts`)), `${sceneName}.ts`).resolves.toBe(true);
-        }
-    });
-
-    it('keeps the adventure UI demo on public package entrypoints', async () => {
-        const packageJson = JSON.parse(await readFile(join(sampleRoot, 'package.json'), 'utf8'));
-        expect((await readFile(join(sampleRoot, 'bunfig.toml'), 'utf8')).replaceAll('\r\n', '\n')).toBe('env = false\n');
-        expect(packageJson.scripts.build).toBe('pixifact build --mode production --project-root .');
-        expect(packageJson.dependencies.pixifact).toBe(`^${pixifactPackage.version}`);
-        expect(packageJson.devDependencies['pixifact-cli']).toBe(`^${pixifactCliPackage.version}`);
-
-        const viteConfig = await readFile(join(sampleRoot, 'vite.config.ts'), 'utf8');
-        expect(viteConfig).toContain("from 'pixifact/compiler-node'");
-        expect(viteConfig).toContain('pixifact({ projectRoot })');
-        expect(viteConfig).toContain('pixifactRuntimePlugin({ projectRoot })');
-        expect(viteConfig).not.toContain('../../packages/');
-
-        const mainSource = await readFile(join(sampleRoot, 'src', 'main.ts'), 'utf8');
-        expect(mainSource).toContain("await import('pixifact/runtime-dev')");
-        expect(mainSource).toContain('registerPixiRuntime(app');
-        await expect(readFile(join(sampleRoot, 'src', 'vite-env.d.ts'), 'utf8'))
-            .resolves.toContain('pixifact/client');
-
-        const tsconfig = await readFile(join(sampleRoot, 'tsconfig.json'), 'utf8');
-        expect(tsconfig).not.toContain('../../packages/');
-    });
-
-    it('validates and compiles the adventure UI demo scenes', async () => {
-        const existingAssets = new Set(await collectFiles(sampleRoot, '.svg'));
-        const descriptors = extractSceneScriptInterfaces(await Promise.all(sceneNames.map(async (sceneName) => ({
-            scene: `src/scenes/${sceneName}.scene`,
-            fileName: join(sampleRoot, 'src', 'scenes', `${sceneName}.ts`),
-            source: await readFile(join(sampleRoot, 'src', 'scenes', `${sceneName}.ts`), 'utf8'),
-        }))));
-
-        for (const sceneName of sceneNames) {
-            const scene = `src/scenes/${sceneName}.scene`;
-            const content = await readFile(join(sampleRoot, scene), 'utf8');
-            const result = validateSceneContent({
-                scene,
-                content,
-                existingAssets,
-                sceneInterface: descriptors[scene].interface,
-            });
-            expect(result.ok, sceneName).toBe(true);
-        }
-
-        await compileScenes({ projectRoot: sampleRoot });
-
-        await expect(exists(join(sampleRoot, '.pixifact', 'generated', 'scenes.generated.ts'))).resolves.toBe(true);
     });
 });

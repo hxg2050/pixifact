@@ -20,7 +20,7 @@ Pixifact 的布局分两层：
 ```json
 {
   "version": 1,
-  "name": "adventure-ui-demo",
+  "name": "my-game",
   "resolution": {
     "width": 750,
     "height": 1334

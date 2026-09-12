@@ -20,7 +20,7 @@ The project design resolution comes from `pixifact.project.json`:
 ```json
 {
   "version": 1,
-  "name": "adventure-ui-demo",
+  "name": "my-game",
   "resolution": {
     "width": 750,
     "height": 1334
