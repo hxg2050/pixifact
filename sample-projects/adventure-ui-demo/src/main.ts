@@ -1,16 +1,17 @@
 import './styles.css';
 import 'pixifact:scenes';
-import { Assets } from 'pixi.js';
+import { Assets, type Texture } from 'pixi.js';
 import { createApplication } from 'pixifact:platform';
 import manifest from 'pixifact:assets';
 import { prepareSceneClass } from 'pixifact/scene';
 import { applyPixifactViewportLayout, calculatePixifactViewportLayout } from 'pixifact/runtime';
 import { Main } from './scenes/Main';
 
-const root = document.querySelector<HTMLElement>('#game');
-if (!root) {
+const gameRoot = document.querySelector<HTMLElement>('#game');
+if (!gameRoot) {
     throw new Error('Missing #game root.');
 }
+const root: HTMLElement = gameRoot;
 
 const resolution = { width: 750, height: 1334 };
 const viewport = { mode: 'fixedWidth' as const };
@@ -25,6 +26,7 @@ const app = await createApplication({
 });
 await Assets.init({ manifest });
 await Assets.load('/assets/fonts/ant_count.fnt');
+const trailTexture = await Assets.load<Texture>('assets/effects/trail.svg');
 
 await prepareSceneClass(Main);
 const scene = new Main();
@@ -48,6 +50,7 @@ function resizeViewport() {
 root.append(app.canvas);
 app.stage.addChild(scene);
 resizeViewport();
+scene.setupTrailDemo(app.ticker, trailTexture);
 
 if (import.meta.env.DEV) {
     const { registerPixiRuntime } = await import('pixifact/runtime-dev');
