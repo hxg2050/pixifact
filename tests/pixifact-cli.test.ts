@@ -768,46 +768,6 @@ describe('Pixifact CLI', () => {
         });
     });
 
-    it('includes pixifact project run config in summary without running it', async () => {
-        const projectRoot = createTempProject();
-        fs.writeFileSync(path.join(projectRoot, 'pixifact.project.json'), JSON.stringify({
-            version: 2,
-            name: 'Space HUD Game',
-            scenes: {
-                hud: 'src/scenes/Button.scene',
-            },
-            run: {
-                command: 'bun',
-                args: ['run', 'dev'],
-                cwd: '.',
-                url: 'http://localhost:5173',
-            },
-        }), 'utf8');
-
-        const result = await runCli(['summary', '--project-root', projectRoot]);
-
-        expect(result.exitCode).toBe(0);
-        expect(result.json.project).toEqual({
-            name: 'Space HUD Game',
-            resolution: {
-                width: 750,
-                height: 1334,
-            },
-            viewport: {
-                mode: 'showAll',
-            },
-            scenes: {
-                hud: 'src/scenes/Button.scene',
-            },
-            run: {
-                command: 'bun',
-                args: ['run', 'dev'],
-                cwd: '.',
-                url: 'http://localhost:5173',
-            },
-        });
-    });
-
     it('creates a new compiler Scene file pair', async () => {
         const projectRoot = createCompilerSceneProject();
 

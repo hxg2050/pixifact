@@ -6,13 +6,6 @@ import {
 
 export const pixifactProjectConfigFileName = 'pixifact.project.json';
 
-export interface PixifactProjectRunConfig {
-    command: string;
-    args: string[];
-    cwd: string;
-    url?: string;
-}
-
 export interface PixifactProjectResolution {
     width: number;
     height: number;
@@ -26,7 +19,6 @@ export interface PixifactProjectConfig {
     scenes: Record<string, string>;
     resourcePacks?: string[];
     remoteResourcePacks?: Record<string, string>;
-    run?: PixifactProjectRunConfig;
 }
 
 export type PixifactProjectViewport = PixifactViewportConfig;
@@ -38,7 +30,6 @@ export interface PixifactProjectSummary {
     scenes: Record<string, string>;
     resourcePacks?: string[];
     remoteResourcePacks?: Record<string, string>;
-    run?: PixifactProjectRunConfig;
 }
 
 export const defaultPixifactProjectResolution: PixifactProjectResolution = {
@@ -90,14 +81,6 @@ function normalizeProjectPath(value: unknown, name: string) {
     return input;
 }
 
-function normalizeRunCwd(value: unknown) {
-    const input = assertString(value, 'run.cwd').replaceAll('\\', '/');
-    if (input === '.') {
-        return input;
-    }
-    return normalizeProjectPath(input, 'run.cwd');
-}
-
 function parseScenes(value: unknown) {
     const scenes = assertRecord(value, 'scenes');
     return Object.fromEntries(Object.entries(scenes).map(([key, scenePath]) => [
@@ -133,22 +116,6 @@ function parseViewport(value: unknown): PixifactProjectViewport {
 
 function isPixifactViewportMode(value: string): value is PixifactViewportMode {
     return (pixifactViewportModes as readonly string[]).includes(value);
-}
-
-function parseRun(value: unknown): PixifactProjectRunConfig | undefined {
-    if (value === undefined) {
-        return undefined;
-    }
-    const run = assertRecord(value, 'run');
-    if (!Array.isArray(run.args) || !run.args.every((arg) => typeof arg === 'string')) {
-        throw new Error('run.args must be an array of strings.');
-    }
-    return {
-        command: assertString(run.command, 'run.command'),
-        args: run.args,
-        cwd: normalizeRunCwd(run.cwd),
-        ...(run.url === undefined ? {} : { url: assertString(run.url, 'run.url') }),
-    };
 }
 
 function parseResourcePacks(value: unknown): string[] | undefined {
@@ -216,7 +183,6 @@ export function parsePixifactProjectConfig(value: unknown): PixifactProjectConfi
         scenes: parseScenes(config.scenes),
         ...(resourcePacks === undefined ? {} : { resourcePacks }),
         ...(remoteResourcePacks === undefined ? {} : { remoteResourcePacks }),
-        run: parseRun(config.run),
     };
 }
 
@@ -228,6 +194,5 @@ export function summarizePixifactProjectConfig(config: PixifactProjectConfig): P
         scenes: config.scenes,
         ...(config.resourcePacks === undefined ? {} : { resourcePacks: config.resourcePacks }),
         ...(config.remoteResourcePacks === undefined ? {} : { remoteResourcePacks: config.remoteResourcePacks }),
-        ...(config.run === undefined ? {} : { run: config.run }),
     };
 }

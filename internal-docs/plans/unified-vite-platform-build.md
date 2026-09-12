@@ -279,7 +279,7 @@ pixifact build [--mode <vite-mode>]
 ### Phase 0: Lock behavior with failing tests
 
 - 在 `internal-docs/testing/BDD.md` 增加统一 mode/platform/build/resource 的用户场景。
-- 扩展 `tests/project-run-config.test.ts` 覆盖 version 2、固定目录和旧 targets schema 删除。
+- 扩展 `tests/project-config.test.ts` 覆盖 version 2、固定目录和旧 targets schema 删除。
 - 扩展 `tests/pixifact-cli.test.ts` 覆盖 `--mode`、`VITE_PLATFORM`、`VITE_APP_ID`、默认 mode 和 `--target` 删除。
 - 新增或重组 Vite 构建集成测试，先证明：
   - 一个 `src/main.ts` 可分别构建三端。
@@ -419,7 +419,7 @@ pixifact build [--mode <vite-mode>]
 ```bash
 bunx --no-install vitest run \
   tests/unified-vite-platform.test.ts \
-  tests/project-run-config.test.ts \
+  tests/project-config.test.ts \
   tests/pixifact-cli.test.ts \
   tests/minigame-application.test.ts \
   tests/wechat-target.test.ts \

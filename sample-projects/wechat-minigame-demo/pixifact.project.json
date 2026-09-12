@@ -11,11 +11,5 @@
   "scenes": {
     "main": "src/scenes/Main.scene"
   },
-  "resourcePacks": ["demo-level"],
-  "run": {
-    "command": "bun",
-    "args": ["run", "dev"],
-    "cwd": ".",
-    "url": "http://127.0.0.1:5179"
-  }
+  "resourcePacks": ["demo-level"]
 }

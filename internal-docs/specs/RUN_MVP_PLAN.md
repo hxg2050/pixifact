@@ -1,5 +1,7 @@
 # Pixifact Run MVP Plan
 
+> 当前状态：延期。Editor 暂不启动真实游戏，`pixifact.project.json` 不包含 `run` 配置。本文件保留为未来重新评估时的历史方案，不代表当前已实现能力。
+
 本文档定义 Pixifact MVP 的“运行真实游戏”闭环。目标不是再做一个 Scene preview，而是让用户从 Editor 启动当前游戏项目，并验证游戏代码真的加载和使用 Pixifact `.scene`。
 
 ## 1. 产品目标

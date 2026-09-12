@@ -24,7 +24,7 @@
 | `tests/editor-scene-document.test.ts` | vNext `SceneDocument` | versioned auto-save、Undo / Redo、文件通知协调 |
 | `tests/editor-server.test.ts` | 浏览器 Editor 本地服务 | 项目索引、Scene versioned write、文件监听合并、project root guard |
 | `tests/project-file-tree.test.ts` | 浏览器 Editor 项目树与 runtime preview | 浏览器文件读取、Scene binding、Pixi 节点布局和图片 parser |
-| `tests/project-run-config.test.ts` | project run config service | `pixifact.project.json` 解析、path guard、run command 参数、summary 数据 |
+| `tests/project-config.test.ts` | project config service | `pixifact.project.json` 解析、默认值、path guard、resource pack 数据 |
 | `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、Editor context 路由、path guard、旧 live 命令移除、exit code |
 | `tests/editor-session.test.ts` | Editor Host session / context | 单活动标签页接管、context auth、revision 一致性、session discovery |
 | `tests/editor-context.test.ts` | Editor context / selection | Scene 与节点 context、Compiler locator、外部 revision 选择重定位 |
@@ -48,7 +48,7 @@
    - compiler scene command / undo：`tests/compiler-scene-commands.test.ts`、`tests/editor-scene-document.test.ts`
    - runtime `Group` / compiler output：`tests/scene-compiler.test.ts` 和 sample project build
    - editor 本地服务 / runtime preview：`tests/editor-server.test.ts`、`tests/project-file-tree.test.ts`
-   - project run config：`tests/project-run-config.test.ts`
+   - project config：`tests/project-config.test.ts`
    - Vue editor store / Inspector：`tests/editor-vue-ui.test.ts`
    - CLI / Agent commands：`tests/pixifact-cli.test.ts`
 

@@ -90,12 +90,6 @@ describe('create-pixifact scaffold', () => {
             scenes: {
                 mainMenu: 'src/scenes/MainMenu.scene',
             },
-            run: {
-                command: 'bun',
-                args: ['run', 'dev'],
-                cwd: '.',
-                url: 'http://127.0.0.1:5177',
-            },
         });
     });
 

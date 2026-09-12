@@ -14,8 +14,6 @@ export interface CreatePixifactProjectResult {
     template: 'minimal';
 }
 
-const defaultPort = 5177;
-
 function packageDirectory() {
     const currentFile = fileURLToPath(import.meta.url);
     const sourceDirectory = path.basename(path.dirname(currentFile));
@@ -75,12 +73,6 @@ export async function createPixifactProject(options: CreatePixifactProjectOption
     const projectJsonPath = path.join(projectRoot, 'pixifact.project.json');
     const projectJson = JSON.parse(await readFile(projectJsonPath, 'utf8')) as Record<string, unknown>;
     projectJson.name = projectDisplayName(options.name);
-    projectJson.run = {
-        command: 'bun',
-        args: ['run', 'dev'],
-        cwd: '.',
-        url: `http://127.0.0.1:${defaultPort}`,
-    };
     await writeJson(projectJsonPath, projectJson);
 
     return {

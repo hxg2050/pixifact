@@ -7,7 +7,7 @@ import {
     summarizePixifactProjectConfig,
 } from 'pixifact';
 
-describe('Pixifact project run config', () => {
+describe('Pixifact project config', () => {
     it('parses a valid pixifact.project.json', () => {
         const config = parsePixifactProjectConfig({
             version: 2,
@@ -22,12 +22,6 @@ describe('Pixifact project run config', () => {
             scenes: {
                 hud: 'scenes/Hud.scene',
                 gameOver: 'scenes/GameOver.scene',
-            },
-            run: {
-                command: 'bun',
-                args: ['run', 'dev'],
-                cwd: '.',
-                url: 'http://localhost:5173',
             },
         });
 
@@ -46,12 +40,6 @@ describe('Pixifact project run config', () => {
                 hud: 'scenes/Hud.scene',
                 gameOver: 'scenes/GameOver.scene',
             },
-            run: {
-                command: 'bun',
-                args: ['run', 'dev'],
-                cwd: '.',
-                url: 'http://localhost:5173',
-            },
         });
         expect(summarizePixifactProjectConfig(config)).toEqual({
             name: 'Space HUD Game',
@@ -63,34 +51,10 @@ describe('Pixifact project run config', () => {
                 mode: 'fixedWidth',
             },
             scenes: config.scenes,
-            run: config.run,
         });
     });
 
-    it('rejects invalid run command data', () => {
-        expect(() => parsePixifactProjectConfig({
-            version: 2,
-            name: 'Bad Game',
-            scenes: {},
-            run: {
-                args: ['run', 'dev'],
-                cwd: '.',
-            },
-        })).toThrow('run.command must be a non-empty string');
-
-        expect(() => parsePixifactProjectConfig({
-            version: 2,
-            name: 'Bad Game',
-            scenes: {},
-            run: {
-                command: 'bun',
-                args: 'run dev',
-                cwd: '.',
-            },
-        })).toThrow('run.args must be an array of strings');
-    });
-
-    it('allows projects without a run config', () => {
+    it('applies default resolution and viewport values', () => {
         const config = parsePixifactProjectConfig({
             version: 2,
             name: 'Scene Only Project',
@@ -99,7 +63,6 @@ describe('Pixifact project run config', () => {
             },
         });
 
-        expect(config.run).toBeUndefined();
         expect(config.resolution).toEqual(defaultPixifactProjectResolution);
         expect(config.viewport).toEqual(defaultPixifactProjectViewport);
         expect(summarizePixifactProjectConfig(config)).toEqual({
@@ -152,23 +115,7 @@ describe('Pixifact project run config', () => {
             scenes: {
                 hud: '../Hud.scene',
             },
-            run: {
-                command: 'bun',
-                args: ['run', 'dev'],
-                cwd: '.',
-            },
         })).toThrow('scenes.hud must stay inside projectRoot');
-
-        expect(() => parsePixifactProjectConfig({
-            version: 2,
-            name: 'Bad Game',
-            scenes: {},
-            run: {
-                command: 'bun',
-                args: ['run', 'dev'],
-                cwd: '../outside',
-            },
-        })).toThrow('run.cwd must stay inside projectRoot');
     });
 
     it('parses local and remote resource packs with fixed directory conventions', () => {

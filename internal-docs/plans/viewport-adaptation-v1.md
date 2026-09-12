@@ -42,7 +42,7 @@
   - viewport helper 覆盖 `showAll`、`cover`、`fixedWidth`、`fixedHeight`。
   - adventure UI demo 声明 `fixedWidth`。
 - 实现后运行：
-  - `rtk bunx --no-install vitest run tests/project-run-config.test.ts tests/scene-compiler.test.ts tests/sample-projects.test.ts tests/editor-workbench-ui.test.ts`
+  - `rtk bunx --no-install vitest run tests/project-config.test.ts tests/scene-compiler.test.ts tests/sample-projects.test.ts tests/editor-workbench-ui.test.ts`
   - `rtk bun run pixifact -- scene validate --project-root sample-projects/adventure-ui-demo --all`
   - `rtk bun run --cwd sample-projects/adventure-ui-demo build`
   - `rtk bun run build`
@@ -50,7 +50,7 @@
 
 ## Verification
 
-- 2026-06-22 通过 `rtk bunx --no-install vitest run tests/project-run-config.test.ts tests/scene-compiler.test.ts tests/sample-projects.test.ts tests/editor-workbench-ui.test.ts`。
+- 2026-06-22 通过 `rtk bunx --no-install vitest run tests/project-config.test.ts tests/scene-compiler.test.ts tests/sample-projects.test.ts tests/editor-workbench-ui.test.ts`。
 - 2026-06-22 通过 `rtk bun run pixifact -- scene validate --project-root sample-projects/adventure-ui-demo --all`。
 - 2026-06-22 通过 `rtk bun run --cwd sample-projects/adventure-ui-demo build`。
 - 2026-06-22 通过 `rtk bunx --no-install tsc -p apps/editor/tsconfig.json`。
@@ -70,7 +70,7 @@
 
 1. 阅读 `AGENTS.md`、`CODEX.md` 和本计划。
 2. 查看 `git status --short`。
-3. 运行 `rtk bunx --no-install vitest run tests/project-run-config.test.ts tests/scene-compiler.test.ts tests/sample-projects.test.ts tests/editor-workbench-ui.test.ts`。
+3. 运行 `rtk bunx --no-install vitest run tests/project-config.test.ts tests/scene-compiler.test.ts tests/sample-projects.test.ts tests/editor-workbench-ui.test.ts`。
 4. 从 `Resume Notes` 的 `Next` 继续。
 
 ## Resume Notes
