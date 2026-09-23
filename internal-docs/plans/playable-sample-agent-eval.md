@@ -1,6 +1,6 @@
 # Playable Sample and Agent Evaluation
 
-状态：完成；固定任务尚未运行外部 Agent 试验
+状态：Web 样板和协议完成；首轮 Agent 试验完成，统计复测待开展
 权威范围：Web 可玩示例与 Agent 游戏开发任务评测
 上游文档：[./index.md](./index.md)、[../../AGENTS.md](../../AGENTS.md)
 
@@ -58,6 +58,8 @@ bun run --cwd sample-projects/star-game-demo dev
 - [x] 行为测试与游戏实现。
 - [x] Agent 评测文档。
 - [x] Web 验证与人工验收。
+- [x] 使用相同基线的独立副本完成 E1–E3 首轮试验和评测人独立验收。
+- [ ] 每题至少三次独立重复，并记录耗时、修复轮次和人工介入。
 
 ## Verification Results
 
@@ -66,6 +68,7 @@ bun run --cwd sample-projects/star-game-demo dev
 - `bun run test`：26 个测试文件、321 项测试通过。
 - 浏览器开发模式：开始、正确点击、三次错点失败、重开、八次正确点击获胜均通过；`runtime state` 返回胜利状态和 8 分。
 - 按用户范围约束，没有运行 Web 发布构建、微信或抖音构建。
+- E1–E3 各一次独立 Agent 试验：Scene 校验、编译、TypeScript 检查、最小相关测试及 Web/Runtime 验收全部通过；详细证据见 [Agent 游戏开发评测](../testing/AGENT_GAME_EVAL.md)。
 
 ## Resume Protocol
 
@@ -76,19 +79,22 @@ bun run --cwd sample-projects/star-game-demo dev
 
 ## Resume Notes
 
-Last updated: 2026-09-23
+Last updated: 2026-09-24
 
 Done:
 - 新增独立 Web 可玩示例、规则测试、Runtime 状态接入和固定 Agent 任务评测文档。
 - 用户明确要求先只考虑 Web，构建以后再做；现有三端示例未改动。
 - 完成 Scene 校验、编译、类型检查、全量测试和浏览器完整玩法验收。
+- 完成 E1–E3 首轮独立 Agent 试验；三个结果留在独立 worktree 提交，没有合入样板基线。
 
 Current State:
-- 可在 `sample-projects/star-game-demo` 运行 Web 游戏。E1–E3 评测任务已固定，但未运行外部 Agent，也没有完成率数据。
+- 可在 `sample-projects/star-game-demo` 运行 Web 游戏。E1–E3 首轮各一次验收通过，但样本量不足以估计稳定完成率，耗时和修复轮次也未可靠采集。
+- 独立 worktree 共享 `node_modules` 时，Vite 默认配置加载受路径影响；首轮 Web 验收使用 `--configLoader runner`。后续评测应固定依赖布局和启动方式。
 
 Currently Failing:
 - 无。
 
 Next:
-1. 使用相同基线的独立副本运行 E1–E3 外部 Agent 试验并填写结果表。
-2. 根据重复失败证据选择下一项 Pixifact 能力改进。
+1. 固定可重复的 Web 评测环境，自动保存开始/结束时间、修复轮次、Runtime 状态、截图和最终 diff。
+2. 在相同基线下将 E1–E3 各重复到至少三次，再增加从空白 Web 项目创建完整游戏的任务。
+3. 根据重复失败证据选择下一项 Pixifact 能力改进。

@@ -10,6 +10,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [playable-sample-agent-eval.md](./playable-sample-agent-eval.md) | Web 可玩样板游戏与固定 Agent 任务评测；首轮完成，统计复测待开展 |
 | [release-v0.11.2.md](./release-v0.11.2.md) | Editor 覆盖层拖拽修复的五包 `0.11.2` 发布 |
 | [release-v0.11.1.md](./release-v0.11.1.md) | Editor 布局节点编辑和画布拖拽修复的五包 `0.11.1` 发布 |
 | [unified-vite-platform-build.md](./unified-vite-platform-build.md) | Web、微信、抖音单入口、可选平台包、统一 Vite 构建与 Pixi Assets 资源链路 |
@@ -25,7 +26,6 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
-| [playable-sample-agent-eval.md](./playable-sample-agent-eval.md) | Web 可玩样板游戏与固定 Agent 任务评测 |
 | [release-v0.11.0.md](./release-v0.11.0.md) | Editor 素材定位与预览节点选择改进的五包 `0.11.0` 发布 |
 | [release-v0.7.0.md](./release-v0.7.0.md) | `0.7.0` 五个公开 npm 包的发布准备与验证 |
 | [douyin-image-loading.md](./douyin-image-loading.md) | 抖音小游戏冷启动图片解码时序与 PixiJS Assets loader 修复 |
