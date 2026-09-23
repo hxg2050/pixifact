@@ -1,6 +1,6 @@
 # Release v0.12.0
 
-Status: In Progress
+Status: Complete
 
 ## Goal
 
@@ -44,15 +44,17 @@ Status: In Progress
 - `bun run editor:typecheck` 通过。
 - `bun run test` 在允许文件监听的环境通过：26 个测试文件、325 项测试。受限沙箱中 FSEvent 曾返回 `EMFILE`，两个文件监听测试超时；在正常环境专项重跑 12 项及全量重跑均通过。
 - `git diff --check` 通过。
+- 已推送 `main` 和 `v0.12.0`；[GitHub Actions](https://github.com/hxg2050/pixifact/actions/runs/35897778515) 完成测试、构建、包内容检查、下游安装冒烟和五包 Trusted Publishing。
+- npm registry 已确认五个包均为 `0.12.0`；[GitHub Release](https://github.com/hxg2050/pixifact/releases/tag/v0.12.0) 已创建。
 
 ## Progress
 
 - [x] 核对本地、远端和 npm 当前版本；目标 `0.12.0` 未被占用。
 - [x] 生成并审阅版本改动。
 - [x] 本地最小验证。
-- [ ] 发布提交。
-- [ ] 推送 tag，确认 CI 与 npm 发布。
-- [ ] 创建 GitHub Release 并补齐记录。
+- [x] 发布提交。
+- [x] 推送 tag，确认 CI 与 npm 发布。
+- [x] 创建 GitHub Release 并补齐记录。
 
 ## Resume Protocol
 
@@ -68,13 +70,14 @@ Done:
 - 确认五包原版本和 npm 最新版本均为 `0.11.2`，远端没有 `v0.12.0`。
 - minor changeset 已消费，生成五包 `0.12.0`；lockfile 无改动，用户未跟踪文档保持原样。
 - 本地类型检查、lockfile dry-run 和全量 325 项测试通过。
+- `44232f1 Release v0.12.0` 已推送到远端 `main`，tag `v0.12.0` 指向该提交。
+- GitHub Actions 发布成功，五个 npm 包版本均为 `0.12.0`，GitHub Release 已创建。
 
 Current State:
-- 版本文件和发布说明已生成，尚未推送或发布。
+- 发布完成。
 
 Currently Failing:
 - 无。
 
 Next:
-1. 提交版本文件。
-2. 推送 `main` 和 tag，检查发布工作流与 npm。
+- 无；不要重新创建 tag 或重复发布同一版本。
