@@ -1,6 +1,6 @@
 ---
 name: pixifact
-description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文件、维护同名 Scene 脚本契约并运行 validate / compile；以及在 Vite Web 开发模式下通过 pixifact runtime 读取运行中游戏的 PixiJS 节点、业务状态和日志，发送标准输入并验证行为。适用于 UI、HUD、menu、轻量 Scene、交互逻辑、运行时验证和诊断任务。
+description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文件、维护同名 Scene 脚本契约、运行 validate / compile 并截取任意 Scene 的静态预览；以及在 Vite Web 开发模式下通过 pixifact runtime 读取运行中游戏的 PixiJS 节点、业务状态和日志，发送标准输入并验证行为。适用于 UI、HUD、menu、轻量 Scene、交互逻辑、视觉检查、运行时验证和诊断任务。
 ---
 
 # Pixifact
@@ -37,15 +37,20 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
    ```bash
    pixifact scene validate --all
    ```
-10. 校验通过后编译：
+10. 视觉任务在校验通过后截取目标 Scene，不需要启动 Editor：
+   ```bash
+   pixifact scene screenshot --scene src/scenes/MainMenu.scene --output /tmp/main-menu.png
+   ```
+   查看 PNG 后继续调整 `.scene`，直到静态画面符合目标；此命令需要本机 Google Chrome，不执行游戏脚本。游戏运行状态用 `runtime screenshot` 验证。
+11. 校验通过后编译：
    ```bash
    pixifact compile-scenes
    ```
-11. 运行项目最小相关检查，通常是：
+12. 运行项目最小相关检查，通常是：
    ```bash
    bun run build
    ```
-12. 改动影响微信或抖音目标时，读取项目对应 mode 的 env 文件，再运行该 mode 的校验与构建。例如微信 mode 为 `wechat`：
+13. 改动影响微信或抖音目标时，读取项目对应 mode 的 env 文件，再运行该 mode 的校验与构建。例如微信 mode 为 `wechat`：
    ```bash
    pixifact validate --mode wechat
    pixifact build --mode wechat

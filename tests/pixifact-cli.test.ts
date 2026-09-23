@@ -88,8 +88,8 @@ function createViteTargetProject() {
     return root;
 }
 
-async function runCli(argv: string[]) {
-    const result = await executePixifactCli(argv);
+async function runCli(argv: string[], options?: Parameters<typeof executePixifactCli>[1]) {
+    const result = await executePixifactCli(argv, options);
     return {
         ...result,
         json: JSON.parse(result.stdout || result.stderr),
@@ -168,6 +168,7 @@ describe('Pixifact CLI', () => {
                 'summary',
                 'scene inspect --scene <scene-path>',
                 'scene validate --scene <scene-path>',
+                'scene screenshot --scene <scene-path> --output <png-path>',
                 'compile-scenes',
                 'validate [--mode <vite-mode>]',
                 'build [--mode <vite-mode>]',
@@ -202,6 +203,77 @@ describe('Pixifact CLI', () => {
                 runtimeScreenshotOutput: '.pixifact/runtime/frame.png',
             },
         });
+    });
+
+    it('captures a selected Scene from disk without starting or changing the Editor', async () => {
+        const projectRoot = createCompilerSceneProject();
+        const output = path.join(projectRoot, 'captures', 'Button.png');
+        const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+        const captureSceneScreenshot = vi.fn(async () => ({
+            scenePath: 'src/scenes/Button.scene',
+            revision: 'scene:1:test',
+            width: 960,
+            height: 540,
+            data: png,
+        }));
+        const startEditor = vi.fn(() => {
+            throw new Error('Editor must not start.');
+        });
+
+        const result = await runCli([
+            'scene', 'screenshot', '--scene', 'src/scenes/Button.scene',
+            '--output', output, '--project-root', projectRoot,
+        ], { captureSceneScreenshot, startEditor });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.json).toMatchObject({
+            ok: true,
+            scenePath: 'src/scenes/Button.scene',
+            width: 960,
+            height: 540,
+            output,
+            bytes: png.length,
+        });
+        expect(captureSceneScreenshot).toHaveBeenCalledWith({
+            projectRoot,
+            scenePath: 'src/scenes/Button.scene',
+        });
+        expect(startEditor).not.toHaveBeenCalled();
+        expect(fs.readFileSync(output)).toEqual(Buffer.from(png));
+    });
+
+    it('does not create a screenshot when Scene validation fails', async () => {
+        const projectRoot = createCompilerSceneProject();
+        const output = path.join(projectRoot, 'captures', 'invalid.png');
+        fs.writeFileSync(path.join(projectRoot, 'src', 'scenes', 'Button.scene'), '<Scene name="Wrong" />\n');
+        const captureSceneScreenshot = vi.fn();
+
+        const result = await runCli([
+            'scene', 'screenshot', '--scene', 'src/scenes/Button.scene',
+            '--output', output, '--project-root', projectRoot,
+        ], { captureSceneScreenshot });
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json.error).toBe('Scene validation failed.');
+        expect(captureSceneScreenshot).not.toHaveBeenCalled();
+        expect(fs.existsSync(output)).toBe(false);
+    });
+
+    it('does not create a screenshot when the isolated renderer fails', async () => {
+        const projectRoot = createCompilerSceneProject();
+        const output = path.join(projectRoot, 'captures', 'failed.png');
+        const captureSceneScreenshot = vi.fn(async () => {
+            throw new Error('Preview asset failed to load.');
+        });
+
+        const result = await runCli([
+            'scene', 'screenshot', '--scene', 'src/scenes/Button.scene',
+            '--output', output, '--project-root', projectRoot,
+        ], { captureSceneScreenshot });
+
+        expect(result.exitCode).toBe(1);
+        expect(result.json.error).toBe('Preview asset failed to load.');
+        expect(fs.existsSync(output)).toBe(false);
     });
 
     it('rejects flags outside the Vite mode command contract', async () => {

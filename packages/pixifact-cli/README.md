@@ -18,6 +18,7 @@ AI 修改 `.scene` 时优先只记这条路径：
 pixifact summary
 pixifact scene inspect --scene src/scenes/Hud.scene
 pixifact scene validate --scene src/scenes/Hud.scene
+pixifact scene screenshot --scene src/scenes/Hud.scene --output /tmp/hud.png
 pixifact compile-scenes
 ```
 
@@ -28,6 +29,8 @@ pixifact scene validate --all
 ```
 
 默认使用当前工作目录作为项目根目录；不在项目根目录运行时再加 `--project-root <path>`。
+
+`scene screenshot` 在目标 Scene 校验通过后，从磁盘读取指定 `.scene`、配对脚本接口和资源，用 Authoring Preview 输出设计尺寸 PNG。它不要求 Editor 启动，不会切换 Editor 当前 Scene，也不执行项目 TypeScript；本机需要安装 Google Chrome。成功返回 Scene 路径、revision、宽高、字节数和输出绝对路径；失败时不创建输出文件。游戏脚本产生的动态画面应使用 `runtime screenshot`。
 
 新建空 Scene 文件对使用：
 

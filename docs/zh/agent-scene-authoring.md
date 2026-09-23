@@ -298,6 +298,14 @@ pixifact scene validate --all
 
 默认项目根目录是当前工作目录；不在项目根目录运行时再加 `--project-root <path>`。`node inspect` 只在已有 locator 时作为辅助入口使用。file mode 不提供 `scene get`，查看 Scene 使用 `scene inspect`。旧 `live ...` 命令已经删除。
 
+需要检查任意 Scene 的静态视觉结果时，在校验后运行：
+
+```bash
+pixifact scene screenshot --scene src/scenes/Button.scene --output /tmp/button.png
+```
+
+命令从磁盘读取目标 `.scene`、配对脚本接口和项目资源，使用 Authoring Preview 输出设计尺寸 PNG；不需要活动 Editor，也不切换人当前打开的 Scene。本机需安装 Google Chrome。它不执行项目脚本；游戏运行后的动态状态应使用 `runtime screenshot`。截图失败时不创建 PNG。
+
 Live mutation commands 已从外部 CLI surface 移除。对 Agent 暴露的修改路径是直接编辑 `.scene` source，然后执行 validation。
 
 ## Editor Context 方向

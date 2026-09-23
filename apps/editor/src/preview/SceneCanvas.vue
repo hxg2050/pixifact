@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Scan } from 'lucide-vue-next';
-import { Application, Container, Graphics, Rectangle, type FederatedPointerEvent } from 'pixi.js';
+import { Application, Container, Graphics, type FederatedPointerEvent } from 'pixi.js';
 import {
     getFrameLayout,
     requestFrameLayout,
@@ -27,6 +27,7 @@ import {
     destroyCompilerSceneRuntimePreview,
     type CompilerSceneRuntimePreview,
 } from './compilerSceneRuntimePreview';
+import { captureCompilerScenePreview } from './captureCompilerScenePreview';
 import {
     fitSceneCanvasView,
     moveSceneCanvasGeometry,
@@ -146,29 +147,12 @@ async function captureScreenshot() {
     }
     const capturedPreview = preview;
     const capturedDocument = previewDocument;
-    const position = capturedPreview.root.position.clone();
-    const scale = capturedPreview.root.scale.clone();
-    let dataUrlPromise: Promise<string>;
-    try {
-        capturedPreview.root.position.set(0, 0);
-        capturedPreview.root.scale.set(1);
-        dataUrlPromise = app.renderer.extract.base64({
-            target: capturedPreview.root,
-            frame: new Rectangle(0, 0, capturedPreview.width, capturedPreview.height),
-            resolution: 1,
-            format: 'png',
-            antialias: true,
-        });
-    } finally {
-        capturedPreview.root.position.copyFrom(position);
-        capturedPreview.root.scale.copyFrom(scale);
-    }
     return {
         path: capturedDocument.path,
         revision: capturedDocument.version,
         width: capturedPreview.width,
         height: capturedPreview.height,
-        dataUrl: await dataUrlPromise,
+        dataUrl: await captureCompilerScenePreview(app, capturedPreview),
     };
 }
 

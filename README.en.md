@@ -83,12 +83,14 @@ Pixifact uses a Godot-style unified `Scene` asset model. It does not use a Unity
 The current primary agent authoring path is compiler `.scene`:
 
 ```txt
-Codex / Claude Code -> inspect .scene -> edit .scene -> scene validate -> compile-scenes -> repair until valid
+Codex / Claude Code -> inspect .scene -> edit .scene -> scene validate -> optional scene screenshot -> compile-scenes
 ```
 
 Editor is an enhancer: it provides the currently opened Scene, selected node, preview, and asset context. Without Editor, agents can still develop fully through file editing and the CLI.
 
-Pixifact's default loop ends at `scene validate`, `compile-scenes`, and optional read-only Editor context. Git diff, commits, reverts, PRs, CI, and task orchestration belong to external tools, not Pixifact built-ins.
+`pixifact scene screenshot --scene src/scenes/Menu.scene --output /tmp/menu.png` captures any validated Scene at design size without opening Editor. It uses the static Authoring Preview, requires locally installed Google Chrome, and does not execute project game scripts.
+
+Pixifact's default loop uses `scene validate`, optional `scene screenshot`, `compile-scenes`, and optional read-only Editor context. Git diff, commits, reverts, PRs, CI, and task orchestration belong to external tools, not Pixifact built-ins.
 
 ## Repository Layout
 

@@ -308,6 +308,8 @@ The Editor can help external agents use the direct `.scene` workflow by exposing
 
 `pixifact editor screenshot --output <png-path>` is another optional read-only entry. It requires the active Editor Scene to be synchronized and its Authoring Preview to be ready, then writes a design-size PNG without Editor UI. Canvas zoom and pan do not affect the result, and project TypeScript or runtime code is not executed.
 
+To capture any Scene without starting or changing the Editor, run `pixifact scene screenshot --scene src/scenes/Button.scene --output /tmp/button.png` after validating it. The command reads the `.scene`, paired script interface, and project assets from disk and renders the same static Authoring Preview at design size. Google Chrome must be installed locally. It does not execute project scripts or write a PNG on failure; use `runtime screenshot` for dynamic game state.
+
 ## Editor Direction
 
 Editor changes and external direct edits should converge on the same compiler scene validation pipeline. Inspector edits, asset drops, and direct agent edits may have different origins, but they should all produce validated `.scene` source changes.

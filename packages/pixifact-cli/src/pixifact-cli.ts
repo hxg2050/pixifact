@@ -9,6 +9,7 @@ import type { SceneValidationDiagnostic } from 'pixifact/compiler';
 import { startEditorServer } from './editorServer';
 import { captureEditorScreenshot, queryEditorContext } from './editorSession';
 import { captureRuntimeScreenshot, queryRuntime, queryRuntimeList } from './runtimeSession';
+import { captureSceneScreenshot } from './sceneScreenshot';
 import type { RuntimeLogLevel, RuntimeRequest } from 'pixifact/runtime-dev';
 import {
     buildPixifactTarget,
@@ -24,6 +25,7 @@ interface CliOptions {
     automation?: Automation;
     captureEditorScreenshot?: typeof captureEditorScreenshot;
     captureRuntimeScreenshot?: typeof captureRuntimeScreenshot;
+    captureSceneScreenshot?: typeof captureSceneScreenshot;
     onDevEvent?: (event: PixifactDevEvent) => void;
     readEditorContext?: typeof queryEditorContext;
     listRuntimes?: typeof queryRuntimeList;
@@ -278,6 +280,7 @@ async function executeFileCommand(
     listRuntimes: typeof queryRuntimeList = queryRuntimeList,
     sendRuntimeRequest: typeof queryRuntime = queryRuntime,
     captureRuntime: typeof captureRuntimeScreenshot = captureRuntimeScreenshot,
+    captureScene: typeof captureSceneScreenshot = captureSceneScreenshot,
 ) {
     const [area, action] = positionals;
     const projectRoot = projectRootFlag(flags);
@@ -527,6 +530,26 @@ async function executeFileCommand(
         });
     }
 
+    if (area === 'scene' && action === 'screenshot') {
+        assertAllowedFlags(flags, ['scene', 'output', 'project-root'], 'scene screenshot');
+        const scenePath = requireFlag(flags, 'scene');
+        const output = path.resolve(requireFlag(flags, 'output'));
+        const validation = automation.validateCompilerScene({ projectRoot, scenePath });
+        if (!validation.ok) return validation;
+        const screenshot = await captureScene({ projectRoot, scenePath: validation.scene });
+        fs.mkdirSync(path.dirname(output), { recursive: true });
+        fs.writeFileSync(output, screenshot.data);
+        return {
+            ok: true,
+            scenePath: screenshot.scenePath,
+            revision: screenshot.revision,
+            width: screenshot.width,
+            height: screenshot.height,
+            bytes: screenshot.data.byteLength,
+            output,
+        };
+    }
+
     if (area === 'node' && action === 'inspect') {
         return automation.inspectNode({
             projectRoot,
@@ -549,6 +572,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
                         'summary',
                         'scene inspect --scene <scene-path>',
                         'scene validate --scene <scene-path>',
+                        'scene screenshot --scene <scene-path> --output <png-path>',
                         'compile-scenes',
                         'validate [--mode <vite-mode>]',
                         'build [--mode <vite-mode>]',
@@ -599,6 +623,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
             options.listRuntimes,
             options.queryRuntime,
             options.captureRuntimeScreenshot,
+            options.captureSceneScreenshot,
         );
         if (isFailedResult(result)) {
             return {

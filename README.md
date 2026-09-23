@@ -185,6 +185,14 @@ pixifact compile-scenes
 
 默认项目根目录是当前工作目录；不在项目根目录运行时再加 `--project-root <path>`。小范围改动可以校验单个 `.scene`；批量改动或不确定影响范围时使用 `scene validate --all` 校验所有 compiler Scene。
 
+检查任意 Scene 的静态画面不需要启动 Editor 或运行游戏：
+
+```bash
+pixifact scene screenshot --scene src/scenes/Button.scene --output /tmp/button.png
+```
+
+命令从磁盘读取 `.scene`、配对脚本接口和项目资源，使用与 Editor 相同的 Authoring Preview 输出设计尺寸 PNG；它需要本机安装 Google Chrome，但不会打开 Editor 窗口或执行项目脚本。
+
 Editor 运行且 Scene 已同步时，外部 Agent 可以读取当前 Scene 和选择：
 
 ```bash
