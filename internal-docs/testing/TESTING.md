@@ -4,6 +4,7 @@ Pixifact 的测试文档分为 BDD 和 TDD 两部分：
 
 - [BDD.md](./BDD.md)：产品行为、验收场景、当前测试缺口和优先级。
 - [TDD.md](./TDD.md)：测试边界、测试地图、Red / Green / Refactor 流程、需求类型到测试的映射和验证命令。
+- [AGENT_GAME_EVAL.md](./AGENT_GAME_EVAL.md)：固定 Web 游戏开发任务、验收标准和 Agent 完成率记录。
 
 Agent authoring 方向见 [Agent Scene Authoring](../../docs/zh/agent-scene-authoring.md)。
 

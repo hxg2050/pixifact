@@ -1,0 +1,28 @@
+<Scene name="Main" width="750" height="1334">
+  <Graphics id="background" shape="rect" width="750" height="1334" fill="#0b1323" />
+  <Graphics id="eyebrowBack" shape="roundRect" x="58" y="62" width="250" height="50" radius="25" fill="#203350" />
+  <Text id="eyebrow" text="PIXIFACT · GAME" x="79" y="74" fontSize="21" fontWeight="700" fill="#a9c5ef" />
+  <Text id="title" text="追星九宫格" x="56" y="141" fontSize="62" fontWeight="700" fill="#f6f0df" />
+  <Text id="subtitle" text="找到发光的星格，完成一条星轨。" x="60" y="228" fontSize="25" fill="#9eafca" />
+  <Graphics id="scoreBack" shape="roundRect" x="58" y="286" width="300" height="70" radius="20" fill="#182a44" />
+  <Text id="scoreText" text="得分 0 / 8" x="82" y="304" fontSize="29" fontWeight="700" fill="#f6f0df" />
+  <Graphics id="livesBack" shape="roundRect" x="376" y="286" width="316" height="70" radius="20" fill="#182a44" />
+  <Text id="livesText" text="剩余 3 次" x="401" y="304" fontSize="29" fontWeight="700" fill="#f6f0df" />
+  <Graphics id="boardBack" shape="roundRect" x="58" y="372" width="634" height="634" radius="34" fill="#172741" />
+  <Graphics id="cell0" shape="roundRect" x="82" y="396" width="180" height="180" radius="24" fill="#29405f" />
+  <Graphics id="cell1" shape="roundRect" x="285" y="396" width="180" height="180" radius="24" fill="#29405f" />
+  <Graphics id="cell2" shape="roundRect" x="488" y="396" width="180" height="180" radius="24" fill="#29405f" />
+  <Graphics id="cell3" shape="roundRect" x="82" y="599" width="180" height="180" radius="24" fill="#29405f" />
+  <Graphics id="cell4" shape="roundRect" x="285" y="599" width="180" height="180" radius="24" fill="#29405f" />
+  <Graphics id="cell5" shape="roundRect" x="488" y="599" width="180" height="180" radius="24" fill="#29405f" />
+  <Graphics id="cell6" shape="roundRect" x="82" y="802" width="180" height="180" radius="24" fill="#29405f" />
+  <Graphics id="cell7" shape="roundRect" x="285" y="802" width="180" height="180" radius="24" fill="#29405f" />
+  <Graphics id="cell8" shape="roundRect" x="488" y="802" width="180" height="180" radius="24" fill="#29405f" />
+  <Graphics id="targetGlow" shape="roundRect" x="285" y="599" width="180" height="180" radius="24" fill="#e8b655" visible="false" eventMode="none" />
+  <Text id="targetStar" text="★" x="340" y="631" fontSize="90" fill="#fff8dc" visible="false" eventMode="none" />
+  <Graphics id="statusBack" shape="roundRect" x="58" y="1026" width="634" height="86" radius="22" fill="#182a44" />
+  <Text id="statusText" text="点开始，然后点击发光的星格。" x="85" y="1051" fontSize="25" fill="#d6e1f3" />
+  <Graphics id="actionButton" shape="roundRect" x="153" y="1141" width="444" height="92" radius="26" fill="#e8b655" />
+  <Text id="actionText" text="开始游戏" x="314" y="1165" fontSize="34" fontWeight="700" fill="#19243a" eventMode="none" />
+  <Text id="footer" text="点击星格得分 · 点错三次结束" x="179" y="1270" fontSize="22" fill="#7790b3" />
+</Scene>

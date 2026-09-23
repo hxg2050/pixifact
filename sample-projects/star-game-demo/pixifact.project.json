@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "name": "追星九宫格",
+  "resolution": {
+    "width": 750,
+    "height": 1334
+  },
+  "viewport": {
+    "mode": "showAll"
+  },
+  "scenes": {
+    "main": "src/scenes/Main.scene"
+  },
+  "resourcePacks": ["demo-level"]
+}

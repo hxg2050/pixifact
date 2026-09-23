@@ -81,6 +81,19 @@
         "pixifact": "^0.6.1",
       },
     },
+    "sample-projects/star-game-demo": {
+      "name": "pixifact-star-game-demo",
+      "version": "0.1.0",
+      "dependencies": {
+        "pixi.js": "8.18.1",
+        "pixifact": "workspace:*",
+      },
+      "devDependencies": {
+        "pixifact-cli": "workspace:*",
+        "typescript": "^5.3.3",
+        "vite": "^8.0.10",
+      },
+    },
     "sample-projects/wechat-minigame-demo": {
       "name": "pixifact-wechat-minigame-demo",
       "version": "0.1.1",
@@ -677,6 +690,8 @@
     "pixifact": ["pixifact@workspace:packages/pixifact"],
 
     "pixifact-cli": ["pixifact-cli@workspace:packages/pixifact-cli"],
+
+    "pixifact-star-game-demo": ["pixifact-star-game-demo@workspace:sample-projects/star-game-demo"],
 
     "pixifact-wechat-minigame-demo": ["pixifact-wechat-minigame-demo@workspace:sample-projects/wechat-minigame-demo"],
 

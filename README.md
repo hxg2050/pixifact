@@ -8,6 +8,8 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力。Agent 编排、Git 分�
 
 [English](./README.en.md)
 
+可玩的 Web 竖屏示例见 [追星九宫格](./sample-projects/star-game-demo/README.md)；固定 Agent 开发任务见 [评测协议](./internal-docs/testing/AGENT_GAME_EVAL.md)。
+
 ## 从哪里开始读
 
 - [文档入口](./docs/zh/index.md)：按工作场景查找当前中文文档。

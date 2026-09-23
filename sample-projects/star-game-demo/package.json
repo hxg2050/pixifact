@@ -1,0 +1,19 @@
+{
+  "name": "pixifact-star-game-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts dev --mode web --project-root .",
+    "scene:validate": "bun ../../packages/pixifact-cli/src/pixifact-cli.ts scene validate --all --project-root ."
+  },
+  "dependencies": {
+    "pixi.js": "8.18.1",
+    "pixifact": "workspace:*"
+  },
+  "devDependencies": {
+    "pixifact-cli": "workspace:*",
+    "typescript": "^5.3.3",
+    "vite": "^8.0.10"
+  }
+}

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = cwd();
 const wechatSampleRoot = join(repoRoot, 'sample-projects', 'wechat-minigame-demo');
+const starSampleRoot = join(repoRoot, 'sample-projects', 'star-game-demo');
 
 async function exists(filePath: string) {
     try {
@@ -16,10 +17,22 @@ async function exists(filePath: string) {
 }
 
 describe('sample projects', () => {
-    it('keeps the unified mobile portrait sample discoverable', async () => {
+    it('keeps the sample projects discoverable', async () => {
         const sampleProjectDirectories = await readdir(join(repoRoot, 'sample-projects'), { withFileTypes: true });
         expect(sampleProjectDirectories.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort())
-            .toEqual(['wechat-minigame-demo']);
+            .toEqual(['star-game-demo', 'wechat-minigame-demo']);
+    });
+
+    it('keeps the playable Web sample as a Scene and script pair', async () => {
+        const project = JSON.parse(await readFile(join(starSampleRoot, 'pixifact.project.json'), 'utf8'));
+        expect(project).toMatchObject({
+            resolution: { width: 750, height: 1334 },
+            scenes: { main: 'src/scenes/Main.scene' },
+            resourcePacks: ['demo-level'],
+        });
+        await expect(exists(join(starSampleRoot, 'src', 'scenes', 'Main.scene'))).resolves.toBe(true);
+        await expect(exists(join(starSampleRoot, 'src', 'scenes', 'Main.ts'))).resolves.toBe(true);
+        await expect(exists(join(starSampleRoot, 'src', 'main.ts'))).resolves.toBe(true);
     });
 
     it('keeps the unified sample importable by both Mini Game developer tools', async () => {
