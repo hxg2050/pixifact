@@ -6,13 +6,13 @@
 
 ## Decisions
 
-- `app.stage` 是唯一运行时节点树数据源；Scene 在运行时只是一棵普通 `Container` 子树，不建立 Scene Instance 树或 Compiler 映射。
+- `app.stage` 是唯一运行时节点树数据源；Scene 在运行时只是一棵普通 `Container` 子树，不建立第二棵 Scene Instance 树。编译生成的节点可携带供观测使用的 `.scene` 来源标记，供 `tree` / `node` 返回。
 - 游戏通过一次 `registerPixiRuntime(app, { getState? })` 注册当前页面唯一的 PixiJS `Application`；不提供独立 `registerRuntimeState`。
 - `getState` 是可选同步回调，只在 `runtime state` 请求到达时执行并返回 JSON 快照。它可以通过正常的 JavaScript 作用域访问闭包或类内部状态，但 Runtime 不遍历 JavaScript 堆。
 - `tree` 与 `node` 每次请求都现场遍历 `app.stage`，不缓存、不订阅、不维护节点树副本。
-- 节点身份直接复用 PixiJS `uid`。`tree` 保留 `children` 原始顺序与 child index；不创建 Pixifact runtime node ID 或 locator。
-- `tree` 返回轻量层级、transform、显示与交互字段，不为所有节点计算 bounds。
-- `node <uid>` 返回详细 transform、尺寸、local/global bounds、显示与交互字段，以及 Sprite、Text、BitmapText 的有限类型信息。Graphics 不序列化绘制指令。
+- 节点身份直接复用 PixiJS `uid`。`tree` 保留 `children` 原始顺序与 child index；不创建 Pixifact runtime node ID 或新 locator，只复用 Compiler locator 标记来源。
+- `tree` 返回轻量层级、transform、显示与交互字段，以及编译节点可用的 `.scene` 来源；不为所有节点计算 bounds。
+- `node <uid>` 返回详细 transform、尺寸、local/global bounds、显示与交互字段、编译节点来源，以及 Sprite、Text、BitmapText 的有限类型信息。Graphics 不序列化绘制指令。
 - 开发客户端自动捕获既有 `console.debug/log/info/warn/error`、`window.error` 和 `unhandledrejection`，保留最近 500 条内存日志；不要求游戏注册日志 provider。
 - 日志使用单调递增 `seq`；CLI 支持按 `after` 与 `level` 获取快照，不实现持久化或 follow 长连接。
 - Runtime 输入只模拟用户可执行的 pointer 与 keyboard 输入，不提供节点方法调用、业务方法调用、eval、节点属性修改或业务状态修改。
@@ -27,7 +27,7 @@
 ## Non-Goals
 
 - 不执行项目任意 JavaScript，不遍历 JavaScript 堆，不提供远程调试器。
-- 不建立 Scene Instance runtime 模型，不返回 Scene 路径、Compiler locator、Props 或 Binding。
+- 不建立 Scene Instance runtime 模型，不返回 Props 或 Binding。源码来源仅标记由 `.scene` 编译生成的节点；脚本动态创建的 Pixi 节点没有来源标记。
 - 不提供节点树 Diff、状态订阅、历史记录、日志持久化或日志 follow。
 - 不提供 Scenario、断言、任务编排、自动等待条件或 Agent 专用业务动作。
 - 不提供节点 mutation、业务状态 mutation、直接节点 click 或方法调用。
@@ -77,6 +77,8 @@ pixifact runtime input keyup <key> [--runtime <runtime-id>]
 
 `runtime input` 成功只表示事件已经分发，不表示动画、异步加载或游戏流程已经稳定。外部 Agent 通过重复查询 `state`、`tree` 和 `logs --after` 判断结果，超时与轮询由外部 Agent 控制。
 
+编译节点在 `tree` / `node` 中返回 `source: { scenePath, locator }`；根节点 locator 为 `null`。子 Scene 实例根节点同时返回 `instanceSource`，分别指向子 Scene 根和父 Scene 中的实例位置。实现只给已有 Pixi 节点加供观测使用的来源标记，不维护第二棵树。脚本动态创建的 Pixi 节点不带来源标记。
+
 ## Implementation Scope
 
 - `packages/pixifact/src/runtime-dev/`：浏览器开发客户端、`registerPixiRuntime`、Pixi tree/node 序列化、状态快照、日志环形缓冲和输入分发。
@@ -97,6 +99,7 @@ pixifact runtime input keyup <key> [--runtime <runtime-id>]
 - [x] CLI：按需将完整 Runtime 节点树保存为可搜索的 JSON 快照，失败时不创建文件。
 - [x] CLI：Runtime screenshot 默认路径、显式输出路径和失败时不创建文件。
 - [x] 示例项目：Vite production build 不包含启动中的 Runtime 注册；开发模式可由 CLI 完成 tree/state/logs/input 查询。
+- [x] 编译节点与子 Scene 实例来源标记；Runtime tree/node 输出来源；真实 Web 示例的来源路径和 locator 与 `.scene` 一致。
 
 ## Verification
 
@@ -119,6 +122,7 @@ rtk bun run test -- --maxWorkers=1
 - [x] 完成 Runtime CLI。
 - [x] 完成示例项目与对外文档。
 - [x] 完成自动化和真实端到端验证。
+- [x] 在已有 Pixi 节点上增加供观测使用的 `.scene` 来源标记，没有引入第二棵 Scene Instance 树。
 
 ## Resume Protocol
 
@@ -130,7 +134,7 @@ rtk bun run test -- --maxWorkers=1
 
 ## Resume Notes
 
-Last updated: 2026-08-15
+Last updated: 2026-09-24
 
 Done:
 - 已完成 Runtime v1 产品讨论和实现计划。
@@ -140,12 +144,14 @@ Done:
 - 已在真实 Vite 页面中通过 CLI 完成 runtime list、tree、node、state、logs 和坐标 click；已验证双页面必须显式选择 `--runtime`。
 - 已完成 `runtime tree --output <json-path>`，快照包含采集元数据和当前 `app.stage`，适合 Agent 在文件中搜索，且不写入 `.scene`。
 - Runtime screenshot 省略 `--output` 时写入项目根下 `.pixifact/runtime/frame.png`，显式路径仍可覆盖。
+- 新项目模板默认接入开发期 Runtime；截图保留视口变换；编译节点带可供 Runtime 读取的 `.scene` 来源路径与 locator。
+- 下游 Agent skill 和 Runtime 文档已明确输入前后读取状态、截图及增量日志的 Web 验证流程。本轮 322 项测试通过，核心包与 Web 示例 TypeScript 检查及 skill 校验通过；未运行发布构建。
 
 Current State:
-- Runtime v1 实现和验证完成，当前示例开发服务器可在 `http://127.0.0.1:5178/` 使用。
+- Runtime v1 和 Web 开发期来源扩展均已实现。游戏脚本动态创建的节点不带 `.scene` 来源。
 
 Currently Failing:
 - 无目标测试失败。并行运行核心包构建与示例构建时会因核心 dist 清理产生竞争；已改为串行验证并通过。
 
 Next:
-1. 后续真实游戏接入后，再根据实际 Agent 工作流评估是否需要扩展拖拽或等待。
+1. 在重复 Agent 评测中检验 Web 验证流程，并根据实际定位困难决定是否需要扩展 CLI 输入结果、拖拽或等待。

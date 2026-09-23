@@ -86,9 +86,11 @@ It contains PixiJS Canvas rendering only. Browser UI, HTML/CSS, and DOM overlays
 
 `runtime tree` traverses the current `app.stage` for every request and preserves the PixiJS `children` order. It returns PixiJS `uid`, constructor type, `label`, child index, position, scale, rotation, display fields, interaction fields, and children.
 
-A Scene is only a normal `Container` subtree here. Runtime does not return `.scene` paths, Compiler locators, Props, or Bindings and does not maintain a second Scene Instance tree.
+A Scene remains a normal `Container` subtree; Runtime does not maintain a second Scene Instance tree. Nodes generated from `.scene` carry `source: { scenePath, locator }`. The path is project-relative, the locator matches `scene inspect`, and a Scene root uses `null` as its locator. A child Scene instance root also carries `instanceSource`, which points to its placement in the parent `.scene`. Script-created Pixi nodes have no source fields. Runtime does not return Props or Bindings.
 
-`runtime node <uid>` returns detailed transform, size, local/global bounds, global alpha, tint, blend mode, interaction fields, and limited Sprite, Text, and BitmapText details. Graphics returns bounds only; drawing instructions are never serialized.
+To edit a node found at runtime, inspect its source with `pixifact scene inspect --scene <source.scenePath>` and locate it by `source.locator`. To change where a child Scene instance sits in its parent, use the path and locator from `instanceSource`.
+
+`runtime node <uid>` returns detailed transform, size, local/global bounds, global alpha, tint, blend mode, interaction fields, available source fields, and limited Sprite, Text, and BitmapText details. Graphics returns bounds only; drawing instructions are never serialized.
 
 ## State And Logs
 
@@ -115,6 +117,8 @@ pixifact runtime input keyup ArrowLeft
 Pointer commands use Pixi renderer screen coordinates. An agent can read a node's `globalBounds`, calculate its center, and click there. Browser Runtime maps that point through the Canvas DOM bounds to client coordinates.
 
 Input commands only dispatch standard pointer and keyboard events. They do not invoke PixiJS node methods, bypass hit testing, or mutate node and business state directly. Success means only that input was dispatched; the agent must query tree, state, and logs again to determine whether animation or asynchronous work has completed.
+
+For a minimal verification loop, read `runtime state` and the `latestSeq` from `runtime logs` before an action, and save a screenshot for visual tasks. Use `runtime node <uid>` and its `globalBounds` to choose input coordinates. After the input, read state, `runtime logs --after <latestSeq>`, and a new screenshot. State confirms business behavior, screenshots confirm the visible result, and incremental logs help diagnose errors. `dispatched: true` alone does not establish success. If `state.available: false`, the game must explicitly expose the relevant business state through `getState`.
 
 Programmatically dispatched browser events have `isTrusted === false`, so they cannot replace user gestures required for fullscreen or audio unlock.
 

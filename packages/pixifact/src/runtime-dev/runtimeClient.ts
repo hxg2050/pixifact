@@ -21,6 +21,8 @@ import {
 } from './protocol';
 
 const maxRetainedLogs = 500;
+const sceneSourceKey = Symbol.for('pixifact.scene.source');
+const sceneInstanceSourceKey = Symbol.for('pixifact.scene.instanceSource');
 const runtimeRequestEvent = 'pixifact:runtime:request';
 const runtimeResponseEvent = 'pixifact:runtime:response';
 const runtimeAnnounceEvent = 'pixifact:runtime:announce';
@@ -70,6 +72,15 @@ function boundsSnapshot(bounds: Bounds): BoundsSnapshot {
     };
 }
 
+function sourceSnapshot(node: Container) {
+    const source = Reflect.get(node, sceneSourceKey) as { scenePath: string; locator: string | null } | undefined;
+    const instanceSource = Reflect.get(node, sceneInstanceSourceKey) as { scenePath: string; locator: string } | undefined;
+    return {
+        ...(source ? { source } : {}),
+        ...(instanceSource ? { instanceSource } : {}),
+    };
+}
+
 function basicNodeSnapshot(node: Container, childIndex: number | null): RuntimeJsonValue {
     return {
         uid: node.uid,
@@ -84,6 +95,7 @@ function basicNodeSnapshot(node: Container, childIndex: number | null): RuntimeJ
         renderable: node.renderable,
         zIndex: node.zIndex,
         eventMode: node.eventMode ?? null,
+        ...sourceSnapshot(node),
         children: node.children.map((child, index) => basicNodeSnapshot(child, index)),
     };
 }
@@ -167,6 +179,7 @@ function detailedNodeSnapshot(node: Container) {
         blendMode: String(node.blendMode),
         eventMode: node.eventMode ?? null,
         cursor: node.cursor === undefined ? null : String(node.cursor),
+        ...sourceSnapshot(node),
         ...(specific ? { specific } : {}),
     };
 }

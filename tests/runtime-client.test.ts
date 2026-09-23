@@ -177,6 +177,35 @@ describe('Pixifact Runtime client', () => {
         ]);
     });
 
+    it('reports compiler Scene sources without adding a second runtime tree', async () => {
+        const stage = new Container();
+        const sceneRoot = new Container();
+        const visual = new Container({ label: 'icon' });
+        sceneRoot.addChild(visual);
+        stage.addChild(sceneRoot);
+        Reflect.set(sceneRoot, Symbol.for('pixifact.scene.source'), {
+            scenePath: 'src/scenes/Icon.scene', locator: null,
+        });
+        Reflect.set(sceneRoot, Symbol.for('pixifact.scene.instanceSource'), {
+            scenePath: 'src/scenes/Main.scene', locator: '0:icon',
+        });
+        Reflect.set(visual, Symbol.for('pixifact.scene.source'), {
+            scenePath: 'src/scenes/Icon.scene', locator: '0:iconImage',
+        });
+        const { client } = createClient();
+        client.register(createApplication(stage));
+
+        const tree = await client.handleRequest({ type: 'tree' });
+        expect(tree.root.children[0]).toMatchObject({
+            source: { scenePath: 'src/scenes/Icon.scene', locator: null },
+            instanceSource: { scenePath: 'src/scenes/Main.scene', locator: '0:icon' },
+            children: [{ source: { scenePath: 'src/scenes/Icon.scene', locator: '0:iconImage' } }],
+        });
+        expect((await client.handleRequest({ type: 'node', uid: visual.uid })).node).toMatchObject({
+            source: { scenePath: 'src/scenes/Icon.scene', locator: '0:iconImage' },
+        });
+    });
+
     it('returns detailed current node fields and supported type-specific data by Pixi uid', async () => {
         const stage = new Container();
         const sprite = new Sprite({ texture: Texture.EMPTY, label: 'hero', anchor: 0.5 });

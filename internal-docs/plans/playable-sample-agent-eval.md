@@ -1,6 +1,6 @@
 # Playable Sample and Agent Evaluation
 
-状态：Web 样板、首轮评测和新项目 Runtime 接入完成；源码定位与统计复测待开展
+状态：Web 样板、首轮评测、新项目 Runtime 接入、源码定位和 Agent 验证流程完成；统计复测待开展
 权威范围：Web 可玩示例与 Agent 游戏开发任务评测
 上游文档：[./index.md](./index.md)、[../../AGENTS.md](../../AGENTS.md)
 
@@ -22,7 +22,7 @@
 ## Non-Goals
 
 - 不增加内置 AI、Agent 编排、Git 流程、远程资源或新依赖。
-- 不扩展 `.scene` 语法或 Runtime 公共 API。
+- 不扩展 `.scene` 语法；Runtime 仅增加可选的来源观测字段，不添加 mutation 入口。
 - 本轮不做 Web 产物构建、小游戏目标或真机验收。
 
 ## Public API / User-Facing Behavior
@@ -67,6 +67,8 @@ bun run --cwd sample-projects/star-game-demo dev
 - [ ] 每题至少三次独立重复，并记录耗时、修复轮次和人工介入。
 - [x] 让新项目模板默认具有 Web 开发期 Runtime 观测与输入能力。
 - [x] 修正 Runtime 截图对视口平移和缩放的遗漏。
+- [x] 让 Runtime tree/node 的编译节点指向 `.scene` 来源与 locator。
+- [x] 在下游 Agent skill 与 Runtime 文档中明确输入前后状态、截图和增量日志的验证流程。
 
 ## Verification Results
 
@@ -78,7 +80,9 @@ bun run --cwd sample-projects/star-game-demo dev
 - E1–E3 各一次独立 Agent 试验：Scene 校验、编译、TypeScript 检查、最小相关测试及 Web/Runtime 验收全部通过；详细证据见 [Agent 游戏开发评测](../testing/AGENT_GAME_EVAL.md)。
 - 新建最小 Web 项目：Scene 校验、编译、TypeScript 检查通过；真实浏览器中 `runtime list/tree/state/input/screenshot` 可用，点击前后 `startPressed` 从 `false` 变为 `true`。
 - Runtime 截图修正：在有视口缩放的 Web 示例中，CLI PNG 与浏览器 Canvas 的游戏区域位置和尺寸一致。
-- 本轮 `bun run test`：26 个测试文件、321 项通过；核心包与脚手架包 TypeScript 检查通过。没有运行发布构建。
+- 本轮 `bun run test`：26 个测试文件、322 项通过；核心包与示例项目 TypeScript 检查、下游 skill 校验通过。没有运行发布构建。
+- Agent 验证流程：操作前读取业务状态和日志序号，操作后读取新状态、增量日志与截图；不能把 `dispatched: true` 当作成功证据。
+- 来源定位：`src/scenes/Main.scene` 的游戏按钮在真实 Web Runtime 中返回 `source.locator: "23:actionButton"`；子 Scene 实例的父子来源由编译与 Runtime 单元测试覆盖。
 
 ## Resume Protocol
 
@@ -97,16 +101,17 @@ Done:
 - 完成 Scene 校验、编译、类型检查、全量测试和浏览器完整玩法验收。
 - 完成 E1–E3 首轮独立 Agent 试验；三个结果留在独立 worktree 提交，没有合入样板基线。
 - 新建 Web 项目默认注册开发期 Runtime，并公开菜单的最小业务状态；修正截图忽略视口变换的问题。
+- 编译节点现有 `.scene` 来源标记，Runtime tree/node 可返回来源；子 Scene 实例可定位回父 Scene 的放置位置。
+- 下游 Agent skill 和 Runtime 文档已写明 Web 输入后的状态、截图、日志验证流程。
 
 Current State:
 - 可在 `sample-projects/star-game-demo` 运行 Web 游戏。E1–E3 首轮各一次验收通过，但样本量不足以估计稳定完成率，耗时和修复轮次也未可靠采集。
 - 独立 worktree 共享 `node_modules` 时，Vite 默认配置加载受路径影响；首轮 Web 验收使用 `--configLoader runner`。后续评测应固定依赖布局和启动方式。
-- 新建项目可直接由 Runtime CLI 观察和操作；截图现在保留视口变换。Runtime 节点尚无 `.scene` 来源路径，输入命令仍只返回事件已分发。
+- 新建项目可直接由 Runtime CLI 观察和操作；截图保留视口变换，编译节点带 `.scene` 来源。输入命令只返回事件已分发，Agent 使用状态、截图和增量日志确认结果。
 
 Currently Failing:
 - 无。
 
 Next:
-1. 为 Runtime 节点设计轻量 `.scene` 来源标记，先明确子 Scene 实例与重复实例的定位语义，再修改 Runtime v1 中“不返回 Scene 路径”的既有决策。
-2. 将“输入前状态、操作、输入后状态、截图、增量日志”整理成 Agent 可重复执行的 Web 验证流程，再根据实测定位困难决定是否扩展 CLI 返回值。
-3. 固定可重复的 Web 评测环境，自动保存开始/结束时间、修复轮次、Runtime 状态、截图和最终 diff；E1–E3 各重复到至少三次，并增加从空白 Web 项目创建完整游戏的任务。
+1. 固定可重复的 Web 评测环境，自动保存开始/结束时间、修复轮次、Runtime 状态、截图和最终 diff；E1–E3 各重复到至少三次，并增加从空白 Web 项目创建完整游戏的任务。
+2. 根据复测中的实际定位困难，决定是否扩展 CLI 输入返回值。

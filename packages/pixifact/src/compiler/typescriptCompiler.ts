@@ -72,6 +72,10 @@ class CompileContext {
         this.#lines.push(`export function ${functionName}(root: Group${this.#hasEvents() ? `, ${actionsParameter}: Record<string, () => void> = {}` : ''}) {`);
         this.#lines.push('  const __pixifactNodes: Record<string, Container> = {};');
         this.#lines.push('  const __pixifactSlots: Record<string, Container> = {};');
+        if (this.options.registrationPath) {
+            this.#lines.push("  const __pixifactSceneSource = Symbol.for('pixifact.scene.source');");
+            this.#recordSource('root', null);
+        }
         this.#applyRootProps();
         for (const [index, child] of this.template.children.entries()) {
             this.#compileNode(child, 'root', actionsParameter, String(index));
@@ -254,6 +258,7 @@ class CompileContext {
         const variable = node.id || this.#anonymousName(node.type);
         const locator = compilerSceneNodeLocator(node, path);
         this.#lines.push(`  const ${variable} = ${this.#constructPixiNode(node)};`);
+        this.#recordSource(variable, locator);
         this.#applyNodeId(variable, node.id);
         this.#applyPixiProps(variable, node.props, false, undefined, node.type);
         this.#applyParentSorting(parent, node.props);
@@ -270,6 +275,7 @@ class CompileContext {
         const constructorName = this.#sceneConstructorName(node);
         const constructorArgs = this.#sceneInstanceConstructorArgs(variable, node);
         this.#lines.push(`  const ${variable} = new ${constructorName}(${constructorArgs});`);
+        this.#recordSource(variable, locator, true);
         this.#applyPixiProps(variable, node.props, true, node);
         for (const [name, action] of Object.entries(node.events)) {
             this.#runtimeImports.add('connectSceneEvent');
@@ -302,6 +308,7 @@ class CompileContext {
             const constructorName = this.#sceneConstructorName(node);
             const constructorArgs = this.#sceneInstanceConstructorArgs(variable, node);
             this.#lines.push(`  const ${variable} = new ${constructorName}(${constructorArgs});`);
+            this.#recordSource(variable, locator, true);
             this.#applyPixiProps(variable, node.props, true, node);
             for (const [name, action] of Object.entries(node.events)) {
                 this.#runtimeImports.add('connectSceneEvent');
@@ -326,6 +333,7 @@ class CompileContext {
         const variable = node.id || this.#anonymousName(node.type);
         const locator = compilerSceneNodeLocator(node, path);
         this.#lines.push(`  const ${variable} = ${this.#constructPixiNode(node)};`);
+        this.#recordSource(variable, locator);
         this.#applyNodeId(variable, node.id);
         this.#applyPixiProps(variable, node.props, false, undefined, node.type);
         this.#lines.push(`  __pixifactNodes[${JSON.stringify(locator)}] = ${variable};`);
@@ -676,6 +684,12 @@ class CompileContext {
         if (id) {
             this.#lines.push(`  ${variable}.label = ${JSON.stringify(id)};`);
         }
+    }
+
+    #recordSource(variable: string, locator: string | null, instance = false) {
+        if (!this.options.registrationPath) return;
+        const symbol = instance ? "Symbol.for('pixifact.scene.instanceSource')" : '__pixifactSceneSource';
+        this.#lines.push(`  Reflect.set(${variable}, ${symbol}, { scenePath: ${JSON.stringify(this.options.registrationPath)}, locator: ${JSON.stringify(locator)} });`);
     }
 
     #applyParentSorting(parent: string, props: Record<string, SceneTemplateValue>) {

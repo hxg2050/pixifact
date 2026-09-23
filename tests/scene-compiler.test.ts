@@ -1467,6 +1467,13 @@ import { Group } from 'pixifact/runtime';`);
         expect(code).toContain('__pixifactNodes["0:startButton/slot:icon/0:playIcon"] = playIcon;');
         expect(code).not.toContain('background');
         expect(code).not.toContain('hitArea');
+
+        const registeredCode = compileSceneTemplateToTs(template, {
+            registrationPath: 'src/scenes/MainMenu.scene',
+        });
+        expect(registeredCode).toContain('Reflect.set(root, __pixifactSceneSource, { scenePath: "src/scenes/MainMenu.scene", locator: null });');
+        expect(registeredCode).toContain('Reflect.set(startButton, Symbol.for(\'pixifact.scene.instanceSource\'), { scenePath: "src/scenes/MainMenu.scene", locator: "0:startButton" });');
+        expect(registeredCode).toContain('Reflect.set(playIcon, __pixifactSceneSource, { scenePath: "src/scenes/MainMenu.scene", locator: "0:startButton/slot:icon/0:playIcon" });');
     });
 
     it('parses, serializes, validates, and compiles structured Scene instance props', () => {

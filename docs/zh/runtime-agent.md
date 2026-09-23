@@ -86,9 +86,11 @@ pixifact runtime screenshot --output /tmp/game.png --runtime <runtime-id>
 
 `runtime tree` 每次请求都现场遍历 `app.stage`，保留 PixiJS `children` 顺序。它返回 PixiJS `uid`、构造函数类型、`label`、child index、position、scale、rotation、显示字段、交互字段和 children。
 
-Scene 在这里仅表现为普通 `Container` 子树。Runtime 不返回 `.scene` 路径、Compiler locator、Props 或 Binding，也不维护第二棵 Scene Instance 树。
+Scene 在这里仍是普通 `Container` 子树，不维护第二棵 Scene Instance 树。由 `.scene` 编译生成的节点额外带有 `source: { scenePath, locator }`：路径是项目相对 `.scene` 路径，locator 对应 `scene inspect`；Scene 根节点的 locator 为 `null`。子 Scene 实例根节点还带有 `instanceSource`，指向父 `.scene` 中放置该实例的位置。这样可以分别定位子 Scene 自身内容和父 Scene 中的实例布局。脚本动态创建的 Pixi 节点没有这些来源字段；Runtime 不返回 Props 或 Binding。
 
-`runtime node <uid>` 返回当前节点的详细 transform、宽高、local/global bounds、global alpha、tint、blend mode、交互字段，以及 Sprite、Text 和 BitmapText 的有限类型信息。Graphics 只返回 bounds，不序列化绘制指令。
+需要修改运行时看到的节点时，先用 `pixifact scene inspect --scene <source.scenePath>` 查看源 Scene，再按 `source.locator` 定位节点；若要调整子 Scene 实例在父 Scene 中的位置，使用 `instanceSource` 的路径和 locator。
+
+`runtime node <uid>` 返回当前节点的详细 transform、宽高、local/global bounds、global alpha、tint、blend mode、交互字段、上述可用的来源字段，以及 Sprite、Text 和 BitmapText 的有限类型信息。Graphics 只返回 bounds，不序列化绘制指令。
 
 ## 状态与日志
 
@@ -115,6 +117,8 @@ pixifact runtime input keyup ArrowLeft
 指针坐标使用 Pixi renderer screen 坐标。Agent 可以先读取节点的 `globalBounds`，计算中心点后点击；浏览器 Runtime 负责按 Canvas DOM bounds 换算 client 坐标。
 
 输入命令只分发标准 pointer 和 keyboard 事件，不直接调用 PixiJS 节点方法，不绕过命中测试，也不修改节点或业务状态。命令成功仅表示事件已经分发，不表示动画或异步流程已经结束；Agent 应继续查询 tree、state 和 logs 判断结果。
+
+最小验证循环：操作前读取 `runtime state`、`runtime logs` 的 `latestSeq`，并在视觉任务中保存一张截图；通过 `runtime node <uid>` 的 `globalBounds` 计算输入坐标；发送输入后再次读取 state、`runtime logs --after <latestSeq>` 和截图。状态变化可以确认业务效果，截图确认画面效果，增量日志帮助定位异常。`dispatched: true` 不能单独作为成功证据。若 `state.available: false`，需要由游戏代码通过 `getState` 明确暴露待验证的业务状态。
 
 程序生成的浏览器事件 `isTrusted` 为 `false`，不能代替用户完成全屏、音频解锁等要求受信任手势的浏览器操作。
 

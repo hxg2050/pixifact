@@ -1,6 +1,6 @@
 # Pixifact Runtime Observation
 
-本文件随 Pixifact skill 安装，用于下游 Vite Web 游戏在开发模式下观察和验证真实运行行为。Runtime 直接读取当前 PixiJS `app.stage`，不依赖浏览器自动化，也不映射回 Compiler Scene。
+本文件随 Pixifact skill 安装，用于下游 Vite Web 游戏在开发模式下观察和验证真实运行行为。Runtime 直接读取当前 PixiJS `app.stage`；编译节点可指回其 `.scene` 来源。
 
 ## 接入前提
 
@@ -36,9 +36,10 @@ if (import.meta.env.DEV) {
 1. 读取 `package.json`，使用项目已有命令启动 Vite 开发服务器，并确保游戏页面已经打开。
 2. 运行 `pixifact runtime list`。只有一个页面时自动选择；多个页面时记录目标 `runtimeId`，后续命令添加 `--runtime <runtime-id>`。
 3. 查询 `pixifact runtime state` 和 `pixifact runtime logs`，把日志的 `latestSeq` 作为操作前基线。
-4. 用 `pixifact runtime tree --output .pixifact/runtime/tree.json` 保存节点树快照，在 JSON 文件中搜索当前节点的 `uid`。需要尺寸、`globalBounds`、交互字段或类型信息时运行 `pixifact runtime node <uid>`。
+4. 用 `pixifact runtime tree --output .pixifact/runtime/tree.json` 保存节点树快照。编译节点的 `source.scenePath` / `source.locator` 指向源 `.scene`；子 Scene 实例的 `instanceSource` 指向父 Scene 中的放置位置。需要尺寸、`globalBounds`、交互字段或类型信息时运行 `pixifact runtime node <uid>`。
+   需要修改这个节点时，先运行 `pixifact scene inspect --scene <source.scenePath>`，再根据 `source.locator` 定位；调整子 Scene 实例在父 Scene 中的位置时，改用 `instanceSource`。
 5. 使用 `globalBounds` 中心点发送 click，或发送项目真实使用的键盘输入。
-6. 重新查询 state、tree 或 node，并运行 `pixifact runtime logs --after <latestSeq>`。只有可观察结果符合预期，验证才完成。
+6. 重新查询 state、tree 或 node，并运行 `pixifact runtime logs --after <latestSeq>`。涉及视觉结果时，在操作前后分别运行 `runtime screenshot --output <png-path>` 并比较画面。只有可观察结果符合预期，验证才完成。
 
 页面刷新后 `runtime-id` 和 PixiJS `uid` 都可能改变，必须重新发现。不要把它们写入源码、Scene 或项目数据。
 
@@ -68,12 +69,13 @@ pixifact runtime tree --output .pixifact/runtime/tree.json [--runtime <runtime-i
 
 快照包含 `schemaVersion`、`capturedAt`、`runtimeId` 和 `root`。它只代表采集时刻的 `app.stage`，不能作为 `.scene` 数据源；页面刷新后必须重新生成，快照中的 `runtimeId` 和 PixiJS `uid` 也不能长期复用。
 
-`runtime screenshot` 捕获当前 `app.stage` 的 PixiJS Canvas PNG。省略 `--output` 时写入项目根下的 `.pixifact/runtime/frame.png`；传入 `--output <png-path>` 可覆盖路径。截图不包含浏览器 UI、HTML/CSS 或 DOM overlay。
+`runtime screenshot` 捕获当前 `app.stage` 的 PixiJS Canvas PNG，保留视口平移和缩放。省略 `--output` 时写入项目根下的 `.pixifact/runtime/frame.png`；传入 `--output <png-path>` 可覆盖路径。截图不包含浏览器 UI、HTML/CSS 或 DOM overlay。
 
 ## 状态与诊断
 
 - `state` 回答“现在是什么状态”，只包含项目通过 `getState` 明确暴露的 JSON。
 - `tree` / `node` 回答“当前显示树是什么样”，数据源始终是 `app.stage`。
+- 编译节点的 `source` 提供项目相对 `.scene` 路径和 inspect locator；根节点 locator 为 `null`。子 Scene 实例还可能有父级 `instanceSource`。脚本动态创建的 Pixi 节点没有来源字段。
 - `logs` 回答“刚才发生了什么”，保留最近 500 条 `console`、`window.error` 和 `unhandledrejection` 记录。
 - 私有状态不适合加入长期 `getState` 时，可在能访问该状态的源码位置临时添加日志；验证完成后删除日志。
 - `state.available: false` 表示项目没有提供 `getState`，继续使用 tree、node 和 logs，不要假造业务状态。
