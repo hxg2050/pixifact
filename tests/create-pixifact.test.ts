@@ -55,8 +55,10 @@ describe('create-pixifact scaffold', () => {
                 vite: '^8.0.10',
             },
         });
-        expect(await readProjectFile(projectRoot, 'vite.config.ts')).toContain("from 'pixifact/compiler-node'");
-        expect(await readProjectFile(projectRoot, 'vite.config.ts')).toContain('pixifact()');
+        const viteConfig = await readProjectFile(projectRoot, 'vite.config.ts');
+        expect(viteConfig).toContain("from 'pixifact/compiler-node'");
+        expect(viteConfig).toContain('pixifact()');
+        expect(viteConfig).toContain('pixifactRuntimePlugin()');
         expect(await readProjectFile(projectRoot, 'vite.config.ts')).not.toContain('packages/pixifact/src');
         expect(await readProjectFile(projectRoot, 'src/scenes/MainMenu.scene')).not.toContain('script=');
         expect(await readProjectFile(projectRoot, 'src/scenes/MainMenu.ts')).toContain('export class MainMenu');
@@ -64,6 +66,9 @@ describe('create-pixifact scaffold', () => {
         const mainSource = await readProjectFile(projectRoot, 'src/main.ts');
         expect(mainSource).toContain("from 'pixifact:platform'");
         expect(mainSource).toContain("from 'pixifact:assets'");
+        expect(mainSource).toContain("import('pixifact/runtime-dev')");
+        expect(mainSource).toContain('registerPixiRuntime(app, { getState: () => scene.snapshot() })');
+        expect(await readProjectFile(projectRoot, 'src/scenes/MainMenu.ts')).toContain('snapshot()');
         expect((await readProjectFile(projectRoot, '.env')).replaceAll('\r\n', '\n')).toBe('VITE_PLATFORM=web\n');
         expect((await readProjectFile(projectRoot, 'bunfig.toml')).replaceAll('\r\n', '\n')).toBe('env = false\n');
         expect(await readProjectFile(projectRoot, 'src/vite-env.d.ts')).toContain('pixifact/client');

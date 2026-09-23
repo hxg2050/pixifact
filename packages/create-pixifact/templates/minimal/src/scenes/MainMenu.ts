@@ -4,6 +4,8 @@ import { createEvent, event, part, scene } from 'pixifact/scene';
 
 @scene()
 export class MainMenu extends Group {
+    private startPressed = false;
+
     @part()
     protected declare startButtonBack: Graphics;
 
@@ -17,6 +19,7 @@ export class MainMenu extends Group {
         this.startButtonBack.eventMode = 'static';
         this.startButtonBack.cursor = 'pointer';
         this.startButtonBack.on('pointertap', () => {
+            this.startPressed = true;
             this.startLabel.text = 'READY';
             this.start.emit();
         });
@@ -26,5 +29,9 @@ export class MainMenu extends Group {
         this.startButtonBack.on('pointerout', () => {
             this.startButtonBack.tint = 0xffffff;
         });
+    }
+
+    snapshot() {
+        return { startPressed: this.startPressed };
     }
 }

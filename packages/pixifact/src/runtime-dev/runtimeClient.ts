@@ -2,7 +2,7 @@ import {
     BitmapText,
     Container,
     Graphics,
-    Rectangle,
+    RenderTexture,
     Sprite,
     Text,
     type Application,
@@ -378,19 +378,24 @@ export function createPixifactRuntimeClient(options: RuntimeClientOptions) {
     async function captureScreenshot(currentApp: RuntimeApplication): Promise<RuntimeScreenshotResult> {
         const width = Math.max(1, Math.floor(currentApp.screen.width));
         const height = Math.max(1, Math.floor(currentApp.screen.height));
-        const dataUrl = await currentApp.renderer.extract.base64({
-            target: currentApp.stage,
-            frame: new Rectangle(0, 0, width, height),
-            resolution: 1,
-            format: 'png',
-            clearColor: currentApp.renderer.background.colorRgba,
-        });
-        return {
-            runtimeId: options.runtimeId,
-            width,
-            height,
-            dataUrl,
-        };
+        const target = RenderTexture.create({ width, height, resolution: 1 });
+        try {
+            currentApp.stage.updateLocalTransform();
+            currentApp.renderer.render({
+                container: currentApp.stage,
+                transform: currentApp.stage.localTransform,
+                target,
+                clearColor: currentApp.renderer.background.colorRgba,
+            });
+            return {
+                runtimeId: options.runtimeId,
+                width,
+                height,
+                dataUrl: await currentApp.renderer.extract.base64(target),
+            };
+        } finally {
+            target.destroy(true);
+        }
     }
 
     async function handleRequest(request: RuntimeRequest): Promise<RuntimeJsonValue> {

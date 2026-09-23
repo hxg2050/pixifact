@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Bounds, Container, Rectangle, Sprite, Text, Texture, type Application } from 'pixi.js';
+import { Bounds, Container, RenderTexture, Sprite, Text, Texture, type Application } from 'pixi.js';
 import {
     createPixifactRuntimeClient,
     type PixifactRuntimeHotContext,
@@ -292,25 +292,23 @@ describe('Pixifact Runtime client', () => {
         });
     });
 
-    it('captures the current Pixi stage at logical screen size with the renderer background', async () => {
+    it('captures the viewport-transformed Pixi stage at logical screen size', async () => {
         const stage = new Container({ label: 'stage' });
-        const base64 = vi.fn(async (options: {
-            target: Container;
-            frame: Rectangle;
-            resolution: number;
-            format: string;
-            clearColor: unknown;
-        }) => {
-            expect(options.target).toBe(stage);
-            expect(options.frame).toEqual(new Rectangle(0, 0, 750, 1334));
-            expect(options.resolution).toBe(1);
-            expect(options.format).toBe('png');
-            expect(options.clearColor).toEqual([0.03, 0.04, 0.05, 1]);
+        stage.position.set(10, 20);
+        stage.scale.set(1.5);
+        stage.updateLocalTransform();
+        const render = vi.fn();
+        const base64 = vi.fn(async (target: RenderTexture) => {
+            expect(target).toBeInstanceOf(RenderTexture);
+            expect(target.width).toBe(750);
+            expect(target.height).toBe(1334);
+            expect(target.source.resolution).toBe(1);
             return 'data:image/png;base64,iVBORw0KGgo=';
         });
         const { client } = createClient();
         client.register(createApplication(stage, {
             background: { colorRgba: [0.03, 0.04, 0.05, 1] },
+            render,
             extract: { base64 },
         }));
 
@@ -321,6 +319,12 @@ describe('Pixifact Runtime client', () => {
             dataUrl: 'data:image/png;base64,iVBORw0KGgo=',
         });
         expect(base64).toHaveBeenCalledTimes(1);
+        expect(render).toHaveBeenCalledWith({
+            container: stage,
+            transform: stage.localTransform,
+            target: expect.any(RenderTexture),
+            clearColor: [0.03, 0.04, 0.05, 1],
+        });
     });
 
     it('returns a structured HMR failure when getState cannot produce JSON', async () => {

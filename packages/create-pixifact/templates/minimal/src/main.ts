@@ -52,3 +52,8 @@ resizeViewport();
 
 const resizeObserver = new ResizeObserver(resizeViewport);
 resizeObserver.observe(gameRoot);
+
+if (import.meta.env.DEV) {
+    const { registerPixiRuntime } = await import('pixifact/runtime-dev');
+    registerPixiRuntime(app, { getState: () => scene.snapshot() });
+}

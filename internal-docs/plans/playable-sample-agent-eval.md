@@ -1,6 +1,6 @@
 # Playable Sample and Agent Evaluation
 
-状态：Web 样板和协议完成；首轮 Agent 试验完成，统计复测待开展
+状态：Web 样板、首轮评测和新项目 Runtime 接入完成；源码定位与统计复测待开展
 权威范围：Web 可玩示例与 Agent 游戏开发任务评测
 上游文档：[./index.md](./index.md)、[../../AGENTS.md](../../AGENTS.md)
 
@@ -15,6 +15,9 @@
 - `.scene` 保存全部视觉节点；配对 `Main.ts` 负责 Pixi 事件与界面更新；纯游戏规则单独放入 `gameLogic.ts` 供行为测试。
 - 关卡数据由 Web 示例本地资源包的 `level.json` 提供，目标顺序固定，使玩法和测试可复现。
 - Agent 评测使用固定任务、独立项目副本、现有 CLI 和明确的验收记录。评测文档不负责启动或编排 Agent。
+- 下一阶段先让 `create-pixifact` 的 Web 最小模板默认接入已有开发期 Runtime；Vite 插件只在 serve 时启用，游戏注册仍由 `import.meta.env.DEV` 限定。
+- 模板菜单显式暴露按钮是否按过的最小业务状态，作为下游 Agent 扩展 `getState` 的示例；不让 Runtime 猜测游戏语义。
+- Runtime 截图应保留 `app.stage` 的视口变换，与 Web 游戏画面一致；发现截图偏差后直接修正已有截图实现。
 
 ## Non-Goals
 
@@ -28,6 +31,7 @@
 - 开始后高亮一个目标格；点击正确得分并切换目标，点击错误减少机会。
 - 达到关卡目标分数显示胜利，机会耗尽显示失败；两种结果都可重新开始。
 - 示例 README 说明玩法、开发命令与评测入口。
+- 新创建的 Web 项目启动开发服务器后，可直接使用 Runtime CLI 获取节点树、截图、菜单状态并点击按钮；点击后状态从未开始变为已开始。
 
 ## Implementation Scope
 
@@ -41,6 +45,7 @@
 2. 检查 Web 示例的 Scene 配对与资源读取。
 3. 运行 Scene 校验与编译、TypeScript 检查。
 4. 人工运行 Web 开发服务，验证完整玩法与布局。
+5. 对生成的新项目检查开发期 Runtime 接入，并在真实 Web 页面中用 CLI 验证菜单点击前后的状态和节点观测。
 
 ## Verification
 
@@ -60,6 +65,8 @@ bun run --cwd sample-projects/star-game-demo dev
 - [x] Web 验证与人工验收。
 - [x] 使用相同基线的独立副本完成 E1–E3 首轮试验和评测人独立验收。
 - [ ] 每题至少三次独立重复，并记录耗时、修复轮次和人工介入。
+- [x] 让新项目模板默认具有 Web 开发期 Runtime 观测与输入能力。
+- [x] 修正 Runtime 截图对视口平移和缩放的遗漏。
 
 ## Verification Results
 
@@ -69,6 +76,9 @@ bun run --cwd sample-projects/star-game-demo dev
 - 浏览器开发模式：开始、正确点击、三次错点失败、重开、八次正确点击获胜均通过；`runtime state` 返回胜利状态和 8 分。
 - 按用户范围约束，没有运行 Web 发布构建、微信或抖音构建。
 - E1–E3 各一次独立 Agent 试验：Scene 校验、编译、TypeScript 检查、最小相关测试及 Web/Runtime 验收全部通过；详细证据见 [Agent 游戏开发评测](../testing/AGENT_GAME_EVAL.md)。
+- 新建最小 Web 项目：Scene 校验、编译、TypeScript 检查通过；真实浏览器中 `runtime list/tree/state/input/screenshot` 可用，点击前后 `startPressed` 从 `false` 变为 `true`。
+- Runtime 截图修正：在有视口缩放的 Web 示例中，CLI PNG 与浏览器 Canvas 的游戏区域位置和尺寸一致。
+- 本轮 `bun run test`：26 个测试文件、321 项通过；核心包与脚手架包 TypeScript 检查通过。没有运行发布构建。
 
 ## Resume Protocol
 
@@ -86,15 +96,17 @@ Done:
 - 用户明确要求先只考虑 Web，构建以后再做；现有三端示例未改动。
 - 完成 Scene 校验、编译、类型检查、全量测试和浏览器完整玩法验收。
 - 完成 E1–E3 首轮独立 Agent 试验；三个结果留在独立 worktree 提交，没有合入样板基线。
+- 新建 Web 项目默认注册开发期 Runtime，并公开菜单的最小业务状态；修正截图忽略视口变换的问题。
 
 Current State:
 - 可在 `sample-projects/star-game-demo` 运行 Web 游戏。E1–E3 首轮各一次验收通过，但样本量不足以估计稳定完成率，耗时和修复轮次也未可靠采集。
 - 独立 worktree 共享 `node_modules` 时，Vite 默认配置加载受路径影响；首轮 Web 验收使用 `--configLoader runner`。后续评测应固定依赖布局和启动方式。
+- 新建项目可直接由 Runtime CLI 观察和操作；截图现在保留视口变换。Runtime 节点尚无 `.scene` 来源路径，输入命令仍只返回事件已分发。
 
 Currently Failing:
 - 无。
 
 Next:
-1. 固定可重复的 Web 评测环境，自动保存开始/结束时间、修复轮次、Runtime 状态、截图和最终 diff。
-2. 在相同基线下将 E1–E3 各重复到至少三次，再增加从空白 Web 项目创建完整游戏的任务。
-3. 根据重复失败证据选择下一项 Pixifact 能力改进。
+1. 为 Runtime 节点设计轻量 `.scene` 来源标记，先明确子 Scene 实例与重复实例的定位语义，再修改 Runtime v1 中“不返回 Scene 路径”的既有决策。
+2. 将“输入前状态、操作、输入后状态、截图、增量日志”整理成 Agent 可重复执行的 Web 验证流程，再根据实测定位困难决定是否扩展 CLI 返回值。
+3. 固定可重复的 Web 评测环境，自动保存开始/结束时间、修复轮次、Runtime 状态、截图和最终 diff；E1–E3 各重复到至少三次，并增加从空白 Web 项目创建完整游戏的任务。
