@@ -10,6 +10,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [release-v0.12.0.md](./release-v0.12.0.md) | Web Agent Runtime、Scene 来源定位和任意 Scene 截图的五包 `0.12.0` 发布 |
 | [playable-sample-agent-eval.md](./playable-sample-agent-eval.md) | Web 可玩样板游戏与固定 Agent 任务评测；首轮完成，统计复测待开展 |
 | [release-v0.11.2.md](./release-v0.11.2.md) | Editor 覆盖层拖拽修复的五包 `0.11.2` 发布 |
 | [release-v0.11.1.md](./release-v0.11.1.md) | Editor 布局节点编辑和画布拖拽修复的五包 `0.11.1` 发布 |

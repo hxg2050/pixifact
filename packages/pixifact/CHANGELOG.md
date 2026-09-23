@@ -1,5 +1,11 @@
 # pixifact
 
+## 0.12.0
+
+### Minor Changes
+
+- 为 Runtime 节点提供 `.scene` 来源与 locator，便于 Agent 从运行画面定位源文件；修正 Runtime 截图对游戏视口变换的处理。
+
 ## 0.11.2
 
 ## 0.11.1

@@ -1,5 +1,16 @@
 # pixifact-cli
 
+## 0.12.0
+
+### Minor Changes
+
+- 新增 `pixifact scene screenshot`，使用本机 Google Chrome 截取磁盘上任意 `.scene` 的静态预览，无需启动 Editor；Runtime tree/node 现在能显示编译节点的 `.scene` 来源。
+
+### Patch Changes
+
+- Updated dependencies
+  - pixifact@0.12.0
+
 ## 0.11.2
 
 ### Patch Changes

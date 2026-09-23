@@ -1,5 +1,11 @@
 # create-pixifact
 
+## 0.12.0
+
+### Minor Changes
+
+- 新建 Web 项目默认接入开发期 Agent Runtime，并在模板菜单中示范向 Agent 暴露可验证的业务状态。
+
 ## 0.11.2
 
 ## 0.11.1
