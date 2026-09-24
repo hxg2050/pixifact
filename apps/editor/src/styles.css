@@ -1,5 +1,5 @@
 :root {
-    color-scheme: light dark;
+    color-scheme: dark;
     color: var(--text);
     background: var(--bg);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
@@ -43,6 +43,10 @@
     --binding: light-dark(#1a649e, #8abdec);
     --overlay: light-dark(#20283885, #080b10b8);
     --shadow: 0 14px 32px light-dark(#2632482b, #06090c8c);
+}
+
+:root[data-theme='system'] {
+    color-scheme: light dark;
 }
 
 :root[data-theme='light'] {
@@ -960,8 +964,8 @@ summary:focus-visible,
     align-items: center;
     gap: 4px;
     width: calc(100% - 12px);
-    height: 30px;
-    margin: 1px 6px;
+    height: 28px;
+    margin: 0 6px;
     padding-top: 0;
     padding-right: 9px;
     padding-bottom: 0;
@@ -1070,8 +1074,8 @@ summary:focus-visible,
     align-items: center;
     gap: 5px;
     width: calc(100% - 12px);
-    height: 30px;
-    margin: 1px 6px;
+    height: 28px;
+    margin: 0 6px;
     padding: 0 12px;
     background: transparent;
     border-radius: 6px;

@@ -748,7 +748,7 @@ describe('Editor Vue UI', () => {
         expect(systemThemeButton).not.toBeNull();
         systemThemeButton!.click();
         await vi.waitFor(() => expect(theme).toBe('system'));
-        expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+        expect(document.documentElement.dataset.theme).toBe('system');
         autoSaveInput.click();
         await vi.waitFor(() => expect(autoSave).toBe(true));
         wrapper.unmount();

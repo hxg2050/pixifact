@@ -119,8 +119,8 @@ describe('Editor project service', () => {
         const restored = await json(await reloadedService.fetch(new Request('http://localhost/api/editor-ui-state')));
         const project = await json(await reloadedService.fetch(new Request('http://localhost/api/project')));
 
-        expect(initial).toEqual({ autoSave: false, theme: 'system' });
-        expect(existingState).toEqual({ autoSave: true, theme: 'system' });
+        expect(initial).toEqual({ autoSave: false, theme: 'dark' });
+        expect(existingState).toEqual({ autoSave: true, theme: 'dark' });
         expect(savedResponse.status).toBe(200);
         expect(restored).toEqual({
             assetTreeExpandedDirectories: ['assets', 'src/scenes'],

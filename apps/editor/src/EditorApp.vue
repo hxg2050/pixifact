@@ -47,7 +47,7 @@ const projectTree = ref<ProjectFileTreeNode>();
 const sceneInterfaces = ref<Record<string, SceneTemplateInterface>>({});
 const assetTreeExpandedDirectories = ref<string[]>();
 const autoSave = ref(false);
-const theme = ref<EditorUiState['theme']>('system');
+const theme = ref<EditorUiState['theme']>('dark');
 const document = ref<SceneDocument>();
 const sceneTabs = shallowRef<SceneTab[]>([]);
 const documentRevision = ref(0);
@@ -810,8 +810,7 @@ function changeTheme(nextTheme: EditorUiState['theme']) {
 }
 
 watch(theme, (nextTheme) => {
-    if (nextTheme === 'system') globalThis.document.documentElement.removeAttribute('data-theme');
-    else globalThis.document.documentElement.dataset.theme = nextTheme;
+    globalThis.document.documentElement.dataset.theme = nextTheme;
 }, { immediate: true });
 
 function scheduleEditorUiStateSave() {
@@ -855,7 +854,7 @@ function clearWorkspace() {
     conflict.value = undefined;
     assetTreeExpandedDirectories.value = undefined;
     autoSave.value = false;
-    theme.value = 'system';
+    theme.value = 'dark';
     projectTree.value = undefined;
     sceneInterfaces.value = {};
     currentScenePath.value = undefined;

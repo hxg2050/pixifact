@@ -202,7 +202,7 @@ function parseEditorUiState(value: unknown): EditorUiState {
     return {
         ...(directories === undefined ? {} : { assetTreeExpandedDirectories: directories }),
         autoSave: autoSave ?? false,
-        theme: theme ?? 'system',
+        theme: theme ?? 'dark',
         ...(openScenePaths === undefined ? {} : { openScenePaths }),
         ...(activeScenePath === undefined ? {} : { activeScenePath }),
     };
@@ -210,7 +210,7 @@ function parseEditorUiState(value: unknown): EditorUiState {
 
 function readEditorUiState(projectRoot: string): EditorUiState {
     const statePath = editorUiStatePath(projectRoot);
-    if (!fs.existsSync(statePath)) return { autoSave: false, theme: 'system' };
+    if (!fs.existsSync(statePath)) return { autoSave: false, theme: 'dark' };
     return parseEditorUiState(JSON.parse(fs.readFileSync(statePath, 'utf8')));
 }
 
