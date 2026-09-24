@@ -916,6 +916,57 @@ summary:focus-visible,
     text-align: left;
 }
 
+.hierarchy-context-menu {
+    z-index: 30;
+    min-width: 156px;
+    padding: 5px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel-raised);
+    box-shadow: var(--shadow);
+    color: var(--text);
+}
+
+.hierarchy-context-submenu {
+    min-width: 172px;
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
+}
+
+.hierarchy-context-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 27px;
+    padding: 0 9px;
+    border-radius: 6px;
+    outline: none;
+    font-size: 12px;
+    cursor: default;
+}
+
+.hierarchy-context-item[data-highlighted] {
+    background: var(--hover);
+}
+
+.hierarchy-context-item[data-disabled] {
+    color: var(--faint);
+}
+
+.hierarchy-context-label {
+    padding: 7px 9px 3px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.hierarchy-context-separator {
+    height: 1px;
+    margin: 5px 4px;
+    background: var(--soft-line);
+}
+
 .hierarchy-search {
     display: flex;
     align-items: center;

@@ -1,10 +1,23 @@
 <script setup lang="ts">
-import { Copy, Plus, Search, Trash2 } from 'lucide-vue-next';
+import { ChevronRight, Copy, Plus, Search, Trash2 } from 'lucide-vue-next';
 import {
     pixiSceneAddableNodeTypes,
     type PixiSceneNodeType,
+    type SceneTemplateNode,
 } from 'pixifact/compiler';
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue';
+import {
+    ContextMenuContent,
+    ContextMenuItem,
+    ContextMenuLabel,
+    ContextMenuPortal,
+    ContextMenuRoot,
+    ContextMenuSeparator,
+    ContextMenuSub,
+    ContextMenuSubContent,
+    ContextMenuSubTrigger,
+    ContextMenuTrigger,
+} from 'reka-ui';
 import HierarchyNode from '../components/HierarchyNode.vue';
 import type { SceneDocument } from '../document/SceneDocument';
 import {
@@ -33,6 +46,8 @@ const search = ref('');
 const addMenu = ref<HTMLDetailsElement>();
 const draggedLocator = ref<string>();
 const dropTarget = ref<SceneTreeDropTarget>();
+const copiedNode = shallowRef<SceneTemplateNode>();
+const contextTarget = ref<string>();
 const error = ref('');
 const entries = computed(() => {
     void props.revision;
@@ -65,6 +80,15 @@ const selectedEntry = computed(() => (
 ));
 const canDuplicate = computed(() => !!selectedEntry.value && selectedEntry.value.node.kind !== 'slotOutlet');
 const canDelete = computed(() => !!selectedEntry.value);
+const canPaste = computed(() => !!copiedNode.value);
+const contextEntry = computed(() => {
+    void props.revision;
+    return props.document && contextTarget.value
+        ? findSceneTreeEntry(props.document.template.children, contextTarget.value)
+        : undefined;
+});
+const canCopyContext = computed(() => !!contextEntry.value && contextEntry.value.node.kind !== 'slotOutlet');
+const canDeleteContext = computed(() => !!contextEntry.value);
 const isDragging = computed(() => !!draggedLocator.value || !!props.draggedAsset);
 const addGroups = [
     { label: '容器', types: ['Group', 'GridContainer', 'HBoxContainer', 'ScrollContainer', 'VBoxContainer', 'Container'] },
@@ -73,10 +97,14 @@ const addGroups = [
     { label: '图片', types: ['Image', 'NineImage', 'TileImage', 'Sprite', 'NineSliceSprite', 'TilingSprite'] },
 ] satisfies { label: string; types: PixiSceneNodeType[] }[];
 
-function insertionTarget() {
-    const entry = selectedEntry.value;
-    if (!entry) {
+function insertionTarget(locator?: string) {
+    if (locator === undefined) {
         return { parent: '__scene__', index: entries.value.length };
+    }
+    const entry = props.document && findSceneTreeEntry(props.document.template.children, locator);
+    if (!entry) {
+        error.value = '目标节点已变化，请重新操作';
+        return;
     }
     if (entry.acceptsChildren) {
         return { parent: entry.locator, index: entry.children.length };
@@ -84,10 +112,11 @@ function insertionTarget() {
     return { parent: entry.parentLocator, index: entry.index + 1 };
 }
 
-async function addNode(type: PixiSceneNodeType) {
+async function addNode(type: PixiSceneNodeType, locator?: string) {
     if (!props.document || !pixiSceneAddableNodeTypes.includes(type)) return;
     if (addMenu.value) addMenu.value.open = false;
-    const target = insertionTarget();
+    const target = insertionTarget(locator);
+    if (!target) return;
     await commit({
         op: 'insertNode',
         parent: target.parent,
@@ -107,9 +136,38 @@ async function copyNode() {
     });
 }
 
-async function deleteNode() {
-    if (!props.selected) return;
-    await commit({ op: 'deleteNode', node: props.selected });
+function copyToClipboard(locator: string) {
+    if (!props.document) return;
+    const entry = findSceneTreeEntry(props.document.template.children, locator);
+    if (entry?.node.kind === 'slotOutlet') return;
+    if (entry) copiedNode.value = structuredClone(entry.node);
+}
+
+async function pasteNode(locator?: string) {
+    if (!props.document || !copiedNode.value) return;
+    const target = insertionTarget(locator);
+    if (!target) return;
+    await commit({
+        op: 'insertNode',
+        parent: target.parent,
+        index: target.index,
+        node: duplicateSceneNode(props.document.template, copiedNode.value),
+    });
+}
+
+async function deleteNode(locator?: string) {
+    if (!locator) return;
+    await commit({ op: 'deleteNode', node: locator });
+}
+
+function prepareContextMenu(event: MouseEvent) {
+    const row = event.target instanceof Element ? event.target.closest<HTMLElement>('[data-locator]') : null;
+    if (!row) {
+        event.preventDefault();
+        return;
+    }
+    contextTarget.value = row.dataset.locator === '__scene__' ? undefined : row.dataset.locator;
+    emit('select', contextTarget.value);
 }
 
 function startDrag(locator: string) {
@@ -231,53 +289,81 @@ watch(() => props.draggedAsset, (asset) => {
         <div class="add-node-options">
           <div v-for="group in addGroups" :key="group.label" class="add-node-group">
             <span>{{ group.label }}</span>
-            <button v-for="type in group.types" :key="type" type="button" :aria-label="`添加 ${type}`" @click="addNode(type)">{{ type }}</button>
+            <button v-for="type in group.types" :key="type" type="button" :aria-label="`添加 ${type}`" @click="addNode(type, selected)">{{ type }}</button>
           </div>
         </div>
       </details>
       <button type="button" title="复制节点" aria-label="复制节点" :disabled="!canDuplicate" @click="copyNode">
         <Copy :size="14" />
       </button>
-      <button type="button" title="删除节点" aria-label="删除节点" :disabled="!canDelete" @click="deleteNode">
+      <button type="button" title="删除节点" aria-label="删除节点" :disabled="!canDelete" @click="deleteNode(selected)">
         <Trash2 :size="14" />
       </button>
     </div>
-    <button
-      class="tree-row scene-root"
-      :class="{
-        selected: selected === undefined,
-        'drop-inside': dropTarget?.locator === '__scene__',
-      }"
-      data-locator="__scene__"
-      type="button"
-      @click="emit('select', undefined)"
-      @pointermove.stop="isDragging && updateDropTarget({ parent: '__scene__', index: entries.length, locator: '__scene__', mode: 'inside' })"
-      @pointerup="draggedAsset && dropAsset({ parent: '__scene__', index: entries.length, locator: '__scene__', mode: 'inside' })"
-    >
-      <span class="tree-disclosure empty" />
-      <span class="scene-mark">S</span>
-      <span class="tree-label">{{ document.template.name }}</span>
-      <small>Scene</small>
-    </button>
-    <ul class="tree-list">
-      <HierarchyNode
-        v-for="entry in visibleEntries"
-        :key="entry.locator"
-        :entry="entry"
-        :level="0"
-        :asset-dragging="!!draggedAsset"
-        :drop-target="dropTarget"
-        :dragging="!!draggedLocator"
-        :searching="!!search.trim()"
-        :selected="selected"
-        @drag-over="updateDropTarget"
-        @drag-start="startDrag"
-        @asset-drop="dropAsset"
-        @open-scene="emit('openScene', $event)"
-        @select="emit('select', $event)"
-      />
-    </ul>
-    <p v-if="search.trim() && visibleEntries.length === 0" class="panel-empty compact">没有匹配的节点</p>
+    <ContextMenuRoot>
+      <ContextMenuTrigger as-child>
+        <div class="hierarchy-tree" @contextmenu.capture="prepareContextMenu">
+          <button
+            class="tree-row scene-root"
+            :class="{
+              selected: selected === undefined,
+              'drop-inside': dropTarget?.locator === '__scene__',
+            }"
+            data-locator="__scene__"
+            type="button"
+            @click="emit('select', undefined)"
+            @pointermove.stop="isDragging && updateDropTarget({ parent: '__scene__', index: entries.length, locator: '__scene__', mode: 'inside' })"
+            @pointerup="draggedAsset && dropAsset({ parent: '__scene__', index: entries.length, locator: '__scene__', mode: 'inside' })"
+          >
+            <span class="tree-disclosure empty" />
+            <span class="scene-mark">S</span>
+            <span class="tree-label">{{ document.template.name }}</span>
+            <small>Scene</small>
+          </button>
+          <ul class="tree-list">
+            <HierarchyNode
+              v-for="entry in visibleEntries"
+              :key="entry.locator"
+              :entry="entry"
+              :level="0"
+              :asset-dragging="!!draggedAsset"
+              :drop-target="dropTarget"
+              :dragging="!!draggedLocator"
+              :searching="!!search.trim()"
+              :selected="selected"
+              @drag-over="updateDropTarget"
+              @drag-start="startDrag"
+              @asset-drop="dropAsset"
+              @open-scene="emit('openScene', $event)"
+              @select="emit('select', $event)"
+            />
+          </ul>
+          <p v-if="search.trim() && visibleEntries.length === 0" class="panel-empty compact">没有匹配的节点</p>
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuPortal>
+        <ContextMenuContent class="hierarchy-context-menu" aria-label="节点操作" :collision-padding="8">
+          <ContextMenuSub>
+            <ContextMenuSubTrigger class="hierarchy-context-item">
+              添加
+              <ChevronRight :size="13" aria-hidden="true" />
+            </ContextMenuSubTrigger>
+            <ContextMenuPortal>
+              <ContextMenuSubContent class="hierarchy-context-menu hierarchy-context-submenu" aria-label="添加节点" :side-offset="4" :collision-padding="8">
+                <template v-for="group in addGroups" :key="group.label">
+                  <ContextMenuLabel class="hierarchy-context-label">{{ group.label }}</ContextMenuLabel>
+                  <ContextMenuItem v-for="type in group.types" :key="type" class="hierarchy-context-item" @select="addNode(type, contextTarget)">{{ type }}</ContextMenuItem>
+                </template>
+              </ContextMenuSubContent>
+            </ContextMenuPortal>
+          </ContextMenuSub>
+          <ContextMenuItem class="hierarchy-context-item" :disabled="!canCopyContext" @select="contextTarget && copyToClipboard(contextTarget)">复制</ContextMenuItem>
+          <ContextMenuItem class="hierarchy-context-item" :disabled="!canPaste" @select="pasteNode(contextTarget)">粘贴</ContextMenuItem>
+          <ContextMenuSeparator class="hierarchy-context-separator" />
+          <ContextMenuItem class="hierarchy-context-item" :disabled="!canDeleteContext" @select="deleteNode(contextTarget)">删除</ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenuPortal>
+    </ContextMenuRoot>
     <p v-if="error" class="inline-error">{{ error }}</p>
   </div>
   <div v-else class="panel-empty">项目中没有可打开的 Scene</div>
