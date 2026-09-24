@@ -266,10 +266,44 @@ export function createSceneAssetNode(
 }
 
 export function duplicateSceneNode(template: SceneTemplate, node: SceneTemplateNode) {
-    const copy = structuredClone(node) as SceneTemplateNode;
+    return duplicateSceneNodes(template, [node])[0];
+}
+
+export function duplicateSceneNodes(template: SceneTemplate, nodes: readonly SceneTemplateNode[]) {
     const ids = collectSceneNodeIds(template.children);
-    assignUniqueCopyIds(copy, ids, true);
-    return copy;
+    return nodes.map((node) => {
+        const copy = structuredClone(node) as SceneTemplateNode;
+        assignUniqueCopyIds(copy, ids, true);
+        return copy;
+    });
+}
+
+export function selectedSceneTreeRoots(nodes: readonly SceneTemplateNode[], locators: readonly string[]) {
+    const selected = new Set(locators);
+    const roots: SceneTreeEntry[] = [];
+    const visit = (entries: readonly SceneTreeEntry[], ancestorSelected: boolean) => {
+        for (const entry of entries) {
+            const isSelected = selected.has(entry.locator);
+            if (isSelected && !ancestorSelected) roots.push(entry);
+            visit(entry.children, ancestorSelected || isSelected);
+        }
+    };
+    visit(sceneTreeEntries(nodes), false);
+    return roots;
+}
+
+export function sceneTreeLocatorsForIds(nodes: readonly SceneTemplateNode[], ids: ReadonlySet<string>) {
+    const locators: string[] = [];
+    const visit = (entries: readonly SceneTreeEntry[]) => {
+        for (const entry of entries) {
+            if (entry.node.kind !== 'slotOutlet' && entry.node.id && ids.has(entry.node.id)) {
+                locators.push(entry.locator);
+            }
+            visit(entry.children);
+        }
+    };
+    visit(sceneTreeEntries(nodes));
+    return locators;
 }
 
 function collectSceneNodeIds(nodes: readonly SceneTemplateNode[]) {

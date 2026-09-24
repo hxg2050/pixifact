@@ -11,6 +11,7 @@ import {
     pixiSceneTransformProps,
     resolveSceneReference,
     type PixiSceneFieldType,
+    type CompilerSceneCommand,
     type SceneTemplateBindingValue,
     type SceneTemplateInterface,
     type SceneTemplatePropContract,
@@ -26,6 +27,7 @@ interface InspectorField {
     explicit: boolean;
     key: string;
     layoutControlled: boolean;
+    mixed?: boolean;
     options?: readonly (string | number)[];
     resource?: 'image';
     type: PixiSceneFieldType;
@@ -86,6 +88,7 @@ const props = defineProps<{
     revision: number;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
     selected?: string;
+    selections: string[];
 }>();
 const emit = defineEmits<{
     assetDrop: [];
@@ -93,6 +96,7 @@ const emit = defineEmits<{
 }>();
 
 const drafts = reactive<Record<string, string | number | boolean>>({});
+const changedFields = new Set<string>();
 const nodeIdDraft = ref('');
 const nodeIdError = ref('');
 const error = reactive({ message: '' });
@@ -102,14 +106,26 @@ const selectedNode = computed(() => {
         ? findSceneNodeByLocator(props.document.template.children, props.selected)
         : undefined;
 });
+const selectedNodes = computed(() => {
+    void props.revision;
+    return props.document
+        ? props.selections.flatMap((locator) => {
+            const node = findSceneNodeByLocator(props.document!.template.children, locator);
+            return node ? [{ locator, node }] : [];
+        })
+        : [];
+});
+const isMulti = computed(() => selectedNodes.value.length > 1);
 const selectedTitle = computed(() => {
     if (!props.document) return '未打开 Scene';
+    if (isMulti.value) return `${selectedNodes.value.length} 个节点`;
     if (!selectedNode.value) return props.document.template.name;
     const node = selectedNode.value;
     if (node.kind === 'slotOutlet') return `Slot · ${node.name}`;
     return node.id || (node.kind === 'sceneInstance' ? node.type : node.type);
 });
 const selectedType = computed(() => {
+    if (isMulti.value) return '多选';
     const node = selectedNode.value;
     if (!node) return 'Scene';
     if (node.kind === 'slotOutlet') return 'Slot';
@@ -117,7 +133,7 @@ const selectedType = computed(() => {
 });
 const layoutControlNote = computed(() => {
     const node = selectedNode.value;
-    if (!node || node.kind === 'slotOutlet') return '';
+    if (!node || node.kind === 'slotOutlet' || isMulti.value) return '';
     const values = node.props;
     const horizontal = ['left', 'right', 'horizontal'].filter((key) => values[key] !== undefined);
     const vertical = ['top', 'bottom', 'vertical'].filter((key) => values[key] !== undefined);
@@ -161,9 +177,7 @@ const commonDefaults: Record<string, string | number | boolean> = {
     label: '',
 };
 
-const fields = computed<InspectorField[]>(() => {
-    void props.revision;
-    const node = selectedNode.value;
+function fieldsForNode(node: ReturnType<typeof findSceneNodeByLocator>, sceneInterface?: SceneTemplateInterface): InspectorField[] {
     if (!node || node.kind === 'slotOutlet') {
         return [];
     }
@@ -181,11 +195,11 @@ const fields = computed<InspectorField[]>(() => {
             ...pixiSceneTransformProps,
             ...pixiSceneLayoutProps,
             ...pixiSceneDisplayProps,
-            ...Object.keys(selectedInterface.value?.props ?? {}),
+            ...Object.keys(sceneInterface?.props ?? {}),
             ...Object.keys(node.props),
         ])];
     return keys.flatMap((key) => {
-        const contract = selectedInterface.value?.props[key];
+        const contract = sceneInterface?.props[key];
         const pixiSchema = contract ? undefined : pixiSceneFieldSchema(key);
         const schema = contract ? scenePropSchema(contract) : pixiSchema;
         const explicitValue = node.props[key];
@@ -206,6 +220,36 @@ const fields = computed<InspectorField[]>(() => {
             type: schema.type,
             options: schema.options,
             value: displayValue,
+        }];
+    });
+}
+
+const fields = computed<InspectorField[]>(() => {
+    void props.revision;
+    const node = selectedNode.value;
+    if (!node) return [];
+    const first = fieldsForNode(node, selectedInterface.value);
+    if (!isMulti.value) return first;
+    const others = selectedNodes.value
+        .filter(({ locator }) => locator !== props.selected)
+        .map(({ node: other }) => new Map(fieldsForNode(other,
+            other.kind === 'sceneInstance' && props.document
+                ? props.sceneInterfaces?.[resolveSceneReference(props.document.path, other.scene)]
+                : undefined,
+        ).map((field) => [field.key, field])));
+    return first.flatMap((field) => {
+        if (field.binding || field.layoutControlled) return [];
+        const matches = others.map((other) => other.get(field.key));
+        if (matches.some((match) => !match
+            || match.type !== field.type
+            || match.resource !== field.resource
+            || match.binding
+            || match.layoutControlled
+            || JSON.stringify(match.options) !== JSON.stringify(field.options))) return [];
+        return [{
+            ...field,
+            explicit: field.explicit || matches.some((match) => match!.explicit),
+            mixed: matches.some((match) => match!.value !== field.value),
         }];
     });
 });
@@ -314,8 +358,9 @@ watch([() => props.selected, () => props.revision, fields], () => {
     for (const key of Object.keys(drafts)) {
         delete drafts[key];
     }
+    changedFields.clear();
     for (const field of fields.value) {
-        drafts[field.key] = fieldDraftValue(field, field.value);
+        drafts[field.key] = field.mixed ? '' : fieldDraftValue(field, field.value);
     }
     const node = selectedNode.value;
     nodeIdDraft.value = node && node.kind !== 'slotOutlet' ? node.id ?? '' : '';
@@ -342,8 +387,12 @@ function fieldValue(field: InspectorField): InspectorField['value'] {
 }
 
 function preview(field: InspectorField) {
-    if (!props.document || !props.selected || field.resource || field.layoutControlled) return;
-    props.document.previewNodeProp(props.selected, field.key, fieldValue(field));
+    changedFields.add(field.key);
+    if (!props.document || field.resource || field.layoutControlled || (field.type === 'number' && drafts[field.key] === '')) return;
+    if (field.type === 'color' && !Number.isFinite(fieldValue(field))) return;
+    for (const { locator } of selectedNodes.value) {
+        props.document.previewNodeProp(locator, field.key, fieldValue(field));
+    }
 }
 
 function locateAsset(field: InspectorField) {
@@ -354,7 +403,7 @@ function locateAsset(field: InspectorField) {
 async function commitNodeId() {
     const node = selectedNode.value;
     const locator = props.selected;
-    if (!props.document || !locator || !node || node.kind === 'slotOutlet') return;
+    if (!props.document || !locator || !node || node.kind === 'slotOutlet' || isMulti.value) return;
     const value = nodeIdDraft.value.trim();
     nodeIdError.value = '';
     if (value === (node.id ?? '')) {
@@ -385,28 +434,44 @@ async function commitNodeIdAndBlur(input: HTMLInputElement) {
 }
 
 async function commit(field: InspectorField) {
-    if (!props.document || !props.selected || field.layoutControlled) return;
+    if (!props.document || selectedNodes.value.length === 0 || field.layoutControlled) return;
+    if (isMulti.value && !changedFields.has(field.key)) return;
     error.message = '';
     const value = fieldValue(field);
+    if (field.type === 'number' && (drafts[field.key] === '' || !Number.isFinite(value))) return;
+    if (field.type === 'color' && !Number.isFinite(value)) return;
     try {
-        const save = props.document.commitNodeProp(props.selected, field.key, value);
+        const save = commitSelectedProp(field.key, value);
         await nextTick();
         drafts[field.key] = fieldDraftValue(field, value);
         await save;
+        changedFields.delete(field.key);
     } catch (cause) {
         error.message = cause instanceof Error ? cause.message : String(cause);
     }
 }
 
 async function reset(field: InspectorField) {
-    if (!props.document || !props.selected) return;
+    if (!props.document || selectedNodes.value.length === 0) return;
     error.message = '';
     try {
-        props.document.previewNodeProp(props.selected, field.key, undefined);
-        await props.document.commitNodeProp(props.selected, field.key, undefined);
+        for (const { locator } of selectedNodes.value) props.document.previewNodeProp(locator, field.key, undefined);
+        await commitSelectedProp(field.key, undefined);
     } catch (cause) {
         error.message = cause instanceof Error ? cause.message : String(cause);
     }
+}
+
+function commitSelectedProp(key: string, value?: SceneTemplateValue) {
+    const document = props.document!;
+    if (!isMulti.value) return document.commitNodeProp(props.selected!, key, value);
+    const commands: CompilerSceneCommand[] = selectedNodes.value.flatMap(({ locator, node }) => (
+        node.kind !== 'slotOutlet' && node.props[key] !== value
+            ? [{ op: 'setNodeProp', node: locator, prop: key, value }]
+            : []
+    ));
+    if (commands.length === 0) return Promise.resolve();
+    return document.commitCommand({ op: 'batch', commands });
 }
 
 async function unbind(field: InspectorField) {
@@ -427,11 +492,11 @@ function canDropImage(field: InspectorField) {
 
 async function dropAsset(field: InspectorField) {
     const asset = props.draggedAsset;
-    if (!props.document || !props.selected || !asset || asset.kind !== 'image' || !canDropImage(field)) return;
+    if (!props.document || selectedNodes.value.length === 0 || !asset || asset.kind !== 'image' || !canDropImage(field)) return;
     emit('assetDrop');
     error.message = '';
     try {
-        const save = props.document.commitNodeProp(props.selected, field.key, asset.path);
+        const save = commitSelectedProp(field.key, asset.path);
         await nextTick();
         drafts[field.key] = asset.path;
         await save;
@@ -446,14 +511,15 @@ async function dropAsset(field: InspectorField) {
     <header class="inspector-heading">
       <div>
         <strong>{{ selectedTitle }}</strong>
-        <small>{{ selectedType }}<template v-if="selected"> · {{ selected }}</template></small>
+        <small>{{ selectedType }}<template v-if="selected && !isMulti"> · {{ selected }}</template></small>
       </div>
     </header>
 
     <div v-if="!selectedNode" class="panel-empty compact">选择一个节点以编辑属性</div>
+    <div v-else-if="isMulti && fields.length === 0" class="panel-empty compact">所选节点没有共有的可编辑属性</div>
     <div v-else-if="selectedNode.kind === 'slotOutlet'" class="panel-empty compact">Slot 内容通过层级树编辑</div>
     <div v-else class="inspector-fields">
-      <section class="inspector-section" data-inspector-section="identity">
+      <section v-if="!isMulti" class="inspector-section" data-inspector-section="identity">
         <div class="inspector-section-title">节点</div>
         <div class="property-row">
           <label class="property-field">
@@ -517,6 +583,7 @@ async function dropAsset(field: InspectorField) {
                   v-model="drafts[field.key]"
                   :disabled="!!field.binding || field.layoutControlled"
                   :title="field.layoutControlled ? '由布局属性控制，请修改布局字段' : undefined"
+                  :placeholder="field.mixed ? '混合值' : undefined"
                   type="number"
                   step="any"
                   @input="preview(field)"
@@ -529,7 +596,8 @@ async function dropAsset(field: InspectorField) {
                   :data-prop="field.key"
                   v-model="drafts[field.key]"
                   :disabled="!!field.binding || field.layoutControlled"
-                  type="color"
+                  :type="field.mixed ? 'text' : 'color'"
+                  :placeholder="field.mixed ? '混合值（#RRGGBB）' : undefined"
                   @input="preview(field)"
                   @change="commit(field)"
                   @blur="commit(field)"
@@ -540,6 +608,7 @@ async function dropAsset(field: InspectorField) {
                   v-model="drafts[field.key]"
                   :disabled="!!field.binding || field.layoutControlled"
                   type="checkbox"
+                  :indeterminate="field.mixed && !changedFields.has(field.key)"
                   @change="preview(field); commit(field)"
                 >
                 <select
@@ -549,6 +618,7 @@ async function dropAsset(field: InspectorField) {
                   :disabled="!!field.binding || field.layoutControlled"
                   @change="preview(field); commit(field)"
                 >
+                  <option v-if="field.mixed && !changedFields.has(field.key)" value="" disabled>混合值</option>
                   <option v-for="option in field.options" :key="option" :value="option">{{ option }}</option>
                 </select>
                 <input
@@ -558,6 +628,7 @@ async function dropAsset(field: InspectorField) {
                   :disabled="!!field.binding || field.layoutControlled"
                   :class="{ 'resource-reference': field.resource === 'image' && typeof field.value === 'string' && !!field.value }"
                   :title="field.resource === 'image' && typeof field.value === 'string' && field.value ? '点击定位素材' : undefined"
+                  :placeholder="field.mixed ? '混合值' : undefined"
                   type="text"
                   @click="locateAsset(field)"
                   @input="preview(field)"

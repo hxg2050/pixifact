@@ -10,14 +10,14 @@ const props = defineProps<{
     dropTarget?: SceneTreeDropTarget;
     dragging?: boolean;
     searching?: boolean;
-    selected?: string;
+    selections: string[];
 }>();
 const emit = defineEmits<{
     dragOver: [target: SceneTreeDropTarget];
     dragStart: [locator: string];
     assetDrop: [target: SceneTreeDropTarget];
     openScene: [reference: string];
-    select: [locator: string];
+    select: [locator: string, event: MouseEvent];
 }>();
 const expanded = ref(true);
 const hasChildren = computed(() => props.entry.children.length > 0);
@@ -58,7 +58,7 @@ function calculateDropTarget(event: Pick<PointerEvent, 'clientY' | 'currentTarge
 }
 
 function handlePointerDown(event: PointerEvent) {
-    if (event.button !== 0 || props.assetDragging || props.searching) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || props.assetDragging || props.searching) return;
     emit('dragStart', props.entry.locator);
 }
 
@@ -78,7 +78,7 @@ function handleAssetDrop(event: PointerEvent) {
     <button
       class="tree-row"
       :class="{
-        selected: selected === entry.locator,
+        selected: selections.includes(entry.locator),
         'drop-before': props.dropTarget?.locator === entry.locator && props.dropTarget.mode === 'before',
         'drop-inside': props.dropTarget?.locator === entry.locator && props.dropTarget.mode === 'inside',
         'drop-after': props.dropTarget?.locator === entry.locator && props.dropTarget.mode === 'after',
@@ -86,7 +86,7 @@ function handleAssetDrop(event: PointerEvent) {
       :data-locator="entry.locator"
       :style="{ paddingLeft: `${8 + level * 16}px` }"
       type="button"
-      @click="emit('select', entry.locator)"
+      @click="emit('select', entry.locator, $event)"
       @dblclick="entry.node.kind === 'sceneInstance' && emit('openScene', entry.node.scene)"
       @pointerdown="handlePointerDown"
       @pointermove.stop="handlePointerMove"
@@ -115,12 +115,12 @@ function handleAssetDrop(event: PointerEvent) {
         :drop-target="props.dropTarget"
         :dragging="props.dragging"
         :searching="props.searching"
-        :selected="selected"
+        :selections="selections"
         @drag-over="emit('dragOver', $event)"
         @drag-start="emit('dragStart', $event)"
         @asset-drop="emit('assetDrop', $event)"
         @open-scene="emit('openScene', $event)"
-        @select="emit('select', $event)"
+        @select="(locator, event) => emit('select', locator, event)"
       />
     </ul>
   </li>

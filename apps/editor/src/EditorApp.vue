@@ -15,9 +15,9 @@ import SceneCanvas from './preview/SceneCanvas.vue';
 import type { SceneCanvasView } from './preview/sceneCanvasGeometry';
 import { SceneDocument } from './document/SceneDocument';
 import {
-    duplicateSceneNode,
     findSceneTreeEntry,
     remapSceneSelection,
+    sceneTreeLocatorsForIds,
     type EditorSceneAsset,
 } from './document/sceneTree';
 import {
@@ -41,7 +41,7 @@ import type { ProjectFileTreeNode } from './services/projectFileTree';
 import { useEditorUiStore } from './stores/editorUi';
 
 const ui = useEditorUiStore();
-const { currentScenePath, selectedLocator, syncState } = storeToRefs(ui);
+const { currentScenePath, selectedLocator, selectedLocators, syncState } = storeToRefs(ui);
 const project = ref<EditorProject>();
 const projectTree = ref<ProjectFileTreeNode>();
 const sceneInterfaces = ref<Record<string, SceneTemplateInterface>>({});
@@ -67,6 +67,10 @@ const standbyScenePath = ref<string>();
 const takeoverPending = ref(false);
 const hierarchyPanel = ref<{
     cancelCurrentDrag?: () => boolean;
+    copySelection?: () => void;
+    duplicateSelection?: () => void;
+    deleteSelection?: () => void;
+    pasteSelection?: () => void;
 }>();
 const sceneCanvas = ref<{
     cancelCurrentInteraction?: () => boolean;
@@ -111,6 +115,7 @@ interface SceneTab {
     path: string;
     document: SceneDocument;
     selectedLocator?: string;
+    selectedLocators: string[];
     view?: SceneCanvasView;
     syncState: SceneDocument['syncState'];
     pendingExternalReload: boolean;
@@ -184,6 +189,22 @@ function tabFor(path: string) {
     return sceneTabs.value.find((tab) => tab.path === path);
 }
 
+function selectNodes(locators: string[], primary = locators.at(-1)) {
+    selectedLocators.value = [...new Set(locators)];
+    selectedLocator.value = primary && selectedLocators.value.includes(primary)
+        ? primary
+        : selectedLocators.value.at(-1);
+}
+
+function remapTabSelection(tab: SceneTab, next: SceneDocument) {
+    const selections = [...new Set(tab.selectedLocators.flatMap((locator) => {
+        const mapped = remapSceneSelection(tab.document.template, next.template, locator);
+        return mapped ? [mapped] : [];
+    }))];
+    const primary = remapSceneSelection(tab.document.template, next.template, tab.selectedLocator);
+    return { selections, primary: primary && selections.includes(primary) ? primary : selections.at(-1) };
+}
+
 function subscribeTab(tab: SceneTab) {
     tab.unsubscribe = tab.document.subscribe((event) => {
         if (event.type === 'syncStateChanged') {
@@ -195,21 +216,41 @@ function subscribeTab(tab: SceneTab) {
             if (event.state === 'synced' && tab.pendingExternalReload) void reloadPendingTab(tab);
         }
         if (event.type === 'commandApplied') {
-            tab.selectedLocator = event.selection?.type === 'node'
-                ? event.selection.node
-                : undefined;
+            const retained = tab.selectedLocators.filter((locator) => !!findSceneTreeEntry(tab.document.template.children, locator));
+            const inserted = event.command.op === 'batch' && event.command.commands.every((child) => child.op === 'insertNode')
+                ? sceneTreeLocatorsForIds(tab.document.template.children,
+                    new Set(event.command.commands.flatMap((child) => child.op === 'insertNode' && child.node.kind !== 'slotOutlet' && child.node.id ? [child.node.id] : [])))
+                : [];
+            const propertyEdit = event.command.op === 'setNodeProp'
+                || (event.command.op === 'batch' && event.command.commands.every((child) => child.op === 'setNodeProp'));
+            const deleted = event.command.op === 'batch' && event.command.commands.every((child) => child.op === 'deleteNode');
+            if (inserted.length > 0) {
+                tab.selectedLocators = inserted;
+            } else if (propertyEdit) {
+                tab.selectedLocators = retained;
+            } else if (!deleted && event.selection?.type === 'node'
+                && findSceneTreeEntry(tab.document.template.children, event.selection.node)) {
+                tab.selectedLocators = [event.selection.node];
+            } else {
+                tab.selectedLocators = [];
+            }
+            tab.selectedLocator = tab.selectedLocators.includes(tab.selectedLocator ?? '')
+                ? tab.selectedLocator
+                : tab.selectedLocators.at(-1);
             if (currentScenePath.value === tab.path) {
                 documentRevision.value += 1;
+                selectedLocators.value = [...tab.selectedLocators];
                 selectedLocator.value = tab.selectedLocator;
             }
         }
     });
 }
 
-function replaceTabDocument(tab: SceneTab, next: SceneDocument, selection?: string) {
+function replaceTabDocument(tab: SceneTab, next: SceneDocument, selection?: string, selections = selection ? [selection] : []) {
     tab.unsubscribe();
     tab.document = markRaw(next);
     tab.selectedLocator = selection;
+    tab.selectedLocators = selections;
     tab.syncState = next.syncState;
     tab.pendingExternalReload = false;
     subscribeTab(tab);
@@ -218,6 +259,7 @@ function replaceTabDocument(tab: SceneTab, next: SceneDocument, selection?: stri
         previewState.value = 'loading';
         document.value = tab.document;
         selectedLocator.value = selection;
+        selectedLocators.value = [...selections];
         syncState.value = next.syncState;
         documentRevision.value += 1;
     }
@@ -228,12 +270,14 @@ async function activateTab(tab: SceneTab) {
     const previous = currentScenePath.value && tabFor(currentScenePath.value);
     if (previous) {
         previous.selectedLocator = selectedLocator.value;
+        previous.selectedLocators = [...selectedLocators.value];
         previous.view = sceneCanvas.value?.captureView?.() ?? previous.view;
     }
     previewState.value = 'loading';
     document.value = tab.document;
     currentScenePath.value = tab.path;
     selectedLocator.value = tab.selectedLocator;
+    selectedLocators.value = [...tab.selectedLocators];
     syncState.value = tab.syncState;
     documentRevision.value += 1;
     scheduleEditorUiStateSave();
@@ -258,6 +302,7 @@ async function openScene(path: string, selection?: string) {
                 path,
                 document: markRaw(next!),
                 selectedLocator: selection,
+                selectedLocators: selection ? [selection] : [],
                 syncState: next!.syncState,
                 pendingExternalReload: false,
                 unsubscribe: () => {},
@@ -379,8 +424,8 @@ async function applyProjectChanges(paths: readonly string[], generation: number)
     }
     for (const { tab, previous, latest } of reloadedTabs) {
         if (!latest || tab.document !== previous || !sceneTabs.value.includes(tab)) continue;
-        const selection = remapSceneSelection(previous.template, latest.template, tab.selectedLocator);
-        replaceTabDocument(tab, latest, selection);
+        const { selections, primary } = remapTabSelection(tab, latest);
+        replaceTabDocument(tab, latest, primary, selections);
     }
     error.value = '';
 }
@@ -392,8 +437,8 @@ async function reloadPendingTab(tab: SceneTab) {
         if (tabFor(tab.path) !== tab || tab.document !== previous || previous.syncState !== 'synced') return;
         tab.pendingExternalReload = false;
         if (latest) {
-            const selection = remapSceneSelection(previous.template, latest.template, tab.selectedLocator);
-            replaceTabDocument(tab, latest, selection);
+            const { selections, primary } = remapTabSelection(tab, latest);
+            replaceTabDocument(tab, latest, primary, selections);
         }
     } catch (cause) {
         error.value = cause instanceof Error ? cause.message : String(cause);
@@ -449,10 +494,13 @@ function publishEditorContext() {
     });
 }
 
-watch([document, documentRevision, selectedLocator, syncState, previewState, sceneTabs], publishEditorContext, { flush: 'post' });
-watch(selectedLocator, (selection) => {
+watch([document, documentRevision, selectedLocator, selectedLocators, syncState, previewState, sceneTabs], publishEditorContext, { flush: 'post' });
+watch([selectedLocator, selectedLocators], ([selection, selections]) => {
     const tab = currentScenePath.value && tabFor(currentScenePath.value);
-    if (tab) tab.selectedLocator = selection;
+    if (tab) {
+        tab.selectedLocator = selection;
+        tab.selectedLocators = [...selections];
+    }
 });
 watch([closingPath, conflict], async () => {
     await nextTick();
@@ -523,15 +571,15 @@ async function refreshEditor() {
             current.reloadIfChanged(),
         ]);
         if (document.value !== current || current.syncState !== 'synced') return;
-        const selection = latest
-            ? remapSceneSelection(current.template, latest.template, selectedLocator.value)
-            : selectedLocator.value;
         project.value = nextProject;
         projectTree.value = createEditorProjectTree(nextProject);
         sceneInterfaces.value = nextSceneInterfaces;
         if (latest) {
             const tab = tabFor(current.path);
-            if (tab && tab.document === current) replaceTabDocument(tab, latest, selection);
+            if (tab && tab.document === current) {
+                const { selections, primary } = remapTabSelection(tab, latest);
+                replaceTabDocument(tab, latest, primary, selections);
+            }
         }
     } catch (cause) {
         error.value = cause instanceof Error ? cause.message : String(cause);
@@ -618,7 +666,8 @@ async function discardConflictedDraft() {
     try {
         const latest = await SceneDocument.open(tab.path, editorSceneFileApi, { autoSave: autoSave.value });
         if (tabFor(tab.path) !== tab) return;
-        replaceTabDocument(tab, latest, remapSceneSelection(tab.document.template, latest.template, tab.selectedLocator));
+        const { selections, primary } = remapTabSelection(tab, latest);
+        replaceTabDocument(tab, latest, primary, selections);
         conflict.value = undefined;
     } catch (cause) {
         error.value = cause instanceof Error ? cause.message : String(cause);
@@ -644,6 +693,7 @@ function finishCloseTab(tab: SceneTab) {
             document.value = undefined;
             currentScenePath.value = undefined;
             selectedLocator.value = undefined;
+            selectedLocators.value = [];
             syncState.value = 'synced';
             previewState.value = 'loading';
             sessionConnection?.clearContext();
@@ -689,43 +739,13 @@ function eventTargetsEditableControl(event: KeyboardEvent) {
     );
 }
 
-async function commitShortcutCommand(command: Parameters<SceneDocument['commitCommand']>[0]) {
-    const current = document.value;
-    if (!current) return;
-    error.value = '';
-    try {
-        await current.commitCommand(command);
-    } catch (cause) {
-        error.value = cause instanceof Error ? cause.message : String(cause);
-    }
-}
-
-function duplicateSelection() {
-    const current = document.value;
-    const selection = selectedLocator.value;
-    if (!current || !selection) return;
-    const entry = findSceneTreeEntry(current.template.children, selection);
-    if (!entry || entry.node.kind === 'slotOutlet') return;
-    void commitShortcutCommand({
-        op: 'insertNode',
-        parent: entry.parentLocator,
-        index: entry.index + 1,
-        node: duplicateSceneNode(current.template, entry.node),
-    });
-}
-
-function deleteSelection() {
-    if (!selectedLocator.value) return;
-    void commitShortcutCommand({ op: 'deleteNode', node: selectedLocator.value });
-}
-
 function cancelEditorInteraction() {
     const canceledAssetDrag = !!draggedAsset.value;
     const canceledHierarchyDrag = hierarchyPanel.value?.cancelCurrentDrag?.() ?? false;
     const canceledCanvasInteraction = sceneCanvas.value?.cancelCurrentInteraction?.() ?? false;
     endAssetDrag();
     if (!canceledAssetDrag && !canceledHierarchyDrag && !canceledCanvasInteraction) {
-        selectedLocator.value = undefined;
+        selectNodes([]);
     }
 }
 
@@ -760,12 +780,22 @@ function handleEditorKeyDown(event: KeyboardEvent) {
     }
     if (commandKey && !event.shiftKey && event.code === 'KeyD') {
         event.preventDefault();
-        duplicateSelection();
+        hierarchyPanel.value?.duplicateSelection?.();
+        return;
+    }
+    if (commandKey && !event.shiftKey && event.code === 'KeyC') {
+        event.preventDefault();
+        hierarchyPanel.value?.copySelection?.();
+        return;
+    }
+    if (commandKey && !event.shiftKey && event.code === 'KeyV') {
+        event.preventDefault();
+        hierarchyPanel.value?.pasteSelection?.();
         return;
     }
     if (!commandKey && !event.shiftKey && (event.code === 'Delete' || event.code === 'Backspace')) {
         event.preventDefault();
-        deleteSelection();
+        hierarchyPanel.value?.deleteSelection?.();
         return;
     }
     if (!commandKey && !event.shiftKey && event.code === 'Escape') {
@@ -859,6 +889,7 @@ function clearWorkspace() {
     sceneInterfaces.value = {};
     currentScenePath.value = undefined;
     selectedLocator.value = undefined;
+    selectedLocators.value = [];
     syncState.value = 'synced';
     documentRevision.value += 1;
     draggedAsset.value = undefined;
@@ -1214,7 +1245,8 @@ onBeforeUnmount(() => {
             :dragged-asset="draggedAsset"
             :revision="documentRevision"
             :selected="selectedLocator"
-            @select="selectedLocator = $event"
+            :selections="selectedLocators"
+            @select="selectNodes($event.locators, $event.primary)"
             @open-scene="navigateToSceneReference"
             @asset-drop="endAssetDrag"
           />
@@ -1244,7 +1276,8 @@ onBeforeUnmount(() => {
           :project-tree="projectTree"
           :scene-interfaces="sceneInterfaces"
           :selected="selectedLocator"
-          @select="selectedLocator = $event"
+          :selections="selectedLocators"
+          @select="selectNodes($event.locators, $event.primary)"
           @open-scene="navigateToSceneReference"
           @asset-drop="endAssetDrag"
           @preview-state="previewState = $event"
@@ -1292,6 +1325,7 @@ onBeforeUnmount(() => {
           :revision="documentRevision"
           :scene-interfaces="sceneInterfaces"
           :selected="selectedLocator"
+          :selections="selectedLocators"
           @asset-drop="endAssetDrag"
           @locate-asset="locateAsset"
         />

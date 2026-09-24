@@ -23,9 +23,10 @@ import type { SceneDocument } from '../document/SceneDocument';
 import {
     createPixiSceneNode,
     createSceneAssetNode,
-    duplicateSceneNode,
+    duplicateSceneNodes,
     findSceneTreeEntry,
     sceneTreeEntries,
+    selectedSceneTreeRoots,
     type SceneTreeDropTarget,
     type SceneTreeEntry,
     type EditorSceneAsset,
@@ -36,17 +37,18 @@ const props = defineProps<{
     draggedAsset?: EditorSceneAsset;
     revision: number;
     selected?: string;
+    selections: string[];
 }>();
 const emit = defineEmits<{
     assetDrop: [];
     openScene: [reference: string];
-    select: [locator?: string];
+    select: [selection: { locators: string[]; primary?: string }];
 }>();
 const search = ref('');
 const addMenu = ref<HTMLDetailsElement>();
 const draggedLocator = ref<string>();
 const dropTarget = ref<SceneTreeDropTarget>();
-const copiedNode = shallowRef<SceneTemplateNode>();
+const copiedNodes = shallowRef<SceneTemplateNode[]>([]);
 const contextTarget = ref<string>();
 const error = ref('');
 const entries = computed(() => {
@@ -73,22 +75,14 @@ const visibleEntries = computed(() => {
         return match ? [match] : [];
     });
 });
-const selectedEntry = computed(() => (
-    props.document && props.selected
-        ? findSceneTreeEntry(props.document.template.children, props.selected)
-        : undefined
-));
-const canDuplicate = computed(() => !!selectedEntry.value && selectedEntry.value.node.kind !== 'slotOutlet');
-const canDelete = computed(() => !!selectedEntry.value);
-const canPaste = computed(() => !!copiedNode.value);
-const contextEntry = computed(() => {
-    void props.revision;
-    return props.document && contextTarget.value
-        ? findSceneTreeEntry(props.document.template.children, contextTarget.value)
-        : undefined;
-});
-const canCopyContext = computed(() => !!contextEntry.value && contextEntry.value.node.kind !== 'slotOutlet');
-const canDeleteContext = computed(() => !!contextEntry.value);
+const selectedRoots = computed(() => props.document
+    ? selectedSceneTreeRoots(props.document.template.children, props.selections)
+    : []);
+const canDuplicate = computed(() => selectedRoots.value.some((entry) => entry.node.kind !== 'slotOutlet'));
+const canDelete = computed(() => selectedRoots.value.length > 0);
+const canPaste = computed(() => copiedNodes.value.length > 0);
+const canCopyContext = computed(() => canDuplicate.value);
+const canDeleteContext = computed(() => canDelete.value);
 const isDragging = computed(() => !!draggedLocator.value || !!props.draggedAsset);
 const addGroups = [
     { label: '容器', types: ['Group', 'GridContainer', 'HBoxContainer', 'ScrollContainer', 'VBoxContainer', 'Container'] },
@@ -126,38 +120,52 @@ async function addNode(type: PixiSceneNodeType, locator?: string) {
 }
 
 async function copyNode() {
-    if (!props.document || !selectedEntry.value || selectedEntry.value.node.kind === 'slotOutlet') return;
-    const entry = selectedEntry.value;
+    const document = props.document;
+    if (!document) return;
+    const roots = selectedRoots.value.filter((entry) => entry.node.kind !== 'slotOutlet');
+    const copies = duplicateSceneNodes(document.template, roots.map((entry) => entry.node));
+    if (copies.length === 0) return;
     await commit({
-        op: 'insertNode',
-        parent: entry.parentLocator,
-        index: entry.index + 1,
-        node: duplicateSceneNode(props.document.template, entry.node),
+        op: 'batch',
+        commands: roots.map((entry, index) => ({
+            op: 'insertNode' as const,
+            parent: entry.parentLocator,
+            index: entry.index + 1,
+            node: copies[index],
+        })).reverse(),
     });
 }
 
-function copyToClipboard(locator: string) {
-    if (!props.document) return;
-    const entry = findSceneTreeEntry(props.document.template.children, locator);
-    if (entry?.node.kind === 'slotOutlet') return;
-    if (entry) copiedNode.value = structuredClone(entry.node);
+function copyToClipboard() {
+    copiedNodes.value = selectedRoots.value
+        .filter((entry) => entry.node.kind !== 'slotOutlet')
+        .map((entry) => structuredClone(entry.node));
 }
 
 async function pasteNode(locator?: string) {
-    if (!props.document || !copiedNode.value) return;
+    const document = props.document;
+    if (!document || copiedNodes.value.length === 0) return;
     const target = insertionTarget(locator);
     if (!target) return;
+    const copies = duplicateSceneNodes(document.template, copiedNodes.value);
     await commit({
-        op: 'insertNode',
-        parent: target.parent,
-        index: target.index,
-        node: duplicateSceneNode(props.document.template, copiedNode.value),
+        op: 'batch',
+        commands: copies.map((node, offset) => ({
+            op: 'insertNode' as const,
+            parent: target.parent,
+            index: target.index + offset,
+            node,
+        })),
     });
 }
 
-async function deleteNode(locator?: string) {
-    if (!locator) return;
-    await commit({ op: 'deleteNode', node: locator });
+async function deleteNode() {
+    const roots = selectedRoots.value;
+    if (roots.length === 0) return;
+    await commit({
+        op: 'batch',
+        commands: [...roots].reverse().map((entry) => ({ op: 'deleteNode', node: entry.locator })),
+    });
 }
 
 function prepareContextMenu(event: MouseEvent) {
@@ -167,14 +175,47 @@ function prepareContextMenu(event: MouseEvent) {
         return;
     }
     contextTarget.value = row.dataset.locator === '__scene__' ? undefined : row.dataset.locator;
-    emit('select', contextTarget.value);
+    if (contextTarget.value && props.selections.includes(contextTarget.value)) return;
+    emit('select', { locators: contextTarget.value ? [contextTarget.value] : [], primary: contextTarget.value });
+}
+
+function selectNode(locator: string, event: MouseEvent) {
+    if (event.shiftKey && props.selected) {
+        const rows = Array.from(event.currentTarget instanceof Element
+            ? event.currentTarget.closest('.hierarchy-tree')?.querySelectorAll<HTMLElement>('.tree-row[data-locator]') ?? []
+            : []);
+        const visible = rows.map((row) => row.dataset.locator).filter((value): value is string => !!value && value !== '__scene__');
+        const start = visible.indexOf(props.selected);
+        const end = visible.indexOf(locator);
+        if (start >= 0 && end >= 0) {
+            const range = visible.slice(Math.min(start, end), Math.max(start, end) + 1);
+            emit('select', { locators: event.metaKey || event.ctrlKey ? [...new Set([...props.selections, ...range])] : range, primary: locator });
+            return;
+        }
+    }
+    if (event.metaKey || event.ctrlKey) {
+        const locators = props.selections.includes(locator)
+            ? props.selections.filter((value) => value !== locator)
+            : [...props.selections, locator];
+        emit('select', { locators, primary: locators.includes(locator) ? locator : locators.at(-1) });
+        return;
+    }
+    emit('select', { locators: [locator], primary: locator });
+}
+
+function copySelection() {
+    copyToClipboard();
+}
+
+function pasteSelection() {
+    void pasteNode(props.selected);
 }
 
 function startDrag(locator: string) {
     endDrag();
     draggedLocator.value = locator;
     dropTarget.value = undefined;
-    emit('select', locator);
+    if (!props.selections.includes(locator)) emit('select', { locators: [locator], primary: locator });
     window.addEventListener('pointermove', clearDropTargetOutsideHierarchy);
     window.addEventListener('pointerup', finishDrag, { once: true });
     window.addEventListener('pointercancel', endDrag, { once: true });
@@ -239,7 +280,7 @@ function cancelCurrentDrag() {
     return active;
 }
 
-defineExpose({ cancelCurrentDrag });
+defineExpose({ cancelCurrentDrag, copySelection, duplicateSelection: copyNode, deleteSelection: deleteNode, pasteSelection });
 
 function clearDropTargetOutsideHierarchy(event: PointerEvent) {
     const target = event.target;
@@ -296,7 +337,7 @@ watch(() => props.draggedAsset, (asset) => {
       <button type="button" title="复制节点" aria-label="复制节点" :disabled="!canDuplicate" @click="copyNode">
         <Copy :size="14" />
       </button>
-      <button type="button" title="删除节点" aria-label="删除节点" :disabled="!canDelete" @click="deleteNode(selected)">
+      <button type="button" title="删除节点" aria-label="删除节点" :disabled="!canDelete" @click="deleteNode">
         <Trash2 :size="14" />
       </button>
     </div>
@@ -306,12 +347,12 @@ watch(() => props.draggedAsset, (asset) => {
           <button
             class="tree-row scene-root"
             :class="{
-              selected: selected === undefined,
+              selected: selections.length === 0,
               'drop-inside': dropTarget?.locator === '__scene__',
             }"
             data-locator="__scene__"
             type="button"
-            @click="emit('select', undefined)"
+            @click="emit('select', { locators: [] })"
             @pointermove.stop="isDragging && updateDropTarget({ parent: '__scene__', index: entries.length, locator: '__scene__', mode: 'inside' })"
             @pointerup="draggedAsset && dropAsset({ parent: '__scene__', index: entries.length, locator: '__scene__', mode: 'inside' })"
           >
@@ -330,12 +371,12 @@ watch(() => props.draggedAsset, (asset) => {
               :drop-target="dropTarget"
               :dragging="!!draggedLocator"
               :searching="!!search.trim()"
-              :selected="selected"
+              :selections="selections"
               @drag-over="updateDropTarget"
               @drag-start="startDrag"
               @asset-drop="dropAsset"
               @open-scene="emit('openScene', $event)"
-              @select="emit('select', $event)"
+              @select="selectNode"
             />
           </ul>
           <p v-if="search.trim() && visibleEntries.length === 0" class="panel-empty compact">没有匹配的节点</p>
@@ -357,10 +398,10 @@ watch(() => props.draggedAsset, (asset) => {
               </ContextMenuSubContent>
             </ContextMenuPortal>
           </ContextMenuSub>
-          <ContextMenuItem class="hierarchy-context-item" :disabled="!canCopyContext" @select="contextTarget && copyToClipboard(contextTarget)">复制</ContextMenuItem>
+          <ContextMenuItem class="hierarchy-context-item" :disabled="!canCopyContext" @select="copyToClipboard">复制</ContextMenuItem>
           <ContextMenuItem class="hierarchy-context-item" :disabled="!canPaste" @select="pasteNode(contextTarget)">粘贴</ContextMenuItem>
           <ContextMenuSeparator class="hierarchy-context-separator" />
-          <ContextMenuItem class="hierarchy-context-item" :disabled="!canDeleteContext" @select="deleteNode(contextTarget)">删除</ContextMenuItem>
+          <ContextMenuItem class="hierarchy-context-item" :disabled="!canDeleteContext" @select="deleteNode">删除</ContextMenuItem>
         </ContextMenuContent>
       </ContextMenuPortal>
     </ContextMenuRoot>

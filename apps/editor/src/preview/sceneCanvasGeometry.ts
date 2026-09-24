@@ -246,6 +246,16 @@ export function resizeSceneCanvasGeometry(
         : undefined;
 }
 
+export function setSceneCanvasGeometry(
+    props: Record<string, SceneTemplateValue>,
+    geometry: SceneCanvasGeometry,
+    next: SceneCanvasGeometry,
+): SceneCanvasPropChange[] | undefined {
+    const horizontal = axisGeometryChanges(props, horizontalAxis, geometry.x, geometry.width, next.x, next.width);
+    const vertical = axisGeometryChanges(props, verticalAxis, geometry.y, geometry.height, next.y, next.height);
+    return horizontal && vertical ? [...horizontal, ...vertical] : undefined;
+}
+
 export function resizeLayoutManagedSceneCanvasGeometry(
     props: Record<string, SceneTemplateValue>,
     geometry: SceneCanvasGeometry,

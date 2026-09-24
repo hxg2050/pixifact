@@ -19,6 +19,7 @@ import type { SceneDocument, SceneDocumentEvent } from '../document/SceneDocumen
 import {
     createSceneAssetNode,
     findSceneNodeByLocator,
+    selectedSceneTreeRoots,
     type EditorSceneAsset,
 } from '../document/sceneTree';
 import type { ProjectFileTreeNode } from '../services/projectFileTree';
@@ -35,6 +36,7 @@ import {
     resizeLayoutManagedSceneCanvasGeometry,
     resizeSceneCanvasView,
     resizeSceneCanvasGeometry,
+    setSceneCanvasGeometry,
     cycleSceneCanvasSelection,
     sceneCanvasHitTestOrder,
     sceneCanvasEventTargetIsWithinNode,
@@ -58,12 +60,13 @@ const props = defineProps<{
     projectTree?: ProjectFileTreeNode;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
     selected?: string;
+    selections: string[];
 }>();
 const emit = defineEmits<{
     assetDrop: [];
     openScene: [reference: string];
     previewState: [state: 'loading' | 'ready' | 'error'];
-    select: [locator: string];
+    select: [selection: { locators: string[]; primary?: string }];
 }>();
 const host = ref<HTMLElement>();
 const canvasHovered = ref(false);
@@ -85,7 +88,10 @@ let viewportSize: SceneCanvasSize | undefined;
 let buildRevision = 0;
 let selectionLayer: Container | undefined;
 let selectionOutline: Graphics | undefined;
+let selectionMembers: Graphics | undefined;
 let interaction: CanvasInteraction | undefined;
+let groupInteraction: CanvasGroupInteraction | undefined;
+let suppressCanvasClick = false;
 let selectionCycle: SceneCanvasSelectionCycle | undefined;
 const selectionHandles = new Map<SceneCanvasResizeHandle, Graphics>();
 const moveHandles = new Map<SceneCanvasMoveAxis, Graphics>();
@@ -117,6 +123,27 @@ type CanvasInteractionAction =
     | { mode: 'move'; axis: SceneCanvasMoveAxis }
     | { mode: 'resize'; handle: SceneCanvasResizeHandle };
 type CanvasInteraction = CanvasInteractionBase & CanvasInteractionAction;
+
+interface CanvasGroupTarget {
+    locator: string;
+    target: Container;
+    geometry: SceneCanvasGeometry;
+    props: Record<string, SceneTemplateValue>;
+    origin: { x: number; y: number };
+    previewed: Set<string>;
+    changes: SceneCanvasPropChange[];
+}
+
+interface CanvasGroupInteraction {
+    document: SceneDocument;
+    mode: 'move' | 'resize';
+    axis?: SceneCanvasMoveAxis;
+    handle?: SceneCanvasResizeHandle;
+    pointerId: number;
+    start: { x: number; y: number };
+    bounds: { x: number; y: number; width: number; height: number };
+    targets: CanvasGroupTarget[];
+}
 
 interface CanvasPan {
     pointerId: number;
@@ -255,6 +282,10 @@ function handleNodeClick(
     document: SceneDocument,
 ) {
     if (activeTool.value === 'pan') return;
+    if (suppressCanvasClick) {
+        event.stopPropagation();
+        return;
+    }
     event.stopPropagation();
     const point = { x: event.global.x, y: event.global.y };
     const candidates = preview
@@ -268,7 +299,14 @@ function handleNodeClick(
     );
     if (!choice) return;
     selectionCycle = choice.cycle;
-    emit('select', choice.locator);
+    if (event.metaKey || event.ctrlKey) {
+        const locators = props.selections.includes(choice.locator)
+            ? props.selections.filter((value) => value !== choice.locator)
+            : [...props.selections, choice.locator];
+        emit('select', { locators, primary: locators.includes(choice.locator) ? choice.locator : locators.at(-1) });
+    } else {
+        emit('select', { locators: [choice.locator], primary: choice.locator });
+    }
     const node = findSceneNodeByLocator(document.template.children, choice.locator);
     if (event.detail === 2 && choice.locator === props.selected && node?.kind === 'sceneInstance') {
         emit('openScene', node.scene);
@@ -402,14 +440,200 @@ function nodeCanResize(locator: string, target: Container, handle: SceneCanvasRe
     return resize(node.props, targetGeometry(target), handle, delta) !== undefined;
 }
 
+function groupTargets() {
+    if (!props.document || !preview) return [];
+    const roots = selectedSceneTreeRoots(props.document.template.children, props.selections);
+    return roots.flatMap((entry) => {
+        const target = preview!.nodes.get(entry.locator);
+        return target ? [{ locator: entry.locator, target }] : [];
+    });
+}
+
+function groupBounds(targets: readonly { target: Container }[]) {
+    const bounds = targets.map(({ target }) => target.getBounds());
+    if (bounds.length === 0) return;
+    const x = Math.min(...bounds.map((value) => value.minX));
+    const y = Math.min(...bounds.map((value) => value.minY));
+    const maxX = Math.max(...bounds.map((value) => value.maxX));
+    const maxY = Math.max(...bounds.map((value) => value.maxY));
+    if (![x, y, maxX, maxY].every(Number.isFinite)) return;
+    return { x, y, width: maxX - x, height: maxY - y };
+}
+
+function groupCanMove() {
+    const targets = groupTargets();
+    return targets.length > 0
+        && targets.length === selectedSceneTreeRoots(props.document!.template.children, props.selections).length
+        && targets.every(({ locator, target }) => nodeCanMove(locator, target, 'xy'));
+}
+
+function groupCanResize(handle: SceneCanvasResizeHandle) {
+    const targets = groupTargets();
+    const bounds = groupBounds(targets);
+    return targets.length > 0
+        && targets.length === selectedSceneTreeRoots(props.document!.template.children, props.selections).length
+        && !!bounds && bounds.width > 0 && bounds.height > 0
+        && targets.every(({ locator, target }) => {
+            const parent = target.parent;
+            const node = selectedNode(locator);
+            return !!parent
+                && !!node && node.kind !== 'slotOutlet'
+                && Math.abs(parent.worldTransform.b) < 0.000001
+                && Math.abs(parent.worldTransform.c) < 0.000001
+                && !sceneCanvasNodePositionIsLayoutManaged(props.document!.template, locator)
+                && nodeCanResize(locator, target, handle)
+                && setSceneCanvasGeometry(
+                    node.props,
+                    targetGeometry(target),
+                    {
+                        x: target.x + (handle.includes('w') || handle.includes('e') ? 1 : 0),
+                        y: target.y + (handle.includes('n') || handle.includes('s') ? 1 : 0),
+                        width: target.width + (handle.includes('w') || handle.includes('e') ? 1 : 0),
+                        height: target.height + (handle.includes('n') || handle.includes('s') ? 1 : 0),
+                    },
+                ) !== undefined;
+        });
+}
+
+function beginGroupInteraction(
+    event: FederatedPointerEvent,
+    action: { mode: 'move'; axis: SceneCanvasMoveAxis } | { mode: 'resize'; handle: SceneCanvasResizeHandle },
+) {
+    const document = props.document;
+    if (!document || !app || (action.mode === 'move' ? !groupCanMove() : !groupCanResize(action.handle))) return;
+    const selected = groupTargets();
+    const bounds = groupBounds(selected);
+    if (!bounds) return;
+    cancelInteraction();
+    groupInteraction = {
+        document,
+        mode: action.mode,
+        axis: action.mode === 'move' ? action.axis : undefined,
+        handle: action.mode === 'resize' ? action.handle : undefined,
+        pointerId: event.pointerId,
+        start: { x: event.global.x, y: event.global.y },
+        bounds,
+        targets: selected.map(({ locator, target }) => ({
+            locator,
+            target,
+            geometry: targetGeometry(target),
+            props: { ...(selectedNode(locator) as { props: Record<string, SceneTemplateValue> }).props },
+            origin: target.parent!.toGlobal(target.position),
+            previewed: new Set<string>(),
+            changes: [],
+        })),
+    };
+    app.canvas.style.cursor = action.mode === 'resize'
+        ? resizeCursors[action.handle]
+        : action.axis === 'x' ? 'ew-resize' : action.axis === 'y' ? 'ns-resize' : 'move';
+}
+
+function moveGroupInteraction(event: FederatedPointerEvent) {
+    const current = groupInteraction;
+    if (!current || event.pointerId !== current.pointerId) return;
+    const dx = event.global.x - current.start.x;
+    const dy = event.global.y - current.start.y;
+    if (dx !== 0 || dy !== 0) suppressCanvasClick = true;
+    const bounds = current.bounds;
+    let left = bounds.x;
+    let top = bounds.y;
+    let right = bounds.x + bounds.width;
+    let bottom = bounds.y + bounds.height;
+    if (current.mode === 'resize') {
+        if (current.handle!.includes('w')) left = Math.min(right - 1, left + dx);
+        if (current.handle!.includes('e')) right = Math.max(left + 1, right + dx);
+        if (current.handle!.includes('n')) top = Math.min(bottom - 1, top + dy);
+        if (current.handle!.includes('s')) bottom = Math.max(top + 1, bottom + dy);
+    }
+    const scaleX = (right - left) / bounds.width;
+    const scaleY = (bottom - top) / bounds.height;
+    for (const target of current.targets) {
+        const parent = target.target.parent!;
+        let changes: SceneCanvasPropChange[] | undefined;
+        if (current.mode === 'move') {
+            const x = current.axis === 'y' ? 0 : dx;
+            const y = current.axis === 'x' ? 0 : dy;
+            const start = parent.toLocal(current.start);
+            const end = parent.toLocal({ x: current.start.x + x, y: current.start.y + y });
+            changes = moveSceneCanvasGeometry(target.props, target.geometry,
+                { x: end.x - start.x, y: end.y - start.y }, 'xy');
+        } else {
+            const nextOrigin = parent.toLocal({
+                x: left + (target.origin.x - bounds.x) * scaleX,
+                y: top + (target.origin.y - bounds.y) * scaleY,
+            });
+            changes = setSceneCanvasGeometry(target.props, target.geometry, {
+                x: nextOrigin.x,
+                y: nextOrigin.y,
+                width: target.geometry.width * scaleX,
+                height: target.geometry.height * scaleY,
+            });
+        }
+        if (!changes) return;
+        const nextProps = new Set(changes.map((change) => change.prop));
+        for (const prop of target.previewed) {
+            if (!nextProps.has(prop)) current.document.previewNodeProp(target.locator, prop, originalGroupPreviewValue(target, prop));
+        }
+        for (const change of changes) current.document.previewNodeProp(target.locator, change.prop, change.value);
+        target.previewed = nextProps;
+        target.changes = changes;
+    }
+    updateSelectionOverlay();
+}
+
+function originalGroupPreviewValue(target: CanvasGroupTarget, prop: string) {
+    const source = target.props[prop];
+    if (source !== undefined) return source;
+    return prop === 'x' ? target.geometry.x
+        : prop === 'y' ? target.geometry.y
+            : prop === 'width' ? target.geometry.width
+                : prop === 'height' ? target.geometry.height : undefined;
+}
+
+async function finishGroupInteraction() {
+    const current = groupInteraction;
+    if (!current) return;
+    groupInteraction = undefined;
+    resetCanvasCursor();
+    window.setTimeout(() => { suppressCanvasClick = false; }, 0);
+    const commands = current.targets.flatMap((target) => target.changes.map((change) => ({
+        op: 'setNodeProp' as const, node: target.locator, prop: change.prop, value: change.value,
+    })));
+    if (commands.length === 0) return;
+    try {
+        await current.document.commitCommand({ op: 'batch', commands });
+    } catch (error) {
+        status.value = error instanceof Error ? error.message : String(error);
+    }
+}
+
+function cancelGroupInteraction() {
+    const current = groupInteraction;
+    if (!current) return;
+    groupInteraction = undefined;
+    window.setTimeout(() => { suppressCanvasClick = false; }, 0);
+    for (const target of current.targets) {
+        for (const prop of target.previewed) {
+            current.document.previewNodeProp(target.locator, prop, originalGroupPreviewValue(target, prop));
+        }
+    }
+    resetCanvasCursor();
+    updateSelectionOverlay();
+}
+
 function beginMove(locator: string, hitTarget: Container, event: FederatedPointerEvent) {
     if (activeTool.value === 'pan' || spacePressed.value || isPanning.value) return;
-    if (event.button !== 0) return;
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
     if (!sceneCanvasEventTargetIsWithinNode(hitTarget, event.target)) return;
     const point = { x: event.global.x, y: event.global.y };
     const candidates = preview
         ? sceneCanvasHitTestOrder(preview.root, preview.nodes, point)
         : [];
+    if (props.selections.length > 1 && props.selections.includes(locator)) {
+        event.stopPropagation();
+        beginGroupInteraction(event, { mode: 'move', axis: 'xy' });
+        return;
+    }
     if (!sceneCanvasNodeCanStartDrag(props.selected, locator, candidates)) return;
     event.stopPropagation();
     const dragLocator = props.selected;
@@ -426,6 +650,10 @@ function beginMoveHandle(axis: SceneCanvasMoveAxis, event: FederatedPointerEvent
     if (activeTool.value !== 'move' || spacePressed.value || isPanning.value) return;
     event.stopPropagation();
     if (event.button !== 0 || !props.selected) return;
+    if (props.selections.length > 1) {
+        beginGroupInteraction(event, { mode: 'move', axis });
+        return;
+    }
     const target = selectedTarget();
     if (!target || !nodeCanMove(props.selected, target, axis)) return;
     beginInteraction(props.selected, target, event, { mode: 'move', axis });
@@ -435,6 +663,10 @@ function beginResize(handle: SceneCanvasResizeHandle, event: FederatedPointerEve
     if (activeTool.value !== 'resize' || spacePressed.value || isPanning.value) return;
     event.stopPropagation();
     if (event.button !== 0 || !props.selected) return;
+    if (props.selections.length > 1) {
+        beginGroupInteraction(event, { mode: 'resize', handle });
+        return;
+    }
     const target = selectedTarget();
     if (!target || !nodeCanResize(props.selected, target, handle)) return;
     beginInteraction(props.selected, target, event, { mode: 'resize', handle });
@@ -470,6 +702,10 @@ function beginInteraction(
 }
 
 function moveInteraction(event: FederatedPointerEvent) {
+    if (groupInteraction) {
+        moveGroupInteraction(event);
+        return;
+    }
     const current = interaction;
     if (!current || event.pointerId !== current.pointerId) return;
     const point = current.parent.toLocal(event.global);
@@ -534,6 +770,7 @@ async function finishInteraction() {
 }
 
 function cancelInteraction() {
+    cancelGroupInteraction();
     const current = interaction;
     if (!current) return;
     interaction = undefined;
@@ -545,7 +782,7 @@ function cancelInteraction() {
 }
 
 function cancelCurrentInteraction() {
-    const active = !!interaction || !!canvasPan || spacePressed.value;
+    const active = !!interaction || !!groupInteraction || !!canvasPan || spacePressed.value;
     cancelInteraction();
     finishCanvasPan();
     spacePressed.value = false;
@@ -667,6 +904,8 @@ async function dropAssetOnCanvas(event: PointerEvent) {
 function handleWindowPointerUp(event: PointerEvent) {
     if (event.pointerId === canvasPan?.pointerId) {
         finishCanvasPan();
+    } else if (event.pointerId === groupInteraction?.pointerId) {
+        void finishGroupInteraction();
     } else if (event.pointerId === interaction?.pointerId) {
         void finishInteraction();
     }
@@ -675,6 +914,8 @@ function handleWindowPointerUp(event: PointerEvent) {
 function handleWindowPointerCancel(event: PointerEvent) {
     if (event.pointerId === canvasPan?.pointerId) {
         finishCanvasPan();
+    } else if (event.pointerId === groupInteraction?.pointerId) {
+        cancelInteraction();
     } else if (event.pointerId === interaction?.pointerId) {
         cancelInteraction();
     }
@@ -686,6 +927,9 @@ function createSelectionOverlay() {
     selectionOutline = new Graphics();
     selectionOutline.eventMode = 'none';
     selectionLayer.addChild(selectionOutline);
+    selectionMembers = new Graphics();
+    selectionMembers.eventMode = 'none';
+    selectionLayer.addChild(selectionMembers);
     for (const handle of resizeHandles) {
         const graphic = new Graphics()
             .rect(-4, -4, 8, 8)
@@ -731,6 +975,42 @@ function createSelectionOverlay() {
 
 function updateSelectionOverlay(locator = props.selected) {
     if (!selectionOutline) return;
+    selectionMembers?.clear();
+    if (props.selections.length > 1) {
+        const targets = groupTargets();
+        const bounds = groupBounds(targets);
+        if (!bounds) {
+            selectionOutline.visible = false;
+            for (const handle of selectionHandles.values()) handle.visible = false;
+            for (const handle of moveHandles.values()) handle.visible = false;
+            return;
+        }
+        for (const selected of props.selections) {
+            const target = selectedTarget(selected);
+            if (!target) continue;
+            const member = target.getBounds();
+            selectionMembers?.rect(member.minX, member.minY, member.maxX - member.minX, member.maxY - member.minY)
+                .stroke({ color: 0x4c8dff, width: 1, alpha: 0.6 });
+        }
+        const { x, y, width, height } = bounds;
+        selectionOutline.clear().rect(x, y, width, height).stroke({ color: 0x4c8dff, width: 1 });
+        selectionOutline.visible = true;
+        const positions: Record<SceneCanvasResizeHandle, { x: number; y: number }> = {
+            nw: { x, y }, n: { x: x + width / 2, y }, ne: { x: x + width, y },
+            e: { x: x + width, y: y + height / 2 }, se: { x: x + width, y: y + height },
+            s: { x: x + width / 2, y: y + height }, sw: { x, y: y + height },
+            w: { x, y: y + height / 2 },
+        };
+        for (const [handle, graphic] of selectionHandles) {
+            graphic.position.copyFrom(positions[handle]);
+            graphic.visible = activeTool.value === 'resize' && groupCanResize(handle);
+        }
+        for (const graphic of moveHandles.values()) {
+            graphic.position.set(x + width / 2, y + height / 2);
+            graphic.visible = activeTool.value === 'move' && groupCanMove();
+        }
+        return;
+    }
     const target = selectedTarget(locator);
     if (!target || !locator || target.destroyed) {
         selectionOutline.visible = false;
@@ -781,7 +1061,7 @@ watch(() => props.document, (document) => {
 }, { immediate: true });
 
 watch([() => props.projectTree, () => props.sceneInterfaces], () => void rebuildPreview());
-watch(() => props.selected, () => updateSelectionOverlay());
+watch([() => props.selected, () => props.selections], () => updateSelectionOverlay());
 
 onMounted(async () => {
     app = new Application();
@@ -825,6 +1105,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
     buildRevision += 1;
     interaction = undefined;
+    groupInteraction = undefined;
     finishCanvasPan();
     window.removeEventListener('pointermove', moveCanvasPan);
     window.removeEventListener('pointerup', handleWindowPointerUp);
