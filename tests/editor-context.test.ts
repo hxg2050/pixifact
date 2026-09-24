@@ -152,7 +152,7 @@ describe('Editor context selection', () => {
         const connectionPromise = connectEditorSession(changed, disconnected, stateChanged, screenshotRequested);
         const socket = FakeWebSocket.instances[0];
 
-        socket.emit('message', JSON.stringify({ type: 'editorSessionActive', protocolVersion: 3 }));
+        socket.emit('message', JSON.stringify({ type: 'editorSessionActive', protocolVersion: 4 }));
         const connection = await connectionPromise;
         expect(connection.initialState).toEqual({ status: 'active' });
 
@@ -164,6 +164,7 @@ describe('Editor context selection', () => {
                 previewState: 'ready',
             },
             selection: { kind: 'scene' },
+            openScenes: [{ path: 'src/scenes/Menu.scene', syncState: 'synced' }],
         });
         socket.emit('message', JSON.stringify({
             type: 'projectFileChanged',
@@ -172,7 +173,7 @@ describe('Editor context selection', () => {
 
         expect(JSON.parse(socket.sent[0])).toEqual({
             type: 'editorContextChanged',
-            protocolVersion: 3,
+            protocolVersion: 4,
             context: {
                 scene: {
                     path: 'src/scenes/Menu.scene',
@@ -181,13 +182,14 @@ describe('Editor context selection', () => {
                     previewState: 'ready',
                 },
                 selection: { kind: 'scene' },
+                openScenes: [{ path: 'src/scenes/Menu.scene', syncState: 'synced' }],
             },
         });
         expect(changed).toHaveBeenCalledWith('src/scenes/Menu.scene');
 
         socket.emit('message', JSON.stringify({
             type: 'editorSessionStandby',
-            protocolVersion: 3,
+            protocolVersion: 4,
             reason: 'takenOver',
             resume: { scenePath: 'src/scenes/Menu.scene', selectedLocator: '0:title' },
         }));
@@ -199,6 +201,7 @@ describe('Editor context selection', () => {
                 previewState: 'ready',
             },
             selection: { kind: 'scene' },
+            openScenes: [{ path: 'src/scenes/Menu.scene', syncState: 'synced' }],
         });
         socket.emit('message', JSON.stringify({
             type: 'projectFileChanged',
@@ -213,7 +216,7 @@ describe('Editor context selection', () => {
         });
         expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
             type: 'editorSessionTakeoverRequested',
-            protocolVersion: 3,
+            protocolVersion: 4,
         });
         expect(socket.sent).toHaveLength(2);
         expect(changed).toHaveBeenCalledOnce();
@@ -231,12 +234,12 @@ describe('Editor context selection', () => {
         }));
         const connectionPromise = connectEditorSession(vi.fn(), vi.fn(), vi.fn(), capture);
         const socket = FakeWebSocket.instances[0];
-        socket.emit('message', JSON.stringify({ type: 'editorSessionActive', protocolVersion: 3 }));
+        socket.emit('message', JSON.stringify({ type: 'editorSessionActive', protocolVersion: 4 }));
         await connectionPromise;
 
         socket.emit('message', JSON.stringify({
             type: 'editorScreenshotRequested',
-            protocolVersion: 3,
+            protocolVersion: 4,
             requestId: 'screenshot-1',
             scene: {
                 path: 'src/scenes/Menu.scene',
@@ -252,7 +255,7 @@ describe('Editor context selection', () => {
         });
         expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
             type: 'editorScreenshotCompleted',
-            protocolVersion: 3,
+            protocolVersion: 4,
             requestId: 'screenshot-1',
             scene: {
                 path: 'src/scenes/Menu.scene',
@@ -271,12 +274,12 @@ describe('Editor context selection', () => {
         });
         const connectionPromise = connectEditorSession(vi.fn(), vi.fn(), vi.fn(), capture);
         const socket = FakeWebSocket.instances[0];
-        socket.emit('message', JSON.stringify({ type: 'editorSessionActive', protocolVersion: 3 }));
+        socket.emit('message', JSON.stringify({ type: 'editorSessionActive', protocolVersion: 4 }));
         await connectionPromise;
 
         socket.emit('message', JSON.stringify({
             type: 'editorScreenshotRequested',
-            protocolVersion: 3,
+            protocolVersion: 4,
             requestId: 'screenshot-2',
             scene: {
                 path: 'src/scenes/Menu.scene',
@@ -288,7 +291,7 @@ describe('Editor context selection', () => {
 
         expect(JSON.parse(socket.sent.at(-1)!)).toEqual({
             type: 'editorScreenshotFailed',
-            protocolVersion: 3,
+            protocolVersion: 4,
             requestId: 'screenshot-2',
             error: 'Authoring preview changed during screenshot capture.',
         });

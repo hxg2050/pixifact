@@ -82,7 +82,7 @@ class EditorWebSocket {
         EditorWebSocket.instances.push(this);
         queueMicrotask(() => this.emit('message', JSON.stringify({
             type: 'editorSessionActive',
-            protocolVersion: 3,
+            protocolVersion: 4,
         })));
     }
 
@@ -128,6 +128,95 @@ afterEach(() => {
 });
 
 describe('Editor external project synchronization', () => {
+    it('loads an external version when undo returns a dirty tab to its saved state', async () => {
+        const fixture = createFixture();
+        vi.stubGlobal('fetch', serviceFetcher(fixture.service));
+        vi.stubGlobal('WebSocket', EditorWebSocket);
+        const pinia = createPinia();
+        setActivePinia(pinia);
+        const wrapper = mount(EditorApp, {
+            global: { plugins: [pinia], stubs: { SceneCanvas: true } },
+        });
+
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="0:button"]').exists()).toBe(true));
+        await wrapper.get('[data-locator="0:button"]').trigger('click');
+        const input = wrapper.get('input[data-prop="label"]');
+        (input.element as HTMLInputElement).value = '本地草稿';
+        await input.trigger('input');
+        await input.trigger('blur');
+        await vi.waitFor(() => expect(wrapper.get('.sync-state').text()).toContain('未保存'));
+
+        fs.writeFileSync(path.join(fixture.projectRoot, 'src/scenes/Menu.scene'), menuSource('外部版本'));
+        EditorWebSocket.instances[0].change('src/scenes/Menu.scene');
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect((wrapper.get('input[data-prop="label"]').element as HTMLInputElement).value).toBe('本地草稿');
+        await wrapper.get('button[aria-label="撤销"]').trigger('click');
+        await vi.waitFor(() => expect((wrapper.get('input[data-prop="label"]').element as HTMLInputElement).value).toBe('外部版本'));
+        wrapper.unmount();
+    });
+
+    it('reloads clean background tabs and preserves dirty drafts until a conflicting save', async () => {
+        const fixture = createFixture();
+        const fetcher = serviceFetcher(fixture.service);
+        vi.stubGlobal('fetch', fetcher);
+        vi.stubGlobal('WebSocket', EditorWebSocket);
+        const pinia = createPinia();
+        setActivePinia(pinia);
+        const wrapper = mount(EditorApp, {
+            global: { plugins: [pinia], stubs: { SceneCanvas: true } },
+        });
+
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="0:button"]').exists()).toBe(true));
+        useEditorUiStore().activeLeftTab = 'assets';
+        await flushPromises();
+        await wrapper.get('[data-asset-path="src/scenes/ZButton.scene"]').trigger('dblclick');
+        await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe('src/scenes/ZButton.scene'));
+        await wrapper.get('button[aria-label="切换到 src/scenes/Menu.scene"]').trigger('click');
+        await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Menu.scene'));
+
+        fs.writeFileSync(path.join(fixture.projectRoot, 'src/scenes/ZButton.scene'), [
+            '<Scene name="ZButton">',
+            '  <Text id="label" text="外部更新" />',
+            '</Scene>',
+            '',
+        ].join('\n'));
+        EditorWebSocket.instances[0].change('src/scenes/ZButton.scene');
+        await vi.waitFor(() => expect(fetcher.mock.calls.filter(([input, init]) => (
+            String(input).includes('ZButton.scene') && !init?.method
+        )).length).toBeGreaterThanOrEqual(2));
+        await flushPromises();
+        await wrapper.get('button[aria-label="切换到 src/scenes/ZButton.scene"]').trigger('click');
+        useEditorUiStore().activeLeftTab = 'hierarchy';
+        await flushPromises();
+        await wrapper.get('[data-locator="0:label"]').trigger('click');
+        await vi.waitFor(() => expect((wrapper.get('input[data-prop="text"]').element as HTMLInputElement).value).toBe('外部更新'));
+
+        await wrapper.get('button[aria-label="切换到 src/scenes/Menu.scene"]').trigger('click');
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="0:button"]').exists()).toBe(true));
+        await wrapper.get('[data-locator="0:button"]').trigger('click');
+        const input = wrapper.get('input[data-prop="label"]');
+        (input.element as HTMLInputElement).value = '本地草稿';
+        await input.trigger('input');
+        await input.trigger('blur');
+        await vi.waitFor(() => expect(wrapper.get('.sync-state').text()).toContain('未保存'));
+        await wrapper.get('button[aria-label="切换到 src/scenes/ZButton.scene"]').trigger('click');
+        fs.writeFileSync(path.join(fixture.projectRoot, 'src/scenes/Menu.scene'), menuSource('外部版本'));
+        EditorWebSocket.instances[0].change('src/scenes/Menu.scene');
+        await vi.waitFor(() => expect(wrapper.get('[data-scene-tab="src/scenes/Menu.scene"]').text()).toContain('●'));
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+
+        await wrapper.get('button[aria-label="切换到 src/scenes/Menu.scene"]').trigger('click');
+        await vi.waitFor(() => expect((wrapper.get('input[data-prop="label"]').element as HTMLInputElement).value).toBe('本地草稿'));
+        await wrapper.get('button[aria-label="保存 Scene"]').trigger('click');
+        await vi.waitFor(() => expect(wrapper.get('[role="dialog"]').text()).toContain('磁盘版本'));
+        expect(wrapper.get('[role="dialog"]').text()).toContain('本地草稿');
+        expect(wrapper.get('[role="dialog"]').text()).toContain('外部版本');
+        await wrapper.get('[role="dialog"] button.primary').trigger('click');
+        await vi.waitFor(() => expect(wrapper.find('[role="dialog"]').exists()).toBe(false));
+        expect(fs.readFileSync(path.join(fixture.projectRoot, 'src/scenes/Menu.scene'), 'utf8')).toContain('本地草稿');
+        wrapper.unmount();
+    });
+
     it('applies only the latest external Scene revision and establishes a new baseline', async () => {
         const fixture = createFixture();
         const fetcher = serviceFetcher(fixture.service);

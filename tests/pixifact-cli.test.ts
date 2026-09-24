@@ -724,7 +724,7 @@ describe('Pixifact CLI', () => {
     it('reads the current project Editor context without exposing mutation', async () => {
         const projectRoot = createTempProject();
         const context = {
-            protocolVersion: 3,
+            protocolVersion: 4,
             projectRoot,
             editor: { connected: true, updatedAt: '2026-08-03T08:00:00.000Z' },
             scene: {
@@ -732,6 +732,7 @@ describe('Pixifact CLI', () => {
                 revision: 'sha256:current',
                 syncState: 'synced',
             },
+            openScenes: [{ path: 'src/scenes/Button.scene', syncState: 'synced' }],
             selection: {
                 kind: 'node',
                 locator: '0:label',

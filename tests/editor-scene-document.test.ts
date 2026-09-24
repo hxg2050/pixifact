@@ -111,6 +111,26 @@ describe('SceneDocument', () => {
         expect(document.syncState).toBe('synced');
     });
 
+    it('keeps a conflicted draft and only overwrites the disk version explicitly approved by the user', async () => {
+        const api = createApi();
+        api.writeScene.mockRejectedValueOnce(Object.assign(new Error('Scene file version changed.'), { status: 409 }));
+        const document = await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true });
+
+        await expect(document.commitNodeProp('0:title', 'x', 48)).rejects.toThrow('Scene file version changed.');
+        await document.commitNodeProp('0:title', 'x', 56);
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
+        expect(document.syncState).toBe('conflict');
+
+        await document.saveOverVersion('sha256:reviewed');
+        expect(api.writeScene).toHaveBeenLastCalledWith(
+            'src/scenes/Menu.scene',
+            expect.stringContaining('x="56"'),
+            'sha256:reviewed',
+        );
+        expect(document.dirty).toBe(false);
+        expect(document.syncState).toBe('synced');
+    });
+
     it('waits for its pending save before classifying a file notification', async () => {
         const api = createApi();
         let finishWrite!: (value: { path: string; version: string }) => void;

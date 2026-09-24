@@ -54,12 +54,14 @@ function contextMessage(
     revision: string,
     syncState = 'synced',
     previewState = 'ready',
+    openScenes = [{ path: scenePath, syncState }],
 ) {
     return JSON.stringify({
         type: 'editorContextChanged',
         protocolVersion: editorSessionProtocolVersion,
         context: {
             scene: { path: scenePath, revision, syncState, previewState },
+            openScenes,
             selection: {
                 kind: 'node',
                 locator: '0:title',
@@ -313,6 +315,7 @@ describe('Editor Host session', () => {
                 syncState: 'synced',
                 previewState: 'ready',
             },
+            openScenes: [{ path: fixture.scenePath, syncState: 'synced' }],
             selection: {
                 kind: 'node',
                 locator: '0:title',
@@ -375,6 +378,38 @@ describe('Editor Host session', () => {
                 selectedLocator: '0:title',
             },
         });
+
+        host.message(primary, contextMessage(fixture.scenePath, version(fixture.source), 'synced', 'ready', [
+            { path: fixture.scenePath, syncState: 'synced' },
+            { path: 'src/scenes/Other.scene', syncState: 'unsaved' },
+        ]));
+        host.message(secondary, JSON.stringify({
+            type: 'editorSessionTakeoverRequested',
+            protocolVersion: editorSessionProtocolVersion,
+        }));
+        expect(secondary.messages.at(-1)?.type).toBe('editorSessionStandby');
+        expect(secondary.messages.at(-1)?.error).toBe('当前 Editor 尚未同步，暂时无法接管。');
+    });
+
+    it('allows takeover after the active browser closes its last Scene tab', () => {
+        const fixture = createFixture();
+        const host = createEditorHostSession({ projectRoot: fixture.projectRoot, token: 'session-token' });
+        const primary = fakeSocket();
+        const secondary = fakeSocket();
+        host.open(primary);
+        host.open(secondary);
+        host.message(primary, contextMessage(fixture.scenePath, version(fixture.source)));
+        host.message(primary, JSON.stringify({
+            type: 'editorContextCleared',
+            protocolVersion: editorSessionProtocolVersion,
+        }));
+
+        host.message(secondary, JSON.stringify({
+            type: 'editorSessionTakeoverRequested',
+            protocolVersion: editorSessionProtocolVersion,
+        }));
+        expect(secondary.messages.at(-1)?.type).toBe('editorSessionActive');
+        expect(primary.messages.at(-1)?.type).toBe('editorSessionStandby');
     });
 
     it('refuses stale, saving, and invalid Scene context', async () => {

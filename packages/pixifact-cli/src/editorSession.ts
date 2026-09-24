@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { parseSceneTemplate } from 'pixifact/compiler';
 
-export const editorSessionProtocolVersion = 3;
+export const editorSessionProtocolVersion = 4;
 
 export type EditorContextSyncState = 'synced' | 'unsaved' | 'saving' | 'conflict' | 'error';
 export type EditorPreviewState = 'loading' | 'ready' | 'error';
@@ -47,6 +47,7 @@ export interface EditorBrowserContext {
         syncState: EditorContextSyncState;
     };
     selection: EditorSelectionContext;
+    openScenes: Array<{ path: string; syncState: EditorContextSyncState }>;
 }
 
 export interface EditorSessionResumeState {
@@ -152,7 +153,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isEditorBrowserContext(value: unknown): value is EditorBrowserContext {
-    if (!isRecord(value) || !isRecord(value.scene) || !isRecord(value.selection)) {
+    if (!isRecord(value) || !isRecord(value.scene) || !isRecord(value.selection) || !Array.isArray(value.openScenes)) {
         return false;
     }
     const syncState = value.scene.syncState;
@@ -162,6 +163,11 @@ function isEditorBrowserContext(value: unknown): value is EditorBrowserContext {
         || !['synced', 'unsaved', 'saving', 'conflict', 'error'].includes(String(syncState))
         || !['loading', 'ready', 'error'].includes(String(value.scene.previewState))
     ) {
+        return false;
+    }
+    if (value.openScenes.some((openScene) => !isRecord(openScene)
+        || typeof openScene.path !== 'string'
+        || !['synced', 'unsaved', 'saving', 'conflict', 'error'].includes(String(openScene.syncState)))) {
         return false;
     }
     if (value.selection.kind === 'scene') {
@@ -179,6 +185,7 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
     const browsers = new Set<EditorBrowserSocket>();
     const pendingScreenshots = new Map<string, PendingEditorScreenshot>();
     let activeBrowser: EditorBrowserSocket | undefined;
+    let activeHasNoScene = false;
     let context: EditorContext | undefined;
     let resume: EditorSessionResumeState | undefined;
     let screenshotSequence = 0;
@@ -225,6 +232,7 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
             return false;
         }
         activeBrowser = socket;
+        activeHasNoScene = false;
         sendState(socket, 'editorSessionActive');
         return true;
     }
@@ -234,6 +242,7 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
         if (socket === activeBrowser) {
             rejectBrowserScreenshots(socket, 'Active Editor browser disconnected during screenshot capture.');
             activeBrowser = undefined;
+            activeHasNoScene = false;
             context = undefined;
         }
     }
@@ -245,7 +254,8 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
         }
         if (parsed.type === 'editorSessionTakeoverRequested') {
             if (!browsers.has(socket) || socket === activeBrowser) return;
-            if (activeBrowser && context?.scene.syncState !== 'synced') {
+            if (activeBrowser && !activeHasNoScene && (context?.scene.syncState !== 'synced'
+                || context.openScenes.some((openScene) => openScene.syncState !== 'synced'))) {
                 sendState(socket, 'editorSessionStandby', {
                     error: '当前 Editor 尚未同步，暂时无法接管。',
                 });
@@ -256,6 +266,7 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
                 rejectBrowserScreenshots(previous, 'Active Editor browser changed during screenshot capture.');
             }
             activeBrowser = socket;
+            activeHasNoScene = false;
             context = undefined;
             for (const browser of browsers) {
                 if (browser === socket) {
@@ -319,7 +330,15 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
             }));
             return;
         }
-        if (socket !== activeBrowser || parsed.type !== 'editorContextChanged') return;
+        if (socket !== activeBrowser) return;
+        if (parsed.type === 'editorContextCleared') {
+            context = undefined;
+            resume = undefined;
+            activeHasNoScene = true;
+            notifyStandbyBrowsers();
+            return;
+        }
+        if (parsed.type !== 'editorContextChanged') return;
         if (!isEditorBrowserContext(parsed.context)) {
             throw new Error('Editor context message is invalid.');
         }
@@ -332,6 +351,7 @@ export function createEditorHostSession(options: EditorHostSessionOptions) {
             },
             ...structuredClone(parsed.context),
         };
+        activeHasNoScene = false;
         resume = {
             scenePath: context.scene.path,
             ...(context.selection.kind === 'node'

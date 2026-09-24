@@ -1,5 +1,7 @@
 # Editor vNext
 
+后续已实施的 [手动保存](./editor-manual-save.md) 与 [多 Scene 标签](./editor-multi-scene-tabs.md) 决策覆盖下文的首版单 Scene、自动保存约束；下方进度记录保留当时的实现历史。
+
 状态：活跃，第一条浏览器 Editor 纵向闭环已完成
 权威范围：Pixifact Editor vNext 的产品边界、用户行为、数据流和首版实现范围
 上游文档：[./index.md](./index.md)、[../../AGENTS.md](../../AGENTS.md)

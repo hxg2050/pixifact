@@ -312,7 +312,7 @@ Live mutation commands 已从外部 CLI surface 移除。对 Agent 暴露的修�
 
 Editor 可以通过暴露当前 project root、打开的 scene path、selection、preview context、最近一次外部 refresh 或 validation result，辅助外部 Agent 使用直接 `.scene` 工作流。它不是 AI 工作的计划或编排入口。
 
-`pixifact editor context` 是可选的只读 context source，返回当前项目、打开的 Scene、revision、同步状态和 selection。它不返回 mutation action，也不是隐藏的 apply channel。旧 `live ...` 命令和固定端口 bridge 已删除。
+`pixifact editor context` 是可选的只读 context source，返回当前项目、活动 Scene、revision、同步状态、selection，以及全部打开标签的路径和同步状态。活动 Scene 未同步时该命令仍拒绝返回 context。它不返回 mutation action，也不是隐藏的 apply channel。旧 `live ...` 命令和固定端口 bridge 已删除。
 
 `pixifact editor screenshot --output <png-path>` 是另一条可选的只读入口。它要求活动 Editor 的当前 Scene 已同步且 Authoring Preview ready，并以 Scene 设计尺寸输出不含 Editor UI 的 PNG；画布 zoom / pan 不影响结果，项目 TypeScript 和 runtime 不会执行。
 

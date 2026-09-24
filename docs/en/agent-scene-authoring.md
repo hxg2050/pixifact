@@ -304,7 +304,7 @@ Live mutation commands have been removed from the external CLI surface. The supp
 
 The Editor can help external agents use the direct `.scene` workflow by exposing the current project root, opened scene path, selection, preview context, and latest external refresh or validation result. It is not the place where AI work is planned or orchestrated.
 
-`pixifact editor context` is an optional read-only context source. It returns the current project, opened Scene, revision, sync state, and selection. It exposes no mutation action and is not a hidden apply channel. The retired `live ...` commands and fixed-port bridge remain removed.
+`pixifact editor context` is an optional read-only context source. It returns the current project, active Scene, revision, sync state, selection, and the paths and sync states of all open Scene tabs. It still rejects context requests while the active Scene is unsynchronized. It exposes no mutation action and is not a hidden apply channel. The retired `live ...` commands and fixed-port bridge remain removed.
 
 `pixifact editor screenshot --output <png-path>` is another optional read-only entry. It requires the active Editor Scene to be synchronized and its Authoring Preview to be ready, then writes a design-size PNG without Editor UI. Canvas zoom and pan do not affect the result, and project TypeScript or runtime code is not executed.
 

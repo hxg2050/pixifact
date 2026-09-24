@@ -39,6 +39,8 @@ interface EditorProjectFile {
 interface EditorUiState {
     assetTreeExpandedDirectories?: string[];
     autoSave: boolean;
+    openScenePaths?: string[];
+    activeScenePath?: string;
 }
 
 interface BunServer {
@@ -178,13 +180,26 @@ function parseEditorUiState(value: unknown): EditorUiState {
     }
     const directories = (value as Record<string, unknown>).assetTreeExpandedDirectories;
     const autoSave = (value as Record<string, unknown>).autoSave;
+    const openScenePaths = (value as Record<string, unknown>).openScenePaths;
+    const activeScenePath = (value as Record<string, unknown>).activeScenePath;
     if (directories !== undefined && (!Array.isArray(directories) || directories.some((directory) => typeof directory !== 'string'))) {
         throw new Error('Editor UI state assetTreeExpandedDirectories must be a string array.');
     }
     if (autoSave !== undefined && typeof autoSave !== 'boolean') {
         throw new Error('Editor UI state autoSave must be a boolean.');
     }
-    return { ...(directories === undefined ? {} : { assetTreeExpandedDirectories: directories }), autoSave: autoSave ?? false };
+    if (openScenePaths !== undefined && (!Array.isArray(openScenePaths) || openScenePaths.some((scenePath) => typeof scenePath !== 'string'))) {
+        throw new Error('Editor UI state openScenePaths must be a string array.');
+    }
+    if (activeScenePath !== undefined && typeof activeScenePath !== 'string') {
+        throw new Error('Editor UI state activeScenePath must be a string.');
+    }
+    return {
+        ...(directories === undefined ? {} : { assetTreeExpandedDirectories: directories }),
+        autoSave: autoSave ?? false,
+        ...(openScenePaths === undefined ? {} : { openScenePaths }),
+        ...(activeScenePath === undefined ? {} : { activeScenePath }),
+    };
 }
 
 function readEditorUiState(projectRoot: string): EditorUiState {

@@ -103,7 +103,12 @@ describe('Editor project service', () => {
         const savedResponse = await service.fetch(new Request('http://localhost/api/editor-ui-state', {
             method: 'PUT',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ assetTreeExpandedDirectories: ['assets', 'src/scenes'], autoSave: true }),
+            body: JSON.stringify({
+                assetTreeExpandedDirectories: ['assets', 'src/scenes'],
+                autoSave: true,
+                openScenePaths: ['src/scenes/Menu.scene'],
+                activeScenePath: 'src/scenes/Menu.scene',
+            }),
         }));
         const reloadedService = createEditorProjectService(fixture);
         const restored = await json(await reloadedService.fetch(new Request('http://localhost/api/editor-ui-state')));
@@ -111,9 +116,14 @@ describe('Editor project service', () => {
 
         expect(initial).toEqual({ autoSave: false });
         expect(savedResponse.status).toBe(200);
-        expect(restored).toEqual({ assetTreeExpandedDirectories: ['assets', 'src/scenes'], autoSave: true });
-        expect(fs.readFileSync(path.join(fixture.projectRoot, '.pixifact', 'editor', 'ui-state.json'), 'utf8'))
-            .toBe('{\n  "assetTreeExpandedDirectories": [\n    "assets",\n    "src/scenes"\n  ],\n  "autoSave": true\n}\n');
+        expect(restored).toEqual({
+            assetTreeExpandedDirectories: ['assets', 'src/scenes'],
+            autoSave: true,
+            openScenePaths: ['src/scenes/Menu.scene'],
+            activeScenePath: 'src/scenes/Menu.scene',
+        });
+        expect(JSON.parse(fs.readFileSync(path.join(fixture.projectRoot, '.pixifact', 'editor', 'ui-state.json'), 'utf8')))
+            .toEqual(restored);
         expect(project.files).not.toEqual(expect.arrayContaining([
             expect.objectContaining({ path: '.pixifact/editor/ui-state.json' }),
         ]));

@@ -36,7 +36,7 @@ class AcceptedEditorWebSocket {
     static readonly OPEN = 1;
     static initialMessage: Record<string, unknown> = {
         type: 'editorSessionActive',
-        protocolVersion: 3,
+        protocolVersion: 4,
     };
     static instances: AcceptedEditorWebSocket[] = [];
     readonly listeners = new Map<string, Array<(event: { data?: string }) => void>>();
@@ -73,7 +73,7 @@ class AcceptedEditorWebSocket {
 afterEach(() => {
     AcceptedEditorWebSocket.initialMessage = {
         type: 'editorSessionActive',
-        protocolVersion: 3,
+        protocolVersion: 4,
     };
     AcceptedEditorWebSocket.instances = [];
     vi.unstubAllGlobals();
@@ -107,7 +107,7 @@ describe('Editor Vue UI', () => {
         });
         AcceptedEditorWebSocket.initialMessage = {
             type: 'editorSessionStandby',
-            protocolVersion: 3,
+            protocolVersion: 4,
             resume: {
                 scenePath: 'src/scenes/Menu.scene',
                 selectedLocator: '0:title',
@@ -130,12 +130,12 @@ describe('Editor Vue UI', () => {
         await wrapper.get('button[aria-label="在此接管"]').trigger('click');
         expect(JSON.parse(AcceptedEditorWebSocket.instances[0].sent[0])).toEqual({
             type: 'editorSessionTakeoverRequested',
-            protocolVersion: 3,
+            protocolVersion: 4,
         });
 
         AcceptedEditorWebSocket.instances[0].emit('message', JSON.stringify({
             type: 'editorSessionActive',
-            protocolVersion: 3,
+            protocolVersion: 4,
             resume: {
                 scenePath: 'src/scenes/Menu.scene',
                 selectedLocator: '0:title',
@@ -146,7 +146,7 @@ describe('Editor Vue UI', () => {
 
         AcceptedEditorWebSocket.instances[0].emit('message', JSON.stringify({
             type: 'editorSessionStandby',
-            protocolVersion: 3,
+            protocolVersion: 4,
             reason: 'takenOver',
             resume: {
                 scenePath: 'src/scenes/Menu.scene',
@@ -257,25 +257,29 @@ describe('Editor Vue UI', () => {
         await labelInput.trigger('input');
         await labelInput.trigger('blur');
         await vi.waitFor(() => expect(wrapper.get('.sync-state').text()).toContain('未保存'));
+        await vi.waitFor(() => expect(wrapper.get('button[aria-label="返回"]').attributes('disabled')).toBeUndefined());
         await wrapper.get('button[aria-label="返回"]').trigger('click');
-        expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Button.scene');
-        expect(wrapper.get('.global-error').text()).toContain('请先保存');
-        await wrapper.get('button[aria-label="撤销"]').trigger('click');
-        await vi.waitFor(() => expect(wrapper.get('.sync-state').text()).toContain('已同步'));
-        await wrapper.get('button[aria-label="返回"]').trigger('click');
-
         await vi.waitFor(() => expect(wrapper.find('[data-locator="0:button"]').exists()).toBe(true));
         expect(useEditorUiStore().selectedLocator).toBe('0:button');
         expect(canvasView).toEqual(menuView);
         expect(restoreView).toHaveBeenLastCalledWith(menuView);
-        expect(wrapper.get('button[aria-label="前进"]').attributes('disabled')).toBeUndefined();
+        expect(wrapper.findAll('.scene-tab')).toHaveLength(2);
+        expect(wrapper.get('[data-scene-tab="src/scenes/Button.scene"]').text()).toContain('●');
+        await vi.waitFor(() => expect(AcceptedEditorWebSocket.instances[0].sent.some((message) => {
+            const parsed = JSON.parse(message) as { context?: { openScenes?: Array<{ path: string; syncState: string }> } };
+            return parsed.context?.openScenes?.some((scene) => scene.path === 'src/scenes/Button.scene' && scene.syncState === 'unsaved');
+        })).toBe(true));
+        await vi.waitFor(() => expect(wrapper.get('button[aria-label="前进"]').attributes('disabled')).toBeUndefined());
         await wrapper.get('button[aria-label="前进"]').trigger('click');
 
         await vi.waitFor(() => expect(wrapper.find('[data-locator="0:label"]').exists()).toBe(true));
         expect(useEditorUiStore().selectedLocator).toBe('0:label');
         expect(canvasView).toEqual(buttonView);
         expect(restoreView).toHaveBeenLastCalledWith(buttonView);
+        expect((wrapper.get('input[data-prop="text"]').element as HTMLInputElement).value).toBe('改动');
+        expect(wrapper.get('button[aria-label="撤销"]').attributes('disabled')).toBeUndefined();
 
+        await vi.waitFor(() => expect(wrapper.get('button[aria-label="返回"]').attributes('disabled')).toBeUndefined());
         await wrapper.get('button[aria-label="返回"]').trigger('click');
         await vi.waitFor(() => expect(wrapper.find('[data-locator="0:button"]').exists()).toBe(true));
         useEditorUiStore().activeLeftTab = 'assets';
@@ -286,7 +290,68 @@ describe('Editor Vue UI', () => {
         await flushPromises();
         expect(wrapper.find('[data-locator="0:message"]').exists()).toBe(true);
         expect(wrapper.get('button[aria-label="前进"]').attributes('disabled')).toBeDefined();
+        await wrapper.get('button[aria-label="关闭 src/scenes/Button.scene"]').trigger('click');
+        expect(wrapper.get('[role="dialog"]').text()).toContain('未保存的修改');
+        await wrapper.get('[role="dialog"] button:first-child').trigger('click');
+        expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+        expect(wrapper.findAll('.scene-tab')).toHaveLength(3);
+        await wrapper.get('button[aria-label="关闭 src/scenes/Button.scene"]').trigger('click');
+        await wrapper.get('[role="dialog"] button:nth-child(2)').trigger('click');
+        expect(wrapper.findAll('.scene-tab')).toHaveLength(2);
         wrapper.unmount();
+    });
+
+    it('restores saved tab paths and can close the last Scene', async () => {
+        const menuPath = 'src/scenes/Menu.scene';
+        const buttonPath = 'src/scenes/Button.scene';
+        const project = {
+            name: 'demo', root: '/demo', scenes: [menuPath, buttonPath], images: [],
+            files: [{ kind: 'scene', path: menuPath }, { kind: 'scene', path: buttonPath }],
+        };
+        let uiState: Record<string, unknown> = {
+            autoSave: false,
+            openScenePaths: [menuPath, buttonPath],
+            activeScenePath: buttonPath,
+        };
+        const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+            if (url === '/api/project') return Response.json(project);
+            if (url === '/api/scene-bindings') return Response.json({});
+            if (url === '/api/editor-ui-state') {
+                if (init?.method === 'PUT') uiState = JSON.parse(String(init.body)) as Record<string, unknown>;
+                return Response.json(uiState);
+            }
+            if (url.startsWith('/api/scene?')) {
+                const scenePath = new URL(url, 'http://localhost').searchParams.get('path')!;
+                return Response.json({ path: scenePath, source, version: `sha256:${scenePath}` });
+            }
+            throw new Error(`Unexpected Editor request: ${url}`);
+        });
+        vi.stubGlobal('fetch', fetcher);
+        vi.stubGlobal('WebSocket', AcceptedEditorWebSocket);
+        const pinia = createPinia();
+        setActivePinia(pinia);
+        const wrapper = mount(EditorApp, { global: { plugins: [pinia], stubs: { SceneCanvas: true } } });
+
+        await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe(buttonPath));
+        expect(wrapper.findAll('.scene-tab')).toHaveLength(2);
+        await wrapper.get(`button[aria-label="关闭 ${buttonPath}"]`).trigger('click');
+        await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe(menuPath));
+        await wrapper.get(`button[aria-label="关闭 ${menuPath}"]`).trigger('click');
+        await vi.waitFor(() => expect(wrapper.findAll('.scene-tab')).toHaveLength(0));
+        await vi.waitFor(() => expect(uiState.openScenePaths).toEqual([]));
+        expect(AcceptedEditorWebSocket.instances[0].sent.some((message) => (
+            (JSON.parse(message) as { type: string }).type === 'editorContextCleared'
+        ))).toBe(true);
+        wrapper.unmount();
+
+        const anotherPinia = createPinia();
+        setActivePinia(anotherPinia);
+        const reopened = mount(EditorApp, { global: { plugins: [anotherPinia], stubs: { SceneCanvas: true } } });
+        await vi.waitFor(() => expect(reopened.find('.scene-tabs').exists()).toBe(true));
+        await flushPromises();
+        expect(reopened.findAll('.scene-tab')).toHaveLength(0);
+        reopened.unmount();
     });
 
     it('manually reloads project context and rebuilds the current preview', async () => {
@@ -428,7 +493,9 @@ describe('Editor Vue UI', () => {
                 stubs: { SceneCanvas: true },
             },
         });
-        const writeCount = () => fetcher.mock.calls.filter(([, init]) => init?.method === 'PUT').length;
+        const writeCount = () => fetcher.mock.calls.filter(([input, init]) => (
+            String(input).startsWith('/api/scene?') && init?.method === 'PUT'
+        )).length;
         const pressWindowKey = (init: KeyboardEventInit) => {
             const event = new KeyboardEvent('keydown', {
                 bubbles: true,

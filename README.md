@@ -153,8 +153,9 @@ PixiJS 原生 `Container` 语义保持不变，尤其是 `width` / `height` 的 
 - Inspector 输入时原地更新运行时节点，不重建 Pixi Application 或 Canvas。
 - Inspector 失焦或按 Enter 后提交当前编辑；默认显示“未保存”，通过顶部“保存”或 Ctrl/Cmd+S 写回 `.scene`。
 - 左侧栏底部“设置”可开启自动保存；设置保存在当前项目的 Editor UI 状态中，默认关闭。开启时会保存已有未保存修改，此后编辑和 Undo / Redo 会自动写回。
-- 未保存或写入中时，Editor 阻止切换 Scene 和刷新，关闭页面时提示未保存修改。
-- 写入携带文件版本；外部修改导致版本不一致时显示同步冲突，不静默覆盖。
+- 一个 Editor 可打开多个 Scene 标签；切换时各自保留未保存修改、Undo / Redo、选择和画布视图。关闭未保存标签时可保存、放弃或取消；刷新页面会提示未保存修改。
+- 标签列表和活动标签保存在项目 Editor UI 状态中，刷新后从磁盘重新打开；未保存草稿不会跨页面恢复。
+- 写入携带文件版本；外部修改干净标签时自动更新，脏标签保留草稿，保存遇到版本冲突时可比较、覆盖或放弃草稿。
 - 资产面板只索引项目内已有的 `.scene` 和图片，不提供图片导入或源资源编辑。
 
 在目标项目根目录启动：
@@ -202,7 +203,7 @@ pixifact editor context
 pixifact editor screenshot --output /tmp/scene.png
 ```
 
-`context` 返回项目、Scene revision、同步状态和当前 selection；`screenshot` 将当前 ready 的 Authoring Scene 以设计尺寸写为 PNG，不包含 Editor UI，也不受画布缩放和平移影响。两者都不修改 `.scene` 或执行项目 runtime。Agent 仍然直接修改 `.scene`，再运行文件校验命令。旧 `live ...` 命令和固定端口 bridge 已删除。
+`context` 返回项目、当前 Scene revision、selection，以及全部打开标签的路径和同步状态；当前 Scene 未同步时仍拒绝返回 context。`screenshot` 将当前 ready 的 Authoring Scene 以设计尺寸写为 PNG，不包含 Editor UI，也不受画布缩放和平移影响。两者都不修改 `.scene` 或执行项目 runtime。Agent 仍然直接修改 `.scene`，再运行文件校验命令。旧 `live ...` 命令和固定端口 bridge 已删除。
 
 ## Agent Runtime
 

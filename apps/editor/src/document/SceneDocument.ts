@@ -163,12 +163,17 @@ export class SceneDocument {
 
     async setAutoSave(autoSave: boolean) {
         this.#autoSave = autoSave;
-        if (autoSave && (this.dirty || this.#pendingWrites > 0)) await this.save();
+        if (autoSave && this.#syncState !== 'conflict' && (this.dirty || this.#pendingWrites > 0)) await this.save();
     }
 
     async save() {
         if (!this.dirty && this.#pendingWrites === 0) return;
         await this.#queueSave();
+    }
+
+    async saveOverVersion(version: string) {
+        if (this.#syncState !== 'conflict') throw new Error('Scene is not in conflict.');
+        await this.#queueSave(version);
     }
 
     async reloadIfChanged() {
@@ -197,16 +202,16 @@ export class SceneDocument {
         if (this.#pendingWrites === 0 && (!this.dirty || (this.#syncState !== 'conflict' && this.#syncState !== 'error'))) {
             this.#setSyncState(this.dirty ? 'unsaved' : 'synced');
         }
-        if (this.#autoSave && (this.dirty || this.#pendingWrites > 0)) await this.save();
+        if (this.#autoSave && this.#syncState !== 'conflict' && (this.dirty || this.#pendingWrites > 0)) await this.save();
     }
 
-    #queueSave() {
+    #queueSave(expectedVersion?: string) {
         const source = this.source;
         this.#pendingWrites += 1;
         this.#setSyncState('saving');
         const operation = this.#saveQueue.then(async () => {
             try {
-                await this.#write(source);
+                await this.#write(source, expectedVersion);
             } finally {
                 this.#pendingWrites -= 1;
             }
@@ -215,9 +220,9 @@ export class SceneDocument {
         return operation;
     }
 
-    async #write(source: string) {
+    async #write(source: string, expectedVersion?: string) {
         try {
-            const saved = await this.#api.writeScene(this.path, source, this.#version);
+            const saved = await this.#api.writeScene(this.path, source, expectedVersion ?? this.#version);
             this.#version = saved.version;
             this.#savedSource = source;
             if (!this.dirty) this.#commandStack.markSaved();

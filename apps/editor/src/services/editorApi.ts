@@ -2,7 +2,7 @@ import type { ProjectFileTreeNode, ProjectFileKind } from './projectFileTree';
 import type { SceneScriptInterface } from 'pixifact/compiler';
 import type { EditorSelectionContext } from './editorContext';
 
-const editorSessionProtocolVersion = 3;
+const editorSessionProtocolVersion = 4;
 
 export interface EditorProjectFile {
     kind: 'image' | 'scene' | 'script' | 'file';
@@ -20,6 +20,8 @@ export interface EditorProject {
 export interface EditorUiState {
     assetTreeExpandedDirectories?: string[];
     autoSave: boolean;
+    openScenePaths?: string[];
+    activeScenePath?: string;
 }
 
 export interface EditorSceneFile {
@@ -36,6 +38,7 @@ export interface EditorBrowserContext {
         syncState: 'synced' | 'unsaved' | 'saving' | 'conflict' | 'error';
     };
     selection: EditorSelectionContext;
+    openScenes: Array<{ path: string; syncState: EditorBrowserContext['scene']['syncState'] }>;
 }
 
 export interface EditorSessionResumeState {
@@ -53,6 +56,7 @@ export interface EditorSessionState {
 export interface EditorSessionConnection {
     initialState: EditorSessionState;
     close(): void;
+    clearContext(): void;
     publishContext(context: EditorBrowserContext): void;
     requestTakeover(): void;
 }
@@ -139,6 +143,13 @@ export function connectEditorSession(
         const connection = (initialState: EditorSessionState): EditorSessionConnection => ({
             initialState,
             close: () => socket.close(),
+            clearContext() {
+                if (!active || socket.readyState !== WebSocket.OPEN) return;
+                socket.send(JSON.stringify({
+                    type: 'editorContextCleared',
+                    protocolVersion: editorSessionProtocolVersion,
+                }));
+            },
             publishContext(context) {
                 if (!active || socket.readyState !== WebSocket.OPEN) return;
                 socket.send(JSON.stringify({
