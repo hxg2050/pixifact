@@ -561,6 +561,14 @@ summary:focus-visible,
 }
 
 .right-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.right-panel > .inspector-panel {
+    flex: 1;
+    min-height: 0;
     overflow: auto;
 }
 
@@ -1407,6 +1415,92 @@ button.asset-row {
 
 .inspector-panel {
     min-height: 0;
+}
+
+.asset-preview-panel {
+    display: flex;
+    flex: 0 0 clamp(190px, 35vh, 270px);
+    flex-direction: column;
+    min-height: 0;
+    padding: 0 12px 10px;
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+}
+
+.asset-preview-heading {
+    display: flex;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--text);
+    font-size: 11px;
+}
+
+.asset-preview-heading button {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.asset-preview-heading button:hover {
+    background: var(--hover);
+    color: var(--text);
+}
+
+.asset-preview-image {
+    display: grid;
+    flex: 1;
+    place-items: center;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: repeating-conic-gradient(var(--line) 0% 25%, var(--panel-raised) 0% 50%) 0 0 / 16px 16px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.asset-preview-image img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.asset-preview-image span {
+    padding: 8px;
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
+.asset-preview-details {
+    display: grid;
+    flex: 0 0 auto;
+    gap: 2px;
+    padding-top: 7px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.asset-preview-details strong,
+.asset-preview-details small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.asset-preview-details strong {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.asset-preview-details small {
+    font-size: 10px;
 }
 
 .inspector-heading {

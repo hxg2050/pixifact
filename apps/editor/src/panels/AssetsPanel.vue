@@ -42,12 +42,14 @@ const props = defineProps<{
     currentScene?: string;
     expandedDirectories?: readonly string[];
     focusAsset?: { generation: number; path: string };
+    previewImage?: string;
     project?: EditorProject;
 }>();
 const emit = defineEmits<{
     assetDragStart: [asset: EditorSceneAsset];
     assetTreeExpansionChange: [directories: string[]];
     openScene: [path: string];
+    previewImage: [path: string];
 }>();
 const expandedDirectories = reactive(new Set<string>());
 const focusedAssetPath = ref<string>();
@@ -200,6 +202,12 @@ function detectAssetDrag(event: PointerEvent) {
     emit('assetDragStart', asset);
 }
 
+function previewImageOnPointerUp(event: PointerEvent, path: string) {
+    if (event.button === 0 && pendingDrag?.pointerId === event.pointerId) {
+        emit('previewImage', path);
+    }
+}
+
 function cancelPendingDrag() {
     window.removeEventListener('pointermove', detectAssetDrag);
     window.removeEventListener('pointerup', cancelPendingDrag);
@@ -259,15 +267,18 @@ onBeforeUnmount(cancelPendingDrag);
         <PanelsTopLeft :size="15" />
         <span>{{ row.node.name }}</span>
       </button>
-      <div
+      <button
         v-else
         class="asset-row asset-draggable"
-        :class="{ focused: row.node.path === focusedAssetPath }"
+        :class="{ focused: row.node.path === focusedAssetPath, selected: row.node.path === previewImage }"
         :style="{ paddingLeft: `${8 + row.level * 16}px` }"
         :data-asset-path="row.node.path"
         data-asset-draggable="true"
         :title="row.node.path"
+        type="button"
         @pointerdown="prepareAssetDrag($event, { kind: 'image', path: row.node.path })"
+        @pointerup="previewImageOnPointerUp($event, row.node.path)"
+        @click="$event.detail === 0 && emit('previewImage', row.node.path)"
         @selectstart.prevent
       >
         <span class="asset-row-spacer" />
@@ -278,7 +289,7 @@ onBeforeUnmount(cancelPendingDrag);
           draggable="false"
         />
         <span>{{ row.node.name }}</span>
-      </div>
+      </button>
     </template>
   </div>
 </template>

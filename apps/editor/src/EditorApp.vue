@@ -9,6 +9,7 @@ import {
     type SceneTemplateInterface,
 } from 'pixifact/compiler';
 import AssetsPanel from './panels/AssetsPanel.vue';
+import AssetPreviewPanel from './panels/AssetPreviewPanel.vue';
 import HierarchyPanel from './panels/HierarchyPanel.vue';
 import InspectorPanel from './panels/InspectorPanel.vue';
 import SceneCanvas from './preview/SceneCanvas.vue';
@@ -58,6 +59,7 @@ const closeModal = ref<HTMLElement>();
 const conflictModal = ref<HTMLElement>();
 const draggedAsset = ref<EditorSceneAsset>();
 const assetFocusRequest = ref<{ generation: number; path: string }>();
+const previewImagePath = ref<string>();
 const refreshing = ref(false);
 const previewState = ref<'loading' | 'ready' | 'error'>('loading');
 const sessionState = ref<'connecting' | 'active' | 'standby'>('connecting');
@@ -819,6 +821,11 @@ function locateAsset(path: string) {
     assetFocusRequest.value = { generation: ++assetFocusGeneration, path };
 }
 
+function previewImage(path: string) {
+    previewImagePath.value = path;
+    rightPanelCollapsed.value = false;
+}
+
 function saveAssetTreeExpansion(directories: string[]) {
     assetTreeExpandedDirectories.value = directories;
     scheduleEditorUiStateSave();
@@ -894,6 +901,7 @@ function clearWorkspace() {
     documentRevision.value += 1;
     draggedAsset.value = undefined;
     assetFocusRequest.value = undefined;
+    previewImagePath.value = undefined;
     refreshing.value = false;
     previewState.value = 'loading';
     navigationEntries.value = [];
@@ -1163,9 +1171,11 @@ onBeforeUnmount(() => {
             :current-scene="currentScenePath"
             :expanded-directories="assetTreeExpandedDirectories"
             :focus-asset="assetFocusRequest"
+            :preview-image="previewImagePath"
             @asset-drag-start="startAssetDrag"
             @asset-tree-expansion-change="saveAssetTreeExpansion"
             @open-scene="navigateToScene"
+            @preview-image="previewImage"
           />
         </div>
         <div v-show="!leftPanelCollapsed" class="left-panel-footer">
@@ -1329,6 +1339,12 @@ onBeforeUnmount(() => {
           :selections="selectedLocators"
           @asset-drop="endAssetDrag"
           @locate-asset="locateAsset"
+        />
+        <AssetPreviewPanel
+          v-if="previewImagePath && !rightPanelCollapsed"
+          :path="previewImagePath"
+          :project="project"
+          @close="previewImagePath = undefined"
         />
       </aside>
     </section>
