@@ -1,5 +1,15 @@
 # pixifact-cli
 
+## 0.14.0
+
+### Minor Changes
+
+- 改进浏览器 Editor：加入 macOS 风格主题与外观切换、层级多选和批量操作、十二种快捷布局、图片资产预览，以及层级节点拖动时的边缘自动滚动。
+
+### Patch Changes
+
+- pixifact@0.14.0
+
 ## 0.13.0
 
 ### Minor Changes

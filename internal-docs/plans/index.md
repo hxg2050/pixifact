@@ -10,6 +10,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [release-v0.14.0.md](./release-v0.14.0.md) | Editor 主题、多选、快捷布局、资产预览和层级拖动改进的五包 `0.14.0` 发布 |
 | [editor-canvas-tools.md](./editor-canvas-tools.md) | Editor 画布平移、移动节点和调整大小三工具交互 |
 | [release-v0.12.0.md](./release-v0.12.0.md) | Web Agent Runtime、Scene 来源定位和任意 Scene 截图的五包 `0.12.0` 发布 |
 | [playable-sample-agent-eval.md](./playable-sample-agent-eval.md) | Web 可玩样板游戏与固定 Agent 任务评测；首轮完成，统计复测待开展 |
