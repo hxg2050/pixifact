@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Copy, Plus, Trash2 } from 'lucide-vue-next';
+import { Copy, Plus, Search, Trash2 } from 'lucide-vue-next';
 import {
     pixiSceneAddableNodeTypes,
     type PixiSceneNodeType,
@@ -14,6 +14,7 @@ import {
     findSceneTreeEntry,
     sceneTreeEntries,
     type SceneTreeDropTarget,
+    type SceneTreeEntry,
     type EditorSceneAsset,
 } from '../document/sceneTree';
 
@@ -28,13 +29,34 @@ const emit = defineEmits<{
     openScene: [reference: string];
     select: [locator?: string];
 }>();
-const addType = ref<PixiSceneNodeType>('Group');
+const search = ref('');
+const addMenu = ref<HTMLDetailsElement>();
 const draggedLocator = ref<string>();
 const dropTarget = ref<SceneTreeDropTarget>();
 const error = ref('');
 const entries = computed(() => {
     void props.revision;
     return props.document ? sceneTreeEntries(props.document.template.children) : [];
+});
+const visibleEntries = computed(() => {
+    const query = search.value.trim().toLocaleLowerCase();
+    if (!query) return entries.value;
+    const filter = (entry: SceneTreeEntry): SceneTreeEntry | undefined => {
+        const node = entry.node;
+        const label = node.kind === 'slotOutlet'
+            ? `${node.name} slot`
+            : `${node.id ?? ''} ${node.type} ${node.kind === 'sceneInstance' ? node.scene : ''}`;
+        if (label.toLocaleLowerCase().includes(query)) return entry;
+        const children = entry.children.flatMap((child) => {
+            const match = filter(child);
+            return match ? [match] : [];
+        });
+        return children.length ? { ...entry, children } : undefined;
+    };
+    return entries.value.flatMap((entry) => {
+        const match = filter(entry);
+        return match ? [match] : [];
+    });
 });
 const selectedEntry = computed(() => (
     props.document && props.selected
@@ -62,14 +84,15 @@ function insertionTarget() {
     return { parent: entry.parentLocator, index: entry.index + 1 };
 }
 
-async function addNode() {
-    if (!props.document || !pixiSceneAddableNodeTypes.includes(addType.value)) return;
+async function addNode(type: PixiSceneNodeType) {
+    if (!props.document || !pixiSceneAddableNodeTypes.includes(type)) return;
+    if (addMenu.value) addMenu.value.open = false;
     const target = insertionTarget();
     await commit({
         op: 'insertNode',
         parent: target.parent,
         index: target.index,
-        node: createPixiSceneNode(props.document.template, addType.value),
+        node: createPixiSceneNode(props.document.template, type),
     });
 }
 
@@ -199,14 +222,19 @@ watch(() => props.draggedAsset, (asset) => {
     :class="{ 'is-dragging': isDragging, 'is-asset-dragging': !!draggedAsset }"
   >
     <div class="hierarchy-toolbar">
-      <select v-model="addType" aria-label="节点类型" title="节点类型">
-        <optgroup v-for="group in addGroups" :key="group.label" :label="group.label">
-          <option v-for="type in group.types" :key="type" :value="type">{{ type }}</option>
-        </optgroup>
-      </select>
-      <button type="button" title="添加节点" aria-label="添加节点" @click="addNode">
-        <Plus :size="15" />
-      </button>
+      <label class="hierarchy-search">
+        <Search :size="14" />
+        <input v-model="search" type="search" aria-label="搜索节点" placeholder="搜索节点">
+      </label>
+      <details ref="addMenu" class="add-node-menu">
+        <summary title="添加节点" aria-label="添加节点"><Plus :size="15" /></summary>
+        <div class="add-node-options">
+          <div v-for="group in addGroups" :key="group.label" class="add-node-group">
+            <span>{{ group.label }}</span>
+            <button v-for="type in group.types" :key="type" type="button" :aria-label="`添加 ${type}`" @click="addNode(type)">{{ type }}</button>
+          </div>
+        </div>
+      </details>
       <button type="button" title="复制节点" aria-label="复制节点" :disabled="!canDuplicate" @click="copyNode">
         <Copy :size="14" />
       </button>
@@ -233,13 +261,14 @@ watch(() => props.draggedAsset, (asset) => {
     </button>
     <ul class="tree-list">
       <HierarchyNode
-        v-for="entry in entries"
+        v-for="entry in visibleEntries"
         :key="entry.locator"
         :entry="entry"
         :level="0"
         :asset-dragging="!!draggedAsset"
         :drop-target="dropTarget"
         :dragging="!!draggedLocator"
+        :searching="!!search.trim()"
         :selected="selected"
         @drag-over="updateDropTarget"
         @drag-start="startDrag"
@@ -248,6 +277,7 @@ watch(() => props.draggedAsset, (asset) => {
         @select="emit('select', $event)"
       />
     </ul>
+    <p v-if="search.trim() && visibleEntries.length === 0" class="panel-empty compact">没有匹配的节点</p>
     <p v-if="error" class="inline-error">{{ error }}</p>
   </div>
   <div v-else class="panel-empty">项目中没有可打开的 Scene</div>

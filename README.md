@@ -147,8 +147,10 @@ PixiJS 原生 `Container` 语义保持不变，尤其是 `width` / `height` 的 
 
 当前第一条可用闭环：
 
-- 固定三栏展示当前 Scene 的可编辑层级、长驻 Pixi Canvas 和 schema-driven Inspector。
-- 层级支持添加、复制、删除，以及拖拽节点行调整同级顺序或更换父节点；操作可 Undo / Redo。
+- 四栏依次展示项目公共资产、当前 Scene 层级、长驻 Pixi Canvas 和 schema-driven Inspector；资产栏从顶栏下方延伸到底部，Scene 标签只占右侧编辑区域。侧栏可拖动调宽或收起，设置位于资产面板底部。
+- 界面采用 macOS 风格的系统字体与控件层次，并跟随系统浅色或深色外观。
+- 层级支持搜索节点、按类别添加、复制、删除，以及拖拽节点行调整同级顺序或更换父节点；操作可 Undo / Redo。
+- 画布显示 Scene 设计尺寸与缩放比例；Inspector 将变换、布局、节点属性和低频显示属性分组，布局控制的字段会提示对应约束。
 - 结构变化只替换 Scene 预览 root，Pixi Application 和 Canvas 保持长驻。
 - Inspector 输入时原地更新运行时节点，不重建 Pixi Application 或 Canvas。
 - Inspector 失焦或按 Enter 后提交当前编辑；默认显示“未保存”，通过顶部“保存”或 Ctrl/Cmd+S 写回 `.scene`。

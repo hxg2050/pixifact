@@ -48,9 +48,9 @@ interface InspectorFieldSection {
 const inspectorSections: readonly { key: InspectorSectionKey; title: string }[] = [
     { key: 'transform', title: '变换' },
     { key: 'layout', title: '布局' },
-    { key: 'display', title: '显示与交互' },
     { key: 'node', title: '节点属性' },
     { key: 'props', title: 'Scene Props' },
+    { key: 'display', title: '显示与交互' },
 ];
 const transformFieldKeys = new Set<string>(pixiSceneTransformProps);
 const layoutFieldKeys = new Set<string>(pixiSceneLayoutProps);
@@ -114,6 +114,17 @@ const selectedType = computed(() => {
     if (!node) return 'Scene';
     if (node.kind === 'slotOutlet') return 'Slot';
     return node.kind === 'sceneInstance' ? `Scene · ${node.type}` : node.type;
+});
+const layoutControlNote = computed(() => {
+    const node = selectedNode.value;
+    if (!node || node.kind === 'slotOutlet') return '';
+    const values = node.props;
+    const horizontal = ['left', 'right', 'horizontal'].filter((key) => values[key] !== undefined);
+    const vertical = ['top', 'bottom', 'vertical'].filter((key) => values[key] !== undefined);
+    const notes = [];
+    if (horizontal.length) notes.push(`X${values.left !== undefined && values.right !== undefined ? '、宽度' : ''} 由 ${horizontal.join(' / ')} 控制`);
+    if (vertical.length) notes.push(`Y${values.top !== undefined && values.bottom !== undefined ? '、高度' : ''} 由 ${vertical.join(' / ')} 控制`);
+    return notes.join('；');
 });
 const selectedInterface = computed(() => {
     const node = selectedNode.value;
@@ -435,7 +446,7 @@ async function dropAsset(field: InspectorField) {
     <header class="inspector-heading">
       <div>
         <strong>{{ selectedTitle }}</strong>
-        <small>{{ selectedType }}</small>
+        <small>{{ selectedType }}<template v-if="selected"> · {{ selected }}</template></small>
       </div>
     </header>
 
@@ -467,13 +478,18 @@ async function dropAsset(field: InspectorField) {
           </label>
         </div>
       </section>
-      <section
+      <details
         v-for="section in fieldSections"
         :key="section.key"
         class="inspector-section"
         :data-inspector-section="section.key"
+        :open="section.key !== 'display'"
       >
-        <div class="inspector-section-title">{{ section.title }}</div>
+        <summary class="inspector-section-title">{{ section.title }}</summary>
+        <div v-if="section.key === 'transform' && layoutControlNote" class="layout-control-note">
+          <strong>布局已接管</strong>
+          <span>{{ layoutControlNote }}。请在「布局」中调整对应约束。</span>
+        </div>
         <div
           v-for="row in section.rows"
           :key="row.key"
@@ -582,7 +598,7 @@ async function dropAsset(field: InspectorField) {
             </div>
           </label>
         </div>
-      </section>
+      </details>
     </div>
     <p v-if="nodeIdError || error.message" class="inline-error">{{ nodeIdError || error.message }}</p>
   </div>

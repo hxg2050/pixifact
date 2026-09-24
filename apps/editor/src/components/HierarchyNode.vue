@@ -9,6 +9,7 @@ const props = defineProps<{
     assetDragging?: boolean;
     dropTarget?: SceneTreeDropTarget;
     dragging?: boolean;
+    searching?: boolean;
     selected?: string;
 }>();
 const emit = defineEmits<{
@@ -57,7 +58,7 @@ function calculateDropTarget(event: Pick<PointerEvent, 'clientY' | 'currentTarge
 }
 
 function handlePointerDown(event: PointerEvent) {
-    if (event.button !== 0 || props.assetDragging) return;
+    if (event.button !== 0 || props.assetDragging || props.searching) return;
     emit('dragStart', props.entry.locator);
 }
 
@@ -97,14 +98,14 @@ function handleAssetDrop(event: PointerEvent) {
         @click.stop="hasChildren && (expanded = !expanded)"
         @pointerdown.stop
       >
-        <ChevronDown v-if="hasChildren && expanded" :size="13" />
+        <ChevronDown v-if="hasChildren && (expanded || searching)" :size="13" />
         <ChevronRight v-else-if="hasChildren" :size="13" />
       </span>
       <component :is="icon" :size="14" class="tree-icon" />
       <span class="tree-label">{{ label }}</span>
       <small>{{ entry.node.kind === 'sceneInstance' ? 'Scene' : entry.node.kind === 'pixi' ? entry.node.type : 'Slot' }}</small>
     </button>
-    <ul v-if="hasChildren && expanded" class="tree-list">
+    <ul v-if="hasChildren && (expanded || searching)" class="tree-list">
       <HierarchyNode
         v-for="child in entry.children"
         :key="child.locator"
@@ -113,6 +114,7 @@ function handleAssetDrop(event: PointerEvent) {
         :asset-dragging="props.assetDragging"
         :drop-target="props.dropTarget"
         :dragging="props.dragging"
+        :searching="props.searching"
         :selected="selected"
         @drag-over="emit('dragOver', $event)"
         @drag-start="emit('dragStart', $event)"

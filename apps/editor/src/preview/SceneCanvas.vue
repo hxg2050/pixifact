@@ -71,6 +71,8 @@ const isPanning = ref(false);
 const spacePressed = ref(false);
 const activeTool = ref<'pan' | 'move' | 'resize'>('resize');
 const status = ref('正在初始化画布');
+const zoomPercent = ref(100);
+const designSize = ref('');
 let app: Application | undefined;
 let canvasPan: CanvasPan | undefined;
 let preview: CompilerSceneRuntimePreview | undefined;
@@ -134,6 +136,7 @@ function applyView() {
     if (!preview || !view) return;
     preview.root.scale.set(view.scale);
     preview.root.position.set(view.x, view.y);
+    zoomPercent.value = Math.round(view.scale * 100);
     updateSelectionOverlay();
 }
 
@@ -199,6 +202,7 @@ async function rebuildPreview() {
     if (viewScenePath !== document.path) {
         viewScenePath = document.path;
         view = undefined;
+        designSize.value = '';
     }
     status.value = '正在构建 Scene';
     emit('previewState', 'loading');
@@ -220,6 +224,7 @@ async function rebuildPreview() {
             destroyCompilerSceneRuntimePreview(preview);
         }
         preview = next;
+        designSize.value = `${next.width} × ${next.height}`;
         previewDocument = document;
         selectionCycle = undefined;
         for (const [locator, target] of preview.nodes) {
@@ -880,7 +885,9 @@ onBeforeUnmount(() => {
         <Scaling :size="15" />
       </button>
     </div>
-    <div class="canvas-tools">
+    <div class="canvas-tools canvas-view-tools">
+      <span v-if="document && designSize" class="canvas-view-size" title="Scene 设计尺寸">{{ designSize }}</span>
+      <span v-if="document && designSize" class="canvas-view-zoom" title="画布缩放比例">{{ zoomPercent }}%</span>
       <button
         type="button"
         title="适应窗口"

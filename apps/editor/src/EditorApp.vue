@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { ArrowLeft, ArrowRight, Redo2, RefreshCw, Save, Settings2, Undo2, X } from 'lucide-vue-next';
-import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger, TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
+import { ArrowLeft, ArrowRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Redo2, RefreshCw, Save, Settings2, Undo2, X } from 'lucide-vue-next';
+import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui';
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, triggerRef, watch } from 'vue';
 import {
     pairedSceneScriptPath,
@@ -40,7 +40,7 @@ import type { ProjectFileTreeNode } from './services/projectFileTree';
 import { useEditorUiStore } from './stores/editorUi';
 
 const ui = useEditorUiStore();
-const { activeLeftTab, currentScenePath, selectedLocator, syncState } = storeToRefs(ui);
+const { currentScenePath, selectedLocator, syncState } = storeToRefs(ui);
 const project = ref<EditorProject>();
 const projectTree = ref<ProjectFileTreeNode>();
 const sceneInterfaces = ref<Record<string, SceneTemplateInterface>>({});
@@ -81,6 +81,14 @@ const sceneCanvas = ref<{
 const navigationEntries = ref<SceneNavigationEntry[]>([]);
 const navigationIndex = ref(-1);
 const navigationPending = ref(false);
+const leftPanelWidth = ref(220);
+const hierarchyPanelWidth = ref(244);
+const rightPanelWidth = ref(360);
+const leftPanelCollapsed = ref(false);
+const hierarchyPanelCollapsed = ref(false);
+const rightPanelCollapsed = ref(false);
+type PanelSide = 'left' | 'hierarchy' | 'right';
+let panelResize: { side: PanelSide; startX: number; startWidth: number } | undefined;
 let sessionConnection: EditorSessionConnection | undefined;
 let sessionStateRevision = 0;
 let projectChangeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -107,7 +115,6 @@ interface SceneTab {
     unsubscribe: () => void;
 }
 
-const sceneName = computed(() => currentScenePath.value?.split('/').at(-1)?.replace(/\.scene$/, '') ?? '未打开 Scene');
 const syncLabel = computed(() => ({
     synced: '已同步',
     unsaved: '未保存',
@@ -121,6 +128,55 @@ const canNavigateForward = computed(() => (
     && navigationIndex.value < navigationEntries.value.length - 1
     && !navigationPending.value
 ));
+
+function beginPanelResize(side: PanelSide, event: PointerEvent) {
+    if (event.button !== 0 || (side === 'left' ? leftPanelCollapsed.value : side === 'hierarchy' ? hierarchyPanelCollapsed.value : rightPanelCollapsed.value)) return;
+    event.preventDefault();
+    panelResize = {
+        side,
+        startX: event.clientX,
+        startWidth: side === 'left' ? leftPanelWidth.value : side === 'hierarchy' ? hierarchyPanelWidth.value : rightPanelWidth.value,
+    };
+    globalThis.document.documentElement.classList.add('is-resizing-panel');
+    window.addEventListener('pointermove', movePanelResize);
+    window.addEventListener('pointerup', endPanelResize);
+    window.addEventListener('pointercancel', endPanelResize);
+    window.addEventListener('blur', endPanelResize);
+}
+
+function movePanelResize(event: PointerEvent) {
+    if (!panelResize) return;
+    const delta = event.clientX - panelResize.startX;
+    if (panelResize.side === 'left') {
+        leftPanelWidth.value = Math.max(160, Math.min(360, panelResize.startWidth + delta));
+    } else if (panelResize.side === 'hierarchy') {
+        hierarchyPanelWidth.value = Math.max(190, Math.min(420, panelResize.startWidth + delta));
+    } else {
+        rightPanelWidth.value = Math.max(280, Math.min(520, panelResize.startWidth - delta));
+    }
+}
+
+function resizePanelWithKeyboard(side: PanelSide, event: KeyboardEvent) {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+    event.preventDefault();
+    const delta = event.key === 'ArrowRight' ? 16 : -16;
+    if (side === 'left' && !leftPanelCollapsed.value) {
+        leftPanelWidth.value = Math.max(160, Math.min(360, leftPanelWidth.value + delta));
+    } else if (side === 'hierarchy' && !hierarchyPanelCollapsed.value) {
+        hierarchyPanelWidth.value = Math.max(190, Math.min(420, hierarchyPanelWidth.value + delta));
+    } else if (side === 'right' && !rightPanelCollapsed.value) {
+        rightPanelWidth.value = Math.max(280, Math.min(520, rightPanelWidth.value - delta));
+    }
+}
+
+function endPanelResize() {
+    panelResize = undefined;
+    globalThis.document.documentElement.classList.remove('is-resizing-panel');
+    window.removeEventListener('pointermove', movePanelResize);
+    window.removeEventListener('pointerup', endPanelResize);
+    window.removeEventListener('pointercancel', endPanelResize);
+    window.removeEventListener('blur', endPanelResize);
+}
 
 function tabFor(path: string) {
     return sceneTabs.value.find((tab) => tab.path === path);
@@ -724,11 +780,10 @@ function handleBeforeUnload(event: BeforeUnloadEvent) {
 
 function startAssetDrag(asset: EditorSceneAsset) {
     draggedAsset.value = asset;
-    activeLeftTab.value = 'hierarchy';
 }
 
 function locateAsset(path: string) {
-    activeLeftTab.value = 'assets';
+    leftPanelCollapsed.value = false;
     assetFocusRequest.value = { generation: ++assetFocusGeneration, path };
 }
 
@@ -904,6 +959,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    endPanelResize();
     editorDisposed = true;
     sceneOpenGeneration += 1;
     window.removeEventListener('pointerup', endAssetDrag);
@@ -942,12 +998,19 @@ onBeforeUnmount(() => {
       <p class="standby-note">接管后，另一个标签页将停止编辑。Undo / Redo 和画布视图不会迁移。</p>
     </section>
   </main>
-  <main v-else class="editor-shell">
+  <main
+    v-else
+    class="editor-shell"
+    :style="{
+      '--left-width': leftPanelCollapsed ? '40px' : `${leftPanelWidth}px`,
+      '--hierarchy-width': hierarchyPanelCollapsed ? '40px' : `${hierarchyPanelWidth}px`,
+      '--right-width': rightPanelCollapsed ? '40px' : `${rightPanelWidth}px`,
+    }"
+  >
     <header class="topbar">
-      <div class="brand">PIXIFACT</div>
-      <div class="scene-identity">
-        <strong>{{ sceneName }}</strong>
-        <span>{{ currentScenePath }}</span>
+      <div class="brand">
+        <strong>PIXIFACT</strong>
+        <span v-if="project?.name" class="project-name" :title="project?.root">{{ project.name }}</span>
       </div>
       <div class="history-tools">
         <button
@@ -1029,37 +1092,37 @@ onBeforeUnmount(() => {
     </nav>
 
     <section class="workspace">
-      <aside class="left-panel">
-        <TabsRoot v-model="activeLeftTab" class="left-tabs">
-          <TabsList class="tab-list" aria-label="项目面板">
-            <TabsTrigger class="tab-trigger" value="hierarchy">层级</TabsTrigger>
-            <TabsTrigger class="tab-trigger" value="assets">资产</TabsTrigger>
-          </TabsList>
-          <TabsContent class="tab-content" value="hierarchy">
-            <HierarchyPanel
-              ref="hierarchyPanel"
-              :document="document"
-              :dragged-asset="draggedAsset"
-              :revision="documentRevision"
-              :selected="selectedLocator"
-              @select="selectedLocator = $event"
-              @open-scene="navigateToSceneReference"
-              @asset-drop="endAssetDrag"
-            />
-          </TabsContent>
-          <TabsContent class="tab-content" value="assets">
-            <AssetsPanel
-              :project="project"
-              :current-scene="currentScenePath"
-              :expanded-directories="assetTreeExpandedDirectories"
-              :focus-asset="assetFocusRequest"
-              @asset-drag-start="startAssetDrag"
-              @asset-tree-expansion-change="saveAssetTreeExpansion"
-              @open-scene="navigateToScene"
-            />
-          </TabsContent>
-        </TabsRoot>
-        <div class="left-panel-footer">
+      <aside class="left-panel" :class="{ collapsed: leftPanelCollapsed }">
+        <button
+          v-if="leftPanelCollapsed"
+          class="panel-rail-toggle"
+          type="button"
+          title="展开资产面板"
+          aria-label="展开资产面板"
+          @click="leftPanelCollapsed = false"
+        ><PanelLeftOpen :size="17" /></button>
+        <div v-show="!leftPanelCollapsed" class="panel-title">
+          资产
+          <button
+            class="panel-collapse-button"
+            type="button"
+            title="收起资产面板"
+            aria-label="收起资产面板"
+            @click="leftPanelCollapsed = true"
+          ><PanelLeftClose :size="15" /></button>
+        </div>
+        <div v-show="!leftPanelCollapsed" class="asset-panel-content">
+          <AssetsPanel
+            :project="project"
+            :current-scene="currentScenePath"
+            :expanded-directories="assetTreeExpandedDirectories"
+            :focus-asset="assetFocusRequest"
+            @asset-drag-start="startAssetDrag"
+            @asset-tree-expansion-change="saveAssetTreeExpansion"
+            @open-scene="navigateToScene"
+          />
+        </div>
+        <div v-show="!leftPanelCollapsed" class="left-panel-footer">
           <PopoverRoot>
             <PopoverTrigger class="settings-trigger" type="button" aria-label="设置" title="设置">
               <Settings2 :size="16" />
@@ -1086,6 +1149,69 @@ onBeforeUnmount(() => {
         </div>
       </aside>
 
+      <div
+        class="panel-resizer asset-resizer"
+        :class="{ disabled: leftPanelCollapsed }"
+        role="separator"
+        :tabindex="leftPanelCollapsed ? -1 : 0"
+        aria-label="调整资产面板宽度"
+        aria-orientation="vertical"
+        :aria-disabled="leftPanelCollapsed"
+        :aria-valuenow="leftPanelCollapsed ? 40 : leftPanelWidth"
+        aria-valuemin="160"
+        aria-valuemax="360"
+        @pointerdown="beginPanelResize('left', $event)"
+        @keydown="resizePanelWithKeyboard('left', $event)"
+      />
+
+      <aside class="hierarchy-sidebar" :class="{ collapsed: hierarchyPanelCollapsed }">
+        <button
+          v-if="hierarchyPanelCollapsed"
+          class="panel-rail-toggle"
+          type="button"
+          title="展开层级面板"
+          aria-label="展开层级面板"
+          @click="hierarchyPanelCollapsed = false"
+        ><PanelLeftOpen :size="17" /></button>
+        <div v-show="!hierarchyPanelCollapsed" class="panel-title">
+          层级
+          <button
+            class="panel-collapse-button"
+            type="button"
+            title="收起层级面板"
+            aria-label="收起层级面板"
+            @click="hierarchyPanelCollapsed = true"
+          ><PanelLeftClose :size="15" /></button>
+        </div>
+        <div v-show="!hierarchyPanelCollapsed" class="hierarchy-panel-content">
+          <HierarchyPanel
+            ref="hierarchyPanel"
+            :document="document"
+            :dragged-asset="draggedAsset"
+            :revision="documentRevision"
+            :selected="selectedLocator"
+            @select="selectedLocator = $event"
+            @open-scene="navigateToSceneReference"
+            @asset-drop="endAssetDrag"
+          />
+        </div>
+      </aside>
+
+      <div
+        class="panel-resizer hierarchy-resizer"
+        :class="{ disabled: hierarchyPanelCollapsed }"
+        role="separator"
+        :tabindex="hierarchyPanelCollapsed ? -1 : 0"
+        aria-label="调整层级面板宽度"
+        aria-orientation="vertical"
+        :aria-disabled="hierarchyPanelCollapsed"
+        :aria-valuenow="hierarchyPanelCollapsed ? 40 : hierarchyPanelWidth"
+        aria-valuemin="190"
+        aria-valuemax="420"
+        @pointerdown="beginPanelResize('hierarchy', $event)"
+        @keydown="resizePanelWithKeyboard('hierarchy', $event)"
+      />
+
       <section class="canvas-panel" aria-label="Scene 画布">
         <SceneCanvas
           ref="sceneCanvas"
@@ -1101,9 +1227,42 @@ onBeforeUnmount(() => {
         />
       </section>
 
-      <aside class="right-panel">
-        <div class="panel-title">INSPECTOR</div>
+      <div
+        class="panel-resizer inspector-resizer"
+        :class="{ disabled: rightPanelCollapsed }"
+        role="separator"
+        :tabindex="rightPanelCollapsed ? -1 : 0"
+        aria-label="调整右侧面板宽度"
+        aria-orientation="vertical"
+        :aria-disabled="rightPanelCollapsed"
+        :aria-valuenow="rightPanelCollapsed ? 40 : rightPanelWidth"
+        aria-valuemin="280"
+        aria-valuemax="520"
+        @pointerdown="beginPanelResize('right', $event)"
+        @keydown="resizePanelWithKeyboard('right', $event)"
+      />
+
+      <aside class="right-panel" :class="{ collapsed: rightPanelCollapsed }">
+        <button
+          v-if="rightPanelCollapsed"
+          class="panel-rail-toggle"
+          type="button"
+          title="展开检查器"
+          aria-label="展开检查器"
+          @click="rightPanelCollapsed = false"
+        ><PanelRightOpen :size="17" /></button>
+        <div v-else class="panel-title">
+          检查器
+          <button
+            class="panel-collapse-button"
+            type="button"
+            title="收起检查器"
+            aria-label="收起检查器"
+            @click="rightPanelCollapsed = true"
+          ><PanelRightClose :size="15" /></button>
+        </div>
         <InspectorPanel
+          v-show="!rightPanelCollapsed"
           :document="document"
           :dragged-asset="draggedAsset"
           :revision="documentRevision"

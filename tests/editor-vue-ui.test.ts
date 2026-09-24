@@ -282,12 +282,10 @@ describe('Editor Vue UI', () => {
         await vi.waitFor(() => expect(wrapper.get('button[aria-label="返回"]').attributes('disabled')).toBeUndefined());
         await wrapper.get('button[aria-label="返回"]').trigger('click');
         await vi.waitFor(() => expect(wrapper.find('[data-locator="0:button"]').exists()).toBe(true));
-        useEditorUiStore().activeLeftTab = 'assets';
-        await flushPromises();
         await wrapper.get('[data-asset-path="src/scenes/Dialog.scene"]').trigger('dblclick');
         await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Dialog.scene'));
-        useEditorUiStore().activeLeftTab = 'hierarchy';
-        await flushPromises();
+        expect(wrapper.find('.asset-panel-content').exists()).toBe(true);
+        expect(wrapper.find('.hierarchy-panel-content').exists()).toBe(true);
         expect(wrapper.find('[data-locator="0:message"]').exists()).toBe(true);
         expect(wrapper.get('button[aria-label="前进"]').attributes('disabled')).toBeDefined();
         await wrapper.get('button[aria-label="关闭 src/scenes/Button.scene"]').trigger('click');
@@ -721,7 +719,6 @@ describe('Editor Vue UI', () => {
         });
 
         await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Menu.scene'));
-        useEditorUiStore().activeLeftTab = 'assets';
         await vi.waitFor(() => expect(wrapper.find('[data-asset-path="assets/icons/map.svg"]').exists()).toBe(true));
         expect(wrapper.get('[data-asset-directory="src"]').attributes('aria-expanded')).toBe('false');
         await wrapper.get('[data-asset-directory="assets"]').trigger('click');
@@ -787,8 +784,10 @@ describe('Editor Vue UI', () => {
         await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Menu.scene'));
         useEditorUiStore().selectedLocator = '0:icon';
         await flushPromises();
+        await wrapper.get('button[aria-label="收起资产面板"]').trigger('click');
+        expect(wrapper.get('.left-panel').classes()).toContain('collapsed');
         await wrapper.get('input[data-prop="texture"]').trigger('click');
-        await vi.waitFor(() => expect(useEditorUiStore().activeLeftTab).toBe('assets'));
+        await vi.waitFor(() => expect(wrapper.get('.left-panel').classes()).not.toContain('collapsed'));
         await vi.waitFor(() => expect(wrapper.get('[data-asset-path="assets/icons/map.svg"]').classes())
             .toContain('focused'));
         wrapper.unmount();
@@ -939,7 +938,6 @@ describe('Editor Vue UI', () => {
         const state = useEditorUiStore().$state;
 
         expect(Object.keys(state).sort()).toEqual([
-            'activeLeftTab',
             'currentScenePath',
             'selectedLocator',
             'syncState',
@@ -1256,8 +1254,8 @@ describe('Editor Vue UI', () => {
             { key: 'identity', title: '节点' },
             { key: 'transform', title: '变换' },
             { key: 'layout', title: '布局' },
-            { key: 'display', title: '显示与交互' },
             { key: 'node', title: '节点属性' },
+            { key: 'display', title: '显示与交互' },
         ]);
 
         const rowProps = (key: string) => wrapper.get(`[data-field-row="${key}"]`)
@@ -1730,8 +1728,13 @@ describe('Editor Vue UI', () => {
 
         expect(wrapper.find('[data-drag-handle]').exists()).toBe(false);
 
-        await wrapper.get('select[aria-label="节点类型"]').setValue('Rect');
-        await wrapper.get('button[aria-label="添加节点"]').trigger('click');
+        await wrapper.get('input[aria-label="搜索节点"]').setValue('title');
+        expect(wrapper.find('button[data-locator="0:panel/0:title"]').exists()).toBe(true);
+        expect(wrapper.find('button[data-locator="1:footer"]').exists()).toBe(false);
+        await wrapper.get('input[aria-label="搜索节点"]').setValue('');
+
+        await wrapper.get('summary[aria-label="添加节点"]').trigger('click');
+        await wrapper.get('button[aria-label="添加 Rect"]').trigger('click');
         await flushPromises();
 
         expect(document.source).toContain('<Rect id="rect"');
