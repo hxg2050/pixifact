@@ -175,6 +175,8 @@ describe('Editor external project synchronization', () => {
         await label.trigger('input');
         await label.trigger('blur');
         await vi.waitFor(() => expect(wrapper.get('button[aria-label="撤销"]').attributes('disabled')).toBeUndefined());
+        expect(wrapper.get('button[aria-label="刷新"]').attributes('disabled')).toBeDefined();
+        await wrapper.get('button[aria-label="保存 Scene"]').trigger('click');
         await vi.waitFor(() => expect(wrapper.get('button[aria-label="刷新"]').attributes('disabled')).toBeUndefined());
 
         heldReadsRemaining = 2;

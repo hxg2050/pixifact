@@ -19,6 +19,7 @@ export interface EditorProject {
 
 export interface EditorUiState {
     assetTreeExpandedDirectories?: string[];
+    autoSave: boolean;
 }
 
 export interface EditorSceneFile {
@@ -32,7 +33,7 @@ export interface EditorBrowserContext {
         path: string;
         previewState: 'loading' | 'ready' | 'error';
         revision: string;
-        syncState: 'synced' | 'saving' | 'conflict' | 'error';
+        syncState: 'synced' | 'unsaved' | 'saving' | 'conflict' | 'error';
     };
     selection: EditorSelectionContext;
 }
@@ -91,11 +92,11 @@ export async function readEditorUiState() {
     return response.json() as Promise<EditorUiState>;
 }
 
-export async function writeEditorUiState(assetTreeExpandedDirectories: readonly string[]) {
+export async function writeEditorUiState(state: EditorUiState) {
     const response = await checkedResponse(await fetch('/api/editor-ui-state', {
         method: 'PUT',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ assetTreeExpandedDirectories }),
+        body: JSON.stringify(state),
     }));
     return response.json() as Promise<EditorUiState>;
 }

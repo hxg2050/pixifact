@@ -38,6 +38,7 @@ interface EditorProjectFile {
 
 interface EditorUiState {
     assetTreeExpandedDirectories?: string[];
+    autoSave: boolean;
 }
 
 interface BunServer {
@@ -176,16 +177,19 @@ function parseEditorUiState(value: unknown): EditorUiState {
         throw new Error('Editor UI state must be a JSON object.');
     }
     const directories = (value as Record<string, unknown>).assetTreeExpandedDirectories;
-    if (directories === undefined) return {};
-    if (!Array.isArray(directories) || directories.some((directory) => typeof directory !== 'string')) {
+    const autoSave = (value as Record<string, unknown>).autoSave;
+    if (directories !== undefined && (!Array.isArray(directories) || directories.some((directory) => typeof directory !== 'string'))) {
         throw new Error('Editor UI state assetTreeExpandedDirectories must be a string array.');
     }
-    return { assetTreeExpandedDirectories: directories };
+    if (autoSave !== undefined && typeof autoSave !== 'boolean') {
+        throw new Error('Editor UI state autoSave must be a boolean.');
+    }
+    return { ...(directories === undefined ? {} : { assetTreeExpandedDirectories: directories }), autoSave: autoSave ?? false };
 }
 
 function readEditorUiState(projectRoot: string): EditorUiState {
     const statePath = editorUiStatePath(projectRoot);
-    if (!fs.existsSync(statePath)) return {};
+    if (!fs.existsSync(statePath)) return { autoSave: false };
     return parseEditorUiState(JSON.parse(fs.readFileSync(statePath, 'utf8')));
 }
 
@@ -244,8 +248,8 @@ export function createEditorProjectService(options: EditorProjectServiceOptions)
             if (url.pathname === '/api/editor-ui-state' && request.method === 'PUT') {
                 const body = await readJsonBody(request);
                 const state = parseEditorUiState(body);
-                if (!state.assetTreeExpandedDirectories) {
-                    throw new EditorRequestError(400, 'Editor UI state requires assetTreeExpandedDirectories.');
+                if (!state.assetTreeExpandedDirectories || typeof body.autoSave !== 'boolean') {
+                    throw new EditorRequestError(400, 'Editor UI state requires assetTreeExpandedDirectories and autoSave.');
                 }
                 return jsonResponse(writeEditorUiState(projectRoot, state));
             }

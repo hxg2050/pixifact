@@ -148,10 +148,12 @@ PixiJS 原生 `Container` 语义保持不变，尤其是 `width` / `height` 的 
 当前第一条可用闭环：
 
 - 固定三栏展示当前 Scene 的可编辑层级、长驻 Pixi Canvas 和 schema-driven Inspector。
-- 层级支持添加、复制、删除，以及拖拽节点行调整同级顺序或更换父节点；每次操作自动保存并可 Undo / Redo。
+- 层级支持添加、复制、删除，以及拖拽节点行调整同级顺序或更换父节点；操作可 Undo / Redo。
 - 结构变化只替换 Scene 预览 root，Pixi Application 和 Canvas 保持长驻。
 - Inspector 输入时原地更新运行时节点，不重建 Pixi Application 或 Canvas。
-- 失焦或 Enter 后自动写回 `.scene`，Undo / Redo 后也会自动保存。
+- Inspector 失焦或按 Enter 后提交当前编辑；默认显示“未保存”，通过顶部“保存”或 Ctrl/Cmd+S 写回 `.scene`。
+- 左侧栏底部“设置”可开启自动保存；设置保存在当前项目的 Editor UI 状态中，默认关闭。开启时会保存已有未保存修改，此后编辑和 Undo / Redo 会自动写回。
+- 未保存或写入中时，Editor 阻止切换 Scene 和刷新，关闭页面时提示未保存修改。
 - 写入携带文件版本；外部修改导致版本不一致时显示同步冲突，不静默覆盖。
 - 资产面板只索引项目内已有的 `.scene` 和图片，不提供图片导入或源资源编辑。
 

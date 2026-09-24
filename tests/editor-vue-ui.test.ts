@@ -252,6 +252,16 @@ describe('Editor Vue UI', () => {
         expect(wrapper.get('button[aria-label="返回"]').attributes('disabled')).toBeUndefined();
         await wrapper.get('[data-locator="0:label"]').trigger('click');
         canvasView = buttonView;
+        const labelInput = wrapper.get('input[data-prop="text"]');
+        (labelInput.element as HTMLInputElement).value = '改动';
+        await labelInput.trigger('input');
+        await labelInput.trigger('blur');
+        await vi.waitFor(() => expect(wrapper.get('.sync-state').text()).toContain('未保存'));
+        await wrapper.get('button[aria-label="返回"]').trigger('click');
+        expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Button.scene');
+        expect(wrapper.get('.global-error').text()).toContain('请先保存');
+        await wrapper.get('button[aria-label="撤销"]').trigger('click');
+        await vi.waitFor(() => expect(wrapper.get('.sync-state').text()).toContain('已同步'));
         await wrapper.get('button[aria-label="返回"]').trigger('click');
 
         await vi.waitFor(() => expect(wrapper.find('[data-locator="0:button"]').exists()).toBe(true));
@@ -347,6 +357,9 @@ describe('Editor Vue UI', () => {
         await xInput.trigger('input');
         await xInput.trigger('blur');
         await vi.waitFor(() => expect(wrapper.get('button[aria-label="撤销"]').attributes('disabled')).toBeUndefined());
+        expect(wrapper.get('button[aria-label="刷新"]').attributes('disabled')).toBeDefined();
+        expect(wrapper.get('.sync-state').text()).toContain('未保存');
+        await wrapper.get('button[aria-label="保存 Scene"]').trigger('click');
         await vi.waitFor(() => expect(wrapper.get('button[aria-label="刷新"]').attributes('disabled')).toBeUndefined());
         const previousPreviewRefreshes = previewRefreshes.mock.calls.length;
 
@@ -450,7 +463,7 @@ describe('Editor Vue UI', () => {
 
         expect(pressWindowKey({ code: 'KeyD', ctrlKey: true, key: 'd' }).defaultPrevented).toBe(true);
         await vi.waitFor(() => expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(true));
-        expect(writeCount()).toBe(1);
+        expect(writeCount()).toBe(0);
 
         const duplicateInput = wrapper.get('input[data-prop="x"]');
         duplicateInput.element.dispatchEvent(new KeyboardEvent('keydown', {
@@ -462,24 +475,24 @@ describe('Editor Vue UI', () => {
         }));
         await flushPromises();
         expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(true);
-        expect(writeCount()).toBe(1);
+        expect(writeCount()).toBe(0);
 
         pressWindowKey({ code: 'KeyZ', key: 'z', metaKey: true });
         await vi.waitFor(() => expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(false));
-        expect(writeCount()).toBe(2);
+        expect(writeCount()).toBe(0);
         pressWindowKey({ code: 'KeyZ', ctrlKey: true, key: 'z', shiftKey: true });
         await vi.waitFor(() => expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(true));
-        expect(writeCount()).toBe(3);
+        expect(writeCount()).toBe(0);
 
         pressWindowKey({ code: 'Delete', key: 'Delete' });
         await vi.waitFor(() => expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(false));
-        expect(writeCount()).toBe(4);
+        expect(writeCount()).toBe(0);
         await wrapper.get('[data-locator="0:title"]').trigger('click');
         pressWindowKey({ code: 'KeyD', ctrlKey: true, key: 'd' });
         await vi.waitFor(() => expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(true));
         pressWindowKey({ code: 'Backspace', key: 'Backspace' });
         await vi.waitFor(() => expect(wrapper.find('[data-locator="1:title2"]').exists()).toBe(false));
-        expect(writeCount()).toBe(6);
+        expect(writeCount()).toBe(0);
 
         await wrapper.get('[data-locator="0:title"]').trigger('pointerdown');
         expect(wrapper.get('.hierarchy-panel').classes()).toContain('is-dragging');
@@ -489,7 +502,23 @@ describe('Editor Vue UI', () => {
         expect(useEditorUiStore().selectedLocator).toBe('0:title');
         pressWindowKey({ code: 'Escape', key: 'Escape' });
         expect(useEditorUiStore().selectedLocator).toBeUndefined();
-        expect(writeCount()).toBe(6);
+        expect(writeCount()).toBe(0);
+        await wrapper.get('[data-locator="0:title"]').trigger('click');
+        const saveInput = wrapper.get('input[data-prop="x"]');
+        (saveInput.element as HTMLInputElement).focus();
+        (saveInput.element as HTMLInputElement).value = '48';
+        await saveInput.trigger('input');
+        const saveShortcut = new KeyboardEvent('keydown', {
+            bubbles: true,
+            cancelable: true,
+            code: 'KeyS',
+            ctrlKey: true,
+            key: 's',
+        });
+        saveInput.element.dispatchEvent(saveShortcut);
+        expect(saveShortcut.defaultPrevented).toBe(true);
+        await vi.waitFor(() => expect(writeCount()).toBe(1));
+        expect(diskSource).toContain('x="48"');
         wrapper.unmount();
         host.remove();
     });
@@ -588,16 +617,20 @@ describe('Editor Vue UI', () => {
             ],
         };
         let assetTreeExpandedDirectories = ['assets', 'assets/icons'];
+        let autoSave = false;
         const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
             if (url === '/api/project') return Response.json(project);
             if (url === '/api/editor-ui-state') {
                 if (init?.method === 'PUT') {
-                    assetTreeExpandedDirectories = (
-                        JSON.parse(String(init.body)) as { assetTreeExpandedDirectories: string[] }
-                    ).assetTreeExpandedDirectories;
+                    const state = JSON.parse(String(init.body)) as {
+                        assetTreeExpandedDirectories: string[];
+                        autoSave: boolean;
+                    };
+                    assetTreeExpandedDirectories = state.assetTreeExpandedDirectories;
+                    autoSave = state.autoSave;
                 }
-                return Response.json({ assetTreeExpandedDirectories });
+                return Response.json({ assetTreeExpandedDirectories, autoSave });
             }
             if (url === '/api/scene-bindings') return Response.json({});
             if (url.startsWith('/api/scene?')) {
@@ -630,6 +663,15 @@ describe('Editor Vue UI', () => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
             return url === '/api/editor-ui-state' && init?.method === 'PUT';
         })).toBe(true);
+        await wrapper.get('button[aria-label="设置"]').trigger('click');
+        const autoSaveInput = await vi.waitFor(() => {
+            const input = document.querySelector<HTMLInputElement>('input[aria-label="自动保存"]');
+            expect(input).not.toBeNull();
+            return input!;
+        });
+        expect(autoSaveInput.checked).toBe(false);
+        autoSaveInput.click();
+        await vi.waitFor(() => expect(autoSave).toBe(true));
         wrapper.unmount();
     });
 
@@ -841,7 +883,7 @@ describe('Editor Vue UI', () => {
 
     it('previews Inspector input and commits it on blur', async () => {
         const api = createApi();
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const events: unknown[] = [];
         const revision = ref(0);
         document.subscribe((event) => {
@@ -883,7 +925,7 @@ describe('Editor Vue UI', () => {
 
     it('edits a node id in the Inspector and follows the relocated selection', async () => {
         const api = createApi();
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const revision = ref(0);
         const selected = ref('0:title');
         document.subscribe((event) => {
@@ -931,7 +973,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const wrapper = mount(InspectorPanel, {
             props: {
                 document,
@@ -976,7 +1018,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const events: unknown[] = [];
         const revision = ref(0);
         document.subscribe((event) => {
@@ -1039,7 +1081,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const events: unknown[] = [];
         document.subscribe((event) => events.push(event));
         const wrapper = mount(InspectorPanel, {
@@ -1090,7 +1132,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Battle.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Battle.scene', api, { autoSave: true }));
         const wrapper = mount(InspectorPanel, {
             props: {
                 document,
@@ -1131,7 +1173,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const wrapper = mount(InspectorPanel, {
             props: {
                 document,
@@ -1180,7 +1222,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const wrapper = mount(InspectorPanel, {
             props: {
                 document,
@@ -1207,7 +1249,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const wrapper = mount(InspectorPanel, {
             props: {
                 document,
@@ -1246,7 +1288,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const wrapper = mount(InspectorPanel, {
             props: {
                 document,
@@ -1284,7 +1326,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const selected = ref('0:title');
         const draggedAsset = ref<{ kind: 'image' | 'scene'; path: string }>({
             kind: 'image',
@@ -1347,7 +1389,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const wrapper = mount(InspectorPanel, {
             props: {
                 document,
@@ -1380,7 +1422,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const wrapper = mount(InspectorPanel, {
             props: {
                 document,
@@ -1406,7 +1448,7 @@ describe('Editor Vue UI', () => {
         api.writeScene.mockImplementationOnce(() => new Promise((resolve) => {
             finishWrite = resolve;
         }));
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const revision = ref(0);
         document.subscribe((event) => {
             if (event.type === 'commandApplied') {
@@ -1450,7 +1492,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Toolbar.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Toolbar.scene', api, { autoSave: true }));
         const events: unknown[] = [];
         document.subscribe((event) => events.push(event));
         const sceneInterfaces: Record<string, SceneTemplateInterface> = {
@@ -1518,7 +1560,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Button.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Button.scene', api, { autoSave: true }));
         const revision = ref(0);
         document.subscribe((event) => {
             if (event.type === 'commandApplied') {
@@ -1601,7 +1643,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const revision = ref(0);
         const selected = ref<string | undefined>('0:panel/0:title');
         document.subscribe((event) => {
@@ -1685,7 +1727,7 @@ describe('Editor Vue UI', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
         const wrapper = mount(HierarchyPanel, {
             props: {
                 document,

@@ -6,7 +6,7 @@ import { parseSceneTemplate } from 'pixifact/compiler';
 
 export const editorSessionProtocolVersion = 3;
 
-export type EditorContextSyncState = 'synced' | 'saving' | 'conflict' | 'error';
+export type EditorContextSyncState = 'synced' | 'unsaved' | 'saving' | 'conflict' | 'error';
 export type EditorPreviewState = 'loading' | 'ready' | 'error';
 
 export type EditorNodeContext =
@@ -159,7 +159,7 @@ function isEditorBrowserContext(value: unknown): value is EditorBrowserContext {
     if (
         typeof value.scene.path !== 'string'
         || typeof value.scene.revision !== 'string'
-        || !['synced', 'saving', 'conflict', 'error'].includes(String(syncState))
+        || !['synced', 'unsaved', 'saving', 'conflict', 'error'].includes(String(syncState))
         || !['loading', 'ready', 'error'].includes(String(value.scene.previewState))
     ) {
         return false;

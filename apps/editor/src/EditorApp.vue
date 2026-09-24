@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { ArrowLeft, ArrowRight, Redo2, RefreshCw, Undo2 } from 'lucide-vue-next';
-import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
+import { ArrowLeft, ArrowRight, Redo2, RefreshCw, Save, Settings2, Undo2 } from 'lucide-vue-next';
+import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger, TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
     pairedSceneScriptPath,
@@ -44,6 +44,7 @@ const project = ref<EditorProject>();
 const projectTree = ref<ProjectFileTreeNode>();
 const sceneInterfaces = ref<Record<string, SceneTemplateInterface>>({});
 const assetTreeExpandedDirectories = ref<string[]>();
+const autoSave = ref(false);
 const document = ref<SceneDocument>();
 const documentRevision = ref(0);
 const error = ref('');
@@ -82,8 +83,8 @@ let projectChangeGeneration = 0;
 let projectRefreshRunning = false;
 let editorDisposed = false;
 let sceneOpenGeneration = 0;
-let assetTreeStateSaveGeneration = 0;
-let assetTreeStateSaving = false;
+let editorUiStateSaveGeneration = 0;
+let editorUiStateSaving = false;
 let assetFocusGeneration = 0;
 const pendingProjectChanges = new Set<string>();
 
@@ -96,6 +97,7 @@ interface SceneNavigationEntry {
 const sceneName = computed(() => currentScenePath.value?.split('/').at(-1)?.replace(/\.scene$/, '') ?? '未打开 Scene');
 const syncLabel = computed(() => ({
     synced: '已同步',
+    unsaved: '未保存',
     saving: '正在写入',
     conflict: '同步冲突',
     error: '写入失败',
@@ -133,7 +135,7 @@ async function openScene(path: string, selection?: string, restoredView?: SceneC
     const generation = ++sceneOpenGeneration;
     error.value = '';
     try {
-        const next = await SceneDocument.open(path, editorSceneFileApi);
+        const next = await SceneDocument.open(path, editorSceneFileApi, { autoSave: autoSave.value });
         if (
             sessionState.value !== 'active'
             || revision !== sessionStateRevision
@@ -173,6 +175,10 @@ function captureCurrentNavigationEntry() {
 
 async function navigateToScene(path: string) {
     if (navigationPending.value || path === document.value?.path) return;
+    if (syncState.value !== 'synced') {
+        error.value = '当前 Scene 尚未保存，请先保存后再切换。';
+        return;
+    }
     navigationPending.value = true;
     captureCurrentNavigationEntry();
     try {
@@ -189,6 +195,10 @@ async function navigateToScene(path: string) {
 
 async function navigateHistory(offset: -1 | 1) {
     if (navigationPending.value) return;
+    if (syncState.value !== 'synced') {
+        error.value = '当前 Scene 尚未保存，请先保存后再切换。';
+        return;
+    }
     const targetIndex = navigationIndex.value + offset;
     const target = navigationEntries.value[targetIndex];
     if (!target) return;
@@ -403,6 +413,20 @@ async function redo() {
     }
 }
 
+async function saveCurrentScene() {
+    error.value = '';
+    try {
+        await document.value?.save();
+    } catch (cause) {
+        error.value = cause instanceof Error ? cause.message : String(cause);
+    }
+}
+
+async function saveAfterInputBlur() {
+    await nextTick();
+    await saveCurrentScene();
+}
+
 function eventTargetsEditableControl(event: KeyboardEvent) {
     const target = event.target;
     return target instanceof Element && !!target.closest(
@@ -456,9 +480,15 @@ function handleEditorKeyDown(event: KeyboardEvent) {
         || !document.value
         || event.repeat
         || event.altKey
-        || eventTargetsEditableControl(event)
     ) return;
     const commandKey = event.metaKey || event.ctrlKey;
+    if (commandKey && !event.shiftKey && event.code === 'KeyS') {
+        event.preventDefault();
+        if (eventTargetsEditableControl(event) && event.target instanceof HTMLElement) event.target.blur();
+        void saveAfterInputBlur();
+        return;
+    }
+    if (eventTargetsEditableControl(event)) return;
     if (commandKey && event.code === 'KeyZ') {
         event.preventDefault();
         if (event.shiftKey) void redo();
@@ -481,6 +511,12 @@ function handleEditorKeyDown(event: KeyboardEvent) {
     }
 }
 
+function handleBeforeUnload(event: BeforeUnloadEvent) {
+    if (!document.value?.dirty && syncState.value !== 'saving') return;
+    event.preventDefault();
+    event.returnValue = '';
+}
+
 function startAssetDrag(asset: EditorSceneAsset) {
     draggedAsset.value = asset;
     activeLeftTab.value = 'hierarchy';
@@ -493,22 +529,37 @@ function locateAsset(path: string) {
 
 function saveAssetTreeExpansion(directories: string[]) {
     assetTreeExpandedDirectories.value = directories;
-    assetTreeStateSaveGeneration += 1;
-    if (!assetTreeStateSaving) void flushAssetTreeState();
+    scheduleEditorUiStateSave();
 }
 
-async function flushAssetTreeState() {
-    assetTreeStateSaving = true;
+function changeAutoSave(enabled: boolean) {
+    autoSave.value = enabled;
+    scheduleEditorUiStateSave();
+    void document.value?.setAutoSave(enabled).catch((cause) => {
+        error.value = cause instanceof Error ? cause.message : String(cause);
+    });
+}
+
+function scheduleEditorUiStateSave() {
+    editorUiStateSaveGeneration += 1;
+    if (!editorUiStateSaving) void flushEditorUiState();
+}
+
+async function flushEditorUiState() {
+    editorUiStateSaving = true;
     try {
         while (true) {
-            const saveGeneration = assetTreeStateSaveGeneration;
-            await writeEditorUiState(assetTreeExpandedDirectories.value ?? []);
-            if (saveGeneration === assetTreeStateSaveGeneration) return;
+            const saveGeneration = editorUiStateSaveGeneration;
+            await writeEditorUiState({
+                assetTreeExpandedDirectories: assetTreeExpandedDirectories.value ?? [],
+                autoSave: autoSave.value,
+            });
+            if (saveGeneration === editorUiStateSaveGeneration) return;
         }
     } catch (cause) {
         error.value = cause instanceof Error ? cause.message : String(cause);
     } finally {
-        assetTreeStateSaving = false;
+        editorUiStateSaving = false;
     }
 }
 
@@ -523,6 +574,7 @@ function clearWorkspace() {
     unsubscribeDocument = undefined;
     document.value = undefined;
     assetTreeExpandedDirectories.value = undefined;
+    autoSave.value = false;
     projectTree.value = undefined;
     sceneInterfaces.value = {};
     currentScenePath.value = undefined;
@@ -556,6 +608,7 @@ async function loadActiveWorkspace(resume?: EditorSessionResumeState) {
     projectTree.value = createEditorProjectTree(nextProject);
     sceneInterfaces.value = nextSceneInterfaces;
     assetTreeExpandedDirectories.value = nextUiState.assetTreeExpandedDirectories;
+    autoSave.value = nextUiState.autoSave ?? false;
     const scenePath = resume?.scenePath ?? nextProject.scenes[0];
     if (scenePath) {
         if (await openScene(scenePath, resume?.selectedLocator)) {
@@ -608,6 +661,7 @@ onMounted(async () => {
     window.addEventListener('pointerup', endAssetDrag);
     window.addEventListener('pointercancel', endAssetDrag);
     window.addEventListener('keydown', handleEditorKeyDown);
+    window.addEventListener('beforeunload', handleBeforeUnload);
     try {
         const connection = await connectEditorSession(
             scheduleProjectChange,
@@ -637,6 +691,7 @@ onBeforeUnmount(() => {
     window.removeEventListener('pointerup', endAssetDrag);
     window.removeEventListener('pointercancel', endAssetDrag);
     window.removeEventListener('keydown', handleEditorKeyDown);
+    window.removeEventListener('beforeunload', handleBeforeUnload);
     if (projectChangeTimer) clearTimeout(projectChangeTimer);
     projectChangeGeneration += 1;
     pendingProjectChanges.clear();
@@ -710,6 +765,16 @@ onBeforeUnmount(() => {
         <button type="button" title="重做" aria-label="重做" :disabled="!document?.canRedo" @click="redo">
           <Redo2 :size="16" />
         </button>
+        <button
+          type="button"
+          class="save-button"
+          title="保存 Scene（Ctrl/Cmd+S）"
+          aria-label="保存 Scene"
+          :disabled="!document?.dirty || syncState === 'saving'"
+          @click="saveCurrentScene"
+        >
+          <Save :size="15" /> 保存
+        </button>
       </div>
       <div class="sync-state" :data-state="syncState"><span />{{ syncLabel }}</div>
     </header>
@@ -745,6 +810,31 @@ onBeforeUnmount(() => {
             />
           </TabsContent>
         </TabsRoot>
+        <div class="left-panel-footer">
+          <PopoverRoot>
+            <PopoverTrigger class="settings-trigger" type="button" aria-label="设置" title="设置">
+              <Settings2 :size="16" />
+              <span>设置</span>
+            </PopoverTrigger>
+            <PopoverPortal>
+              <PopoverContent class="editor-settings-popover" side="top" align="start" :side-offset="8">
+                <div class="settings-heading">设置</div>
+                <label class="settings-option">
+                  <span>
+                    <strong>自动保存</strong>
+                    <small>编辑 Scene 后立即写入文件</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    :checked="autoSave"
+                    aria-label="自动保存"
+                    @change="changeAutoSave(($event.target as HTMLInputElement).checked)"
+                  >
+                </label>
+              </PopoverContent>
+            </PopoverPortal>
+          </PopoverRoot>
+        </div>
       </aside>
 
       <section class="canvas-panel" aria-label="Scene 画布">

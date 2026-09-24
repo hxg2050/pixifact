@@ -28,6 +28,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [editor-manual-save.md](./editor-manual-save.md) | Editor 默认手动保存、自动保存设置与未保存保护 |
 | [release-v0.11.0.md](./release-v0.11.0.md) | Editor 素材定位与预览节点选择改进的五包 `0.11.0` 发布 |
 | [release-v0.7.0.md](./release-v0.7.0.md) | `0.7.0` 五个公开 npm 包的发布准备与验证 |
 | [douyin-image-loading.md](./douyin-image-loading.md) | 抖音小游戏冷启动图片解码时序与 PixiJS Assets loader 修复 |

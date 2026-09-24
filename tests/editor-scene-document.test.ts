@@ -25,7 +25,7 @@ function createApi() {
 }
 
 describe('SceneDocument', () => {
-    it('previews an input without changing source and commits one versioned command', async () => {
+    it('keeps edits in memory until manually saved', async () => {
         const api = createApi();
         const document = await SceneDocument.open('src/scenes/Menu.scene', api);
         const events: unknown[] = [];
@@ -44,6 +44,11 @@ describe('SceneDocument', () => {
 
         await document.commitNodeProp('0:title', 'x', 48);
 
+        expect(api.writeScene).not.toHaveBeenCalled();
+        expect(document.syncState).toBe('unsaved');
+        expect(document.dirty).toBe(true);
+        await document.save();
+
         expect(api.writeScene).toHaveBeenCalledTimes(1);
         expect(api.writeScene).toHaveBeenCalledWith(
             'src/scenes/Menu.scene',
@@ -51,6 +56,7 @@ describe('SceneDocument', () => {
             'sha256:before',
         );
         expect(document.syncState).toBe('synced');
+        expect(document.dirty).toBe(false);
         expect(document.canUndo).toBe(true);
     });
 
@@ -79,7 +85,7 @@ describe('SceneDocument', () => {
 
     it('undoes the committed command and saves the restored source', async () => {
         const api = createApi();
-        const document = await SceneDocument.open('src/scenes/Menu.scene', api);
+        const document = await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true });
         await document.commitNodeProp('0:title', 'x', 48);
 
         await document.undo();
@@ -94,9 +100,15 @@ describe('SceneDocument', () => {
         api.writeScene.mockRejectedValueOnce(Object.assign(new Error('Scene file version changed.'), { status: 409 }));
         const document = await SceneDocument.open('src/scenes/Menu.scene', api);
 
-        await expect(document.commitNodeProp('0:title', 'x', 48)).rejects.toThrow('Scene file version changed.');
+        await document.commitNodeProp('0:title', 'x', 48);
+        await expect(document.save()).rejects.toThrow('Scene file version changed.');
 
         expect(document.syncState).toBe('conflict');
+        expect(document.dirty).toBe(true);
+
+        await document.undo();
+        expect(document.dirty).toBe(false);
+        expect(document.syncState).toBe('synced');
     });
 
     it('waits for its pending save before classifying a file notification', async () => {
@@ -105,7 +117,7 @@ describe('SceneDocument', () => {
         api.writeScene.mockImplementationOnce(() => new Promise((resolve) => {
             finishWrite = resolve;
         }));
-        const document = await SceneDocument.open('src/scenes/Menu.scene', api);
+        const document = await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true });
 
         const commit = document.commitNodeProp('0:title', 'x', 48);
         await vi.waitFor(() => expect(api.writeScene).toHaveBeenCalledTimes(1));
@@ -137,6 +149,64 @@ describe('SceneDocument', () => {
         expect(reloaded?.source).toBe(changedSource);
         expect(reloaded?.canUndo).toBe(false);
         expect(document.source).toBe(source);
+    });
+
+    it('saves existing edits when automatic save is enabled and stops writing when disabled', async () => {
+        const api = createApi();
+        const document = await SceneDocument.open('src/scenes/Menu.scene', api);
+        await document.commitNodeProp('0:title', 'x', 48);
+
+        await document.setAutoSave(true);
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
+        expect(document.syncState).toBe('synced');
+
+        await document.setAutoSave(false);
+        await document.commitNodeProp('0:title', 'x', 56);
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
+        expect(document.syncState).toBe('unsaved');
+    });
+
+    it('does not mark later edits as saved when an earlier write completes', async () => {
+        const api = createApi();
+        let finishWrite!: (value: { path: string; version: string }) => void;
+        api.writeScene.mockImplementationOnce(() => new Promise((resolve) => {
+            finishWrite = resolve;
+        }));
+        const document = await SceneDocument.open('src/scenes/Menu.scene', api);
+        await document.commitNodeProp('0:title', 'x', 48);
+        const saving = document.save();
+        await vi.waitFor(() => expect(api.writeScene).toHaveBeenCalledTimes(1));
+        await document.commitNodeProp('0:title', 'x', 56);
+
+        finishWrite({ path: 'src/scenes/Menu.scene', version: 'sha256:after' });
+        await saving;
+
+        expect(document.syncState).toBe('unsaved');
+        expect(document.dirty).toBe(true);
+        await document.save();
+        expect(api.writeScene.mock.calls[1]?.[1]).toContain('x="56"');
+        expect(api.writeScene.mock.calls[1]?.[2]).toBe('sha256:after');
+        expect(document.syncState).toBe('synced');
+    });
+
+    it('writes an undo made while automatic saving is still in progress', async () => {
+        const api = createApi();
+        let finishWrite!: (value: { path: string; version: string }) => void;
+        api.writeScene.mockImplementationOnce(() => new Promise((resolve) => {
+            finishWrite = resolve;
+        }));
+        const document = await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true });
+        const commit = document.commitNodeProp('0:title', 'x', 48);
+        await vi.waitFor(() => expect(api.writeScene).toHaveBeenCalledTimes(1));
+        const undo = document.undo();
+
+        finishWrite({ path: 'src/scenes/Menu.scene', version: 'sha256:after' });
+        await Promise.all([commit, undo]);
+
+        expect(api.writeScene).toHaveBeenCalledTimes(2);
+        expect(api.writeScene.mock.calls[1]?.[1]).toContain('x="20"');
+        expect(api.writeScene.mock.calls[1]?.[2]).toBe('sha256:after');
+        expect(document.syncState).toBe('synced');
     });
 
     it('replaces a Binding with its resolved literal and restores the Binding on undo', async () => {
@@ -175,7 +245,7 @@ describe('SceneDocument', () => {
             ].join('\n'),
             version: 'sha256:before',
         });
-        const document = await SceneDocument.open('src/scenes/Menu.scene', api);
+        const document = await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true });
         const events: unknown[] = [];
         document.subscribe((event) => events.push(event));
         const rect = {

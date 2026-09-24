@@ -11,7 +11,7 @@ import {
 } from 'pixifact/compiler';
 import { findSceneNodeByLocator } from './sceneTree';
 
-export type SceneDocumentSyncState = 'synced' | 'saving' | 'conflict' | 'error';
+export type SceneDocumentSyncState = 'synced' | 'unsaved' | 'saving' | 'conflict' | 'error';
 
 export interface SceneFileApi {
     readScene(path: string): Promise<{ path: string; source: string; version: string }>;
@@ -38,18 +38,23 @@ export class SceneDocument {
     #listeners = new Set<SceneDocumentListener>();
     #saveQueue: Promise<void> = Promise.resolve();
     #syncState: SceneDocumentSyncState = 'synced';
+    #savedSource: string;
+    #autoSave: boolean;
+    #pendingWrites = 0;
     #version: string;
 
-    private constructor(path: string, source: string, version: string, api: SceneFileApi) {
+    private constructor(path: string, source: string, version: string, api: SceneFileApi, autoSave: boolean) {
         this.path = path;
         this.template = parseSceneTemplate(source);
+        this.#savedSource = this.source;
+        this.#autoSave = autoSave;
         this.#version = version;
         this.#api = api;
     }
 
-    static async open(path: string, api: SceneFileApi) {
+    static async open(path: string, api: SceneFileApi, options: { autoSave?: boolean } = {}) {
         const scene = await api.readScene(path);
-        return new SceneDocument(scene.path, scene.source, scene.version, api);
+        return new SceneDocument(scene.path, scene.source, scene.version, api, options.autoSave ?? false);
     }
 
     get source() {
@@ -58,6 +63,10 @@ export class SceneDocument {
 
     get syncState() {
         return this.#syncState;
+    }
+
+    get dirty() {
+        return this.source !== this.#savedSource;
     }
 
     get version() {
@@ -120,7 +129,7 @@ export class SceneDocument {
             inverse: result.inverse,
             selection: result.selection,
         });
-        await this.#queueSave();
+        await this.#afterCommand();
         return result.selection;
     }
 
@@ -135,7 +144,7 @@ export class SceneDocument {
             inverse: result.inverse,
             selection: result.selection,
         });
-        await this.#queueSave();
+        await this.#afterCommand();
     }
 
     async redo() {
@@ -149,6 +158,16 @@ export class SceneDocument {
             inverse: result.inverse,
             selection: result.selection,
         });
+        await this.#afterCommand();
+    }
+
+    async setAutoSave(autoSave: boolean) {
+        this.#autoSave = autoSave;
+        if (autoSave && (this.dirty || this.#pendingWrites > 0)) await this.save();
+    }
+
+    async save() {
+        if (!this.dirty && this.#pendingWrites === 0) return;
         await this.#queueSave();
     }
 
@@ -170,24 +189,39 @@ export class SceneDocument {
             if (this.#syncState !== 'synced' || scene.version === this.#version) {
                 return undefined;
             }
-            return new SceneDocument(scene.path, scene.source, scene.version, this.#api);
+            return new SceneDocument(scene.path, scene.source, scene.version, this.#api, this.#autoSave);
         }
+    }
+
+    async #afterCommand() {
+        if (this.#pendingWrites === 0 && (!this.dirty || (this.#syncState !== 'conflict' && this.#syncState !== 'error'))) {
+            this.#setSyncState(this.dirty ? 'unsaved' : 'synced');
+        }
+        if (this.#autoSave && (this.dirty || this.#pendingWrites > 0)) await this.save();
     }
 
     #queueSave() {
         const source = this.source;
-        const operation = this.#saveQueue.then(() => this.#write(source));
+        this.#pendingWrites += 1;
+        this.#setSyncState('saving');
+        const operation = this.#saveQueue.then(async () => {
+            try {
+                await this.#write(source);
+            } finally {
+                this.#pendingWrites -= 1;
+            }
+        });
         this.#saveQueue = operation.catch(() => {});
         return operation;
     }
 
     async #write(source: string) {
-        this.#setSyncState('saving');
         try {
             const saved = await this.#api.writeScene(this.path, source, this.#version);
             this.#version = saved.version;
-            this.#commandStack.markSaved();
-            this.#setSyncState('synced');
+            this.#savedSource = source;
+            if (!this.dirty) this.#commandStack.markSaved();
+            this.#setSyncState(this.#pendingWrites > 1 ? 'saving' : this.dirty ? 'unsaved' : 'synced');
         } catch (error) {
             const status = typeof error === 'object' && error !== null && 'status' in error
                 ? (error as { status?: unknown }).status

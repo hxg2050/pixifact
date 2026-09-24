@@ -151,7 +151,7 @@ describe('Editor Scene canvas geometry', () => {
                 version: 'sha256:after',
             })),
         };
-        const document = await SceneDocument.open('src/scenes/Menu.scene', api);
+        const document = await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true });
         const changes = moveSceneCanvasGeometry(
             { x: 20, y: 10, width: 100, height: 60 },
             { x: 20, y: 10, width: 100, height: 60 },
