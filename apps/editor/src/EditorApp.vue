@@ -34,6 +34,7 @@ import {
     type EditorSessionResumeState,
     type EditorSessionState,
     type EditorProject,
+    type EditorUiState,
 } from './services/editorApi';
 import { editorSelectionContext } from './services/editorContext';
 import type { ProjectFileTreeNode } from './services/projectFileTree';
@@ -46,6 +47,7 @@ const projectTree = ref<ProjectFileTreeNode>();
 const sceneInterfaces = ref<Record<string, SceneTemplateInterface>>({});
 const assetTreeExpandedDirectories = ref<string[]>();
 const autoSave = ref(false);
+const theme = ref<EditorUiState['theme']>('system');
 const document = ref<SceneDocument>();
 const sceneTabs = shallowRef<SceneTab[]>([]);
 const documentRevision = ref(0);
@@ -802,6 +804,16 @@ function changeAutoSave(enabled: boolean) {
     }
 }
 
+function changeTheme(nextTheme: EditorUiState['theme']) {
+    theme.value = nextTheme;
+    scheduleEditorUiStateSave();
+}
+
+watch(theme, (nextTheme) => {
+    if (nextTheme === 'system') globalThis.document.documentElement.removeAttribute('data-theme');
+    else globalThis.document.documentElement.dataset.theme = nextTheme;
+}, { immediate: true });
+
 function scheduleEditorUiStateSave() {
     editorUiStateSaveGeneration += 1;
     if (!editorUiStateSaving) void flushEditorUiState();
@@ -816,6 +828,7 @@ async function flushEditorUiState() {
             await writeEditorUiState({
                 assetTreeExpandedDirectories: assetTreeExpandedDirectories.value ?? [],
                 autoSave: autoSave.value,
+                theme: theme.value,
                 openScenePaths: sceneTabs.value.map((tab) => tab.path),
                 activeScenePath: currentScenePath.value,
             });
@@ -842,6 +855,7 @@ function clearWorkspace() {
     conflict.value = undefined;
     assetTreeExpandedDirectories.value = undefined;
     autoSave.value = false;
+    theme.value = 'system';
     projectTree.value = undefined;
     sceneInterfaces.value = {};
     currentScenePath.value = undefined;
@@ -876,6 +890,7 @@ async function loadActiveWorkspace(resume?: EditorSessionResumeState) {
     sceneInterfaces.value = nextSceneInterfaces;
     assetTreeExpandedDirectories.value = nextUiState.assetTreeExpandedDirectories;
     autoSave.value = nextUiState.autoSave ?? false;
+    theme.value = nextUiState.theme;
     const savedPaths = (nextUiState.openScenePaths ?? []).filter((path) => nextProject.scenes.includes(path));
     const activePath = resume?.scenePath ?? nextUiState.activeScenePath ?? savedPaths[0]
         ?? (nextUiState.openScenePaths ? undefined : nextProject.scenes[0]);
@@ -959,6 +974,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    globalThis.document.documentElement.removeAttribute('data-theme');
     endPanelResize();
     editorDisposed = true;
     sceneOpenGeneration += 1;
@@ -1144,6 +1160,14 @@ onBeforeUnmount(() => {
                     @change="changeAutoSave(($event.target as HTMLInputElement).checked)"
                   >
                 </label>
+                <div class="settings-theme">
+                  <strong>外观</strong>
+                  <div class="settings-theme-options" role="group" aria-label="外观主题">
+                    <button type="button" aria-label="跟随系统主题" :aria-pressed="theme === 'system'" @click="changeTheme('system')">跟随系统</button>
+                    <button type="button" aria-label="浅色主题" :aria-pressed="theme === 'light'" @click="changeTheme('light')">浅色</button>
+                    <button type="button" aria-label="深色主题" :aria-pressed="theme === 'dark'" @click="changeTheme('dark')">深色</button>
+                  </div>
+                </div>
               </PopoverContent>
             </PopoverPortal>
           </PopoverRoot>

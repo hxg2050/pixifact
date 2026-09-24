@@ -1,91 +1,56 @@
 :root {
-    color-scheme: light;
+    color-scheme: light dark;
     color: var(--text);
     background: var(--bg);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     font-variant-numeric: tabular-nums;
-    --bg: #e8ebf0;
-    --chrome: #e9ebef;
-    --sidebar: #eef0f4;
-    --panel: #f7f8fa;
-    --panel-raised: #ffffff;
-    --section: #f0f2f5;
-    --canvas: #dfe3e9;
-    --grid-line: #d0d6de;
-    --line: #d4d8df;
-    --line-strong: #bdc4ce;
-    --soft-line: #e4e7ec;
-    --text: #242832;
-    --muted: #626b78;
-    --faint: #8a93a1;
-    --focus: #007aff;
-    --focus-hover: #006bdd;
-    --focus-soft: #dcecff;
-    --selected-text: #14518e;
-    --hover: #e8edf4;
-    --drop: #d6e9ff;
-    --success: #25855a;
-    --success-soft: #e4f3e9;
-    --success-soft-hover: #d8eee0;
-    --warning: #a36d16;
-    --warning-soft: #fff4df;
-    --warning-text: #78551b;
-    --danger: #c73f4a;
-    --danger-soft: #fff0f1;
-    --danger-line: #e6bfc4;
-    --control: #ffffff;
-    --disabled-bg: #edf0f3;
-    --disabled-text: #929aa5;
-    --icon: #6a83a6;
-    --icon-bright: #4974ab;
-    --binding: #1a649e;
-    --overlay: #20283885;
-    --shadow: 0 14px 32px #2632482b;
+    --bg: light-dark(#e8ebf0, #1c1e23);
+    --chrome: light-dark(#e9ebef, #2b2d33);
+    --sidebar: light-dark(#eef0f4, #25282e);
+    --panel: light-dark(#f7f8fa, #292c32);
+    --panel-raised: light-dark(#ffffff, #343840);
+    --section: light-dark(#f0f2f5, #30343b);
+    --canvas: light-dark(#dfe3e9, #181b20);
+    --grid-line: light-dark(#d0d6de, #272c33);
+    --line: light-dark(#d4d8df, #3b4048);
+    --line-strong: light-dark(#bdc4ce, #535a64);
+    --soft-line: light-dark(#e4e7ec, #363b43);
+    --text: light-dark(#242832, #edf0f4);
+    --muted: light-dark(#626b78, #a9b0bc);
+    --faint: light-dark(#8a93a1, #818a96);
+    --focus: light-dark(#007aff, #0a84ff);
+    --focus-hover: light-dark(#006bdd, #3598ff);
+    --focus-soft: light-dark(#dcecff, #203c5d);
+    --selected-text: light-dark(#14518e, #e0f0ff);
+    --hover: light-dark(#e8edf4, #373c44);
+    --drop: light-dark(#d6e9ff, #244463);
+    --success: light-dark(#25855a, #59b987);
+    --success-soft: light-dark(#e4f3e9, #1b3a2c);
+    --success-soft-hover: light-dark(#d8eee0, #244735);
+    --warning: light-dark(#a36d16, #d9a44a);
+    --warning-soft: light-dark(#fff4df, #413625);
+    --warning-text: light-dark(#78551b, #e4be75);
+    --danger: light-dark(#c73f4a, #f07f83);
+    --danger-soft: light-dark(#fff0f1, #492b32);
+    --danger-line: light-dark(#e6bfc4, #85515b);
+    --control: light-dark(#ffffff, #24272d);
+    --disabled-bg: light-dark(#edf0f3, #30343b);
+    --disabled-text: light-dark(#929aa5, #858f9b);
+    --icon: light-dark(#6a83a6, #91a7c1);
+    --icon-bright: light-dark(#4974ab, #bdd6f8);
+    --binding: light-dark(#1a649e, #8abdec);
+    --overlay: light-dark(#20283885, #080b10b8);
+    --shadow: 0 14px 32px light-dark(#2632482b, #06090c8c);
 }
 
-@media (prefers-color-scheme: dark) {
-    :root {
-        color-scheme: dark;
-        --bg: #1c1e23;
-        --chrome: #2b2d33;
-        --sidebar: #25282e;
-        --panel: #292c32;
-        --panel-raised: #343840;
-        --section: #30343b;
-        --canvas: #181b20;
-        --grid-line: #272c33;
-        --line: #3b4048;
-        --line-strong: #535a64;
-        --soft-line: #363b43;
-        --text: #edf0f4;
-        --muted: #a9b0bc;
-        --faint: #818a96;
-        --focus: #0a84ff;
-        --focus-hover: #3598ff;
-        --focus-soft: #203c5d;
-        --selected-text: #e0f0ff;
-        --hover: #373c44;
-        --drop: #244463;
-        --success: #59b987;
-        --success-soft: #1b3a2c;
-        --success-soft-hover: #244735;
-        --warning: #d9a44a;
-        --warning-soft: #413625;
-        --warning-text: #e4be75;
-        --danger: #f07f83;
-        --danger-soft: #492b32;
-        --danger-line: #85515b;
-        --control: #24272d;
-        --disabled-bg: #30343b;
-        --disabled-text: #858f9b;
-        --icon: #91a7c1;
-        --icon-bright: #bdd6f8;
-        --binding: #8abdec;
-        --overlay: #080b10b8;
-        --shadow: 0 16px 40px #06090c8c;
-    }
+:root[data-theme='light'] {
+    color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+    color-scheme: dark;
 }
 
 * {
@@ -739,6 +704,51 @@ summary:focus-visible,
 .settings-option .settings-switch:focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 2px;
+}
+
+.settings-theme {
+    display: grid;
+    gap: 9px;
+    margin-top: 6px;
+    padding: 10px;
+    border-radius: 8px;
+    background: var(--section);
+}
+
+.settings-theme > strong {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.settings-theme-options {
+    display: grid;
+    grid-template-columns: 1.35fr 1fr 1fr;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 7px;
+    background: var(--hover);
+}
+
+.settings-theme-options button {
+    min-width: 0;
+    min-height: 26px;
+    padding: 0 4px;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.settings-theme-options button[aria-pressed='true'] {
+    background: var(--panel-raised);
+    box-shadow: 0 1px 3px light-dark(#26324829, #080b104d);
+    color: var(--text);
+}
+
+.settings-theme-options button:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
 }
 
 @media (prefers-reduced-motion: reduce) {

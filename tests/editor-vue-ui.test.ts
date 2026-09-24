@@ -94,7 +94,7 @@ describe('Editor Vue UI', () => {
         const fetcher = vi.fn(async (input: string | URL | Request) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
             if (url === '/api/project') return Response.json(project);
-            if (url === '/api/editor-ui-state') return Response.json({});
+            if (url === '/api/editor-ui-state') return Response.json({ autoSave: false, theme: 'system' });
             if (url === '/api/scene-bindings') return Response.json({});
             if (url.startsWith('/api/scene?')) {
                 return Response.json({
@@ -203,7 +203,7 @@ describe('Editor Vue UI', () => {
         const fetcher = vi.fn(async (input: string | URL | Request) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
             if (url === '/api/project') return Response.json(project);
-            if (url === '/api/editor-ui-state') return Response.json({});
+            if (url === '/api/editor-ui-state') return Response.json({ autoSave: false, theme: 'system' });
             if (url === '/api/scene-bindings') return Response.json({});
             if (url.startsWith('/api/scene?')) {
                 const scenePath = new URL(url, 'http://localhost').searchParams.get('path')!;
@@ -308,6 +308,7 @@ describe('Editor Vue UI', () => {
         };
         let uiState: Record<string, unknown> = {
             autoSave: false,
+            theme: 'system',
             openScenePaths: [menuPath, buttonPath],
             activeScenePath: buttonPath,
         };
@@ -375,7 +376,7 @@ describe('Editor Vue UI', () => {
         const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
             if (url === '/api/project') return Response.json(project);
-            if (url === '/api/editor-ui-state') return Response.json({});
+            if (url === '/api/editor-ui-state') return Response.json({ autoSave: false, theme: 'system' });
             if (url === '/api/scene-bindings') return Response.json(bindings);
             if (url.startsWith('/api/scene?')) {
                 if (init?.method === 'PUT') {
@@ -459,7 +460,7 @@ describe('Editor Vue UI', () => {
         const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
             if (url === '/api/project') return Response.json(project);
-            if (url === '/api/editor-ui-state') return Response.json({});
+            if (url === '/api/editor-ui-state') return Response.json({ autoSave: false, theme: 'system' });
             if (url === '/api/scene-bindings') return Response.json({});
             if (url.startsWith('/api/scene?')) {
                 if (init?.method === 'PUT') {
@@ -683,6 +684,7 @@ describe('Editor Vue UI', () => {
         };
         let assetTreeExpandedDirectories = ['assets', 'assets/icons'];
         let autoSave = false;
+        let theme = 'dark';
         const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
             if (url === '/api/project') return Response.json(project);
@@ -691,11 +693,13 @@ describe('Editor Vue UI', () => {
                     const state = JSON.parse(String(init.body)) as {
                         assetTreeExpandedDirectories: string[];
                         autoSave: boolean;
+                        theme: string;
                     };
                     assetTreeExpandedDirectories = state.assetTreeExpandedDirectories;
                     autoSave = state.autoSave;
+                    theme = state.theme;
                 }
-                return Response.json({ assetTreeExpandedDirectories, autoSave });
+                return Response.json({ assetTreeExpandedDirectories, autoSave, theme });
             }
             if (url === '/api/scene-bindings') return Response.json({});
             if (url.startsWith('/api/scene?')) {
@@ -719,6 +723,7 @@ describe('Editor Vue UI', () => {
         });
 
         await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Menu.scene'));
+        expect(document.documentElement.dataset.theme).toBe('dark');
         await vi.waitFor(() => expect(wrapper.find('[data-asset-path="assets/icons/map.svg"]').exists()).toBe(true));
         expect(wrapper.get('[data-asset-directory="src"]').attributes('aria-expanded')).toBe('false');
         await wrapper.get('[data-asset-directory="assets"]').trigger('click');
@@ -734,6 +739,16 @@ describe('Editor Vue UI', () => {
             return input!;
         });
         expect(autoSaveInput.checked).toBe(false);
+        const lightThemeButton = document.querySelector<HTMLButtonElement>('button[aria-label="浅色主题"]');
+        expect(lightThemeButton).not.toBeNull();
+        lightThemeButton!.click();
+        await vi.waitFor(() => expect(theme).toBe('light'));
+        expect(document.documentElement.dataset.theme).toBe('light');
+        const systemThemeButton = document.querySelector<HTMLButtonElement>('button[aria-label="跟随系统主题"]');
+        expect(systemThemeButton).not.toBeNull();
+        systemThemeButton!.click();
+        await vi.waitFor(() => expect(theme).toBe('system'));
+        expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
         autoSaveInput.click();
         await vi.waitFor(() => expect(autoSave).toBe(true));
         wrapper.unmount();
@@ -759,7 +774,7 @@ describe('Editor Vue UI', () => {
         const fetcher = vi.fn(async (input: string | URL | Request) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
             if (url === '/api/project') return Response.json(project);
-            if (url === '/api/editor-ui-state') return Response.json({});
+            if (url === '/api/editor-ui-state') return Response.json({ autoSave: false, theme: 'system' });
             if (url === '/api/scene-bindings') return Response.json({});
             if (url.startsWith('/api/scene?')) {
                 return Response.json({

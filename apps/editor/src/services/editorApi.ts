@@ -20,6 +20,7 @@ export interface EditorProject {
 export interface EditorUiState {
     assetTreeExpandedDirectories?: string[];
     autoSave: boolean;
+    theme: 'system' | 'light' | 'dark';
     openScenePaths?: string[];
     activeScenePath?: string;
 }

@@ -39,6 +39,7 @@ interface EditorProjectFile {
 interface EditorUiState {
     assetTreeExpandedDirectories?: string[];
     autoSave: boolean;
+    theme: 'system' | 'light' | 'dark';
     openScenePaths?: string[];
     activeScenePath?: string;
 }
@@ -180,6 +181,7 @@ function parseEditorUiState(value: unknown): EditorUiState {
     }
     const directories = (value as Record<string, unknown>).assetTreeExpandedDirectories;
     const autoSave = (value as Record<string, unknown>).autoSave;
+    const theme = (value as Record<string, unknown>).theme;
     const openScenePaths = (value as Record<string, unknown>).openScenePaths;
     const activeScenePath = (value as Record<string, unknown>).activeScenePath;
     if (directories !== undefined && (!Array.isArray(directories) || directories.some((directory) => typeof directory !== 'string'))) {
@@ -187,6 +189,9 @@ function parseEditorUiState(value: unknown): EditorUiState {
     }
     if (autoSave !== undefined && typeof autoSave !== 'boolean') {
         throw new Error('Editor UI state autoSave must be a boolean.');
+    }
+    if (theme !== undefined && theme !== 'system' && theme !== 'light' && theme !== 'dark') {
+        throw new EditorRequestError(400, 'Editor UI state theme must be system, light, or dark.');
     }
     if (openScenePaths !== undefined && (!Array.isArray(openScenePaths) || openScenePaths.some((scenePath) => typeof scenePath !== 'string'))) {
         throw new Error('Editor UI state openScenePaths must be a string array.');
@@ -197,6 +202,7 @@ function parseEditorUiState(value: unknown): EditorUiState {
     return {
         ...(directories === undefined ? {} : { assetTreeExpandedDirectories: directories }),
         autoSave: autoSave ?? false,
+        theme: theme ?? 'system',
         ...(openScenePaths === undefined ? {} : { openScenePaths }),
         ...(activeScenePath === undefined ? {} : { activeScenePath }),
     };
@@ -204,7 +210,7 @@ function parseEditorUiState(value: unknown): EditorUiState {
 
 function readEditorUiState(projectRoot: string): EditorUiState {
     const statePath = editorUiStatePath(projectRoot);
-    if (!fs.existsSync(statePath)) return { autoSave: false };
+    if (!fs.existsSync(statePath)) return { autoSave: false, theme: 'system' };
     return parseEditorUiState(JSON.parse(fs.readFileSync(statePath, 'utf8')));
 }
 
@@ -263,8 +269,8 @@ export function createEditorProjectService(options: EditorProjectServiceOptions)
             if (url.pathname === '/api/editor-ui-state' && request.method === 'PUT') {
                 const body = await readJsonBody(request);
                 const state = parseEditorUiState(body);
-                if (!state.assetTreeExpandedDirectories || typeof body.autoSave !== 'boolean') {
-                    throw new EditorRequestError(400, 'Editor UI state requires assetTreeExpandedDirectories and autoSave.');
+                if (!state.assetTreeExpandedDirectories || typeof body.autoSave !== 'boolean' || body.theme === undefined) {
+                    throw new EditorRequestError(400, 'Editor UI state requires assetTreeExpandedDirectories, autoSave, and theme.');
                 }
                 return jsonResponse(writeEditorUiState(projectRoot, state));
             }

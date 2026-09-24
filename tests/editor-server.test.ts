@@ -100,12 +100,17 @@ describe('Editor project service', () => {
         const service = createEditorProjectService(fixture);
 
         const initial = await json(await service.fetch(new Request('http://localhost/api/editor-ui-state')));
+        const statePath = path.join(fixture.projectRoot, '.pixifact', 'editor', 'ui-state.json');
+        fs.mkdirSync(path.dirname(statePath), { recursive: true });
+        fs.writeFileSync(statePath, '{"autoSave":true}\n');
+        const existingState = await json(await service.fetch(new Request('http://localhost/api/editor-ui-state')));
         const savedResponse = await service.fetch(new Request('http://localhost/api/editor-ui-state', {
             method: 'PUT',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
                 assetTreeExpandedDirectories: ['assets', 'src/scenes'],
                 autoSave: true,
+                theme: 'dark',
                 openScenePaths: ['src/scenes/Menu.scene'],
                 activeScenePath: 'src/scenes/Menu.scene',
             }),
@@ -114,19 +119,28 @@ describe('Editor project service', () => {
         const restored = await json(await reloadedService.fetch(new Request('http://localhost/api/editor-ui-state')));
         const project = await json(await reloadedService.fetch(new Request('http://localhost/api/project')));
 
-        expect(initial).toEqual({ autoSave: false });
+        expect(initial).toEqual({ autoSave: false, theme: 'system' });
+        expect(existingState).toEqual({ autoSave: true, theme: 'system' });
         expect(savedResponse.status).toBe(200);
         expect(restored).toEqual({
             assetTreeExpandedDirectories: ['assets', 'src/scenes'],
             autoSave: true,
+            theme: 'dark',
             openScenePaths: ['src/scenes/Menu.scene'],
             activeScenePath: 'src/scenes/Menu.scene',
         });
-        expect(JSON.parse(fs.readFileSync(path.join(fixture.projectRoot, '.pixifact', 'editor', 'ui-state.json'), 'utf8')))
+        expect(JSON.parse(fs.readFileSync(statePath, 'utf8')))
             .toEqual(restored);
         expect(project.files).not.toEqual(expect.arrayContaining([
             expect.objectContaining({ path: '.pixifact/editor/ui-state.json' }),
         ]));
+
+        const invalidTheme = await service.fetch(new Request('http://localhost/api/editor-ui-state', {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ assetTreeExpandedDirectories: [], autoSave: false, theme: 'purple' }),
+        }));
+        expect(invalidTheme.status).toBe(400);
     });
 
     it('writes a scene only when the expected version still matches', async () => {
