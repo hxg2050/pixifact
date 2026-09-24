@@ -1137,6 +1137,7 @@ onBeforeUnmount(() => {
                     <small>编辑 Scene 后立即写入文件</small>
                   </span>
                   <input
+                    class="settings-switch"
                     type="checkbox"
                     :checked="autoSave"
                     aria-label="自动保存"
