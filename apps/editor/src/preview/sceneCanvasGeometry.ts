@@ -7,6 +7,7 @@ import type { Container } from 'pixi.js';
 import { findSceneTreeEntry } from '../document/sceneTree';
 
 export type SceneCanvasResizeHandle = 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw';
+export type SceneCanvasMoveAxis = 'x' | 'y' | 'xy';
 
 export interface SceneCanvasGeometry {
     x: number;
@@ -183,13 +184,16 @@ export function moveSceneCanvasGeometry(
     props: Record<string, SceneTemplateValue>,
     geometry: SceneCanvasGeometry,
     delta: SceneCanvasPoint,
+    axis: SceneCanvasMoveAxis,
 ): SceneCanvasPropChange[] | undefined {
+    const x = axis === 'y' ? 0 : delta.x;
+    const y = axis === 'x' ? 0 : delta.y;
     const horizontal = axisGeometryChanges(
         props,
         horizontalAxis,
         geometry.x,
         geometry.width,
-        geometry.x + delta.x,
+        geometry.x + x,
         geometry.width,
     );
     const vertical = axisGeometryChanges(
@@ -197,7 +201,7 @@ export function moveSceneCanvasGeometry(
         verticalAxis,
         geometry.y,
         geometry.height,
-        geometry.y + delta.y,
+        geometry.y + y,
         geometry.height,
     );
     return horizontal && vertical ? [...horizontal, ...vertical] : undefined;

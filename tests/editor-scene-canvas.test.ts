@@ -156,6 +156,7 @@ describe('Editor Scene canvas geometry', () => {
             { x: 20, y: 10, width: 100, height: 60 },
             { x: 20, y: 10, width: 100, height: 60 },
             { x: 12, y: -4 },
+            'xy',
         )!;
 
         await document.commitCommand({
@@ -184,6 +185,7 @@ describe('Editor Scene canvas geometry', () => {
             { x: 20, y: 10 },
             { x: 20, y: 10, width: 100, height: 60 },
             { x: 12, y: -4 },
+            'xy',
         )).toEqual([
             { prop: 'x', value: 32 },
             { prop: 'y', value: 6 },
@@ -193,7 +195,46 @@ describe('Editor Scene canvas geometry', () => {
             { x: 20, y: 10 },
             { x: 20, y: 10, width: 100, height: 60 },
             { x: 0.001, y: 0.001 },
+            'xy',
         )).toEqual([]);
+    });
+
+    it('constrains move handles to one axis while the center moves both', () => {
+        const props = { x: 20, y: 10 };
+        const geometry = { x: 20, y: 10, width: 100, height: 60 };
+        const delta = { x: 12, y: -4 };
+
+        expect(moveSceneCanvasGeometry(props, geometry, delta, 'x')).toEqual([
+            { prop: 'x', value: 32 },
+        ]);
+        expect(moveSceneCanvasGeometry(props, geometry, delta, 'y')).toEqual([
+            { prop: 'y', value: 6 },
+        ]);
+        expect(moveSceneCanvasGeometry(props, geometry, delta, 'xy')).toEqual([
+            { prop: 'x', value: 32 },
+            { prop: 'y', value: 6 },
+        ]);
+    });
+
+    it('keeps the other layout axis unchanged when moving one axis', () => {
+        const props = { left: 20, right: 30, top: 10, bottom: 15 };
+        const geometry = { x: 20, y: 10, width: 350, height: 215 };
+        const delta = { x: 12, y: -4 };
+
+        expect(moveSceneCanvasGeometry(props, geometry, delta, 'x')).toEqual([
+            { prop: 'left', value: 32 },
+            { prop: 'right', value: 18 },
+        ]);
+        expect(moveSceneCanvasGeometry(props, geometry, delta, 'y')).toEqual([
+            { prop: 'top', value: 6 },
+            { prop: 'bottom', value: 19 },
+        ]);
+        expect(moveSceneCanvasGeometry(
+            { horizontal: { kind: 'binding', path: ['offset'] }, y: 10 },
+            geometry,
+            delta,
+            'y',
+        )).toEqual([{ prop: 'y', value: 6 }]);
     });
 
     it('moves frame-layout nodes without replacing their constraints', () => {
@@ -201,6 +242,7 @@ describe('Editor Scene canvas geometry', () => {
             { left: 20, right: 30, top: 10, bottom: 15 },
             { x: 20, y: 10, width: 350, height: 215 },
             { x: 12, y: -4 },
+            'xy',
         )).toEqual([
             { prop: 'left', value: 32 },
             { prop: 'right', value: 18 },
@@ -272,6 +314,7 @@ describe('Editor Scene canvas geometry', () => {
             { horizontal: { kind: 'binding', path: ['offset'] }, y: 10 },
             { x: 20, y: 10, width: 100, height: 60 },
             { x: 12, y: 0 },
+            'xy',
         )).toBeUndefined();
     });
 
