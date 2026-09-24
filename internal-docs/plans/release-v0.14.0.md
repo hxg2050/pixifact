@@ -1,6 +1,6 @@
 # Release v0.14.0
 
-Status: In Progress
+Status: Complete
 
 ## Goal
 
@@ -41,15 +41,16 @@ Status: In Progress
 - `bun run release:status` 确认五包目标均为 `0.14.0`；`release:version` 已生成五包 manifest、依赖和 changelog，`bun.lock` 无改动。
 - `bun install --frozen-lockfile --dry-run`、`bun run editor:typecheck`、`git diff --check` 通过。
 - 本地 `bun run test`：26 个文件、335 项测试通过。旧 UI 测试已经同步多选接口与 pointer drop 模拟，提交为 `f62722a`。
-- tag workflow 和 npm 发布待完成。
+- `563ddf8 Release v0.14.0` 与 `v0.14.0` 已推送。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/36037349244) 完成测试、构建、包内容检查、下游安装冒烟和五包 Trusted Publishing。
+- npm registry 已确认五包版本与 `latest` 均为 `0.14.0`；[GitHub Release](https://github.com/hxg2050/pixifact/releases/tag/v0.14.0) 已创建。
 
 ## Progress
 
 - [x] 核对当前版本和待发布提交。
 - [x] 生成并审阅版本改动。
-- [ ] 提交发布变更。
-- [ ] 推送 tag，确认 CI 与 npm 发布。
-- [ ] 创建 GitHub Release 并补齐记录。
+- [x] 提交发布变更。
+- [x] 推送 tag，确认 CI 与 npm 发布。
+- [x] 核对 npm registry 五包均可见，补齐发布记录。
 
 ## Resume Protocol
 
@@ -66,14 +67,13 @@ Done:
 - 已确认远端 `main` 仍在 `v0.13.0` 发布记录提交，本地有十二项待发布 Editor 提交，`v0.14.0` 尚不存在。
 - `pixifact-cli` minor Changeset 已消费，五包 manifest 和 changelog 已生成 `0.14.0`；模板依赖同步，lockfile 无变动。
 - 修复旧 Editor 测试的多选和 pointer drop 挂载方式；本地全量 335 项测试、类型检查和 lockfile dry-run 通过。
+- `563ddf8 Release v0.14.0` 和 tag 已推送，发布工作流成功；五个 npm 包的 `latest` 都是 `0.14.0`，GitHub Release 已创建。
 
 Current State:
-- 待提交 release commit 并触发 tag workflow。
+- 发布完成。
 
 Currently Failing:
 - 无。
 
 Next:
-1. 只暂存本次发布相关文件并提交。
-2. 从干净 worktree 运行 `bun run release:publish`，确认 `main` 和 tag 已推送。
-3. 等待 GitHub Actions，核对五包 npm registry 与 GitHub Release。
+- 无；不要重新创建 tag 或重复发布同一版本。
