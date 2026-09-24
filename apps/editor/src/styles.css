@@ -1293,14 +1293,14 @@ button.asset-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 62px;
-    padding: 10px 14px;
+    min-height: 56px;
+    padding: 8px 14px;
     border-bottom: 1px solid var(--line);
 }
 
 .inspector-heading div {
     display: grid;
-    gap: 5px;
+    gap: 4px;
     min-width: 0;
 }
 
@@ -1322,7 +1322,7 @@ button.asset-row {
 .inspector-section-title {
     display: flex;
     align-items: center;
-    min-height: 34px;
+    min-height: 30px;
     padding: 0 14px;
     border-bottom: 1px solid var(--line);
     background: var(--section);
@@ -1353,8 +1353,8 @@ details:not([open]) > summary.inspector-section-title::after {
 .layout-control-note {
     display: grid;
     gap: 4px;
-    margin: 10px 12px;
-    padding: 9px 10px;
+    margin: 8px 12px;
+    padding: 7px 10px;
     border-left: 2px solid var(--warning);
     border-radius: 6px;
     background: var(--warning-soft);
@@ -1370,14 +1370,14 @@ details:not([open]) > summary.inspector-section-title::after {
 .property-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    min-height: 40px;
-    padding: 5px 12px 5px 14px;
+    min-height: 36px;
+    padding: 4px 12px 4px 14px;
     border-bottom: 1px solid var(--soft-line);
 }
 
 .property-row.is-paired {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 8px;
 }
 
 .property-field {
@@ -1453,7 +1453,7 @@ details:not([open]) > summary.inspector-section-title::after {
 .property-control input[type="number"],
 .property-control select {
     width: 100%;
-    height: 29px;
+    height: 27px;
     min-width: 0;
     padding: 0 7px;
     border: 1px solid var(--line-strong);
@@ -1505,7 +1505,7 @@ details:not([open]) > summary.inspector-section-title::after {
 
 .reset-button {
     width: 26px;
-    height: 29px;
+    height: 27px;
 }
 
 .binding-source {
