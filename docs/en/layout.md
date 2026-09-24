@@ -183,6 +183,9 @@ Horizontal Stretch writes `left/right` and clears same-axis `x/horizontal/width`
 
 Scene View:
 
+- The canvas toolbar offers Pan Canvas, Move Node, and Resize; Resize is selected by default.
+- Pan Canvas uses left-button dragging without editing nodes. Space or middle-button dragging temporarily pans in any tool.
+- Move Node lets you select and drag the selected node without resize handles. Resize retains both selected-node dragging and all eight resize handles.
 - Selecting a node does not recalculate or break layout.
 - Moving a layout node updates the corresponding layout properties.
 - Resizing a layout node updates size or margins according to the current horizontal / vertical mode.

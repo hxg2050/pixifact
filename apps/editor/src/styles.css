@@ -620,6 +620,13 @@ button.asset-row {
     z-index: 3;
 }
 
+.canvas-mode-tools {
+    right: auto;
+    left: 10px;
+    display: flex;
+    gap: 4px;
+}
+
 .canvas-tools button {
     display: inline-grid;
     place-items: center;
@@ -636,6 +643,12 @@ button.asset-row {
 .canvas-tools button:hover:not(:disabled) {
     border-color: var(--line-strong);
     background: var(--panel-raised);
+    color: var(--text);
+}
+
+.canvas-tools button[aria-pressed="true"] {
+    border-color: var(--focus);
+    background: var(--focus-soft);
     color: var(--text);
 }
 

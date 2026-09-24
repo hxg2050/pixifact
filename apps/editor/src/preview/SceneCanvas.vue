@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Scan } from 'lucide-vue-next';
+import { Hand, Move, Scaling, Scan } from 'lucide-vue-next';
 import { Application, Container, Graphics, type FederatedPointerEvent } from 'pixi.js';
 import {
     getFrameLayout,
@@ -68,6 +68,7 @@ const host = ref<HTMLElement>();
 const canvasHovered = ref(false);
 const isPanning = ref(false);
 const spacePressed = ref(false);
+const activeTool = ref<'pan' | 'move' | 'resize'>('resize');
 const status = ref('正在初始化画布');
 let app: Application | undefined;
 let canvasPan: CanvasPan | undefined;
@@ -244,6 +245,7 @@ function handleNodeClick(
     event: FederatedPointerEvent,
     document: SceneDocument,
 ) {
+    if (activeTool.value === 'pan') return;
     event.stopPropagation();
     const point = { x: event.global.x, y: event.global.y };
     const candidates = preview
@@ -392,7 +394,7 @@ function nodeCanResize(locator: string, target: Container, handle: SceneCanvasRe
 }
 
 function beginMove(locator: string, hitTarget: Container, event: FederatedPointerEvent) {
-    if (spacePressed.value || isPanning.value) return;
+    if (activeTool.value === 'pan' || spacePressed.value || isPanning.value) return;
     if (event.button !== 0) return;
     if (!sceneCanvasEventTargetIsWithinNode(hitTarget, event.target)) return;
     const point = { x: event.global.x, y: event.global.y };
@@ -412,7 +414,7 @@ function beginMove(locator: string, hitTarget: Container, event: FederatedPointe
 }
 
 function beginResize(handle: SceneCanvasResizeHandle, event: FederatedPointerEvent) {
-    if (spacePressed.value || isPanning.value) return;
+    if (activeTool.value !== 'resize' || spacePressed.value || isPanning.value) return;
     event.stopPropagation();
     if (event.button !== 0 || !props.selected) return;
     const target = selectedTarget();
@@ -536,10 +538,19 @@ function resetCanvasCursor() {
     if (app) app.canvas.style.cursor = '';
 }
 
+function selectTool(tool: 'pan' | 'move' | 'resize') {
+    if (activeTool.value === tool) return;
+    cancelInteraction();
+    finishCanvasPan();
+    activeTool.value = tool;
+    updateSelectionOverlay();
+}
+
 function handleCanvasPointerDown(event: PointerEvent) {
     const target = event.target;
     if (target instanceof Element && target.closest('.canvas-tools')) return;
-    const shouldPan = event.button === 1 || (event.button === 0 && spacePressed.value);
+    const shouldPan = event.button === 1
+        || (event.button === 0 && (spacePressed.value || activeTool.value === 'pan'));
     if (!shouldPan || !view) return;
     event.preventDefault();
     event.stopPropagation();
@@ -703,7 +714,7 @@ function updateSelectionOverlay(locator = props.selected) {
     };
     for (const [handle, graphic] of selectionHandles) {
         graphic.position.copyFrom(positions[handle]);
-        graphic.visible = nodeCanResize(locator, target, handle);
+        graphic.visible = activeTool.value === 'resize' && nodeCanResize(locator, target, handle);
     }
 }
 
@@ -780,7 +791,7 @@ onBeforeUnmount(() => {
     class="scene-canvas-host"
     :class="{
       'is-asset-drop-target': !!draggedAsset,
-      'is-pan-ready': spacePressed,
+      'is-pan-ready': spacePressed || activeTool === 'pan',
       'is-panning': isPanning,
     }"
     @pointerdown.capture="handleCanvasPointerDown"
@@ -791,6 +802,35 @@ onBeforeUnmount(() => {
   >
     <div class="canvas-grid" />
     <div v-if="status" class="canvas-status">{{ status }}</div>
+    <div class="canvas-tools canvas-mode-tools" role="group" aria-label="画布工具">
+      <button
+        type="button"
+        title="拖动画布"
+        aria-label="拖动画布"
+        :aria-pressed="activeTool === 'pan'"
+        @click="selectTool('pan')"
+      >
+        <Hand :size="15" />
+      </button>
+      <button
+        type="button"
+        title="移动节点"
+        aria-label="移动节点"
+        :aria-pressed="activeTool === 'move'"
+        @click="selectTool('move')"
+      >
+        <Move :size="15" />
+      </button>
+      <button
+        type="button"
+        title="调整大小（可拖动节点）"
+        aria-label="调整大小"
+        :aria-pressed="activeTool === 'resize'"
+        @click="selectTool('resize')"
+      >
+        <Scaling :size="15" />
+      </button>
+    </div>
     <div class="canvas-tools">
       <button
         type="button"
