@@ -334,7 +334,7 @@ function refreshDropTargetAtPointer() {
         return;
     }
     const bounds = row.getBoundingClientRect();
-    updateDropTarget(sceneTreeDropTarget(entry, (point.y - bounds.top) / bounds.height));
+    updateDropTarget(sceneTreeDropTarget(entry, (point.y - bounds.top) / (bounds.height || 27)));
 }
 
 function scrollArea() {

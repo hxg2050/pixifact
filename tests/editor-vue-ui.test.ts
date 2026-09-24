@@ -415,6 +415,7 @@ describe('Editor Vue UI', () => {
         await flushPromises();
         const ui = useEditorUiStore();
         ui.selectedLocator = '0:title';
+        ui.selectedLocators = ['0:title'];
         await flushPromises();
         const xInput = wrapper.get('input[data-prop="x"]');
         (xInput.element as HTMLInputElement).value = '48';
@@ -955,6 +956,7 @@ describe('Editor Vue UI', () => {
         expect(Object.keys(state).sort()).toEqual([
             'currentScenePath',
             'selectedLocator',
+            'selectedLocators',
             'syncState',
         ]);
         expect(state).not.toHaveProperty('source');
@@ -978,6 +980,7 @@ describe('Editor Vue UI', () => {
                     document,
                     revision: revision.value,
                     selected: '0:title',
+                    selections: ['0:title'],
                 });
             },
         }));
@@ -1022,6 +1025,7 @@ describe('Editor Vue UI', () => {
                     document,
                     revision: revision.value,
                     selected: selected.value,
+                    selections: selected.value ? [selected.value] : [],
                 });
             },
         }));
@@ -1059,6 +1063,7 @@ describe('Editor Vue UI', () => {
                 document,
                 revision: 0,
                 selected: '0:title',
+                selections: ['0:title'],
             },
         });
         const input = wrapper.get('input[data-node-id]');
@@ -1113,6 +1118,7 @@ describe('Editor Vue UI', () => {
                     document,
                     revision: revision.value,
                     selected: '0:panel',
+                    selections: ['0:panel'],
                 });
             },
         }));
@@ -1169,6 +1175,7 @@ describe('Editor Vue UI', () => {
                 document,
                 revision: 0,
                 selected: '0:panel',
+                selections: ['0:panel'],
             },
         });
 
@@ -1218,6 +1225,7 @@ describe('Editor Vue UI', () => {
                 document,
                 revision: 0,
                 selected: '0:battleArea',
+                selections: ['0:battleArea'],
             },
         });
 
@@ -1227,14 +1235,14 @@ describe('Editor Vue UI', () => {
         expect(wrapper.get('[data-prop="left"]').attributes('disabled')).toBeUndefined();
         expect(wrapper.get('[data-prop="x"]').attributes('title')).toContain('布局');
 
-        await wrapper.setProps({ selected: '1:enemyArea' });
+        await wrapper.setProps({ selected: '1:enemyArea', selections: ['1:enemyArea'] });
         await flushPromises();
         expect(wrapper.get('input[data-prop="x"]').attributes('disabled')).toBeDefined();
         expect(wrapper.get('input[data-prop="y"]').attributes('disabled')).toBeDefined();
         expect(wrapper.get('input[data-prop="width"]').attributes('disabled')).toBeUndefined();
         expect(wrapper.get('input[data-prop="height"]').attributes('disabled')).toBeUndefined();
 
-        await wrapper.setProps({ selected: '2:playerArea' });
+        await wrapper.setProps({ selected: '2:playerArea', selections: ['2:playerArea'] });
         await flushPromises();
         expect(wrapper.get('input[data-prop="y"]').attributes('disabled')).toBeDefined();
         expect(wrapper.get('input[data-prop="x"]').attributes('disabled')).toBeUndefined();
@@ -1259,6 +1267,7 @@ describe('Editor Vue UI', () => {
                 document,
                 revision: 0,
                 selected: '0:panel',
+                selections: ['0:panel'],
             },
         });
 
@@ -1308,6 +1317,7 @@ describe('Editor Vue UI', () => {
                 document,
                 revision: 0,
                 selected: '0:icon',
+                selections: ['0:icon'],
             },
         });
 
@@ -1336,6 +1346,7 @@ describe('Editor Vue UI', () => {
                 draggedAsset: { kind: 'image', path: 'assets/icons/bag.svg' },
                 revision: 0,
                 selected: '0:icon',
+                selections: ['0:icon'],
             },
         });
         const target = wrapper.get('[data-asset-drop-prop="texture"]');
@@ -1375,6 +1386,7 @@ describe('Editor Vue UI', () => {
                 draggedAsset: { kind: 'image', path: 'assets/icons/bag.svg' },
                 revision: 0,
                 selected: '0:icon',
+                selections: ['0:icon'],
             },
         });
 
@@ -1428,6 +1440,7 @@ describe('Editor Vue UI', () => {
                         },
                     },
                     selected: selected.value,
+                    selections: selected.value ? [selected.value] : [],
                 });
             },
         }));
@@ -1475,6 +1488,7 @@ describe('Editor Vue UI', () => {
                 document,
                 revision: 0,
                 selected: '0:title',
+                selections: ['0:title'],
             },
         });
 
@@ -1508,6 +1522,7 @@ describe('Editor Vue UI', () => {
                 document,
                 revision: 0,
                 selected: '0:gold',
+                selections: ['0:gold'],
             },
         });
 
@@ -1541,6 +1556,7 @@ describe('Editor Vue UI', () => {
                     document,
                     revision: revision.value,
                     selected: '0:title',
+                    selections: ['0:title'],
                 });
             },
         }));
@@ -1598,6 +1614,7 @@ describe('Editor Vue UI', () => {
                 revision: 0,
                 sceneInterfaces,
                 selected: '0:inventory',
+                selections: ['0:inventory'],
             },
         });
 
@@ -1672,6 +1689,7 @@ describe('Editor Vue UI', () => {
                     revision: revision.value,
                     sceneInterfaces,
                     selected: selected.value,
+                    selections: selected.value ? [selected.value] : [],
                 });
             },
         }));
@@ -1737,6 +1755,7 @@ describe('Editor Vue UI', () => {
                     document,
                     revision: revision.value,
                     selected: selected.value,
+                    selections: selected.value ? [selected.value] : [],
                 });
             },
         }));
@@ -1768,35 +1787,40 @@ describe('Editor Vue UI', () => {
         expect(selected.value).toBe('0:panel');
 
         const hierarchy = wrapper.get('.hierarchy-panel');
+        const hit = vi.spyOn(window.document, 'elementFromPoint');
         expect(hierarchy.classes()).not.toContain('is-dragging');
-        await wrapper.get('button[data-locator="1:footer"]').trigger('pointerdown');
+        await wrapper.get('button[data-locator="1:footer"]').trigger('pointerdown', { pointerId: 1 });
         expect(hierarchy.classes()).toContain('is-dragging');
         const panelRow = wrapper.get('button[data-locator="0:panel"]');
         await panelRow.trigger('pointermove', { clientY: 13 });
         expect(panelRow.classes()).toContain('drop-inside');
-        window.dispatchEvent(new Event('pointerup'));
+        hit.mockReturnValue(panelRow.element);
+        window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientY: 13 }));
         await flushPromises();
 
         expect(hierarchy.classes()).not.toContain('is-dragging');
         expect(document.source.indexOf('id="footer"')).toBeLessThan(document.source.indexOf('</Group>'));
 
-        await wrapper.get('button[data-locator="0:panel/2:footer"]').trigger('pointerdown');
+        await wrapper.get('button[data-locator="0:panel/2:footer"]').trigger('pointerdown', { pointerId: 1 });
         const titleRow = wrapper.get('button[data-locator="0:panel/0:title"]');
         await titleRow.trigger('pointermove', { clientY: 1 });
         expect(titleRow.classes()).toContain('drop-before');
-        window.dispatchEvent(new Event('pointerup'));
+        hit.mockReturnValue(titleRow.element);
+        window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientY: 1 }));
         await flushPromises();
 
         expect(document.source.indexOf('id="footer"')).toBeLessThan(document.source.indexOf('id="title"'));
 
-        await wrapper.get('button[data-locator="0:panel"]').trigger('pointerdown');
+        await wrapper.get('button[data-locator="0:panel"]').trigger('pointerdown', { pointerId: 1 });
         const rectRow = wrapper.get('button[data-locator="0:panel/2:rect"]');
         await rectRow.trigger('pointermove', { clientY: 1 });
         expect(rectRow.classes()).not.toContain('drop-before');
-        window.dispatchEvent(new Event('pointerup'));
+        hit.mockReturnValue(rectRow.element);
+        window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, clientY: 1 }));
         await flushPromises();
 
         expect(api.writeScene).toHaveBeenCalledTimes(5);
+        hit.mockRestore();
         wrapper.unmount();
     });
 
@@ -1818,6 +1842,7 @@ describe('Editor Vue UI', () => {
                 document,
                 draggedAsset: { kind: 'image', path: 'assets/icons/map.svg' },
                 revision: 0,
+                selections: [],
             },
         });
         const panelRow = wrapper.get('button[data-locator="0:panel"]');
