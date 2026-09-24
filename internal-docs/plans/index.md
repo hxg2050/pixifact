@@ -10,7 +10,6 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
-| [release-v0.13.0.md](./release-v0.13.0.md) | Editor 画布工具、手动保存和多 Scene 标签的五包 `0.13.0` 发布 |
 | [editor-canvas-tools.md](./editor-canvas-tools.md) | Editor 画布平移、移动节点和调整大小三工具交互 |
 | [release-v0.12.0.md](./release-v0.12.0.md) | Web Agent Runtime、Scene 来源定位和任意 Scene 截图的五包 `0.12.0` 发布 |
 | [playable-sample-agent-eval.md](./playable-sample-agent-eval.md) | Web 可玩样板游戏与固定 Agent 任务评测；首轮完成，统计复测待开展 |
@@ -29,6 +28,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [release-v0.13.0.md](./release-v0.13.0.md) | Editor 画布工具、手动保存和多 Scene 标签的五包 `0.13.0` 发布 |
 | [editor-manual-save.md](./editor-manual-save.md) | Editor 默认手动保存、自动保存设置与未保存保护 |
 | [release-v0.11.0.md](./release-v0.11.0.md) | Editor 素材定位与预览节点选择改进的五包 `0.11.0` 发布 |
 | [release-v0.7.0.md](./release-v0.7.0.md) | `0.7.0` 五个公开 npm 包的发布准备与验证 |

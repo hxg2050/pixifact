@@ -1,6 +1,6 @@
 # Release v0.13.0
 
-Status: In Progress
+Status: Complete
 
 ## Goal
 
@@ -41,16 +41,17 @@ Status: In Progress
 - `bun run release:version` 已生成五包版本、模板依赖和 changelog；`bun.lock` 无变动。
 - `bun install --frozen-lockfile --dry-run`、`bun run editor:typecheck`、`git diff --check` 通过。
 - `bun run test`：26 个测试文件、333 项测试通过。
-- GitHub Actions、npm registry 和 GitHub Release 待发布后核对。
+- 已推送 `main` 和 `v0.13.0`；[GitHub Actions](https://github.com/hxg2050/pixifact/actions/runs/35999007144) 完成测试、构建、包内容检查、下游安装冒烟和五包 Trusted Publishing。
+- npm registry 已确认五个包均有 `0.13.0`，且 `latest` 均为 `0.13.0`；[GitHub Release](https://github.com/hxg2050/pixifact/releases/tag/v0.13.0) 已创建。
 
 ## Progress
 
 - [x] 核对本地、远端和 npm 当前版本；目标 `0.13.0` 未被占用。
 - [x] 生成并审阅版本改动。
 - [x] 本地最小验证。
-- [ ] 发布提交。
-- [ ] 推送 tag，确认 CI 与 npm 发布。
-- [ ] 创建 GitHub Release 并补齐记录。
+- [x] 发布提交。
+- [x] 推送 tag，确认 CI 与 npm 发布。
+- [x] 创建 GitHub Release 并补齐记录。
 
 ## Resume Protocol
 
@@ -67,13 +68,14 @@ Done:
 - 已提交的 Editor 改动包含画布工具、保存设置和多 Scene 标签。
 - minor changeset 已消费，生成五包 `0.13.0`；模板依赖同步，lockfile 无变动。
 - 本地类型检查、lockfile dry-run 和全量 333 项测试通过。
+- `3e3ff68 Release v0.13.0` 已推送到远端 `main`，tag `v0.13.0` 指向该提交。
+- GitHub Actions 发布成功，五个 npm 包版本与 `latest` 均为 `0.13.0`，GitHub Release 已创建。
 
 Current State:
-- 准备发布提交。
+- 发布完成。
 
 Currently Failing:
 - 无。
 
 Next:
-1. 提交版本文件及发布说明。
-2. 从干净 worktree 推送 `main` 和 `v0.13.0`，核对 CI 与 npm 发布。
+- 无；不要重新创建 tag 或重复发布同一版本。
