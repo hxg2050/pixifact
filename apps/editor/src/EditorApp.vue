@@ -1277,6 +1277,7 @@ onBeforeUnmount(() => {
           :scene-interfaces="sceneInterfaces"
           :selected="selectedLocator"
           :selections="selectedLocators"
+          :revision="documentRevision"
           @select="selectNodes($event.locators, $event.primary)"
           @open-scene="navigateToSceneReference"
           @asset-drop="endAssetDrag"

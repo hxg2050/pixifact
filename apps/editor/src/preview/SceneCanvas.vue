@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { Hand, Move, Scaling, Scan } from 'lucide-vue-next';
+import {
+    AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical,
+    AlignHorizontalDistributeCenter, AlignHorizontalDistributeEnd, AlignHorizontalDistributeStart,
+    AlignHorizontalSpaceBetween, AlignStartHorizontal, AlignStartVertical,
+    AlignVerticalDistributeCenter, AlignVerticalDistributeEnd, AlignVerticalDistributeStart,
+    AlignVerticalSpaceBetween, ChevronDown, Hand, LayoutGrid, Move, Scaling, Scan,
+} from 'lucide-vue-next';
+import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui';
 import { Application, Container, Graphics, Rectangle, type FederatedPointerEvent } from 'pixi.js';
 import {
     getFrameLayout,
@@ -14,7 +21,7 @@ import {
     type SceneTemplateInterface,
     type SceneTemplateValue,
 } from 'pixifact/compiler';
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch, type Component } from 'vue';
 import type { SceneDocument, SceneDocumentEvent } from '../document/SceneDocument';
 import {
     createSceneAssetNode,
@@ -52,6 +59,7 @@ import {
     type SceneCanvasView,
 } from './sceneCanvasGeometry';
 import { graphicsDrawingProps, redrawSceneCanvasGraphics } from './sceneCanvasGraphics';
+import { sceneCanvasLayoutDeltas, type SceneCanvasLayoutAction } from './sceneCanvasLayout';
 import { incrementalScenePreviewCommands } from './scenePreviewCommands';
 
 const props = defineProps<{
@@ -61,6 +69,7 @@ const props = defineProps<{
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
     selected?: string;
     selections: string[];
+    revision: number;
 }>();
 const emit = defineEmits<{
     assetDrop: [];
@@ -76,6 +85,30 @@ const activeTool = ref<'pan' | 'move' | 'resize'>('resize');
 const status = ref('正在初始化画布');
 const zoomPercent = ref(100);
 const designSize = ref('');
+const layoutMenuOpen = ref(false);
+type LayoutMenuAction = SceneCanvasLayoutAction & { label: string; icon: Component };
+const layoutGroups: { label: string; actions: LayoutMenuAction[] }[] = [
+    { label: '对齐', actions: [
+        { kind: 'align', axis: 'y', anchor: 'start', label: '顶部对齐', icon: AlignStartHorizontal },
+        { kind: 'align', axis: 'y', anchor: 'center', label: '垂直居中对齐', icon: AlignCenterHorizontal },
+        { kind: 'align', axis: 'y', anchor: 'end', label: '底部对齐', icon: AlignEndHorizontal },
+        { kind: 'align', axis: 'x', anchor: 'start', label: '左侧对齐', icon: AlignStartVertical },
+        { kind: 'align', axis: 'x', anchor: 'center', label: '水平居中对齐', icon: AlignCenterVertical },
+        { kind: 'align', axis: 'x', anchor: 'end', label: '右侧对齐', icon: AlignEndVertical },
+    ] },
+    { label: '按线分布', actions: [
+        { kind: 'distribute', axis: 'y', anchor: 'start', label: '按顶部边缘均匀分布', icon: AlignVerticalDistributeStart },
+        { kind: 'distribute', axis: 'y', anchor: 'center', label: '按垂直中心线均匀分布', icon: AlignVerticalDistributeCenter },
+        { kind: 'distribute', axis: 'y', anchor: 'end', label: '按底部边缘均匀分布', icon: AlignVerticalDistributeEnd },
+        { kind: 'distribute', axis: 'x', anchor: 'start', label: '按左侧边缘均匀分布', icon: AlignHorizontalDistributeStart },
+        { kind: 'distribute', axis: 'x', anchor: 'center', label: '按水平中心线均匀分布', icon: AlignHorizontalDistributeCenter },
+        { kind: 'distribute', axis: 'x', anchor: 'end', label: '按右侧边缘均匀分布', icon: AlignHorizontalDistributeEnd },
+    ] },
+    { label: '等空白间距', actions: [
+        { kind: 'space', axis: 'y', label: '垂直空白等间距', icon: AlignVerticalSpaceBetween },
+        { kind: 'space', axis: 'x', label: '水平空白等间距', icon: AlignHorizontalSpaceBetween },
+    ] },
+];
 let app: Application | undefined;
 let canvasPan: CanvasPan | undefined;
 let preview: CompilerSceneRuntimePreview | undefined;
@@ -458,6 +491,59 @@ function groupBounds(targets: readonly { target: Container }[]) {
     const maxY = Math.max(...bounds.map((value) => value.maxY));
     if (![x, y, maxX, maxY].every(Number.isFinite)) return;
     return { x, y, width: maxX - x, height: maxY - y };
+}
+
+function layoutPlan(action: SceneCanvasLayoutAction): { commands: CompilerSceneCommand[]; reason?: string } {
+    const document = props.document;
+    if (!document || !preview || previewDocument !== document || status.value) {
+        return { commands: [], reason: '画布预览尚未就绪' };
+    }
+    const roots = selectedSceneTreeRoots(document.template.children, props.selections);
+    const minimum = action.kind === 'align' ? 2 : 3;
+    if (roots.length < minimum) {
+        return { commands: [], reason: `需要至少选择 ${minimum} 个可独立移动的节点` };
+    }
+    const targets = roots.map(({ locator, node }) => ({ locator, node, target: preview!.nodes.get(locator) }));
+    if (targets.some(({ locator, node, target }) => !target || !target.parent || node.kind === 'slotOutlet'
+        || sceneCanvasNodePositionIsLayoutManaged(document.template, locator))) {
+        return { commands: [], reason: '选区包含无法独立移动的节点' };
+    }
+    const bounds = targets.map(({ target }) => target!.getBounds());
+    if (bounds.some(({ minX, minY, maxX, maxY }) => ![minX, minY, maxX, maxY].every(Number.isFinite))) {
+        return { commands: [], reason: '无法获取选中节点的画布边界' };
+    }
+    const deltas = sceneCanvasLayoutDeltas(bounds.map(({ minX, minY, maxX, maxY }) => ({
+        x: minX, y: minY, width: maxX - minX, height: maxY - minY,
+    })), action);
+    const commands: CompilerSceneCommand[] = [];
+    for (const [index, { locator, node, target }] of targets.entries()) {
+        if (!target || !target.parent || node.kind === 'slotOutlet') {
+            return { commands: [], reason: '选区包含无法独立移动的节点' };
+        }
+        const delta = deltas[index];
+        if (delta.x === 0 && delta.y === 0) continue;
+        const current = target.parent.toGlobal(target.position);
+        const next = target.parent.toLocal({ x: current.x + delta.x, y: current.y + delta.y });
+        const localDelta = { x: next.x - target.x, y: next.y - target.y };
+        if (![localDelta.x, localDelta.y].every(Number.isFinite)) {
+            return { commands: [], reason: '无法换算节点的位置' };
+        }
+        const changes = moveSceneCanvasGeometry(node.props, targetGeometry(target), localDelta, 'xy');
+        if (!changes) return { commands: [], reason: '选区包含无法修改位置属性的节点' };
+        commands.push(...changes.map(({ prop, value }) => ({ op: 'setNodeProp', node: locator, prop, value } as const)));
+    }
+    return commands.length ? { commands } : { commands, reason: '节点已在目标位置' };
+}
+
+async function applyLayout(action: SceneCanvasLayoutAction) {
+    const plan = layoutPlan(action);
+    if (plan.reason || !props.document) return;
+    layoutMenuOpen.value = false;
+    try {
+        await props.document.commitCommand({ op: 'batch', commands: plan.commands });
+    } catch (error) {
+        status.value = error instanceof Error ? error.message : String(error);
+    }
 }
 
 function groupCanMove() {
@@ -1165,6 +1251,40 @@ onBeforeUnmount(() => {
       >
         <Scaling :size="15" />
       </button>
+      <PopoverRoot v-model:open="layoutMenuOpen">
+        <PopoverTrigger
+          class="canvas-layout-trigger"
+          type="button"
+          title="快捷布局"
+          aria-label="快捷布局"
+        >
+          <LayoutGrid :size="15" />
+          <ChevronDown :size="10" />
+        </PopoverTrigger>
+        <PopoverPortal>
+          <PopoverContent class="canvas-layout-popover" side="bottom" align="start" :side-offset="8">
+            <div v-for="group in layoutGroups" :key="group.label" class="canvas-layout-group">
+              <div class="canvas-layout-heading">{{ group.label }}</div>
+              <div class="canvas-layout-actions" role="group" :aria-label="group.label">
+                <span
+                  v-for="action in group.actions"
+                  :key="action.label"
+                  :title="layoutPlan(action).reason ?? action.label"
+                >
+                  <button
+                    type="button"
+                    :aria-label="action.label"
+                    :disabled="!!layoutPlan(action).reason"
+                    @click="applyLayout(action)"
+                  >
+                    <component :is="action.icon" :size="17" />
+                  </button>
+                </span>
+              </div>
+            </div>
+          </PopoverContent>
+        </PopoverPortal>
+      </PopoverRoot>
     </div>
     <div class="canvas-tools canvas-view-tools">
       <span v-if="document && designSize" class="canvas-view-size" title="Scene 设计尺寸">{{ designSize }}</span>

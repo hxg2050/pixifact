@@ -1296,6 +1296,75 @@ button.asset-row {
     gap: 4px;
 }
 
+.canvas-tools .canvas-layout-trigger {
+    display: inline-flex;
+    gap: 1px;
+    width: 38px;
+    margin-left: 5px;
+}
+
+.canvas-tools .canvas-layout-trigger[data-state="open"] {
+    border-color: var(--focus);
+    background: var(--focus-soft);
+    color: var(--selected-text);
+}
+
+.canvas-layout-popover {
+    z-index: 20;
+    padding: 7px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel-raised);
+    box-shadow: var(--shadow);
+    color: var(--text);
+}
+
+.canvas-layout-group + .canvas-layout-group {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--line);
+}
+
+.canvas-layout-heading {
+    margin: 0 4px 6px;
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.canvas-layout-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 30px) 12px repeat(3, 30px);
+    gap: 4px;
+}
+
+.canvas-layout-actions > span:nth-child(4) {
+    grid-column: 5;
+}
+
+.canvas-layout-actions button {
+    display: inline-grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.canvas-layout-actions button:hover:not(:disabled),
+.canvas-layout-actions button:focus-visible {
+    background: var(--hover);
+    color: var(--text);
+}
+
+.canvas-layout-actions button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 .canvas-tools button {
     display: inline-grid;
     place-items: center;
