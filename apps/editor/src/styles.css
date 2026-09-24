@@ -1487,20 +1487,10 @@ button.asset-row {
     font-size: 11px;
 }
 
-.asset-preview-details strong,
-.asset-preview-details small {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 .asset-preview-details strong {
     color: var(--text);
     font-weight: 600;
-}
-
-.asset-preview-details small {
-    font-size: 10px;
+    overflow-wrap: anywhere;
 }
 
 .inspector-heading {

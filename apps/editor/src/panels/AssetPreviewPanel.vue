@@ -65,12 +65,11 @@ watch([() => props.path, () => props.project], async ([path], _, onCleanup) => {
       <img v-else-if="preview" :src="preview.url" :alt="path.split('/').at(-1)" draggable="false" />
     </div>
     <div class="asset-preview-details">
-      <strong :title="path">{{ path.split('/').at(-1) }}</strong>
+      <strong :title="path">{{ path }}</strong>
       <span v-if="preview">
         {{ path.toLowerCase().endsWith('.svg') ? '矢量图' : `${preview.width} × ${preview.height} px` }}
         · {{ formatFileSize(preview.bytes) }}
       </span>
-      <small :title="path">{{ path }}</small>
     </div>
   </section>
 </template>
