@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ChevronDown, ChevronRight, Component, Image, Layers3, Type } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
-import type { SceneTreeDropTarget, SceneTreeEntry } from '../document/sceneTree';
+import { sceneTreeDropTarget, type SceneTreeDropTarget, type SceneTreeEntry } from '../document/sceneTree';
 
 const props = defineProps<{
     entry: SceneTreeEntry;
@@ -14,7 +14,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
     dragOver: [target: SceneTreeDropTarget];
-    dragStart: [locator: string];
+    dragStart: [locator: string, event: PointerEvent];
     assetDrop: [target: SceneTreeDropTarget];
     openScene: [reference: string];
     select: [locator: string, event: MouseEvent];
@@ -40,26 +40,12 @@ function calculateDropTarget(event: Pick<PointerEvent, 'clientY' | 'currentTarge
     const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
     const height = bounds.height || 27;
     const ratio = (event.clientY - bounds.top) / height;
-    if (props.entry.acceptsChildren && ratio >= 0.25 && ratio <= 0.75) {
-        return {
-            index: props.entry.children.length,
-            locator: props.entry.locator,
-            mode: 'inside',
-            parent: props.entry.locator,
-        };
-    }
-    const after = ratio > 0.5;
-    return {
-        index: props.entry.index + (after ? 1 : 0),
-        locator: props.entry.locator,
-        mode: after ? 'after' : 'before',
-        parent: props.entry.parentLocator,
-    };
+    return sceneTreeDropTarget(props.entry, ratio);
 }
 
 function handlePointerDown(event: PointerEvent) {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || props.assetDragging || props.searching) return;
-    emit('dragStart', props.entry.locator);
+    emit('dragStart', props.entry.locator, event);
 }
 
 function handlePointerMove(event: PointerEvent) {
@@ -117,7 +103,7 @@ function handleAssetDrop(event: PointerEvent) {
         :searching="props.searching"
         :selections="selections"
         @drag-over="emit('dragOver', $event)"
-        @drag-start="emit('dragStart', $event)"
+        @drag-start="(locator, event) => emit('dragStart', locator, event)"
         @asset-drop="emit('assetDrop', $event)"
         @open-scene="emit('openScene', $event)"
         @select="(locator, event) => emit('select', locator, event)"

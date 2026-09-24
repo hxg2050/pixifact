@@ -36,6 +36,24 @@ export interface SceneTreeDropTarget {
     parent: string;
 }
 
+export function sceneTreeDropTarget(entry: SceneTreeEntry, ratio: number): SceneTreeDropTarget {
+    if (entry.acceptsChildren && ratio >= 0.25 && ratio <= 0.75) {
+        return {
+            index: entry.children.length,
+            locator: entry.locator,
+            mode: 'inside',
+            parent: entry.locator,
+        };
+    }
+    const after = ratio > 0.5;
+    return {
+        index: entry.index + (after ? 1 : 0),
+        locator: entry.locator,
+        mode: after ? 'after' : 'before',
+        parent: entry.parentLocator,
+    };
+}
+
 export function sceneTreeEntries(
     nodes: readonly SceneTemplateNode[],
     parentLocator = '__scene__',

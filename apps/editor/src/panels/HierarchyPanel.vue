@@ -25,6 +25,7 @@ import {
     createSceneAssetNode,
     duplicateSceneNodes,
     findSceneTreeEntry,
+    sceneTreeDropTarget,
     sceneTreeEntries,
     selectedSceneTreeRoots,
     type SceneTreeDropTarget,
@@ -46,6 +47,8 @@ const emit = defineEmits<{
 }>();
 const search = ref('');
 const addMenu = ref<HTMLDetailsElement>();
+const hierarchyTree = ref<HTMLElement>();
+const hierarchyToolbar = ref<HTMLElement>();
 const draggedLocator = ref<string>();
 const dropTarget = ref<SceneTreeDropTarget>();
 const copiedNodes = shallowRef<SceneTemplateNode[]>([]);
@@ -54,6 +57,17 @@ const error = ref('');
 const entries = computed(() => {
     void props.revision;
     return props.document ? sceneTreeEntries(props.document.template.children) : [];
+});
+const entryByLocator = computed(() => {
+    const result = new Map<string, SceneTreeEntry>();
+    const visit = (items: readonly SceneTreeEntry[]) => {
+        for (const entry of items) {
+            result.set(entry.locator, entry);
+            visit(entry.children);
+        }
+    };
+    visit(entries.value);
+    return result;
 });
 const visibleEntries = computed(() => {
     const query = search.value.trim().toLocaleLowerCase();
@@ -90,6 +104,11 @@ const addGroups = [
     { label: '文字', types: ['Label', 'BitmapLabel', 'Text', 'BitmapText', 'HTMLText'] },
     { label: '图片', types: ['Image', 'NineImage', 'TileImage', 'Sprite', 'NineSliceSprite', 'TilingSprite'] },
 ] satisfies { label: string; types: PixiSceneNodeType[] }[];
+let dragPointerId: number | undefined;
+let dragStartPoint: { x: number; y: number } | undefined;
+let dragPoint: { x: number; y: number } | undefined;
+let scrollFrame: number | undefined;
+let lastScrollTime = 0;
 
 function insertionTarget(locator?: string) {
     if (locator === undefined) {
@@ -211,14 +230,18 @@ function pasteSelection() {
     void pasteNode(props.selected);
 }
 
-function startDrag(locator: string) {
+function startDrag(locator: string, event: PointerEvent) {
     endDrag();
     draggedLocator.value = locator;
     dropTarget.value = undefined;
+    dragPointerId = event.pointerId;
+    dragStartPoint = { x: event.clientX, y: event.clientY };
+    dragPoint = dragStartPoint;
     if (!props.selections.includes(locator)) emit('select', { locators: [locator], primary: locator });
-    window.addEventListener('pointermove', clearDropTargetOutsideHierarchy);
-    window.addEventListener('pointerup', finishDrag, { once: true });
-    window.addEventListener('pointercancel', endDrag, { once: true });
+    window.addEventListener('pointermove', handleDragPointerMove, true);
+    window.addEventListener('pointerup', finishDrag);
+    window.addEventListener('pointercancel', cancelDrag);
+    window.addEventListener('blur', endDrag);
 }
 
 function updateDropTarget(target: SceneTreeDropTarget) {
@@ -227,7 +250,7 @@ function updateDropTarget(target: SceneTreeDropTarget) {
 
 function canDrop(target: SceneTreeDropTarget) {
     if (!props.document || !draggedLocator.value) return false;
-    const source = findSceneTreeEntry(props.document.template.children, draggedLocator.value);
+    const source = entryByLocator.value.get(draggedLocator.value);
     if (!source) return false;
     if (target.parent === source.locator || target.parent.startsWith(`${source.locator}/`)) return false;
     if (source.node.kind === 'slotOutlet' && target.parent === '__scene__') return false;
@@ -267,9 +290,14 @@ async function dropAsset(target: SceneTreeDropTarget) {
 }
 
 function endDrag() {
-    window.removeEventListener('pointermove', clearDropTargetOutsideHierarchy);
+    stopAutoScroll();
+    window.removeEventListener('pointermove', handleDragPointerMove, true);
     window.removeEventListener('pointerup', finishDrag);
-    window.removeEventListener('pointercancel', endDrag);
+    window.removeEventListener('pointercancel', cancelDrag);
+    window.removeEventListener('blur', endDrag);
+    dragPointerId = undefined;
+    dragStartPoint = undefined;
+    dragPoint = undefined;
     draggedLocator.value = undefined;
     dropTarget.value = undefined;
 }
@@ -282,14 +310,93 @@ function cancelCurrentDrag() {
 
 defineExpose({ cancelCurrentDrag, copySelection, duplicateSelection: copyNode, deleteSelection: deleteNode, pasteSelection });
 
-function clearDropTargetOutsideHierarchy(event: PointerEvent) {
-    const target = event.target;
-    if (!(target instanceof Element) || !target.closest('.hierarchy-panel [data-locator]')) {
+function refreshDropTargetAtPointer() {
+    const tree = hierarchyTree.value;
+    const point = dragPoint;
+    if (!tree || !point) {
         dropTarget.value = undefined;
+        return;
+    }
+    const hit = document.elementFromPoint(point.x, point.y);
+    const row = hit instanceof Element ? hit.closest<HTMLElement>('.tree-row[data-locator]') : null;
+    if (!row || !tree.contains(row)) {
+        dropTarget.value = undefined;
+        return;
+    }
+    const locator = row.dataset.locator;
+    if (locator === '__scene__') {
+        updateDropTarget({ parent: '__scene__', index: entries.value.length, locator, mode: 'inside' });
+        return;
+    }
+    const entry = locator && entryByLocator.value.get(locator);
+    if (!entry) {
+        dropTarget.value = undefined;
+        return;
+    }
+    const bounds = row.getBoundingClientRect();
+    updateDropTarget(sceneTreeDropTarget(entry, (point.y - bounds.top) / bounds.height));
+}
+
+function scrollArea() {
+    return hierarchyTree.value?.closest<HTMLElement>('.hierarchy-panel-content');
+}
+
+function edgeScrollVelocity() {
+    const area = scrollArea();
+    const point = dragPoint;
+    if (!area || !point || !hierarchyToolbar.value) return 0;
+    const bounds = area.getBoundingClientRect();
+    const top = hierarchyToolbar.value.getBoundingClientRect().bottom;
+    if (point.x < bounds.left || point.x > bounds.right || point.y < top || point.y > bounds.bottom) return 0;
+    const edge = 32;
+    const topDistance = point.y - top;
+    const bottomDistance = bounds.bottom - point.y;
+    if (topDistance < edge) return -(40 + 800 * (1 - topDistance / edge) ** 2);
+    if (bottomDistance < edge) return 40 + 800 * (1 - bottomDistance / edge) ** 2;
+    return 0;
+}
+
+function stopAutoScroll() {
+    if (scrollFrame !== undefined) cancelAnimationFrame(scrollFrame);
+    scrollFrame = undefined;
+    lastScrollTime = 0;
+}
+
+function autoScroll(timestamp: number) {
+    scrollFrame = undefined;
+    const area = scrollArea();
+    const velocity = edgeScrollVelocity();
+    if (!area || !velocity || !draggedLocator.value) return;
+    const elapsed = lastScrollTime ? Math.min(timestamp - lastScrollTime, 32) : 16;
+    lastScrollTime = timestamp;
+    const before = area.scrollTop;
+    area.scrollTop += velocity * elapsed / 1000;
+    if (area.scrollTop === before) return;
+    refreshDropTargetAtPointer();
+    scrollFrame = requestAnimationFrame(autoScroll);
+}
+
+function handleDragPointerMove(event: PointerEvent) {
+    if (event.pointerId !== dragPointerId) return;
+    dragPoint = { x: event.clientX, y: event.clientY };
+    refreshDropTargetAtPointer();
+    const start = dragStartPoint!;
+    const moved = Math.hypot(dragPoint.x - start.x, dragPoint.y - start.y) >= 4;
+    if (moved && edgeScrollVelocity() !== 0) {
+        if (scrollFrame === undefined) scrollFrame = requestAnimationFrame(autoScroll);
+    } else {
+        stopAutoScroll();
     }
 }
 
-function finishDrag() {
+function cancelDrag(event: PointerEvent) {
+    if (event.pointerId === dragPointerId) endDrag();
+}
+
+function finishDrag(event: PointerEvent) {
+    if (event.pointerId !== dragPointerId) return;
+    dragPoint = { x: event.clientX, y: event.clientY };
+    refreshDropTargetAtPointer();
     const target = dropTarget.value;
     if (!target) {
         endDrag();
@@ -320,7 +427,7 @@ watch(() => props.draggedAsset, (asset) => {
     class="hierarchy-panel"
     :class="{ 'is-dragging': isDragging, 'is-asset-dragging': !!draggedAsset }"
   >
-    <div class="hierarchy-toolbar">
+    <div ref="hierarchyToolbar" class="hierarchy-toolbar">
       <label class="hierarchy-search">
         <Search :size="14" />
         <input v-model="search" type="search" aria-label="搜索节点" placeholder="搜索节点">
@@ -343,7 +450,7 @@ watch(() => props.draggedAsset, (asset) => {
     </div>
     <ContextMenuRoot>
       <ContextMenuTrigger as-child>
-        <div class="hierarchy-tree" @contextmenu.capture="prepareContextMenu">
+        <div ref="hierarchyTree" class="hierarchy-tree" @contextmenu.capture="prepareContextMenu">
           <button
             class="tree-row scene-root"
             :class="{
