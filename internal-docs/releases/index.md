@@ -14,6 +14,7 @@
 | [pixifact CHANGELOG](../../packages/pixifact/CHANGELOG.md) | `pixifact` 版本记录 |
 | [pixifact-cli CHANGELOG](../../packages/pixifact-cli/CHANGELOG.md) | `pixifact-cli` 版本记录 |
 | [create-pixifact CHANGELOG](../../packages/create-pixifact/CHANGELOG.md) | `create-pixifact` 版本记录 |
+| [v0.13.0.md](./v0.13.0.md) | Editor 画布工具、手动保存和多 Scene 标签版本记录 |
 | [v0.12.0.md](./v0.12.0.md) | Web Agent Runtime、Scene 来源定位和任意 Scene 截图版本记录 |
 | [v0.11.2.md](./v0.11.2.md) | Editor 覆盖层拖拽修复版本记录 |
 | [v0.11.1.md](./v0.11.1.md) | Editor 布局节点编辑和画布拖拽修复版本记录 |

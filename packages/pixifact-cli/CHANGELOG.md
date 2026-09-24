@@ -1,5 +1,15 @@
 # pixifact-cli
 
+## 0.13.0
+
+### Minor Changes
+
+- 浏览器 Editor 新增画布平移、移动节点与调整大小工具；默认手动保存并提供自动保存设置；支持多 Scene 标签、独立草稿与外部文件冲突处理。
+
+### Patch Changes
+
+- pixifact@0.13.0
+
 ## 0.12.0
 
 ### Minor Changes
