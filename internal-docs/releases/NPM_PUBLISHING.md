@@ -12,14 +12,14 @@ Pixifact 发布五个公开 npm 包：
 
 ## 当前发布状态
 
-当前已发布版本为 `0.14.0`：
+当前已发布版本为 `0.15.0`：
 
-- npm packages: `0.14.0`
-- git tag: `v0.14.0`
+- npm packages: `0.15.0`
+- git tag: `v0.15.0`
 - changelog sources: [`pixifact`](../../packages/pixifact/CHANGELOG.md)、[`pixifact-cli`](../../packages/pixifact-cli/CHANGELOG.md)、[`create-pixifact`](../../packages/create-pixifact/CHANGELOG.md)
 
-本次发布记录见 [`v0.14.0.md`](./v0.14.0.md)。
-上一版本发布记录见 [`v0.13.0.md`](./v0.13.0.md)。
+本次发布记录见 [GitHub Release v0.15.0](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)，包含 Scene 根节点属性、公开 Prop 默认值、原生事件绑定、画布右键平移及相关修复。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/36125343761) 已完成完整验证与五包 Trusted Publishing，npm registry 已确认五个包的 `latest` 均为 `0.15.0`。
+上一版本发布记录见 [`v0.14.0.md`](./v0.14.0.md)、[`v0.13.0.md`](./v0.13.0.md)。
 历史发布记录见 [`v0.12.0.md`](./v0.12.0.md)、[`v0.11.2.md`](./v0.11.2.md)、[`v0.11.1.md`](./v0.11.1.md)、[`v0.11.0.md`](./v0.11.0.md)。
 首个 npm 发布记录见 [`v0.1.3.md`](./v0.1.3.md)。
 

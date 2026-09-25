@@ -3,7 +3,7 @@
 状态：活跃
 权威范围：Pixifact npm 发布流程和发布记录目录入口
 上游文档：[../index.md](../index.md)
-下游文档：[./NPM_PUBLISHING.md](./NPM_PUBLISHING.md)、[./v0.14.0.md](./v0.14.0.md)、各包 `CHANGELOG.md`
+下游文档：[./NPM_PUBLISHING.md](./NPM_PUBLISHING.md)、[v0.15.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)、[./v0.14.0.md](./v0.14.0.md)、各包 `CHANGELOG.md`
 更新规则：发布流程或版本发布记录变化时更新
 
 ## 当前文档
@@ -14,6 +14,7 @@
 | [pixifact CHANGELOG](../../packages/pixifact/CHANGELOG.md) | `pixifact` 版本记录 |
 | [pixifact-cli CHANGELOG](../../packages/pixifact-cli/CHANGELOG.md) | `pixifact-cli` 版本记录 |
 | [create-pixifact CHANGELOG](../../packages/create-pixifact/CHANGELOG.md) | `create-pixifact` 版本记录 |
+| [v0.15.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0) | Scene 根节点编辑、默认值、原生事件、画布右键平移与修复版本记录 |
 | [v0.14.0.md](./v0.14.0.md) | Editor 主题、多选、快捷布局、资产预览和层级拖动改进版本记录 |
 | [v0.13.0.md](./v0.13.0.md) | Editor 画布工具、手动保存和多 Scene 标签版本记录 |
 | [v0.12.0.md](./v0.12.0.md) | Web Agent Runtime、Scene 来源定位和任意 Scene 截图版本记录 |

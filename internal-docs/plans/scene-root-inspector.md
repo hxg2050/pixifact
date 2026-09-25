@@ -45,6 +45,7 @@ Scene 根节点按 Group 节点编辑，允许在 Editor 中设置公开 Props �
 - 本次审查修复新增 10 个回归用例；修复前 8 个失败、2 个已有行为通过，修复后全部通过。
 - `bun run editor:typecheck`、`bun run build`、`bun run editor:frontend:build` 通过。
 - 示例项目 `bun run build:web` 通过。
+- `v0.15.0` [发布工作流](https://github.com/hxg2050/pixifact/actions/runs/36125343761) 完成测试、构建、包内容检查、下游安装与 Editor 启动冒烟及五包 Trusted Publishing；npm registry 已核验五个包的 `latest` 均为 `0.15.0`，[GitHub Release](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0) 已创建。
 
 ## Progress
 
@@ -52,7 +53,7 @@ Scene 根节点按 Group 节点编辑，允许在 Editor 中设置公开 Props �
 
 审查问题已修复：根属性重复提交不再影响撤销与重做，含绑定分隔符的字符串默认值可稳定往返；回归测试及完整验证已通过。
 
-发布进行中：按 npm 发布文档生成版本和 changelog，提交后推送 tag，等待发布工作流完成并核对五个 npm 包与 GitHub Release。
+`0.15.0` 已发布，版本提交为 `abbdeca`，发布工作流、五包 npm registry 和 GitHub Release 均已核验。
 
 ## Resume Protocol
 
@@ -68,6 +69,7 @@ Done:
 - 相关测试、类型检查、构建已通过。
 - Inspector 跳过未改变的根字段显示值，SceneDocument 拦截根属性和默认值的重复命令。
 - 默认值序列化与绑定解析器的分隔符判定保持一致，覆盖标量、结构化字段及换行字符串。
+- 完成 `0.15.0` 五包发布、registry 核验和 GitHub Release，并更新发布文档。
 
 Next:
-- 完成 `0.15.0` 版本生成、发布和 registry 核验；更新发布状态与验证记录。
+- 无。
