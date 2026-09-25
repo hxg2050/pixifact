@@ -1056,6 +1056,77 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it.each([
+        { key: 'width', value: '300', attribute: 'width="300"' },
+        { key: 'default.labelText', value: '编辑器', attribute: 'default.labelText="编辑器"' },
+        { key: 'default.rectTransform.x', value: '12', attribute: 'default.rectTransform.x="12"' },
+    ])('keeps root $key edits undoable once and preserves redo on unchanged blur', async ({ key, value, attribute }) => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: '<Scene name="Menu" width="200" />',
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const original = document.source;
+        const revision = ref(0);
+        document.subscribe((event) => { if (event.type === 'commandApplied') revision.value += 1; });
+        const sceneInterfaces: Record<string, SceneTemplateInterface> = {
+            'src/scenes/Menu.scene': {
+                props: {
+                    labelText: { type: 'string', default: '脚本' },
+                    rectTransform: { type: 'struct', struct: 'RectTransform', fields: { x: { type: 'number', default: 1 } } },
+                },
+                events: {}, slots: {},
+            },
+        };
+        const wrapper = mount(defineComponent({
+            setup() {
+                return () => h(InspectorPanel, {
+                    document, revision: revision.value, selections: [], sceneInterfaces,
+                });
+            },
+        }));
+        try {
+            const input = wrapper.get(`input[data-prop="${key}"]`);
+            await input.trigger('blur');
+            await flushPromises();
+            expect(document.source).toBe(original);
+            expect(document.canUndo).toBe(false);
+
+            (input.element as HTMLInputElement).value = value;
+            await input.trigger('input');
+            input.element.dispatchEvent(new Event('change', { bubbles: true }));
+            input.element.dispatchEvent(new Event('blur'));
+            await flushPromises();
+            expect(revision.value).toBe(1);
+            expect(document.source).toContain(attribute);
+            const edited = document.source;
+
+            await document.undo();
+            await flushPromises();
+            expect(document.source).toBe(original);
+            expect(document.canUndo).toBe(false);
+            expect(document.canRedo).toBe(true);
+            await wrapper.get(`input[data-prop="${key}"]`).trigger('blur');
+            await flushPromises();
+            expect(document.source).toBe(original);
+            expect(document.canRedo).toBe(true);
+
+            await document.redo();
+            await flushPromises();
+            expect(document.source).toBe(edited);
+            await wrapper.get(`button[aria-label="重置 ${key}"]`).trigger('click');
+            await flushPromises();
+            expect(document.source).not.toContain(attribute);
+            await document.undo();
+            expect(document.source).toBe(edited);
+            expect(api.writeScene).not.toHaveBeenCalled();
+        } finally {
+            wrapper.unmount();
+        }
+    });
+
     it('shows a child Scene Editor default when its instance has no explicit value', async () => {
         const api = createApi();
         api.readScene.mockResolvedValueOnce({

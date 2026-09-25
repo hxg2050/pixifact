@@ -516,6 +516,7 @@ async function commit(field: InspectorField) {
     const value = fieldValue(field);
     if (field.type === 'number' && (drafts[field.key] === '' || !Number.isFinite(value))) return;
     if (field.type === 'color' && !Number.isFinite(value)) return;
+    if (isRoot.value && value === field.value) return;
     try {
         const save = commitSelectedProp(field.key, value);
         await nextTick();

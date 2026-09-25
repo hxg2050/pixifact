@@ -119,6 +119,10 @@ export class SceneDocument {
     }
 
     async commitCommand(command: CompilerSceneCommand, context: CompilerSceneCommandContext = {}) {
+        if (command.op === 'setSceneProp' || command.op === 'setSceneDefaultProp') {
+            const values = command.op === 'setSceneProp' ? this.template.props : this.template.propDefaults;
+            if (scenePropValue(values ?? {}, command.prop) === command.value) return;
+        }
         const result = this.#commandStack.execute(this.template, command, {}, context);
         if (!result.ok) {
             throw new Error(result.error);

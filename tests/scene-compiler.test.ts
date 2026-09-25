@@ -164,6 +164,16 @@ describe('Pixifact scene compiler spike', () => {
         expect(parseSceneTemplate(serializeSceneTemplate(template)).propDefaults).toEqual(template.propDefaults);
     });
 
+    it.each(['{', '}', '{label', 'label}', '{label}', '{tone.text}', '{line\nbreak}'])('round-trips literal string defaults containing binding delimiters: %j', (value) => {
+        const quoted = JSON.stringify(value).replaceAll('"', '&quot;');
+        const template = parseSceneTemplate(`<Scene name="Main" default.label="${quoted}" default.caption.text="${quoted}" />`);
+        expect(template.propDefaults).toEqual({ label: value, caption: { text: value } });
+        const serialized = serializeSceneTemplate(template);
+        const reopened = parseSceneTemplate(serialized);
+        expect(reopened).toEqual(template);
+        expect(serializeSceneTemplate(reopened)).toBe(serialized);
+    });
+
     it('reports invalid root defaults and native event bindings', () => {
         const result = validateSceneContent({
             scene: 'src/scenes/Main.scene',
