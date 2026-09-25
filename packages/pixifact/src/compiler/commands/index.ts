@@ -15,6 +15,8 @@ export type CompilerSceneSelection =
 export type CompilerSceneCommand =
     | { op: 'setSceneName'; value: string }
     | { op: 'setSceneProp'; prop: string; value?: SceneTemplateValue }
+    | { op: 'setSceneDefaultProp'; prop: string; value?: SceneTemplateValue }
+    | { op: 'setSceneEvent'; event: string; value?: string }
     | { op: 'setNodeId'; node: string; value?: string }
     | { op: 'setNodeProp'; node: string; prop: string; value?: SceneTemplateValue }
     | { op: 'setNodeEvent'; node: string; event: string; value?: string }
@@ -283,6 +285,21 @@ function setSceneProp(template: SceneTemplate, command: Extract<CompilerSceneCom
     };
 }
 
+function setSceneDefaultProp(template: SceneTemplate, command: Extract<CompilerSceneCommand, { op: 'setSceneDefaultProp' }>): CompilerSceneCommandResult {
+    const defaults = template.propDefaults ??= {};
+    const previous = getPropPathValue(defaults, command.prop);
+    setPropPathValue(defaults, command.prop, command.value);
+    return { ok: true, command, inverse: { op: 'setSceneDefaultProp', prop: command.prop, value: previous }, selection: { type: 'scene' } };
+}
+
+function setSceneEvent(template: SceneTemplate, command: Extract<CompilerSceneCommand, { op: 'setSceneEvent' }>): CompilerSceneCommandResult {
+    const events = template.events ??= {};
+    const previous = events[command.event];
+    if (command.value === undefined) delete events[command.event];
+    else events[command.event] = command.value;
+    return { ok: true, command, inverse: { op: 'setSceneEvent', event: command.event, value: previous }, selection: { type: 'scene' } };
+}
+
 function setNodeId(
     template: SceneTemplate,
     command: Extract<CompilerSceneCommand, { op: 'setNodeId' }>,
@@ -394,14 +411,15 @@ function setNodeEvent(
     context: CompilerSceneCommandContext,
 ): CompilerSceneCommandResult {
     const located = findCompilerSceneNodeLocation(template.children, command.node, context);
-    if (!located || located.node.kind !== 'sceneInstance') {
+    if (!located || located.node.kind === 'slotOutlet') {
         return { ok: false, command, error: 'Node event target was not found.' };
     }
-    const previous = located.node.events[command.event];
+    const events = located.node.events ??= {};
+    const previous = events[command.event];
     if (command.value === undefined) {
-        delete located.node.events[command.event];
+        delete events[command.event];
     } else {
-        located.node.events[command.event] = command.value;
+        events[command.event] = command.value;
     }
     return {
         ok: true,
@@ -574,6 +592,10 @@ export function applyCompilerSceneCommand(
             return setSceneName(template, command);
         case 'setSceneProp':
             return setSceneProp(template, command);
+        case 'setSceneDefaultProp':
+            return setSceneDefaultProp(template, command);
+        case 'setSceneEvent':
+            return setSceneEvent(template, command);
         case 'setNodeId':
             return setNodeId(template, command, context);
         case 'setNodeProp':

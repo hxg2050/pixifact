@@ -96,6 +96,7 @@ class CompileContext {
             this.#lines.push(`registerScene(${JSON.stringify(this.options.registrationPath)}, {`);
             this.#lines.push(`  assets: ${JSON.stringify([...this.#textures.keys()])},`);
             this.#lines.push(`  dependencies: ${JSON.stringify(this.options.sceneDependencies ?? [])},`);
+            this.#lines.push(`  propDefaults: () => (${this.#sceneDefaultProps()}),`);
             this.#lines.push(`  mount: ${functionName},`);
             this.#lines.push(`  prepare: ${this.#prepareFunctionName()},`);
             this.#lines.push('});');
@@ -134,7 +135,10 @@ class CompileContext {
             }
         }
         if (this.options.scriptImport) {
-            lines.push(`import { ${this.options.scriptImport.exportName} as ${this.options.scriptImport.localName} } from ${JSON.stringify(this.options.scriptImport.source)};`);
+            const localStructs = Object.values(this.template.interface.props)
+                .filter((contract): contract is SceneTemplateStructPropContract => contract.type === 'struct' && !contract.sourceScene)
+                .map((contract) => contract.struct);
+            lines.push(`import { ${[`${this.options.scriptImport.exportName} as ${this.options.scriptImport.localName}`, ...new Set(localStructs)].join(', ')} } from ${JSON.stringify(this.options.scriptImport.source)};`);
         }
         if (this.#runtimeImports.size > 0) {
             lines.push(`import { ${[...this.#runtimeImports].sort().join(', ')} } from 'pixifact/scene';`);
@@ -261,6 +265,13 @@ class CompileContext {
         this.#recordSource(variable, locator);
         this.#applyNodeId(variable, node.id);
         this.#applyPixiProps(variable, node.props, false, undefined, node.type);
+        if (Object.keys(node.events ?? {}).length > 0 && node.props.eventMode === undefined) {
+            this.#lines.push(`  ${variable}.eventMode = 'static';`);
+        }
+        for (const [eventName, actionName] of Object.entries(node.events ?? {})) {
+            this.#runtimeImports.add('connectSceneNodeEvent');
+            this.#lines.push(`  connectSceneNodeEvent(${variable}, ${JSON.stringify(eventName)}, ${JSON.stringify(actionName)}, root, ${actionsParameter});`);
+        }
         this.#applyParentSorting(parent, node.props);
         this.#lines.push(`  ${parent}.addChild(${variable});`);
         this.#lines.push(`  __pixifactNodes[${JSON.stringify(locator)}] = ${variable};`);
@@ -273,7 +284,7 @@ class CompileContext {
         const variable = node.id || this.#anonymousName(node.type);
         const locator = compilerSceneNodeLocator(node, path);
         const constructorName = this.#sceneConstructorName(node);
-        const constructorArgs = this.#sceneInstanceConstructorArgs(variable, node);
+        const constructorArgs = this.#sceneInstanceConstructorArgs(node);
         this.#lines.push(`  const ${variable} = new ${constructorName}(${constructorArgs});`);
         this.#recordSource(variable, locator, true);
         this.#applyPixiProps(variable, node.props, true, node);
@@ -306,7 +317,7 @@ class CompileContext {
             const variable = node.id || this.#anonymousName(node.type);
             const locator = compilerSceneNodeLocator(node, path);
             const constructorName = this.#sceneConstructorName(node);
-            const constructorArgs = this.#sceneInstanceConstructorArgs(variable, node);
+            const constructorArgs = this.#sceneInstanceConstructorArgs(node);
             this.#lines.push(`  const ${variable} = new ${constructorName}(${constructorArgs});`);
             this.#recordSource(variable, locator, true);
             this.#applyPixiProps(variable, node.props, true, node);
@@ -373,7 +384,7 @@ class CompileContext {
         return this.options.sceneClassAliases?.[node.scene] ?? node.type;
     }
 
-    #sceneInstanceConstructorArgs(variable: string, node: SceneInstanceTemplateNode) {
+    #sceneInstanceConstructorArgs(node: SceneInstanceTemplateNode) {
         const sceneInterface = this.options.sceneInterfaces?.[node.scene];
         if (!sceneInterface) {
             return '';
@@ -390,8 +401,7 @@ class CompileContext {
                 continue;
             }
             if (contract.type === 'struct' && value && typeof value === 'object') {
-                const structVariable = this.#createStructValue(variable, key, value, contract);
-                entries.push(`${key}: ${structVariable}`);
+                entries.push(`${key}: ${this.#value(value)}`);
                 continue;
             }
             entries.push(`${key}: ${this.#value(value)}`);
@@ -405,30 +415,10 @@ class CompileContext {
             return [];
         }
         const structs = new Set<string>();
-        this.#collectSceneStructImports(this.template.children, scene, structs);
-        return [...structs].sort();
-    }
-
-    #collectSceneStructImports(nodes: readonly SceneTemplateNode[], sourceScene: string, structs: Set<string>) {
-        for (const node of nodes) {
-            if (node.kind === 'slotOutlet') {
-                continue;
-            }
-            if (node.kind === 'pixi') {
-                this.#collectSceneStructImports(node.children, sourceScene, structs);
-                continue;
-            }
-            const sceneInterface = this.options.sceneInterfaces?.[node.scene];
-            for (const [key, value] of Object.entries(node.props)) {
-                const contract = value && typeof value === 'object' ? sceneInterface?.props[key] : undefined;
-                if (contract?.type === 'struct' && this.#structContractSourceScene(node.scene, contract) === sourceScene) {
-                    structs.add(contract.struct);
-                }
-            }
-            for (const children of Object.values(node.slots)) {
-                this.#collectSceneStructImports(children, sourceScene, structs);
-            }
+        for (const contract of Object.values(this.template.interface.props)) {
+            if (contract.type === 'struct' && contract.sourceScene === scene) structs.add(contract.struct);
         }
+        return [...structs].sort();
     }
 
     #usesSceneClassImport(sceneImport: NonNullable<CompileSceneTemplateOptions['sceneImports']>[number]) {
@@ -469,10 +459,6 @@ class CompileContext {
     #sceneImportScene(sceneImport: NonNullable<CompileSceneTemplateOptions['sceneImports']>[number]) {
         return sceneImport.scene
             ?? Object.entries(this.options.sceneClassAliases ?? {}).find(([, alias]) => alias === sceneImport.localName)?.[0];
-    }
-
-    #structContractSourceScene(instanceScene: string, contract: SceneTemplateStructPropContract) {
-        return contract.sourceScene ?? instanceScene;
     }
 
     #applyPixiProps(
@@ -583,6 +569,26 @@ class CompileContext {
             this.#lines.push(`  root.setSize(${this.#value(width ?? 0)}, ${this.#value(height ?? 0)});`);
         }
         this.#applyPixiProps('root', props);
+        if (Object.keys(this.template.events ?? {}).length > 0 && props.eventMode === undefined) {
+            this.#lines.push("  root.eventMode = 'static';");
+        }
+        for (const [eventName, actionName] of Object.entries(this.template.events ?? {})) {
+            this.#runtimeImports.add('connectSceneNodeEvent');
+            this.#lines.push(`  connectSceneNodeEvent(root, ${JSON.stringify(eventName)}, ${JSON.stringify(actionName)}, root, ${this.options.actionsParameter || 'actions'});`);
+        }
+    }
+
+    #sceneDefaultProps() {
+        const editorDefaults = this.template.propDefaults ?? {};
+        const entries = Object.entries(this.template.interface.props).flatMap(([name, contract]) => {
+            const explicit = editorDefaults[name];
+            if (contract.type === 'struct') {
+                const overrides = explicit && typeof explicit === 'object' ? explicit : {};
+                return [`${JSON.stringify(name)}: Object.assign(new ${contract.struct}(), ${this.#value(overrides)})`];
+            }
+            return explicit === undefined ? [] : [`${JSON.stringify(name)}: ${this.#value(explicit)}`];
+        });
+        return `{ ${entries.join(', ')} }`;
     }
 
     #applyLayoutProps(variable: string, props: Record<string, SceneTemplateValue>) {
@@ -716,6 +722,7 @@ class CompileContext {
     }
 
     #hasEvents() {
+        if (Object.keys(this.template.events ?? {}).length > 0) return true;
         for (const child of this.template.children) {
             if (this.#nodeHasEvents(child)) {
                 return true;
@@ -734,7 +741,7 @@ class CompileContext {
             }
             return Object.values(node.slots).some((children) => children.some((child) => this.#nodeHasEvents(child)));
         }
-        return node.children.some((child) => this.#nodeHasEvents(child));
+        return Object.keys(node.events ?? {}).length > 0 || node.children.some((child) => this.#nodeHasEvents(child));
     }
 
     #isTextStyleProp(key: string) {

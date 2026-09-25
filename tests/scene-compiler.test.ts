@@ -24,6 +24,7 @@ import {
 import {
     bindSceneNodeProp,
     connectSceneEvent,
+    connectSceneNodeEvent,
     createEvent,
     defineVariants,
     event,
@@ -137,6 +138,90 @@ beforeAll(async () => {
 });
 
 describe('Pixifact scene compiler spike', () => {
+    it('keeps root node events and Editor Prop defaults separate from Group properties', () => {
+        const template = parseSceneTemplate('<Scene name="Button" width="220" default.label="开始" default.rectTransform.x="12" on:pointertap="handleTap"><Text id="title" on:pointerdown="press" /></Scene>');
+        expect(template.props).toEqual({ width: 220 });
+        expect(template.propDefaults).toEqual({ label: '开始', rectTransform: { x: 12 } });
+        expect(template.events).toEqual({ pointertap: 'handleTap' });
+        expect(template.children[0]).toMatchObject({ events: { pointerdown: 'press' } });
+        expect(parseSceneTemplate(serializeSceneTemplate(template))).toEqual(template);
+        template.interface.props = {
+            label: { type: 'string', default: '脚本' },
+            rectTransform: { type: 'struct', struct: 'RootDefaultsRect', fields: { x: { type: 'number', default: 0 }, y: { type: 'number', default: 0 } } },
+        };
+        const code = compileSceneTemplateToTs(template, {
+            registrationPath: 'scenes/Button.scene',
+            scriptImport: { exportName: 'Button', localName: 'Button', source: './Button' },
+        });
+        expect(code).toContain('propDefaults: () => ({ "label": "开始", "rectTransform": Object.assign(new RootDefaultsRect(), { x: 12 }) })');
+        expect(code).toContain('connectSceneNodeEvent(root, "pointertap", "handleTap", root, actions);');
+        expect(code).toContain('connectSceneNodeEvent(title, "pointerdown", "press", root, actions);');
+    });
+
+    it('round-trips string defaults that resemble other value types', () => {
+        const template = parseSceneTemplate('<Scene name="Main" default.label="&quot;true&quot;" default.code="&quot;123&quot;" default.color="&quot;#ffffff&quot;" />');
+        expect(template.propDefaults).toEqual({ label: 'true', code: '123', color: '#ffffff' });
+        expect(parseSceneTemplate(serializeSceneTemplate(template)).propDefaults).toEqual(template.propDefaults);
+    });
+
+    it('reports invalid root defaults and native event bindings', () => {
+        const result = validateSceneContent({
+            scene: 'src/scenes/Main.scene',
+            content: '<Scene name="Main" default.missing="1" default.count="wrong" on:wheel="scroll"><Rect id="box" on:pointertap="" /></Scene>',
+            sceneInterface: { props: { count: { type: 'number', default: 0 } }, events: {}, slots: {} },
+        });
+        expect(result).toMatchObject({
+            ok: false,
+            diagnostics: [
+                { path: '__scene__', prop: 'default.missing', actual: 'unknown Prop' },
+                { path: '__scene__', prop: 'default.count', expected: 'number' },
+                { path: '__scene__', prop: 'on:wheel' },
+                { path: '0:box', prop: 'on:pointertap', expected: 'nonempty action name' },
+            ],
+        });
+    });
+
+    it('applies instance values over Scene defaults and script defaults, merging structured fields', async () => {
+        class RectDefaults {
+            x = 1;
+            y = 2;
+        }
+        @scene()
+        class DefaultedScene extends Group {
+            @prop({ default: '脚本' })
+            declare labelText: string;
+
+            @prop({})
+            declare rectTransform: RectDefaults;
+
+            taps = 0;
+
+            handleTap() { this.taps += 1; }
+        }
+        const path = '__tests__/DefaultedScene.scene';
+        registerScene(path, {
+            assets: [], dependencies: [],
+            propDefaults: () => ({ labelText: '编辑器', rectTransform: Object.assign(new RectDefaults(), { x: 12 }) }),
+            mount(root) { return { root, nodes: {}, parts: {}, slots: {} }; },
+            async prepare() {},
+        });
+        registerSceneClass(DefaultedScene, path);
+        await prepareSceneClass(DefaultedScene);
+
+        const inherited = new DefaultedScene();
+        expect(inherited.labelText).toBe('编辑器');
+        expect(inherited.rectTransform).toBeInstanceOf(RectDefaults);
+        expect(inherited.rectTransform).toMatchObject({ x: 12, y: 2 });
+        connectSceneNodeEvent(inherited, 'pointertap', 'handleTap', inherited);
+        inherited.emit('pointertap');
+        expect(inherited.taps).toBe(1);
+
+        const overridden = new DefaultedScene({ labelText: '实例', rectTransform: { y: 99 } });
+        expect(overridden.labelText).toBe('实例');
+        expect(overridden.rectTransform).toBeInstanceOf(RectDefaults);
+        expect(overridden.rectTransform).toMatchObject({ x: 12, y: 99 });
+    });
+
     it('parses and serializes direct Scene Prop and Variant field bindings', () => {
         const template = parseSceneTemplate(`
             <Scene name="Button" width="220" height="64">
@@ -222,6 +307,12 @@ describe('Pixifact scene compiler spike', () => {
                 { prop: 'text', expected: 'Scene Prop declared by the paired script', actual: 'unknown binding prop' },
             ],
         });
+
+        expect(validateSceneContent({
+            scene: 'src/scenes/Button.scene',
+            content: '<Scene name="Button" default.label="invalid-color"><Rect fillColor="{label}" /></Scene>',
+            sceneInterface,
+        })).toMatchObject({ ok: false, diagnostics: [{ prop: 'fillColor', expected: 'color' }] });
     });
 
     it('passes Scene Instance public Props into construction and keeps parent bindings live', () => {
@@ -1544,16 +1635,9 @@ import { Group } from 'pixifact/runtime';`);
             sceneInterfaces,
         });
 
-        expect(code).toContain('import { Button, RectTransform } from "../src/scenes/Button";');
-        expect(code).toContain('const startButtonRectTransform = new RectTransform();');
-        expect(code).toContain('startButtonRectTransform.x = 150;');
-        expect(code).toContain('startButtonRectTransform.y = 692;');
-        expect(code).toContain('startButtonRectTransform.width = 420;');
-        expect(code).toContain('startButtonRectTransform.height = 92;');
-        expect(code).toContain('const startButton = new Button({ text: "Restart", rectTransform: startButtonRectTransform });');
+        expect(code).toContain('import { Button } from "../src/scenes/Button";');
+        expect(code).toContain('const startButton = new Button({ text: "Restart", rectTransform: { x: 150, y: 692, width: 420, height: 92 } });');
         expect(code).not.toContain('startButton.text = "Restart";');
-        expect(code).not.toContain('startButton.rectTransform = startButtonRectTransform;');
-        expect(code).not.toContain('startButton.rectTransform = {');
 
         const anonymousCode = compileSceneTemplateToTs(parseSceneTemplate(`
             <Scene name="MainMenu">
@@ -1571,11 +1655,7 @@ import { Group } from 'pixifact/runtime';`);
             sceneInterfaces,
         });
 
-        expect(anonymousCode).toContain('const button1RectTransform = new RectTransform();');
-        expect(anonymousCode).toContain('button1RectTransform.width = 420;');
-        expect(anonymousCode).toContain('const button1 = new Button({ rectTransform: button1RectTransform });');
-        expect(anonymousCode).not.toContain('button1.rectTransform = button1RectTransform;');
-        expect(anonymousCode).not.toContain('button1.rectTransform = {');
+        expect(anonymousCode).toContain('const button1 = new Button({ rectTransform: { width: 420 } });');
     });
 
     it('imports inherited structured prop constructors from the declaring scene script', () => {
@@ -1653,12 +1733,8 @@ import { Group } from 'pixifact/runtime';`);
             sceneInterfaces,
         });
 
-        expect(code).toContain('import { RectTransform } from "../src/ui/BasePanel";');
         expect(code).toContain('import { Button } from "../src/ui/Button";');
-        expect(code).toContain('const button1RectTransform = new RectTransform();');
-        expect(code).toContain('const button1 = new Button({ rectTransform: button1RectTransform, label: "Play" });');
-        expect(code).not.toContain('button1.rectTransform = button1RectTransform;');
-        expect(code).not.toContain('import { BasePanel } from "../src/ui/BasePanel";');
+        expect(code).toContain('const button1 = new Button({ rectTransform: { x: 12, y: 24 }, label: "Play" });');
         expect(code).not.toContain('import { Button, RectTransform } from "../src/ui/Button";');
     });
 

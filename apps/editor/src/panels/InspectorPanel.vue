@@ -10,6 +10,7 @@ import {
     pixiSceneNodePropKeys,
     pixiSceneTransformProps,
     resolveSceneReference,
+    sceneNativeEventNames,
     type PixiSceneFieldType,
     type CompilerSceneCommand,
     type SceneTemplateBindingValue,
@@ -26,6 +27,7 @@ interface InspectorField {
     binding?: SceneTemplateBindingValue;
     explicit: boolean;
     key: string;
+    label?: string;
     layoutControlled: boolean;
     mixed?: boolean;
     options?: readonly (string | number)[];
@@ -86,6 +88,7 @@ const props = defineProps<{
     document?: SceneDocument;
     draggedAsset?: EditorSceneAsset;
     revision: number;
+    sceneDefaults?: Record<string, Record<string, SceneTemplateValue>>;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
     selected?: string;
     selections: string[];
@@ -100,6 +103,8 @@ const changedFields = new Set<string>();
 const nodeIdDraft = ref('');
 const nodeIdError = ref('');
 const error = reactive({ message: '' });
+const eventDrafts = reactive<Record<string, string>>({});
+const isRoot = computed(() => !!props.document && !props.selected && props.selections.length === 0);
 const selectedNode = computed(() => {
     void props.revision;
     return props.document && props.selected
@@ -127,7 +132,7 @@ const selectedTitle = computed(() => {
 const selectedType = computed(() => {
     if (isMulti.value) return '多选';
     const node = selectedNode.value;
-    if (!node) return 'Scene';
+    if (!node) return 'Scene · Group';
     if (node.kind === 'slotOutlet') return 'Slot';
     return node.kind === 'sceneInstance' ? `Scene · ${node.type}` : node.type;
 });
@@ -142,11 +147,15 @@ const layoutControlNote = computed(() => {
     if (vertical.length) notes.push(`Y${values.top !== undefined && values.bottom !== undefined ? '、高度' : ''} 由 ${vertical.join(' / ')} 控制`);
     return notes.join('；');
 });
-const selectedInterface = computed(() => {
+const selectedChildScenePath = computed(() => {
     const node = selectedNode.value;
-    if (!props.document || node?.kind !== 'sceneInstance') return undefined;
-    return props.sceneInterfaces?.[resolveSceneReference(props.document.path, node.scene)];
+    return props.document && node?.kind === 'sceneInstance'
+        ? resolveSceneReference(props.document.path, node.scene)
+        : undefined;
 });
+const selectedInterface = computed(() => selectedChildScenePath.value
+    ? props.sceneInterfaces?.[selectedChildScenePath.value]
+    : undefined);
 const ownerInterface = computed(() => (
     props.document ? props.sceneInterfaces?.[props.document.path] : undefined
 ));
@@ -177,13 +186,19 @@ const commonDefaults: Record<string, string | number | boolean> = {
     label: '',
 };
 
-function fieldsForNode(node: ReturnType<typeof findSceneNodeByLocator>, sceneInterface?: SceneTemplateInterface): InspectorField[] {
+function fieldsForNode(
+    node: ReturnType<typeof findSceneNodeByLocator>,
+    sceneInterface?: SceneTemplateInterface,
+    root = false,
+    sceneDefaults: Record<string, SceneTemplateValue> = {},
+): InspectorField[] {
     if (!node || node.kind === 'slotOutlet') {
         return [];
     }
-    const defaults = node.kind === 'pixi' && isPixiSceneNodeType(node.type)
-        ? { ...commonDefaults, ...pixiSceneNodeDefaults(node.type) }
-        : commonDefaults;
+    const defaults: Record<string, string | number | boolean> = node.kind === 'pixi' && isPixiSceneNodeType(node.type)
+        ? { ...commonDefaults, ...pixiSceneNodeDefaults(node.type), ...(root ? { width: 960, height: 540 } : {}) }
+        : { ...commonDefaults };
+    if (Object.keys(node.events ?? {}).length > 0 && node.props.eventMode === undefined) defaults.eventMode = 'static';
     const keys = node.kind === 'pixi' && isPixiSceneNodeType(node.type)
         ? [...new Set([
             ...pixiSceneTransformProps,
@@ -206,7 +221,7 @@ function fieldsForNode(node: ReturnType<typeof findSceneNodeByLocator>, sceneInt
         const binding = isSceneTemplateBindingValue(explicitValue) ? explicitValue : undefined;
         const value = binding
             ? resolvedBindingValue(binding, schema?.type, defaults[key])
-            : explicitValue ?? (contract ? scenePropDefault(contract) : defaults[key]);
+            : explicitValue ?? (contract ? sceneDefaults[key] ?? scenePropDefault(contract) : defaults[key]);
         const displayValue = value ?? (pixiSchema?.resource === 'image' ? '' : undefined);
         if (!schema || displayValue === undefined || typeof displayValue === 'object') {
             return [];
@@ -224,17 +239,65 @@ function fieldsForNode(node: ReturnType<typeof findSceneNodeByLocator>, sceneInt
     });
 }
 
+const rootNode = computed(() => props.document ? ({
+    kind: 'pixi' as const,
+    type: 'Group' as const,
+    props: props.document.template.props,
+    events: props.document.template.events ?? {},
+    children: [],
+}) : undefined);
+
+function rootDefaultFields(): InspectorField[] {
+    const template = props.document?.template;
+    if (!template) return [];
+    return Object.entries(ownerInterface.value?.props ?? {}).flatMap<InspectorField>(([name, contract]) => {
+        const explicit = template.propDefaults?.[name];
+        if (contract.type === 'struct') {
+            return Object.entries(contract.fields).map(([field, schema]) => {
+                const value = explicit && typeof explicit === 'object' && !isSceneTemplateBindingValue(explicit)
+                    ? explicit[field] : undefined;
+                return {
+                    explicit: value !== undefined,
+                    key: `default.${name}.${field}`,
+                    label: `${name}.${field}`,
+                    layoutControlled: false,
+                    type: schema.type,
+                    value: value ?? schema.default,
+                };
+            });
+        }
+        const schema = scenePropSchema(contract)!;
+        const fallback = scenePropDefault(contract);
+        if (fallback === undefined) return [];
+        return [{
+            explicit: explicit !== undefined,
+            key: `default.${name}`,
+            label: name,
+            layoutControlled: false,
+            type: schema.type,
+            options: schema.options,
+            value: explicit !== undefined && typeof explicit !== 'object' ? explicit : fallback,
+        }];
+    });
+}
+
 const fields = computed<InspectorField[]>(() => {
     void props.revision;
+    if (isRoot.value) return [...fieldsForNode(rootNode.value, undefined, true), ...rootDefaultFields()];
     const node = selectedNode.value;
     if (!node) return [];
-    const first = fieldsForNode(node, selectedInterface.value);
+    const first = fieldsForNode(node, selectedInterface.value, false,
+        selectedChildScenePath.value ? props.sceneDefaults?.[selectedChildScenePath.value] : undefined);
     if (!isMulti.value) return first;
     const others = selectedNodes.value
         .filter(({ locator }) => locator !== props.selected)
         .map(({ node: other }) => new Map(fieldsForNode(other,
             other.kind === 'sceneInstance' && props.document
                 ? props.sceneInterfaces?.[resolveSceneReference(props.document.path, other.scene)]
+                : undefined,
+            false,
+            other.kind === 'sceneInstance' && props.document
+                ? props.sceneDefaults?.[resolveSceneReference(props.document.path, other.scene)]
                 : undefined,
         ).map((field) => [field.key, field])));
     return first.flatMap((field) => {
@@ -255,7 +318,7 @@ const fields = computed<InspectorField[]>(() => {
 });
 
 const fieldSections = computed<InspectorFieldSection[]>(() => {
-    const node = selectedNode.value;
+    const node = selectedNode.value ?? (isRoot.value ? rootNode.value : undefined);
     if (!node || node.kind === 'slotOutlet') return [];
 
     const grouped: Record<InspectorSectionKey, InspectorField[]> = {
@@ -267,7 +330,7 @@ const fieldSections = computed<InspectorFieldSection[]>(() => {
     };
     for (const field of fields.value) {
         let section: InspectorSectionKey;
-        if (node.kind === 'sceneInstance' && selectedInterface.value?.props[field.key]) {
+        if (field.key.startsWith('default.') || (node.kind === 'sceneInstance' && selectedInterface.value?.props[field.key])) {
             section = 'props';
         } else if (transformFieldKeys.has(field.key)) {
             section = 'transform';
@@ -286,6 +349,16 @@ const fieldSections = computed<InspectorFieldSection[]>(() => {
         return rows.length > 0 ? [{ key, title, rows }] : [];
     });
 });
+
+const eventNames = computed(() => {
+    if (isRoot.value || selectedNode.value?.kind === 'pixi') return [...sceneNativeEventNames];
+    if (selectedNode.value?.kind === 'sceneInstance') return Object.keys(selectedInterface.value?.events ?? {});
+    return [];
+});
+
+const selectedEvents = computed(() => isRoot.value
+    ? props.document?.template.events ?? {}
+    : selectedNode.value?.kind === 'slotOutlet' ? {} : selectedNode.value?.events ?? {});
 
 function groupFieldRows(sectionFields: InspectorField[]): InspectorFieldRow[] {
     const fieldsByKey = new Map(sectionFields.map((field) => [field.key, field]));
@@ -336,11 +409,12 @@ function resolvedBindingValue(
 ): SceneTemplateScalarValue | undefined {
     const [prop, field] = binding.path;
     const contract = ownerInterface.value?.props[prop];
+    const editorDefault = props.document?.template.propDefaults?.[prop];
     let value: SceneTemplateScalarValue | undefined;
     if (field && contract?.type === 'variant') {
-        value = contract.variants[contract.default]?.[field];
+        value = contract.variants[typeof editorDefault === 'string' ? editorDefault : contract.default]?.[field];
     } else if (!field && contract && contract.type !== 'struct') {
-        value = scenePropDefault(contract);
+        value = editorDefault !== undefined && typeof editorDefault !== 'object' ? editorDefault : scenePropDefault(contract);
     }
     if (value === undefined && ['string', 'number', 'boolean'].includes(typeof targetDefault)) {
         value = targetDefault as SceneTemplateScalarValue;
@@ -366,6 +440,8 @@ watch([() => props.selected, () => props.revision, fields], () => {
     nodeIdDraft.value = node && node.kind !== 'slotOutlet' ? node.id ?? '' : '';
     nodeIdError.value = '';
     error.message = '';
+    for (const key of Object.keys(eventDrafts)) delete eventDrafts[key];
+    for (const name of eventNames.value) eventDrafts[name] = selectedEvents.value[name] ?? '';
 }, { immediate: true, flush: 'post' });
 
 function fieldDraftValue(field: InspectorField, value: InspectorField['value']) {
@@ -434,7 +510,7 @@ async function commitNodeIdAndBlur(input: HTMLInputElement) {
 }
 
 async function commit(field: InspectorField) {
-    if (!props.document || selectedNodes.value.length === 0 || field.layoutControlled) return;
+    if (!props.document || (!isRoot.value && selectedNodes.value.length === 0) || field.layoutControlled) return;
     if (isMulti.value && !changedFields.has(field.key)) return;
     error.message = '';
     const value = fieldValue(field);
@@ -452,7 +528,7 @@ async function commit(field: InspectorField) {
 }
 
 async function reset(field: InspectorField) {
-    if (!props.document || selectedNodes.value.length === 0) return;
+    if (!props.document || (!isRoot.value && selectedNodes.value.length === 0)) return;
     error.message = '';
     try {
         for (const { locator } of selectedNodes.value) props.document.previewNodeProp(locator, field.key, undefined);
@@ -464,6 +540,9 @@ async function reset(field: InspectorField) {
 
 function commitSelectedProp(key: string, value?: SceneTemplateValue) {
     const document = props.document!;
+    if (isRoot.value) return document.commitCommand(key.startsWith('default.')
+        ? { op: 'setSceneDefaultProp', prop: key.slice('default.'.length), value }
+        : { op: 'setSceneProp', prop: key, value });
     if (!isMulti.value) return document.commitNodeProp(props.selected!, key, value);
     const commands: CompilerSceneCommand[] = selectedNodes.value.flatMap(({ locator, node }) => (
         node.kind !== 'slotOutlet' && node.props[key] !== value
@@ -472,6 +551,20 @@ function commitSelectedProp(key: string, value?: SceneTemplateValue) {
     ));
     if (commands.length === 0) return Promise.resolve();
     return document.commitCommand({ op: 'batch', commands });
+}
+
+async function commitEvent(name: string) {
+    if (!props.document || (!isRoot.value && (!props.selected || isMulti.value))) return;
+    const value = eventDrafts[name]?.trim() || undefined;
+    if (value === selectedEvents.value[name]) return;
+    error.message = '';
+    try {
+        await props.document.commitCommand(isRoot.value
+            ? { op: 'setSceneEvent', event: name, value }
+            : { op: 'setNodeEvent', node: props.selected!, event: name, value });
+    } catch (cause) {
+        error.message = cause instanceof Error ? cause.message : String(cause);
+    }
 }
 
 async function unbind(field: InspectorField) {
@@ -515,11 +608,15 @@ async function dropAsset(field: InspectorField) {
       </div>
     </header>
 
-    <div v-if="!selectedNode" class="panel-empty compact">选择一个节点以编辑属性</div>
+    <div v-if="!selectedNode && !isRoot" class="panel-empty compact">选择一个节点以编辑属性</div>
     <div v-else-if="isMulti && fields.length === 0" class="panel-empty compact">所选节点没有共有的可编辑属性</div>
-    <div v-else-if="selectedNode.kind === 'slotOutlet'" class="panel-empty compact">Slot 内容通过层级树编辑</div>
+    <div v-else-if="selectedNode?.kind === 'slotOutlet'" class="panel-empty compact">Slot 内容通过层级树编辑</div>
     <div v-else class="inspector-fields">
-      <section v-if="!isMulti" class="inspector-section" data-inspector-section="identity">
+      <section v-if="isRoot" class="inspector-section" data-inspector-section="identity">
+        <div class="inspector-section-title">Scene</div>
+        <div class="property-row"><span class="property-field"><span>路径</span><span>{{ document?.path }}</span></span></div>
+      </section>
+      <section v-else-if="!isMulti" class="inspector-section" data-inspector-section="identity">
         <div class="inspector-section-title">节点</div>
         <div class="property-row">
           <label class="property-field">
@@ -574,7 +671,7 @@ async function dropAsset(field: InspectorField) {
             <span
               :class="{ inherited: !field.explicit }"
               :title="field.layoutControlled ? '由布局属性控制，请修改布局字段' : undefined"
-            >{{ field.key }}</span>
+            >{{ field.label ?? field.key }}</span>
             <div class="property-control">
               <div class="property-value">
                 <input
@@ -664,6 +761,33 @@ async function dropAsset(field: InspectorField) {
                 :aria-label="`重置 ${field.key}`"
                 @click="reset(field)"
               >
+                <RotateCcw :size="13" />
+              </button>
+            </div>
+          </label>
+        </div>
+      </details>
+      <details v-if="eventNames.length && !isMulti" class="inspector-section" data-inspector-section="events">
+        <summary class="inspector-section-title">{{ selectedNode?.kind === 'sceneInstance' ? '对外事件' : '节点事件' }}</summary>
+        <div v-for="name in eventNames" :key="name" class="property-row" :data-event-row="name">
+          <label class="property-field">
+            <span :class="{ inherited: !selectedEvents[name] }">{{ name }}</span>
+            <div class="property-control">
+              <div class="property-value">
+                <input
+                  v-model="eventDrafts[name]"
+                  :aria-label="`${name} Action`"
+                  :data-event="name"
+                  type="text"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Action 名称"
+                  @change="commitEvent(name)"
+                  @blur="commitEvent(name)"
+                  @keydown.enter="commitEvent(name); ($event.currentTarget as HTMLInputElement).blur()"
+                >
+              </div>
+              <button type="button" class="reset-button" :disabled="!selectedEvents[name]" :title="`清除 ${name} 绑定`" :aria-label="`清除 ${name} 绑定`" @click="eventDrafts[name] = ''; commitEvent(name)">
                 <RotateCcw :size="13" />
               </button>
             </div>

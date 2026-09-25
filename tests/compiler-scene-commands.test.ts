@@ -64,6 +64,27 @@ function template(): SceneTemplate {
 }
 
 describe('compiler scene commands', () => {
+    it('edits root defaults and native node events with undo', () => {
+        const document = template();
+        const defaults = applyCompilerSceneCommand(document, { op: 'setSceneDefaultProp', prop: 'rectTransform.x', value: 24 });
+        expect(defaults.ok).toBe(true);
+        expect(document.propDefaults).toEqual({ rectTransform: { x: 24 } });
+        if (defaults.ok) applyCompilerSceneCommand(document, defaults.inverse);
+        expect(document.propDefaults).toEqual({});
+
+        const event = applyCompilerSceneCommand(document, { op: 'setSceneEvent', event: 'pointertap', value: 'start' });
+        expect(event.ok).toBe(true);
+        expect(document.events).toEqual({ pointertap: 'start' });
+        if (event.ok) applyCompilerSceneCommand(document, event.inverse);
+        expect(document.events).toEqual({});
+
+        const nodeEvent = applyCompilerSceneCommand(document, { op: 'setNodeEvent', node: '0:panel/0:title', event: 'pointertap', value: 'select' });
+        expect(nodeEvent.ok).toBe(true);
+        expect((document.children[0] as Extract<SceneTemplateNode, { kind: 'pixi' }>).children[0]).toMatchObject({ events: { pointertap: 'select' } });
+        if (nodeEvent.ok) applyCompilerSceneCommand(document, nodeEvent.inverse);
+        expect((document.children[0] as Extract<SceneTemplateNode, { kind: 'pixi' }>).children[0]).toMatchObject({ events: {} });
+    });
+
     it('applies scene and node property commands with inverse commands', () => {
         const document = template();
 

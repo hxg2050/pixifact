@@ -9,7 +9,7 @@ import type {
     SceneSlotDecoratorOptions,
     SceneVariants,
 } from '../compiler/spec';
-import { mountSceneClass } from './sceneRuntime';
+import { mountSceneClass, scenePropDefaultsForClass } from './sceneRuntime';
 import { initializeSceneProps } from './sceneBindingRuntime';
 
 type SceneConstructor = new (...args: unknown[]) => object;
@@ -36,7 +36,7 @@ export function scene(): SceneClassDecorator {
                 const initialProps = args[0] && typeof args[0] === 'object'
                     ? args[0] as Record<string, unknown>
                     : {};
-                initializeSceneProps(this, metadata.props, initialProps);
+                initializeSceneProps(this, metadata.props, initialProps, scenePropDefaultsForClass(SceneClass));
                 const result = mountSceneClass(this as object as Group, SceneClass);
                 for (const [property, id] of metadata.parts) {
                     Object.defineProperty(this, property, {

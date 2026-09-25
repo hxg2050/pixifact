@@ -23,13 +23,17 @@ Every `.scene` file must use `<Scene>` as its root:
 </Scene>
 ```
 
-`<Scene>` is not an ordinary child node. It is only the file root; the runtime root node is `Group`. Recommended root attributes are:
+`<Scene>` is the file root, and its runtime node is `Group`. It accepts common `Group` properties, including:
 
 | Prop | Type | Description |
 | --- | --- | --- |
 | `name` | string | Required. Must match the `@scene()` class name in the paired `.ts` file. |
 | `width` | number | Optional Scene design width. If omitted, an entry Scene can use the project default resolution. |
 | `height` | number | Optional Scene design height. If omitted, an entry Scene can use the project default resolution. |
+
+Use `default.<prop>="value"` on the root to set an Editor default for a `@prop` declared by the paired script. For structured Props, use `default.<prop>.<field>="value"`. For example: `default.label="Start" default.rectTransform.x="12"`. Runtime precedence is explicit instance value, `.scene` default, then script `@prop` default; structured Props merge by field. This edits the `.scene` file, not the script. Quote ambiguous string literals with XML escaped quotes, for example `default.label="&quot;true&quot;"`.
+
+The root and ordinary Pixi nodes can bind native events with `on:pointertap="actionName"` and the other supported names: `pointerdown`, `pointerup`, `pointerupoutside`, `pointerover`, `pointerout`, and `click`. A node with such a binding uses `static` event mode unless `eventMode` is explicitly set. Runtime action lookup checks external actions before methods on the current Scene script. Child Scene instances continue to use `@eventName="actionName"` for their public `@event()` events.
 
 `<Group>` is a direct Pixifact box container. Its `width` / `height` use stable Pixifact box-size semantics and it supports frame layout. `<Container>` keeps native PixiJS bounds / scale size semantics for pure grouping. `<Control>` remains a runtime layout base type and cannot be written directly as a `.scene` tag.
 

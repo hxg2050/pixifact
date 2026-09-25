@@ -5,8 +5,10 @@ import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, triggerRef, watch } from 'vue';
 import {
     pairedSceneScriptPath,
+    parseSceneTemplate,
     resolveSceneReference,
     type SceneTemplateInterface,
+    type SceneTemplateValue,
 } from 'pixifact/compiler';
 import AssetsPanel from './panels/AssetsPanel.vue';
 import AssetPreviewPanel from './panels/AssetPreviewPanel.vue';
@@ -17,6 +19,7 @@ import type { SceneCanvasView } from './preview/sceneCanvasGeometry';
 import { SceneDocument } from './document/SceneDocument';
 import {
     findSceneTreeEntry,
+    findSceneNodeByLocator,
     remapSceneSelection,
     sceneTreeLocatorsForIds,
     type EditorSceneAsset,
@@ -46,12 +49,41 @@ const { currentScenePath, selectedLocator, selectedLocators, syncState } = store
 const project = ref<EditorProject>();
 const projectTree = ref<ProjectFileTreeNode>();
 const sceneInterfaces = ref<Record<string, SceneTemplateInterface>>({});
+const diskSceneDefaults = shallowRef<Record<string, Record<string, SceneTemplateValue>>>({});
+const sceneDefaultsRevision = ref(0);
 const assetTreeExpandedDirectories = ref<string[]>();
 const autoSave = ref(false);
 const theme = ref<EditorUiState['theme']>('dark');
 const document = ref<SceneDocument>();
 const sceneTabs = shallowRef<SceneTab[]>([]);
 const documentRevision = ref(0);
+const selectedChildScenePath = computed(() => {
+    void documentRevision.value;
+    const current = document.value;
+    const node = current && selectedLocator.value
+        ? findSceneNodeByLocator(current.template.children, selectedLocator.value)
+        : undefined;
+    return node?.kind === 'sceneInstance' ? resolveSceneReference(current!.path, node.scene) : undefined;
+});
+const inspectorSceneDefaults = computed(() => {
+    void documentRevision.value;
+    return {
+        ...diskSceneDefaults.value,
+        ...Object.fromEntries(sceneTabs.value.map((tab) => [tab.path, tab.document.template.propDefaults ?? {}])),
+    };
+});
+watch([selectedChildScenePath, sceneDefaultsRevision], async ([path]) => {
+    if (!path || diskSceneDefaults.value[path] || sceneTabs.value.some((tab) => tab.path === path)) return;
+    const revision = sessionStateRevision;
+    const defaultsRevision = sceneDefaultsRevision.value;
+    try {
+        const scene = await readEditorScene(path);
+        if (revision !== sessionStateRevision || defaultsRevision !== sceneDefaultsRevision.value) return;
+        diskSceneDefaults.value = { ...diskSceneDefaults.value, [path]: parseSceneTemplate(scene.source).propDefaults ?? {} };
+    } catch (cause) {
+        if (revision === sessionStateRevision) error.value = cause instanceof Error ? cause.message : String(cause);
+    }
+});
 const error = ref('');
 const closingPath = ref<string>();
 const conflict = ref<{ path: string; localSource: string; diskSource: string; diskVersion: string }>();
@@ -380,6 +412,12 @@ function projectChangeIsCurrent(generation: number) {
 
 async function applyProjectChanges(paths: readonly string[], generation: number) {
     if (!projectChangeIsCurrent(generation)) return;
+    const changedDefaults = paths.filter((path) => diskSceneDefaults.value[path] !== undefined);
+    if (changedDefaults.length > 0) {
+        diskSceneDefaults.value = Object.fromEntries(Object.entries(diskSceneDefaults.value)
+            .filter(([path]) => !changedDefaults.includes(path)));
+        sceneDefaultsRevision.value += 1;
+    }
     const current = document.value;
     const currentProject = project.value;
     const knownFiles = new Map(currentProject?.files.map((file) => [file.path, file]));
@@ -576,6 +614,8 @@ async function refreshEditor() {
         project.value = nextProject;
         projectTree.value = createEditorProjectTree(nextProject);
         sceneInterfaces.value = nextSceneInterfaces;
+        diskSceneDefaults.value = {};
+        sceneDefaultsRevision.value += 1;
         if (latest) {
             const tab = tabFor(current.path);
             if (tab && tab.document === current) {
@@ -894,6 +934,7 @@ function clearWorkspace() {
     theme.value = 'dark';
     projectTree.value = undefined;
     sceneInterfaces.value = {};
+    diskSceneDefaults.value = {};
     currentScenePath.value = undefined;
     selectedLocator.value = undefined;
     selectedLocators.value = [];
@@ -1335,6 +1376,7 @@ onBeforeUnmount(() => {
           :dragged-asset="draggedAsset"
           :revision="documentRevision"
           :scene-interfaces="sceneInterfaces"
+          :scene-defaults="inspectorSceneDefaults"
           :selected="selectedLocator"
           :selections="selectedLocators"
           @asset-drop="endAssetDrag"

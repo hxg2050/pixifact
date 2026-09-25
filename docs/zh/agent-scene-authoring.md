@@ -72,6 +72,8 @@ Pixifact 不决定何时 commit 或开 PR。它的责任是让 `.scene` 编辑�
 
 ## Scene 脚本契约
 
+Agent 可在 `<Scene>` 根标签写 `default.<prop>="值"` 或 `default.<prop>.<field>="值"`，为脚本中已有的公开 Prop 设置 `.scene` 默认值，不改动脚本声明。实例显式传值优先，其次是 `.scene` 默认值，最后才是脚本 `@prop` 默认值；结构化字段逐个合并。根和普通 Pixi 节点可用 `on:pointertap="actionName"` 等 `on:` 属性绑定当前 Scene action，子 Scene 实例的 `@eventName` 保持公开事件含义。可写事件名见 [Scene Objects](./scene-objects.md)。
+
 Scene 脚本暴露父 `.scene`、Compiler 和 Editor Inspector 使用的公开契约。Primitive Prop 的类型从 TypeScript property type 推断，默认值写在 `@prop` 上：
 
 ```ts

@@ -1,3 +1,5 @@
+import type { Container } from 'pixi.js';
+
 export type SceneEventListener<TPayload = void> = TPayload extends void
     ? () => void
     : (payload: TPayload) => void;
@@ -45,5 +47,25 @@ export function connectSceneEvent(
         });
     }
 
+    throw new Error(`Scene action "${actionName}" was not found.`);
+}
+
+export function connectSceneNodeEvent(
+    target: Container,
+    eventName: string,
+    actionName: string,
+    owner: object,
+    actions: SceneActions = {},
+) {
+    const action = actions[actionName];
+    if (action) {
+        target.on(eventName, action);
+        return;
+    }
+    const ownerAction = (owner as Record<string, unknown>)[actionName];
+    if (typeof ownerAction === 'function') {
+        target.on(eventName, () => ownerAction.call(owner));
+        return;
+    }
     throw new Error(`Scene action "${actionName}" was not found.`);
 }

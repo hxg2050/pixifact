@@ -72,6 +72,8 @@ Pixifact does not decide when to commit or open a PR. Its responsibility is to m
 
 ## Scene Script Contracts
 
+Agents can set defaults for existing public Props on the `<Scene>` root with `default.<prop>="value"` or `default.<prop>.<field>="value"`, without changing the script. Explicit instance values take precedence, followed by `.scene` defaults and then script `@prop` defaults; structured values merge by field. The root and ordinary Pixi nodes can bind current Scene actions through native `on:pointertap="actionName"` attributes. Child Scene instance `@eventName` attributes retain their public event meaning. See [Scene Objects](./scene-objects.md) for supported event names.
+
 Scene scripts expose the public contract consumed by parent `.scene` files, the compiler, and the Editor Inspector. Primitive Prop types are inferred from TypeScript property declarations, while defaults are declared on `@prop`:
 
 ```ts

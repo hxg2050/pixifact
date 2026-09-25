@@ -66,7 +66,11 @@ export function parseSceneTemplate(source: string): SceneTemplate {
     return {
         version: 2,
         name,
-        props: parseProps(root, ['name']),
+        props: parseProps(root, ['name'], (attribute) => attribute.startsWith('default.') || attribute.startsWith('on:')),
+        propDefaults: parseProps({ ...root, attributes: Object.fromEntries(Object.entries(root.attributes)
+            .filter(([attribute]) => attribute.startsWith('default.'))
+            .map(([attribute, value]) => [attribute.slice('default.'.length), value])) }, [], undefined, true),
+        events: parseNativeEvents(root),
         interface: emptyInterface(),
         children,
     };
@@ -113,7 +117,8 @@ function parseTemplateNode(element: XmlElement): SceneTemplateNode {
         const node: PixiTemplateNode = {
             kind: 'pixi',
             type: element.name as SceneTemplatePrimitiveType,
-            props: parseProps(element, ['id', 'slot']),
+            props: parseProps(element, ['id', 'slot'], (attribute) => attribute.startsWith('on:')),
+            events: parseNativeEvents(element),
             children: element.children.map(parseTemplateNode),
             ...(element.attributes.id ? { id: element.attributes.id } : {}),
         };
@@ -127,13 +132,14 @@ function parseProps(
     element: XmlElement,
     omitted: string[],
     shouldOmit: (name: string) => boolean = () => false,
+    allowQuotedStrings = false,
 ) {
     const props: Record<string, SceneTemplateValue> = {};
     for (const [name, value] of Object.entries(element.attributes)) {
         if (omitted.includes(name) || shouldOmit(name)) {
             continue;
         }
-        const parsed = parseAttributeValue(name, value);
+        const parsed = parseAttributeValue(name, value, allowQuotedStrings);
         const path = name.split('.');
         if (path.length === 1) {
             if (props[name] && typeof props[name] === 'object') {
@@ -170,6 +176,12 @@ function parseEvents(element: XmlElement) {
     return events;
 }
 
+function parseNativeEvents(element: XmlElement) {
+    return Object.fromEntries(Object.entries(element.attributes)
+        .filter(([name]) => name.startsWith('on:'))
+        .map(([name, value]) => [name.slice(3), value]));
+}
+
 function eventName(name: string) {
     if (name.startsWith('@')) {
         return name.slice(1);
@@ -187,7 +199,8 @@ function isEventAttribute(name: string) {
     return eventName(name) !== undefined;
 }
 
-function parseAttributeValue(name: string, value: string): SceneTemplateValue {
+function parseAttributeValue(name: string, value: string, allowQuotedStrings = false): SceneTemplateValue {
+    if (allowQuotedStrings && value.startsWith('"') && value.endsWith('"')) return JSON.parse(value) as string;
     const binding = parseBindingValue(value);
     if (binding) {
         return binding;

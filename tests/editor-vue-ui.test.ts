@@ -1006,6 +1006,79 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it('edits Scene root Group properties, Editor defaults, and native events without changing scripts', async () => {
+        const api = createApi();
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const revision = ref(0);
+        document.subscribe((event) => { if (event.type === 'commandApplied') revision.value += 1; });
+        const sceneInterfaces: Record<string, SceneTemplateInterface> = {
+            'src/scenes/Menu.scene': {
+                props: {
+                    labelText: { type: 'string', default: '脚本' },
+                    rectTransform: { type: 'struct', struct: 'RectTransform', fields: { x: { type: 'number', default: 1 } } },
+                },
+                events: {}, slots: {},
+            },
+        };
+        const wrapper = mount(defineComponent({
+            setup() {
+                return () => h(InspectorPanel, {
+                    document, revision: revision.value, selected: undefined, selections: [], sceneInterfaces,
+                });
+            },
+        }));
+        expect(wrapper.text()).toContain('Scene · Group');
+        expect(wrapper.find('.panel-empty').exists()).toBe(false);
+        expect((wrapper.get('input[data-prop="default.labelText"]').element as HTMLInputElement).value).toBe('脚本');
+        const defaultInput = wrapper.get('input[data-prop="default.labelText"]');
+        (defaultInput.element as HTMLInputElement).value = '编辑器';
+        await defaultInput.trigger('input');
+        await defaultInput.trigger('blur');
+        await flushPromises();
+        expect(document.source).toContain('default.labelText="编辑器"');
+
+        const structInput = wrapper.get('input[data-prop="default.rectTransform.x"]');
+        (structInput.element as HTMLInputElement).value = '12';
+        await structInput.trigger('input');
+        await structInput.trigger('blur');
+        await flushPromises();
+        expect(document.source).toContain('default.rectTransform.x="12"');
+
+        const eventInput = wrapper.get('input[data-event="pointertap"]');
+        (eventInput.element as HTMLInputElement).value = 'handleTap';
+        await eventInput.trigger('input');
+        await eventInput.trigger('blur');
+        await flushPromises();
+        expect(document.source).toContain('on:pointertap="handleTap"');
+        expect(api.writeScene).not.toHaveBeenCalled();
+        await document.save();
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
+        wrapper.unmount();
+    });
+
+    it('shows a child Scene Editor default when its instance has no explicit value', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: '<Scene name="Menu"><Button id="button" scene="./Button.scene" /></Scene>',
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const wrapper = mount(InspectorPanel, {
+            props: {
+                document, revision: 0, selected: '0:button', selections: ['0:button'],
+                sceneInterfaces: {
+                    'src/scenes/Button.scene': {
+                        props: { labelText: { type: 'string', default: '脚本' } }, events: {}, slots: {},
+                    },
+                },
+                sceneDefaults: { 'src/scenes/Button.scene': { labelText: '编辑器' } },
+            },
+        });
+        expect((wrapper.get('input[data-prop="labelText"]').element as HTMLInputElement).value).toBe('编辑器');
+        wrapper.unmount();
+    });
+
     it('edits a node id in the Inspector and follows the relocated selection', async () => {
         const api = createApi();
         const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
@@ -1280,6 +1353,7 @@ describe('Editor Vue UI', () => {
             { key: 'layout', title: '布局' },
             { key: 'node', title: '节点属性' },
             { key: 'display', title: '显示与交互' },
+            { key: 'events', title: '节点事件' },
         ]);
 
         const rowProps = (key: string) => wrapper.get(`[data-field-row="${key}"]`)

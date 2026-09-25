@@ -27,6 +27,8 @@ export function serializeSceneTemplate(template: SceneTemplate) {
     const rootAttributes: TemplateAttribute[] = [
         ['name', template.name],
         ...Object.entries(template.props),
+        ...Object.entries(template.propDefaults ?? {}).map(([name, value]) => [`default.${name}`, value] as const),
+        ...Object.entries(template.events ?? {}).map(([name, value]) => [`on:${name}`, value] as const),
     ];
     const lines = [`<Scene${serializeAttributes(rootAttributes)}>`];
 
@@ -56,6 +58,7 @@ function serializeTemplateNode(
             ...(node.id ? [['id', node.id] as const] : []),
             ...extraAttributes,
             ...Object.entries(node.props),
+            ...Object.entries(node.events ?? {}).map(([name, value]) => [`on:${name}`, value] as const),
         ];
         return serializeElement(node.type, attributes, node.children, depth);
     }
@@ -118,6 +121,11 @@ function flattenAttributes(attributes: TemplateAttribute[]) {
 function formatAttributeValue(name: string, value: SceneTemplateValue) {
     if (isBindingValue(value)) {
         return `{${value.path.join('.')}}`;
+    }
+    if (name.startsWith('default.') && typeof value === 'string'
+        && (/^(?:true|false|-?\d+(?:\.\d+)?|#[0-9a-fA-F]{6}|\{.*\})$/.test(value)
+            || (value.startsWith('"') && value.endsWith('"')))) {
+        return JSON.stringify(value);
     }
     if (typeof value === 'number' && colorPropNames.has(name)) {
         return `#${value.toString(16).padStart(6, '0').slice(-6)}`;

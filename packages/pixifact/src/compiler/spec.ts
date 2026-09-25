@@ -29,6 +29,8 @@ export interface SceneTemplateBindingValue {
 }
 export type SceneTemplateValue = SceneTemplateScalarValue | SceneTemplateStructValue | SceneTemplateBindingValue;
 
+export const sceneNativeEventNames = ['pointertap', 'pointerdown', 'pointerup', 'pointerupoutside', 'pointerover', 'pointerout', 'click'] as const;
+
 export function isSceneTemplateBindingValue(value: SceneTemplateValue | undefined): value is SceneTemplateBindingValue {
     return !!value && typeof value === 'object' && value.kind === 'binding';
 }
@@ -83,6 +85,8 @@ export interface SceneTemplate {
     version: 2;
     name: string;
     props: Record<string, SceneTemplateValue>;
+    propDefaults?: Record<string, SceneTemplateValue>;
+    events?: Record<string, string>;
     interface: SceneTemplateInterface;
     children: SceneTemplateNode[];
 }
@@ -97,6 +101,7 @@ export interface PixiTemplateNode {
     type: SceneTemplatePrimitiveType;
     id?: string;
     props: Record<string, SceneTemplateValue>;
+    events?: Record<string, string>;
     children: SceneTemplateNode[];
 }
 

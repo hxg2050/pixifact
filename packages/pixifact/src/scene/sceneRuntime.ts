@@ -11,6 +11,7 @@ export interface SceneMountResult {
 export interface SceneDefinition {
     assets: string[];
     dependencies: string[];
+    propDefaults?: () => Record<string, unknown>;
     mount(root: Group): SceneMountResult;
     prepare(): Promise<void>;
 }
@@ -29,6 +30,11 @@ export function registerScene(path: string, definition: SceneDefinition) {
 
 export function registerSceneClass(constructor: object, path: string) {
     scenePathsByConstructor.set(constructor, path);
+}
+
+export function scenePropDefaultsForClass(constructor: object) {
+    const path = scenePathsByConstructor.get(constructor);
+    return path ? sceneDefinitions.get(path)?.propDefaults?.() ?? {} : {};
 }
 
 export function mountScene(root: Group, path: string) {

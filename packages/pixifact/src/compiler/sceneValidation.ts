@@ -1,5 +1,6 @@
 import {
     isSceneTemplateBindingValue,
+    sceneNativeEventNames,
     type SceneInstanceTemplateNode,
     type SceneTemplate,
     type SceneTemplateBindingValue,
@@ -120,6 +121,7 @@ interface SceneValidationContext {
     existingAssets?: ReadonlySet<string>;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
     sceneInterface?: SceneTemplateInterface;
+    sceneDefaults?: Record<string, SceneTemplateValue>;
     bindingsOnly?: boolean;
     normalizeSceneReference?: (scene: string) => string;
 }
@@ -210,11 +212,45 @@ function validateSceneTemplate(
     template: SceneTemplate,
     context: SceneValidationContext,
 ): SceneValidationDiagnostic[] {
-    return template.children.flatMap((child, index) => validateSceneNode(
-        child,
-        nodePathSegment(index, child),
-        context,
-    ));
+    return [
+        ...validateSceneDefaults(template, context),
+        ...validateNativeEvents(template.events, '__scene__'),
+        ...template.children.flatMap((child, index) => validateSceneNode(
+            child,
+            nodePathSegment(index, child),
+            { ...context, sceneDefaults: template.propDefaults },
+        )),
+    ];
+}
+
+function validateSceneDefaults(template: SceneTemplate, context: SceneValidationContext): SceneValidationDiagnostic[] {
+    if (context.bindingsOnly || !context.sceneInterface) return [];
+    const diagnostics: SceneValidationDiagnostic[] = [];
+    for (const [name, value] of Object.entries(template.propDefaults ?? {})) {
+        const contract = context.sceneInterface?.props[name];
+        if (!contract) {
+            diagnostics.push({ path: '__scene__', prop: `default.${name}`, expected: 'Prop declared by the paired script', actual: 'unknown Prop' });
+            continue;
+        }
+        if (contract.type === 'struct') {
+            diagnostics.push(...validateStructFields('__scene__', `default.${name}`, value, contract, template.name));
+            continue;
+        }
+        const expectedType = contract.type === 'variant' ? 'string' : contract.type;
+        if (!sceneValueMatchesContractType(value, expectedType) || (contract.type === 'variant' && !contract.variants[String(value)])) {
+            diagnostics.push({ path: '__scene__', prop: `default.${name}`, expected: contract.type === 'variant' ? `one of ${Object.keys(contract.variants).join(', ')}` : expectedType, actual: sceneValueType(value) });
+        }
+    }
+    return diagnostics;
+}
+
+function validateNativeEvents(events: Record<string, string> | undefined, path: string): SceneValidationDiagnostic[] {
+    return Object.entries(events ?? {}).flatMap(([name, action]) => {
+        if (!sceneNativeEventNames.includes(name as typeof sceneNativeEventNames[number])) {
+            return [{ path, prop: `on:${name}`, expected: `one of ${sceneNativeEventNames.join(', ')}`, actual: name }];
+        }
+        return action.trim() ? [] : [{ path, prop: `on:${name}`, expected: 'nonempty action name', actual: action }];
+    });
 }
 
 function validateSceneNode(
@@ -263,6 +299,7 @@ function validatePixiNode(
     }
 
     const diagnostics: SceneValidationDiagnostic[] = [];
+    diagnostics.push(...validateNativeEvents(node.events, path));
     if (!pixiSceneNodeAcceptsChildren(node.type) && node.children.length > 0) {
         diagnostics.push({
             path,
@@ -295,7 +332,7 @@ function validatePixiNode(
 
         const schema = pixiSceneFieldSchema(prop);
         if (isSceneTemplateBindingValue(value)) {
-            diagnostics.push(...validateSceneBinding(path, prop, value, context.sceneInterface, schema?.type, schema?.options));
+            diagnostics.push(...validateSceneBinding(path, prop, value, context.sceneInterface, schema?.type, schema?.options, context.sceneDefaults));
             continue;
         }
         if (schema && !sceneValueMatchesFieldType(value, schema.type, schema.options)) {
@@ -384,6 +421,7 @@ function validateSceneInstanceNode(
                 context.sceneInterface,
                 expectedType,
                 schema?.options,
+                context.sceneDefaults,
             ));
             continue;
         }
@@ -447,6 +485,7 @@ function validateSceneBinding(
     sceneInterface: SceneTemplateInterface | undefined,
     expectedType?: string,
     options?: readonly (string | number)[],
+    sceneDefaults?: Record<string, SceneTemplateValue>,
 ): SceneValidationDiagnostic[] {
     const [prop, field] = binding.path;
     const contract = sceneInterface?.props[prop];
@@ -490,8 +529,9 @@ function validateSceneBinding(
         sourceValues = Object.keys(contract.variants);
     } else {
         sourceType = contract.type;
-        if (contract.default !== undefined) {
-            sourceValues = [contract.default];
+        const sourceValue = sceneDefaults?.[prop] ?? contract.default;
+        if (sourceValue !== undefined && typeof sourceValue !== 'object') {
+            sourceValues = [sourceValue];
         }
     }
 
@@ -532,13 +572,23 @@ function validateSceneInstanceStructProp(
     value: SceneTemplateValue,
     contract: Extract<SceneTemplatePropContract, { type: 'struct' }>,
 ): SceneValidationDiagnostic[] {
-    if (!value || typeof value !== 'object') {
+    return validateStructFields(path, prop, value, contract, node.type);
+}
+
+function validateStructFields(
+    path: string,
+    prop: string,
+    value: SceneTemplateValue,
+    contract: Extract<SceneTemplatePropContract, { type: 'struct' }>,
+    ownerType: string,
+): SceneValidationDiagnostic[] {
+    if (!value || typeof value !== 'object' || isSceneTemplateBindingValue(value)) {
         return [{
             path,
             prop,
             expected: contract.struct,
             actual: sceneValueType(value),
-            hint: `Set ${node.type}.${prop} fields using dot-path attributes such as ${prop}.x="0".`,
+            hint: `Set ${ownerType}.${prop} fields using dot-path attributes such as ${prop}.x="0".`,
         }];
     }
     const diagnostics: SceneValidationDiagnostic[] = [];
@@ -560,7 +610,7 @@ function validateSceneInstanceStructProp(
                 prop: `${prop}.${field}`,
                 expected: fieldContract.type,
                 actual: sceneValueType(fieldValue),
-                hint: `Set ${node.type}.${prop}.${field} to ${fieldTypeDescription(fieldContract.type)}.`,
+                hint: `Set ${ownerType}.${prop}.${field} to ${fieldTypeDescription(fieldContract.type)}.`,
             });
         }
     }

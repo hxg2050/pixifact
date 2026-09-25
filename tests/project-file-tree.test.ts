@@ -316,7 +316,7 @@ describe('browser Editor runtime preview', () => {
     it('renders Scene Instance Props and Variants through static Authoring bindings', async () => {
         const projectTree = createProject({
             'src/scenes/Button.scene': [
-                '<Scene name="Button" width="220" height="64">',
+                '<Scene name="Button" width="220" height="64" default.label="编辑器">',
                 '  <Rect id="background" fillColor="{tone.background}" />',
                 '  <Text id="labelText" text="{label}" fill="{tone.text}" />',
                 '</Scene>',
@@ -326,6 +326,7 @@ describe('browser Editor runtime preview', () => {
             'src/scenes/Toolbar.scene': [
                 '<Scene name="Toolbar">',
                 '  <Button id="inventory" scene="./Button.scene" label="背包" tone="danger" />',
+                '  <Button id="shop" scene="./Button.scene" />',
                 '</Scene>',
                 '',
             ].join('\n'),
@@ -361,6 +362,7 @@ describe('browser Editor runtime preview', () => {
         expect(preview.nodes.has('0:inventory/0:background')).toBe(false);
         expect(background.fillColor).toBe(0x713044);
         expect(label.text).toBe('背包');
+        expect((preview.nodes.get('1:shop') as Group).children[1]).toMatchObject({ text: '编辑器' });
 
         inventory.label = '仓库';
         inventory.tone = 'primary';

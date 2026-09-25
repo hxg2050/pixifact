@@ -131,6 +131,19 @@ function sceneInterface(context: AuthoringContext, scenePath: string) {
     return context.interfaces[scenePath] ?? { props: {}, events: {}, slots: {} };
 }
 
+function scenePropDefaults(template: SceneTemplate, contract: SceneTemplateInterface) {
+    return Object.fromEntries(Object.entries(contract.props).flatMap(([name, prop]) => {
+        const explicit = template.propDefaults?.[name];
+        if (prop.type === 'struct') {
+            return [[name, {
+                ...Object.fromEntries(Object.entries(prop.fields).map(([field, schema]) => [field, schema.default])),
+                ...(explicit && typeof explicit === 'object' ? explicit : {}),
+            }]];
+        }
+        return explicit === undefined ? [] : [[name, explicit]];
+    }));
+}
+
 function applyRootProps(root: Group, template: SceneTemplate, defaultSize?: PixifactProjectResolution) {
     const size = sceneSize(template, defaultSize);
     root.setSize(size.width, size.height);
@@ -139,6 +152,7 @@ function applyRootProps(root: Group, template: SceneTemplate, defaultSize?: Pixi
             applySceneNodeProp(root, prop, value);
         }
     }
+    if (Object.keys(template.events ?? {}).length > 0 && template.props.eventMode === undefined) root.eventMode = 'static';
 }
 
 function createPrimitive(context: AuthoringContext, node: PixiTemplateNode): Container {
@@ -194,6 +208,7 @@ function applyPrimitiveProps(scope: RenderScope, node: PixiTemplateNode, target:
         }
         applySceneNodeProp(target, prop, value);
     }
+    if (Object.keys(node.events ?? {}).length > 0 && node.props.eventMode === undefined) target.eventMode = 'static';
     if (node.type === 'Graphics' && target instanceof Graphics) {
         drawGraphics(target, node.props);
     }
@@ -305,7 +320,7 @@ function renderSceneInstance(
     }
     const childInterface = sceneInterface(context, referencedPath);
     const target = new Group();
-    initializeScenePropsFromInterface(target, childInterface, sceneInstanceInitialProps(scope, node, childInterface));
+    initializeScenePropsFromInterface(target, childInterface, sceneInstanceInitialProps(scope, node, childInterface), scenePropDefaults(template, childInterface));
     applyRootProps(target, template);
     const childScope: RenderScope = {
         bindingRoot: target,
@@ -412,7 +427,8 @@ export async function createCompilerSceneRuntimePreview(
     await loadTextures(context);
 
     const root = new Group();
-    initializeScenePropsFromInterface(root, interfaces[scenePath] ?? currentBinding.interface);
+    const rootInterface = interfaces[scenePath] ?? currentBinding.interface;
+    initializeScenePropsFromInterface(root, rootInterface, {}, scenePropDefaults(options.document.template, rootInterface));
     applyRootProps(root, options.document.template, context.projectResolution);
     renderNodes(context, {
         bindingRoot: root,

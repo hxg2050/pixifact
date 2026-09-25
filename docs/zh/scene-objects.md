@@ -23,13 +23,17 @@
 </Scene>
 ```
 
-`<Scene>` 不是普通子节点。它只作为文件根，运行时根节点是 `Group`。根标签推荐只写：
+`<Scene>` 不是普通子节点。它只作为文件根，运行时根节点是 `Group`。根标签可写 `Group` 的通用属性，常用属性如下：
 
 | 属性 | 类型 | 说明 |
 | --- | --- | --- |
 | `name` | string | 必填。必须与同名 `.ts` 文件中的 `@scene()` class 名一致。 |
 | `width` | number | 可选。Scene 设计宽度。省略时，入口 Scene 可使用项目默认分辨率。 |
 | `height` | number | 可选。Scene 设计高度。省略时，入口 Scene 可使用项目默认分辨率。 |
+
+根标签还可用 `default.<prop>="值"` 为配对脚本声明的 `@prop` 设置 Editor 默认值；结构化 Prop 按字段写 `default.<prop>.<field>="值"`。例如 `default.label="开始" default.rectTransform.x="12"`。运行时取值顺序为实例显式传值、`.scene` 默认值、脚本 `@prop` 默认值；结构化 Prop 按字段合并。默认值保存在 `.scene`，不会改写 `.ts`。若字符串字面值本身是 `true`、数字、`#rrggbb` 或 `{prop}` 形式，用 XML 转义引号明确标识字符串，例如 `default.label="&quot;true&quot;"`。
+
+`<Scene>` 和普通 Pixi 节点可用 `on:pointertap="actionName"` 等 `on:` 属性绑定原生事件，支持 `pointertap`、`pointerdown`、`pointerup`、`pointerupoutside`、`pointerover`、`pointerout`、`click`。绑定后未显式设置 `eventMode` 的节点会使用 `static`。运行时先找 external actions，再找当前 Scene 脚本上的同名方法。子 Scene 实例的 `@eventName="actionName"` 仍用于绑定其公开 `@event()` 事件。
 
 `<Group>` 是可直接写的 Pixifact 盒子容器；它的 `width` / `height` 使用稳定的 Pixifact 盒子尺寸语义，也支持 frame layout。`<Container>` 保持 PixiJS 原生 bounds / scale 尺寸语义，适合纯分组。`<Control>` 仍是 runtime 布局基类，不能直接写成 `.scene` 标签。
 

@@ -23,6 +23,7 @@ export function initializeSceneProps(
     target: object,
     definitions: ReadonlyMap<string, ScenePropDecoratorOptions>,
     initialProps: Record<string, unknown> = {},
+    sceneDefaults: Record<string, unknown> = {},
 ) {
     const state: SceneBindingState = {
         definitions: Object.fromEntries(definitions),
@@ -32,9 +33,13 @@ export function initializeSceneProps(
     states.set(target, state);
 
     for (const [name, definition] of Object.entries(state.definitions)) {
+        const fallback = Object.hasOwn(sceneDefaults, name) ? sceneDefaults[name] : definition.default;
+        const initial = initialProps[name];
         state.values[name] = Object.hasOwn(initialProps, name)
-            ? initialProps[name]
-            : definition.default;
+            ? initial && fallback && typeof initial === 'object' && typeof fallback === 'object'
+                ? Object.assign(fallback, initial)
+                : initial
+            : fallback;
         Object.defineProperty(target, name, {
             configurable: true,
             enumerable: true,
@@ -48,6 +53,7 @@ export function initializeScenePropsFromInterface(
     target: object,
     sceneInterface: SceneTemplateInterface,
     initialProps: Record<string, unknown> = {},
+    sceneDefaults: Record<string, unknown> = {},
 ) {
     initializeSceneProps(target, new Map(Object.entries(sceneInterface.props).map(([name, contract]) => [
         name,
@@ -55,7 +61,7 @@ export function initializeScenePropsFromInterface(
             ...('default' in contract ? { default: contract.default } : {}),
             ...(contract.type === 'variant' ? { variants: contract.variants } : {}),
         },
-    ])), initialProps);
+    ])), initialProps, sceneDefaults);
 }
 
 export function setSceneProp(target: object, name: string, value: unknown) {
