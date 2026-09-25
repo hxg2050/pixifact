@@ -890,7 +890,7 @@ function selectTool(tool: 'pan' | 'move' | 'resize') {
 function handleCanvasPointerDown(event: PointerEvent) {
     const target = event.target;
     if (target instanceof Element && target.closest('.canvas-tools')) return;
-    const shouldPan = event.button === 1
+    const shouldPan = event.button === 1 || event.button === 2
         || (event.button === 0 && (spacePressed.value || activeTool.value === 'pan'));
     if (!shouldPan || !view) return;
     event.preventDefault();
@@ -903,6 +903,12 @@ function handleCanvasPointerDown(event: PointerEvent) {
     };
     isPanning.value = true;
     host.value!.setPointerCapture(event.pointerId);
+}
+
+function handleCanvasContextMenu(event: MouseEvent) {
+    const target = event.target;
+    if (target instanceof Element && target.closest('.canvas-tools')) return;
+    event.preventDefault();
 }
 
 function moveCanvasPan(event: PointerEvent) {
@@ -1219,6 +1225,7 @@ onBeforeUnmount(() => {
     @pointerenter="canvasHovered = true"
     @pointerleave="canvasHovered = false"
     @pointerup="dropAssetOnCanvas"
+    @contextmenu="handleCanvasContextMenu"
     @wheel.prevent="handleCanvasWheel"
   >
     <div class="canvas-grid" />
