@@ -1572,7 +1572,7 @@ details:not([open]) > summary.inspector-section-title::after {
 }
 
 .layout-constraints {
-    padding: 8px 14px 10px;
+    padding: 6px 12px;
     border-bottom: 1px solid var(--soft-line);
 }
 
@@ -1580,7 +1580,7 @@ details:not([open]) > summary.inspector-section-title::after {
     display: grid;
     grid-template-columns: repeat(10, minmax(0, 1fr));
     gap: 2px;
-    padding-bottom: 8px;
+    padding-bottom: 4px;
     border-bottom: 1px solid var(--soft-line);
 }
 
@@ -1588,7 +1588,7 @@ details:not([open]) > summary.inspector-section-title::after {
     display: grid;
     place-items: center;
     min-width: 0;
-    height: 28px;
+    height: 24px;
     padding: 0;
     border: 1px solid transparent;
     border-radius: 4px;
@@ -1614,10 +1614,10 @@ details:not([open]) > summary.inspector-section-title::after {
 
 .constraint-grid {
     display: grid;
-    grid-template-columns: 30px minmax(0, 1fr) 58px;
-    grid-template-rows: 28px 134px 28px;
-    gap: 6px;
-    margin: 8px 0;
+    grid-template-columns: 28px minmax(0, 1fr) 54px;
+    grid-template-rows: 22px 90px 24px;
+    gap: 4px;
+    margin: 6px 0;
 }
 
 .constraint-diagram {
@@ -1633,8 +1633,8 @@ details:not([open]) > summary.inspector-section-title::after {
     position: absolute;
     left: 24%;
     top: 30%;
-    width: 48px;
-    height: 40px;
+    width: 40px;
+    height: 30px;
     border: 1px solid var(--icon);
     border-radius: 3px;
     background: var(--focus-soft);
@@ -1642,18 +1642,18 @@ details:not([open]) > summary.inspector-section-title::after {
 
 .constraint-child > span {
     display: block;
-    height: 9px;
+    height: 6px;
     border-bottom: 1px solid var(--icon);
     background: var(--section);
 }
 
 .constraint-x-start { left: 8%; }
-.constraint-x-center { left: calc(50% - 24px); }
-.constraint-x-end { left: calc(92% - 48px); }
+.constraint-x-center { left: calc(50% - 20px); }
+.constraint-x-end { left: calc(92% - 40px); }
 .constraint-x-stretch { left: 8%; width: 84%; }
 .constraint-y-start { top: 8%; }
-.constraint-y-center { top: calc(50% - 20px); }
-.constraint-y-end { top: calc(92% - 40px); }
+.constraint-y-center { top: calc(50% - 15px); }
+.constraint-y-end { top: calc(92% - 30px); }
 .constraint-y-stretch { top: 8%; height: 84%; }
 .constraint-x-mixed, .constraint-y-mixed { border-style: dashed; opacity: 0.6; }
 
@@ -1723,7 +1723,7 @@ details:not([open]) > summary.inspector-section-title::after {
 .constraint-values input {
     width: 100%;
     min-width: 0;
-    height: 27px;
+    height: 24px;
     padding: 0 3px;
     border: 1px solid var(--line-strong);
     border-radius: 4px;
@@ -1740,8 +1740,9 @@ details:not([open]) > summary.inspector-section-title::after {
 .constraint-values input:focus { border-color: var(--focus); box-shadow: 0 0 0 2px var(--focus-soft); }
 .constraint-values input:disabled { color: var(--disabled-text); background: var(--disabled-bg); }
 .constraint-values input.is-overridden { color: var(--muted); border-style: dashed; }
-.constraint-unbind { position: absolute; right: 0; bottom: -12px; background: var(--panel); color: var(--binding); cursor: pointer; }
-.constraint-help, .constraint-warning { margin: 4px 0 0; font-size: 10px; line-height: 1.5; color: var(--muted); }
+.constraint-values input:has(+ .constraint-unbind) { padding-right: 16px; }
+.constraint-unbind { position: absolute; right: 1px; top: 1px; bottom: 1px; width: 16px; padding: 0; background: transparent; color: var(--binding); cursor: pointer; }
+.constraint-help, .constraint-warning { margin: 2px 0 0; font-size: 10px; line-height: 1.4; color: var(--muted); }
 .constraint-warning { color: var(--warning-text); }
 
 .property-row {
