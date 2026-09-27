@@ -15,7 +15,7 @@ import AssetPreviewPanel from './panels/AssetPreviewPanel.vue';
 import HierarchyPanel from './panels/HierarchyPanel.vue';
 import InspectorPanel from './panels/InspectorPanel.vue';
 import SceneCanvas from './preview/SceneCanvas.vue';
-import type { SceneCanvasView } from './preview/sceneCanvasGeometry';
+import type { SceneCanvasLayoutFrame, SceneCanvasView } from './preview/sceneCanvasGeometry';
 import { SceneDocument } from './document/SceneDocument';
 import {
     findSceneTreeEntry,
@@ -107,6 +107,7 @@ const hierarchyPanel = ref<{
     pasteSelection?: () => void;
 }>();
 const sceneCanvas = ref<{
+    readLayoutFrame?: (locator: string) => SceneCanvasLayoutFrame | undefined;
     cancelCurrentInteraction?: () => boolean;
     captureScreenshot?: () => Promise<{
         path: string;
@@ -1375,6 +1376,7 @@ onBeforeUnmount(() => {
           :document="document"
           :dragged-asset="draggedAsset"
           :revision="documentRevision"
+          :read-layout-frame="previewState === 'ready' ? sceneCanvas?.readLayoutFrame : undefined"
           :scene-interfaces="sceneInterfaces"
           :scene-defaults="inspectorSceneDefaults"
           :selected="selectedLocator"

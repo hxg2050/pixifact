@@ -15,6 +15,12 @@
 - 外观偏好与自动保存共用当前项目的 Editor UI 状态文件；读取无外观字段的已有状态时视为深色，已有明确主题选择保持不变。
 - 资产和层级列表行高均为 28px，行间距为 0。
 - 检查器节点头部、分组标题、字段行和输入控件轻微收紧；字段行保持 36px 的最小高度，输入控件高 27px。
+- 按用户指定参考 Egret UI Editor：快捷约束图标 + 父子容器示意图，顶部三开关对应左 / 水平中心 / 右，左侧三开关对应上 / 垂直中心 / 下；数值分别放在底部和右侧。
+- 勾选按当前预览几何计算偏移，取消最后一个同轴约束时固化位置，解除拉伸时固化尺寸。快捷图标以 0 设置目标约束并清除其他同轴值；全部更新进入单个 batch，支持多选和撤销。
+- 数值使用中文可访问名称、未设置 / 混合值占位，被边距覆盖的中心偏移给出提示；清空移除约束。绑定字段保持只读，相关轴禁用操作；没有可用预览或节点受排列布局接管时不启用复选框。
+- 只从 SceneCanvas 读取当前节点及父容器几何，通过 EditorApp 传给 Inspector，不把预览几何存成项目数据。
+- 移除布局约束时重建预览，恢复源码中的位置和自然尺寸，避免撤销居中或拉伸后画布保留旧几何。
+- 参考来源：[Egret ConstraintDetailPart](https://github.com/egret-labs/egret-ui-editor-opensource/blob/master/src/egret/workbench/parts/properties/electron-browser/views/property-sizepos/parts/constraintDetailPart.ts) 与同目录 ConstraintFastPart。
 
 ## Non-Goals
 
@@ -29,14 +35,16 @@
 
 - `apps/editor/src/EditorApp.vue`：顶栏信息层次和侧栏交互。
 - `apps/editor/src/panels/HierarchyPanel.vue`、`components/HierarchyNode.vue`：搜索与新增菜单。
-- `apps/editor/src/panels/InspectorPanel.vue`：身份信息、布局提示和分组折叠。
-- `apps/editor/src/preview/SceneCanvas.vue`：视图信息。
+- `apps/editor/src/panels/InspectorPanel.vue`：身份信息、约束图与快捷操作、布局提示和分组折叠。
+- `apps/editor/src/preview/SceneCanvas.vue`、`sceneCanvasGeometry.ts`、`scenePreviewCommands.ts`：视图信息、供 Inspector 读取的几何和移除约束后的预览恢复。
 - `apps/editor/src/styles.css`：尺寸、间距、焦点和响应式布局。
 - `apps/editor/src/stores/editorUi.ts`：删除不再需要的左栏切换状态。
 - 更新相关 UI 测试中已改变的操作入口。
 - `apps/editor/src/services/editorApi.ts`、`packages/pixifact-cli/src/editorServer.ts`：保存并校验外观偏好。
 
 ## Test Plan
+
+布局操作优化：覆盖快捷约束、勾选保持位置、解除拉伸保持尺寸、单步 Undo / Redo、数值清空、多选混合状态、根属性同步和绑定保护。运行相关 Vue UI / document 测试、类型检查、前端构建，并在示例 Editor 验收。
 
 先按用户原先要求交付供手动验收。用户随后允许自行检查，已运行 Editor 类型检查、相关 UI 测试和前端构建，并在浏览器检查浅色、深色及较窄有效视口。
 
@@ -50,9 +58,13 @@
 
 最新一次默认深色和列表密度调整按用户要求交由其手动检查；只构建前端供验收，未运行自动测试或视觉检查。
 
+2026-09-27 布局操作优化：`editor-vue-ui`、`editor-scene-document`、`editor-scene-canvas`、`project-file-tree` 共 83 项测试通过；`bun run editor:typecheck`、`bun run editor:frontend:build`、`git diff --check` 通过。构建保留现有大 chunk 提示。Chrome 实机验证左边距按当前位置填入 56、右边距计算为 384、解除拉伸保留宽度 310、水平居中及撤销还原画布位置。示例恢复已同步，布局面板展开供用户试用。
+
 ## Progress
 
 原 UI 优化和新增主题切换均已实现并自行检查。
+
+2026-09-27：Egret 风格布局操作及移除约束后的预览恢复已完成，通过相关回归和实机验收。
 
 ## Resume Protocol
 
@@ -60,7 +72,7 @@
 
 ## Resume Notes
 
-Last updated: 2026-09-24
+Last updated: 2026-09-27
 
 Done:
 - 确定 UI 优化范围和手动验收方式。
@@ -73,9 +85,12 @@ Done:
 - 设置中加入跟随系统、浅色、深色选项，按项目保存并允许手动覆盖系统外观。
 - 按最新反馈把默认外观改为深色，将资产与层级列表项收紧到 28px 且无行间空隙。
 - 按最新反馈收紧检查器头部、分组标题与属性行的垂直密度。
+- 参考 Egret 官方实现约束图、贴边 / 居中 / 铺满图标、保持几何的勾选操作、多选批处理及绑定保护。
+- 补充布局操作测试；修复移除约束后画布仍保留布局位置的问题。
 
 Current State:
-- 上一轮主题设置已在运行中的测试项目验证并提交为 `94c99f6`。默认深色及列表密度调整已提交为 `a71ddd7`。检查器密度调整已构建并提交为 `62af5a1`，等待用户手动检查。
+- 布局功能及预览恢复修复已完成，83 项相关测试、类型检查、构建和浏览器验收通过。
+- `star-game-demo` Editor 运行于 `http://127.0.0.1:57809`，场景保持已同步，未保存验收用临时修改。
 
 Next:
-1. 交由用户手动检查检查器密度；按反馈继续微调。
+1. 本轮实现完成，示例 Editor 保持运行，后续按用户实际操作反馈继续优化。

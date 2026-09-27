@@ -100,6 +100,19 @@ afterEach(() => {
 });
 
 describe('browser Editor runtime preview', () => {
+    it('rebuilds when removing frame constraints so authored position and intrinsic size are restored', () => {
+        for (const prop of ['left', 'right', 'top', 'bottom', 'horizontal', 'vertical']) {
+            const enabled = { op: 'setNodeProp' as const, node: '0:title', prop, value: 0 };
+            const removed = { op: 'setNodeProp' as const, node: '0:title', prop, value: undefined };
+            expect(incrementalScenePreviewCommands(enabled, removed)).toEqual([enabled]);
+            expect(incrementalScenePreviewCommands(removed, enabled)).toBeUndefined();
+            expect(incrementalScenePreviewCommands(
+                { op: 'batch', commands: [removed] },
+                { op: 'batch', commands: [enabled] },
+            )).toBeUndefined();
+        }
+    });
+
     it('rebuilds the Scene root for structure, Binding, and resource commands', () => {
         expect(incrementalScenePreviewCommands({
             op: 'setNodeProp',

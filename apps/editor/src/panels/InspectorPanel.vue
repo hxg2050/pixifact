@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { Link2, RotateCcw, Unlink2 } from 'lucide-vue-next';
+import {
+    AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical,
+    AlignStartHorizontal, AlignStartVertical, ArrowDownUp, ArrowLeftRight,
+    Link2, Maximize, RotateCcw, Unlink2,
+} from 'lucide-vue-next';
 import {
     isSceneTemplateBindingValue,
     isPixiSceneNodeType,
@@ -21,6 +25,7 @@ import {
 } from 'pixifact/compiler';
 import { computed, nextTick, reactive, ref, watch } from 'vue';
 import type { SceneDocument } from '../document/SceneDocument';
+import type { SceneCanvasLayoutFrame } from '../preview/sceneCanvasGeometry';
 import { findSceneNodeByLocator, type EditorSceneAsset } from '../document/sceneTree';
 
 interface InspectorField {
@@ -28,6 +33,8 @@ interface InspectorField {
     explicit: boolean;
     key: string;
     label?: string;
+    hint?: string;
+    overridden?: boolean;
     layoutControlled: boolean;
     mixed?: boolean;
     options?: readonly (string | number)[];
@@ -58,6 +65,43 @@ const inspectorSections: readonly { key: InspectorSectionKey; title: string }[] 
 ];
 const transformFieldKeys = new Set<string>(pixiSceneTransformProps);
 const layoutFieldKeys = new Set<string>(pixiSceneLayoutProps);
+const layoutLabels: Record<string, string> = {
+    left: '左边距', right: '右边距', top: '上边距', bottom: '下边距',
+    horizontal: '水平偏移', vertical: '垂直偏移',
+};
+type LayoutMode = 'free' | 'start' | 'center' | 'end' | 'stretch';
+const layoutAxes = [
+    { key: 'x', label: '横向', keys: ['left', 'right', 'horizontal'] },
+    { key: 'y', label: '纵向', keys: ['top', 'bottom', 'vertical'] },
+] as const;
+const layoutPresets = [
+    { key: 'left', label: '靠左', axes: ['x'], active: ['left'], icon: AlignStartVertical },
+    { key: 'horizontal', label: '水平居中', axes: ['x'], active: ['horizontal'], icon: AlignCenterVertical },
+    { key: 'right', label: '靠右', axes: ['x'], active: ['right'], icon: AlignEndVertical },
+    { key: 'top', label: '靠上', axes: ['y'], active: ['top'], icon: AlignStartHorizontal },
+    { key: 'vertical', label: '垂直居中', axes: ['y'], active: ['vertical'], icon: AlignCenterHorizontal },
+    { key: 'bottom', label: '靠下', axes: ['y'], active: ['bottom'], icon: AlignEndHorizontal },
+    { key: 'stretchX', label: '横向铺满', axes: ['x'], active: ['left', 'right'], icon: ArrowLeftRight },
+    { key: 'stretchY', label: '纵向铺满', axes: ['y'], active: ['top', 'bottom'], icon: ArrowDownUp },
+    { key: 'stretch', label: '四边铺满', axes: ['x', 'y'], active: ['left', 'right', 'top', 'bottom'], icon: Maximize },
+    { key: 'clear', label: '清除布局约束', axes: ['x', 'y'], active: [], icon: RotateCcw },
+];
+type LayoutAxis = typeof layoutAxes[number];
+
+function layoutMode(values: Record<string, SceneTemplateValue>, axis: LayoutAxis): LayoutMode {
+    const [start, end, center] = axis.keys;
+    if (values[start] !== undefined && values[end] !== undefined) return 'stretch';
+    if (values[start] !== undefined) return 'start';
+    if (values[end] !== undefined) return 'end';
+    if (values[center] !== undefined) return 'center';
+    return 'free';
+}
+
+function layoutFieldOverridden(values: Record<string, SceneTemplateValue>, key: string) {
+    if (key === 'horizontal') return values.left !== undefined || values.right !== undefined;
+    if (key === 'vertical') return values.top !== undefined || values.bottom !== undefined;
+    return false;
+}
 const displayFieldKeys = new Set<string>(pixiSceneDisplayProps);
 const pairedFieldKeys = [
     ['x', 'y'],
@@ -88,6 +132,7 @@ const props = defineProps<{
     document?: SceneDocument;
     draggedAsset?: EditorSceneAsset;
     revision: number;
+    readLayoutFrame?: (locator: string) => SceneCanvasLayoutFrame | undefined;
     sceneDefaults?: Record<string, Record<string, SceneTemplateValue>>;
     sceneInterfaces?: Record<string, SceneTemplateInterface>;
     selected?: string;
@@ -121,6 +166,73 @@ const selectedNodes = computed(() => {
         : [];
 });
 const isMulti = computed(() => selectedNodes.value.length > 1);
+const layoutTargets = computed(() => {
+    void props.revision;
+    return isRoot.value && props.document
+        ? [{ locator: undefined, values: props.document.template.props }]
+        : selectedNodes.value.flatMap(({ locator, node }) => node.kind === 'slotOutlet' ? [] : [{ locator, values: node.props }]);
+});
+const layoutControls = computed(() => layoutAxes.map((axis) => {
+    const modes = layoutTargets.value.map(({ values }) => layoutMode(values, axis));
+    const mode = modes.every((value) => value === modes[0]) ? modes[0] : 'mixed';
+    const bound = layoutTargets.value.some(({ values }) => axis.keys.some((key) => isSceneTemplateBindingValue(values[key])));
+    return { ...axis, mode, bound };
+}));
+
+function presetDisabled(preset: typeof layoutPresets[number]) {
+    return layoutControls.value.some((axis) => preset.axes.includes(axis.key) && axis.bound);
+}
+
+function layoutCommand(locator: string | undefined, prop: string, value?: SceneTemplateValue): CompilerSceneCommand {
+    return locator === undefined ? { op: 'setSceneProp', prop, value } : { op: 'setNodeProp', node: locator, prop, value };
+}
+
+async function commitLayoutCommands(commands: CompilerSceneCommand[]) {
+    if (!commands.length || !props.document) return;
+    error.message = '';
+    try {
+        await props.document.commitCommand({ op: 'batch', commands });
+    } catch (cause) {
+        error.message = cause instanceof Error ? cause.message : String(cause);
+    }
+}
+
+async function applyLayoutPreset(preset: typeof layoutPresets[number]) {
+    if (presetDisabled(preset)) return;
+    const keys = layoutAxes.filter((axis) => preset.axes.includes(axis.key)).flatMap((axis) => [...axis.keys]);
+    const commands = layoutTargets.value.flatMap(({ locator, values }) => keys.flatMap((key) => {
+        const value = preset.active.includes(key) ? 0 : undefined;
+        return values[key] === value ? [] : [layoutCommand(locator, key, value)];
+    }));
+    await commitLayoutCommands(commands);
+}
+
+async function toggleLayoutConstraint(axis: LayoutAxis, key: string, checked: boolean) {
+    const control = layoutConstraints.value.find((group) => group.key === axis.key)!;
+    if (control.disabled) return;
+    const [start, end, center] = axis.keys;
+    const commands: CompilerSceneCommand[] = [];
+    for (const { locator, values } of layoutTargets.value) {
+        if (checked === (values[key] !== undefined)) continue;
+        const frame = props.readLayoutFrame!(locator!)!;
+        const position = axis.key === 'x' ? frame.x : frame.y;
+        const size = axis.key === 'x' ? frame.width : frame.height;
+        const parentSize = axis.key === 'x' ? frame.parentWidth : frame.parentHeight;
+        const value = checked ? key === start ? position : key === end ? parentSize - position - size
+            : position - (parentSize - size) / 2 : undefined;
+        commands.push(layoutCommand(locator, key, value));
+        if (!checked) {
+            if (values[start] !== undefined && values[end] !== undefined && key !== center) {
+                commands.push(layoutCommand(locator, axis.key === 'x' ? 'width' : 'height', size));
+            }
+            if (!axis.keys.some((other) => other !== key && values[other] !== undefined)) {
+                commands.push(layoutCommand(locator, axis.key, position));
+            }
+        }
+    }
+    await commitLayoutCommands(commands);
+}
+
 const selectedTitle = computed(() => {
     if (!props.document) return '未打开 Scene';
     if (isMulti.value) return `${selectedNodes.value.length} 个节点`;
@@ -137,14 +249,15 @@ const selectedType = computed(() => {
     return node.kind === 'sceneInstance' ? `Scene · ${node.type}` : node.type;
 });
 const layoutControlNote = computed(() => {
+    void props.revision;
     const node = selectedNode.value;
     if (!node || node.kind === 'slotOutlet' || isMulti.value) return '';
     const values = node.props;
-    const horizontal = ['left', 'right', 'horizontal'].filter((key) => values[key] !== undefined);
-    const vertical = ['top', 'bottom', 'vertical'].filter((key) => values[key] !== undefined);
+    const horizontal = ['left', 'right', 'horizontal'].filter((key) => values[key] !== undefined && !layoutFieldOverridden(values, key));
+    const vertical = ['top', 'bottom', 'vertical'].filter((key) => values[key] !== undefined && !layoutFieldOverridden(values, key));
     const notes = [];
-    if (horizontal.length) notes.push(`X${values.left !== undefined && values.right !== undefined ? '、宽度' : ''} 由 ${horizontal.join(' / ')} 控制`);
-    if (vertical.length) notes.push(`Y${values.top !== undefined && values.bottom !== undefined ? '、高度' : ''} 由 ${vertical.join(' / ')} 控制`);
+    if (horizontal.length) notes.push(`X${values.left !== undefined && values.right !== undefined ? '、宽度' : ''} 由 ${horizontal.map((key) => layoutLabels[key]).join(' / ')} 控制`);
+    if (vertical.length) notes.push(`Y${values.top !== undefined && values.bottom !== undefined ? '、高度' : ''} 由 ${vertical.map((key) => layoutLabels[key]).join(' / ')} 控制`);
     return notes.join('；');
 });
 const selectedChildScenePath = computed(() => {
@@ -230,6 +343,11 @@ function fieldsForNode(
             binding,
             explicit: explicitValue !== undefined,
             key,
+            label: layoutLabels[key],
+            hint: layoutFieldKeys.has(key)
+                ? `${key} · ${layoutFieldOverridden(node.props, key) ? '当前未生效：同轴边距优先；切换到居中可移除边距约束' : key === 'horizontal' || key === 'vertical' ? '相对父容器中心的偏移，0 为居中' : '距父容器对应边缘的距离'}；留空移除约束`
+                : undefined,
+            overridden: explicitValue !== undefined && layoutFieldOverridden(node.props, key),
             layoutControlled: isLayoutControlled(node.props, key),
             resource: pixiSchema?.resource,
             type: schema.type,
@@ -316,6 +434,27 @@ const fields = computed<InspectorField[]>(() => {
         }];
     });
 });
+
+const layoutConstraints = computed(() => layoutControls.value.map((axis) => {
+    const [start, end, center] = axis.keys;
+    const bound = axis.bound || layoutTargets.value.some(({ values }) =>
+        [axis.key, axis.key === 'x' ? 'width' : 'height'].some((key) => isSceneTemplateBindingValue(values[key])));
+    const disabled = bound || !props.readLayoutFrame || layoutTargets.value.some(({ locator }) =>
+        locator === undefined || !props.readLayoutFrame!(locator));
+    return {
+        ...axis, disabled,
+        hint: bound ? '此轴含绑定，请先解除绑定' : disabled ? '需要可用的父容器预览，且节点位置未被排列容器接管' : '勾选或取消约束，保持当前位置和尺寸',
+        items: [start, center, end].map((key, index) => {
+            const states = layoutTargets.value.map(({ values }) => values[key] !== undefined);
+            return {
+                key, label: axis.key === 'x' ? ['左', '中', '右'][index] : ['上', '中', '下'][index],
+                checked: states.length > 0 && states.every(Boolean),
+                mixed: states.some(Boolean) && !states.every(Boolean),
+                field: fields.value.find((field) => field.key === key),
+            };
+        }),
+    };
+}));
 
 const fieldSections = computed<InspectorFieldSection[]>(() => {
     const node = selectedNode.value ?? (isRoot.value ? rootNode.value : undefined);
@@ -509,9 +648,15 @@ async function commitNodeIdAndBlur(input: HTMLInputElement) {
     input.blur();
 }
 
-async function commit(field: InspectorField) {
+async function commit(field: InspectorField, event?: Event) {
     if (!props.document || (!isRoot.value && selectedNodes.value.length === 0) || field.layoutControlled) return;
+    if (field.type === 'number' && (event?.currentTarget as HTMLInputElement | undefined)?.validity.badInput) return;
     if (isMulti.value && !changedFields.has(field.key)) return;
+    if (layoutFieldKeys.has(field.key) && drafts[field.key] === '' && changedFields.has(field.key)) {
+        await reset(field);
+        changedFields.delete(field.key);
+        return;
+    }
     error.message = '';
     const value = fieldValue(field);
     if (field.type === 'number' && (drafts[field.key] === '' || !Number.isFinite(value))) return;
@@ -650,12 +795,65 @@ async function dropAsset(field: InspectorField) {
         :open="section.key !== 'display'"
       >
         <summary class="inspector-section-title">{{ section.title }}</summary>
+        <div v-if="section.key === 'layout'" class="layout-constraints">
+          <div class="layout-presets" role="group" aria-label="快捷约束">
+            <button
+              v-for="preset in layoutPresets" :key="preset.key" type="button"
+              :data-layout-preset="preset.key" :disabled="presetDisabled(preset)"
+              :aria-label="preset.label" :title="presetDisabled(preset) ? '此轴含绑定，请先解除绑定' : preset.label"
+              @click="applyLayoutPreset(preset)"
+            ><component :is="preset.icon" :size="15" /></button>
+          </div>
+          <div class="constraint-grid">
+            <div class="constraint-diagram" aria-label="父子容器约束示意图" role="img">
+              <div class="constraint-child" :class="layoutControls.map((axis) => `constraint-${axis.key}-${axis.mode}`)"><span /></div>
+              <template v-for="axis in layoutConstraints" :key="axis.key">
+                <div
+                  v-for="item in axis.items" :key="item.key"
+                  class="constraint-guide" :class="[`constraint-guide-${item.key}`, { 'is-active': item.checked, 'is-mixed': item.mixed }]"
+                />
+              </template>
+            </div>
+            <template v-for="axis in layoutConstraints" :key="axis.key">
+              <div class="constraint-toggles" :class="`constraint-toggles-${axis.key}`" :data-layout-axis="axis.key">
+                <label v-for="item in axis.items" :key="item.key" :title="`${layoutLabels[item.key]} · ${axis.hint}`">
+                  <input
+                    type="checkbox" :data-layout-toggle="item.key" :aria-label="`启用${layoutLabels[item.key]}约束`"
+                    :checked="item.checked" :indeterminate="item.mixed" :disabled="axis.disabled"
+                    @change="toggleLayoutConstraint(axis, item.key, ($event.target as HTMLInputElement).checked)"
+                  >
+                  <span>{{ item.label }}</span>
+                </label>
+              </div>
+              <div class="constraint-values" :class="`constraint-values-${axis.key}`">
+                <div v-for="item in axis.items" :key="item.key" class="property-value">
+                  <input
+                    v-if="item.field" v-model="drafts[item.key]" type="number" step="any"
+                    :data-prop="item.key" :aria-label="layoutLabels[item.key]" :title="item.field.hint"
+                    :class="{ 'is-overridden': item.field.overridden }" :disabled="!!item.field.binding"
+                    :placeholder="item.field.mixed ? '混合值' : '未设置'"
+                    @input="preview(item.field)" @change="commit(item.field, $event)" @blur="commit(item.field, $event)"
+                    @keydown.enter="commit(item.field, $event); ($event.currentTarget as HTMLInputElement).blur()"
+                  >
+                  <input v-else type="text" disabled placeholder="绑定" :aria-label="layoutLabels[item.key]">
+                  <button
+                    v-if="item.field?.binding" type="button" class="constraint-unbind"
+                    :data-unbind-prop="item.key" :title="`解除 ${item.key} 的绑定：${item.field.binding.path.join('.')}`"
+                    :aria-label="`解除 ${item.key} 的绑定`" @click="unbind(item.field)"
+                  ><Unlink2 :size="11" /></button>
+                </div>
+              </div>
+            </template>
+          </div>
+          <p class="constraint-help">勾选保持位置 · 快捷按钮贴边 / 居中 / 铺满</p>
+          <p v-if="fields.some((field) => field.overridden)" class="constraint-warning">居中偏移未生效：同轴边距优先</p>
+        </div>
         <div v-if="section.key === 'transform' && layoutControlNote" class="layout-control-note">
           <strong>布局已接管</strong>
           <span>{{ layoutControlNote }}。请在「布局」中调整对应约束。</span>
         </div>
         <div
-          v-for="row in section.rows"
+          v-for="row in section.key === 'layout' ? [] : section.rows"
           :key="row.key"
           class="property-row"
           :class="{ 'is-paired': row.fields.length === 2 }"

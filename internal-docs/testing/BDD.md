@@ -418,8 +418,21 @@ Scenario: User adds or removes an optional frame layout constraint
   And an unset layout field is empty rather than displaying a numeric default
   When the user enters a layout value
   Then the authoring preview updates immediately and the value is saved to the .scene file
-  When the user resets that field
+  When the user clears that field or unchecks its constraint
   Then the layout property is removed from the .scene file and the field becomes empty again
+
+Scenario: User edits frame constraints through the Inspector diagram
+  Given one or more nodes are selected with a ready parent-container preview
+  When the user checks an edge or center constraint in the diagram
+  Then its distance is calculated from current preview geometry
+  And unchecking the last constraint on an axis preserves its position
+  And releasing a stretched edge preserves its current size
+  When the user clicks a quick constraint icon
+  Then the target constraints use zero and other same-axis constraints are removed
+  And the other axis and binding values are unchanged
+  And one Undo restores the complete previous state for all selected nodes
+  And an axis containing a binding cannot be changed through the diagram controls
+  And a center offset overridden by edge constraints is marked inactive
 
 Scenario: Inspector groups related fields without changing their behavior
   Given a node with transform, layout, display, and node-specific properties is selected

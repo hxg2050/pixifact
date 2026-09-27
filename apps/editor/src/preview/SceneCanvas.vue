@@ -224,7 +224,13 @@ async function captureScreenshot() {
     };
 }
 
-defineExpose({ cancelCurrentInteraction, captureScreenshot, captureView, restoreView });
+function readLayoutFrame(locator: string) {
+    const target = preview?.nodes.get(locator);
+    if (!target?.parent || !props.document || sceneCanvasNodePositionIsLayoutManaged(props.document.template, locator)) return undefined;
+    return { ...targetGeometry(target), parentWidth: target.parent.width, parentHeight: target.parent.height };
+}
+
+defineExpose({ cancelCurrentInteraction, captureScreenshot, captureView, restoreView, readLayoutFrame });
 
 function fitPreview() {
     if (!preview || !host.value) return;

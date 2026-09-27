@@ -1571,6 +1571,179 @@ details:not([open]) > summary.inspector-section-title::after {
     color: var(--warning-text);
 }
 
+.layout-constraints {
+    padding: 8px 14px 10px;
+    border-bottom: 1px solid var(--soft-line);
+}
+
+.layout-presets {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    gap: 2px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--soft-line);
+}
+
+.layout-presets button {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    height: 28px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.layout-presets button:hover:not(:disabled) {
+    border-color: var(--line-strong);
+    background: var(--hover);
+    color: var(--text);
+}
+
+.layout-presets button:focus-visible {
+    outline: 2px solid var(--focus);
+}
+
+.layout-presets button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.constraint-grid {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr) 58px;
+    grid-template-rows: 28px 134px 28px;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+.constraint-diagram {
+    position: relative;
+    grid-area: 2 / 2;
+    overflow: hidden;
+    border: 1px solid var(--line-strong);
+    border-radius: 3px;
+    background: var(--control);
+}
+
+.constraint-child {
+    position: absolute;
+    left: 24%;
+    top: 30%;
+    width: 48px;
+    height: 40px;
+    border: 1px solid var(--icon);
+    border-radius: 3px;
+    background: var(--focus-soft);
+}
+
+.constraint-child > span {
+    display: block;
+    height: 9px;
+    border-bottom: 1px solid var(--icon);
+    background: var(--section);
+}
+
+.constraint-x-start { left: 8%; }
+.constraint-x-center { left: calc(50% - 24px); }
+.constraint-x-end { left: calc(92% - 48px); }
+.constraint-x-stretch { left: 8%; width: 84%; }
+.constraint-y-start { top: 8%; }
+.constraint-y-center { top: calc(50% - 20px); }
+.constraint-y-end { top: calc(92% - 40px); }
+.constraint-y-stretch { top: 8%; height: 84%; }
+.constraint-x-mixed, .constraint-y-mixed { border-style: dashed; opacity: 0.6; }
+
+.constraint-guide {
+    position: absolute;
+    pointer-events: none;
+    opacity: 0.22;
+    border-color: var(--line-strong);
+    border-style: dashed;
+    border-width: 0;
+}
+
+.constraint-guide-left, .constraint-guide-horizontal, .constraint-guide-right {
+    top: 0;
+    bottom: 0;
+    border-left-width: 1px;
+}
+
+.constraint-guide-top, .constraint-guide-vertical, .constraint-guide-bottom {
+    left: 0;
+    right: 0;
+    border-top-width: 1px;
+}
+
+.constraint-guide-left { left: 8%; }
+.constraint-guide-horizontal { left: 50%; }
+.constraint-guide-right { right: 8%; }
+.constraint-guide-top { top: 8%; }
+.constraint-guide-vertical { top: 50%; }
+.constraint-guide-bottom { bottom: 8%; }
+.constraint-guide.is-active { border-color: var(--focus); border-style: solid; opacity: 1; }
+.constraint-guide.is-mixed { border-color: var(--focus); opacity: 0.8; }
+
+.constraint-toggles, .constraint-values {
+    display: grid;
+    align-items: center;
+    justify-items: stretch;
+    gap: 4px;
+    min-width: 0;
+}
+
+.constraint-toggles-x, .constraint-values-x { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.constraint-toggles-y, .constraint-values-y { grid-template-rows: repeat(3, minmax(0, 1fr)); }
+.constraint-toggles-x { grid-area: 1 / 2; }
+.constraint-toggles-y { grid-area: 2 / 1; }
+.constraint-values-x { grid-area: 3 / 2; }
+.constraint-values-y { grid-area: 2 / 3; }
+
+.constraint-toggles label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    font-size: 10px;
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.constraint-toggles input {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    accent-color: var(--focus);
+}
+
+.constraint-values .property-value { position: relative; }
+.constraint-values input {
+    width: 100%;
+    min-width: 0;
+    height: 27px;
+    padding: 0 3px;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    outline: none;
+    background: var(--control);
+    color: var(--text);
+    text-align: center;
+    font-size: 11px;
+    appearance: textfield;
+}
+
+.constraint-values input::-webkit-inner-spin-button,
+.constraint-values input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.constraint-values input:focus { border-color: var(--focus); box-shadow: 0 0 0 2px var(--focus-soft); }
+.constraint-values input:disabled { color: var(--disabled-text); background: var(--disabled-bg); }
+.constraint-values input.is-overridden { color: var(--muted); border-style: dashed; }
+.constraint-unbind { position: absolute; right: 0; bottom: -12px; background: var(--panel); color: var(--binding); cursor: pointer; }
+.constraint-help, .constraint-warning { margin: 4px 0 0; font-size: 10px; line-height: 1.5; color: var(--muted); }
+.constraint-warning { color: var(--warning-text); }
+
 .property-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

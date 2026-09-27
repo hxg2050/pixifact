@@ -1349,6 +1349,157 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
+    it('applies constraint shortcuts with one undo step and preserves the other axis', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: '<Scene name="Menu"><Rect id="panel" left="20" right="30" horizontal="8" top="10" /></Scene>',
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const revision = ref(0);
+        document.subscribe((event) => { if (event.type === 'commandApplied') revision.value++; });
+        const wrapper = mount(defineComponent({
+            setup: () => () => h(InspectorPanel, {
+                document, revision: revision.value, selected: '0:panel', selections: ['0:panel'],
+            }),
+        }));
+        const nodeProps = () => (document.template.children[0] as { props: Record<string, unknown> }).props;
+
+        expect((wrapper.get('[data-layout-toggle="left"]').element as HTMLInputElement).checked).toBe(true);
+        expect(wrapper.get('[data-prop="horizontal"]').attributes('title')).toContain('未生效');
+        await wrapper.get('[data-layout-preset="horizontal"]').trigger('click');
+        await flushPromises();
+        expect(nodeProps()).toMatchObject({ horizontal: 0, top: 10 });
+        expect(nodeProps()).not.toHaveProperty('left');
+        expect(nodeProps()).not.toHaveProperty('right');
+        expect((wrapper.get('[data-layout-toggle="horizontal"]').element as HTMLInputElement).checked).toBe(true);
+        expect(wrapper.get('[data-prop="x"]').attributes('disabled')).toBeDefined();
+        expect(wrapper.get('.layout-control-note').text()).toContain('X 由 水平偏移 控制');
+        await wrapper.get('[data-layout-preset="horizontal"]').trigger('click');
+
+        await document.undo();
+        await flushPromises();
+        expect(nodeProps()).toMatchObject({ left: 20, right: 30, horizontal: 8, top: 10 });
+        expect(document.canUndo).toBe(false);
+        await document.redo();
+        await wrapper.get('[data-layout-preset="stretchY"]').trigger('click');
+        await flushPromises();
+        expect(nodeProps()).toMatchObject({ horizontal: 0, top: 0, bottom: 0 });
+        await wrapper.get('[data-layout-preset="clear"]').trigger('click');
+        await flushPromises();
+        expect(nodeProps()).not.toHaveProperty('horizontal');
+        expect(wrapper.get('[data-prop="x"]').attributes('disabled')).toBeUndefined();
+        expect(api.writeScene).not.toHaveBeenCalled();
+        wrapper.unmount();
+    });
+
+    it('toggles diagram constraints using preview geometry and preserves size when releasing stretch', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: '<Scene name="Menu"><Rect id="panel" x="50" width="80" left="20" right="30" /></Scene>',
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const revision = ref(0);
+        document.subscribe((event) => { if (event.type === 'commandApplied') revision.value++; });
+        const wrapper = mount(defineComponent({
+            setup: () => () => h(InspectorPanel, {
+                document, revision: revision.value, selected: '0:panel', selections: ['0:panel'],
+                readLayoutFrame: () => ({ x: 20, y: 40, width: 450, height: 60, parentWidth: 500, parentHeight: 300 }),
+            }),
+        }));
+        const nodeProps = () => (document.template.children[0] as { props: Record<string, unknown> }).props;
+        await wrapper.get('[data-layout-toggle="vertical"]').setValue(true);
+        await flushPromises();
+        expect(nodeProps().vertical).toBe(-80);
+        expect(nodeProps()).toMatchObject({ left: 20, right: 30 });
+        await document.undo();
+        await flushPromises();
+        await wrapper.get('[data-layout-toggle="right"]').setValue(false);
+        await flushPromises();
+        expect(nodeProps()).toMatchObject({ width: 450, left: 20 });
+        expect(nodeProps()).not.toHaveProperty('right');
+        await wrapper.get('[data-layout-toggle="left"]').setValue(false);
+        await flushPromises();
+        expect(nodeProps()).toMatchObject({ x: 20, width: 450 });
+        expect(nodeProps()).not.toHaveProperty('left');
+        await document.undo();
+        await document.undo();
+        expect(nodeProps()).toMatchObject({ x: 50, width: 80, left: 20, right: 30 });
+        expect(document.canUndo).toBe(false);
+        wrapper.unmount();
+    });
+
+    it('keeps root constraint controls in sync with commands and undo', async () => {
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', createApi()));
+        const revision = ref(0);
+        document.subscribe((event) => { if (event.type === 'commandApplied') revision.value++; });
+        const wrapper = mount(defineComponent({
+            setup: () => () => h(InspectorPanel, { document, revision: revision.value, selections: [] }),
+        }));
+        await wrapper.get('[data-layout-preset="right"]').trigger('click');
+        await flushPromises();
+        expect(document.template.props.right).toBe(0);
+        expect((wrapper.get('[data-layout-toggle="right"]').element as HTMLInputElement).checked).toBe(true);
+        await document.undo();
+        await flushPromises();
+        expect(document.template.props).not.toHaveProperty('right');
+        expect((wrapper.get('[data-layout-toggle="right"]').element as HTMLInputElement).checked).toBe(false);
+        wrapper.unmount();
+    });
+
+    it('removes a layout constraint when its input is cleared and restores it with undo', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: '<Scene name="Menu"><Rect id="panel" left="20" /></Scene>',
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api, { autoSave: true }));
+        const wrapper = mount(InspectorPanel, {
+            props: { document, revision: 0, selected: '0:panel', selections: ['0:panel'] },
+        });
+        const input = wrapper.get('[data-prop="left"]');
+        expect(input.attributes('aria-label')).toBe('左边距');
+        expect(wrapper.get('[data-prop="right"]').attributes('placeholder')).toBe('未设置');
+        await input.setValue('');
+        await input.trigger('blur');
+        await flushPromises();
+        expect(api.writeScene).toHaveBeenCalledTimes(1);
+        expect(api.writeScene.mock.calls[0]?.[1]).not.toContain('left=');
+        await document.undo();
+        expect(api.writeScene.mock.calls[1]?.[1]).toContain('left="20"');
+        wrapper.unmount();
+    });
+
+    it('applies constraint shortcuts to mixed selections atomically and protects bound axes', async () => {
+        const api = createApi();
+        api.readScene.mockResolvedValueOnce({
+            path: 'src/scenes/Menu.scene',
+            source: '<Scene name="Menu"><Rect id="first" left="20" top="{offset}" /><Rect id="second" right="30" /></Scene>',
+            version: 'sha256:before',
+        });
+        const document = markRaw(await SceneDocument.open('src/scenes/Menu.scene', api));
+        const wrapper = mount(InspectorPanel, {
+            props: { document, revision: 0, selected: '0:first', selections: ['0:first', '1:second'] },
+        });
+        expect((wrapper.get('[data-layout-toggle="left"]').element as HTMLInputElement).indeterminate).toBe(true);
+        expect((wrapper.get('[data-layout-toggle="right"]').element as HTMLInputElement).indeterminate).toBe(true);
+        expect(wrapper.get('[data-layout-preset="vertical"]').attributes('disabled')).toBeDefined();
+        await wrapper.get('[data-layout-preset="horizontal"]').trigger('click');
+        await flushPromises();
+        const [first, second] = document.template.children as Array<{ props: Record<string, unknown> }>;
+        expect(first.props).toEqual({ horizontal: 0, top: { kind: 'binding', path: ['offset'] } });
+        expect(second.props).toEqual({ horizontal: 0 });
+        await document.undo();
+        expect(first.props).toEqual({ left: 20, top: { kind: 'binding', path: ['offset'] } });
+        expect(second.props).toEqual({ right: 30 });
+        expect(document.canUndo).toBe(false);
+        wrapper.unmount();
+    });
+
     it('makes transform fields read-only when frame layout controls their result', async () => {
         const api = createApi();
         api.readScene.mockResolvedValueOnce({
@@ -1433,8 +1584,10 @@ describe('Editor Vue UI', () => {
 
         expect(rowProps('x:y')).toEqual(['x', 'y']);
         expect(rowProps('width:height')).toEqual(['width', 'height']);
-        expect(rowProps('left:right')).toEqual(['left', 'right']);
-        expect(rowProps('top:bottom')).toEqual(['top', 'bottom']);
+        expect(wrapper.findAll('.constraint-values-x [data-prop]').map((input) => input.attributes('data-prop')))
+            .toEqual(['left', 'horizontal', 'right']);
+        expect(wrapper.findAll('.constraint-values-y [data-prop]').map((input) => input.attributes('data-prop')))
+            .toEqual(['top', 'vertical', 'bottom']);
         expect(rowProps('rotation')).toEqual(['rotation']);
         expect(rowProps('leftWidth')).toEqual(['leftWidth']);
         expect(rowProps('rightWidth')).toEqual(['rightWidth']);

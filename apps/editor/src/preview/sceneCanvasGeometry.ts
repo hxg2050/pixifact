@@ -16,6 +16,11 @@ export interface SceneCanvasGeometry {
     height: number;
 }
 
+export interface SceneCanvasLayoutFrame extends SceneCanvasGeometry {
+    parentWidth: number;
+    parentHeight: number;
+}
+
 export interface SceneCanvasPoint {
     x: number;
     y: number;
