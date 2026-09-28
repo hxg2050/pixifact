@@ -34,7 +34,7 @@
 | [release-v0.11.0.md](./release-v0.11.0.md) | Editor 素材定位与预览节点选择改进的五包 `0.11.0` 发布 |
 | [release-v0.7.0.md](./release-v0.7.0.md) | `0.7.0` 五个公开 npm 包的发布准备与验证 |
 | [douyin-image-loading.md](./douyin-image-loading.md) | 抖音小游戏冷启动图片解码时序与 PixiJS Assets loader 修复 |
-| [release-install-smoke.md](./release-install-smoke.md) | 真实 npm tarball 的仓库外安装、CLI、构建和 Editor 验收；脚手架默认 Git / skill 及打包验收 |
+| [release-install-smoke.md](./release-install-smoke.md) | 真实 npm tarball 的仓库外安装、CLI、构建和 Editor 验收；脚手架默认 Git / skill 及 `0.16.0` 发布 |
 | [adventure-ui-demo.md](./adventure-ui-demo.md) | 示例项目计划 |
 | [viewport-adaptation-v1.md](./viewport-adaptation-v1.md) | 视口适配第一版 |
 | [scroll-container-runtime.md](./scroll-container-runtime.md) | ScrollContainer runtime |

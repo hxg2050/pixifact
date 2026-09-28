@@ -67,6 +67,8 @@
 
 ## Verification
 
+- 2026-09-29：npm registry 已确认五包 `0.16.0` 及 `latest`；[GitHub Release](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0) 已发布。
+- 2026-09-29：[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/36496929698) 成功，26 个测试文件 / 362 项测试、全部构建、包内容和 tarball 验收通过；五包 Trusted Publishing 成功。
 - 2026-09-29：Changesets 已生成五包 `0.16.0`，同步内部依赖与模板版本；`bun install --frozen-lockfile --dry-run`、`bun run editor:typecheck` 和 `git diff --check` 通过，`bun.lock` 无改动。
 - 2026-09-28：`bunx --no-install vitest run tests/create-pixifact.test.ts` 通过，6 项测试覆盖原有生成行为和默认 Git / skill。
 - 2026-09-28：`packages/create-pixifact` 的 `bun run build` 通过，skill 由仓库权威源复制到发布产物。
@@ -77,7 +79,7 @@
 
 ## Progress
 
-- [ ] 2026-09-29：生成 `0.16.0`、提交并推送 tag，确认 workflow、npm 五包和 GitHub Release。
+- [x] 2026-09-29：生成 `0.16.0`、提交并推送 tag，确认 workflow、npm 五包和 GitHub Release。
 - [x] 2026-09-28：完成默认 Git / skill 的实现、源码测试和 tarball 验收。
 - [x] 独立 Agent 已复现公开 npm 包和示例之间的版本漂移与仓库外运行失败。
 - [x] 已确定 tarball 安装验收的边界和成功标准。
@@ -100,6 +102,8 @@
 Last updated: 2026-09-29
 
 Done:
+- 2026-09-29：CI 发布成功，[GitHub Release v0.16.0](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0) 已创建。
+- 2026-09-29：发布提交 `e2ba850`、`main` 和 `v0.16.0` 已推送；[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/36496929698) 已触发。
 - 2026-09-29：已核对待发布提交，完成五包 `0.16.0` 版本、changelog 和发布前本地最小检查。
 - 2026-09-28：默认 Git 初始化、`.gitignore`、项目级 skill、构建打包和真实 tarball 生成项目验收已完成。
 - 已完成独立外部 Agent 评估。
@@ -110,11 +114,10 @@ Done:
 - 当前源码 tarball 已完整通过 Agent 主命令链、项目构建和 Editor 启动验收。
 
 Current State:
-- `0.16.0` 发布变更已准备好，待提交并推送 tag；npm 最新仍为 `0.15.0`。
+- `0.16.0` 发布完成，CI、npm 五包及 GitHub Release 均已确认。
 
 Currently Failing:
 - 无。
 
 Next:
-1. 提交发布变更，推送 `main` 和 `v0.16.0`，等待发布 workflow。
-2. 成功后核对 registry、创建 Release 并更新发布状态。
+- 无；不要重复创建 tag 或发布同一版本。

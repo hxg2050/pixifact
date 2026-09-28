@@ -12,14 +12,14 @@ Pixifact 发布五个公开 npm 包：
 
 ## 当前发布状态
 
-当前已发布版本为 `0.15.0`：
+当前已发布版本为 `0.16.0`：
 
-- npm packages: `0.15.0`
-- git tag: `v0.15.0`
+- npm packages: `0.16.0`
+- git tag: `v0.16.0`
 - changelog sources: [`pixifact`](../../packages/pixifact/CHANGELOG.md)、[`pixifact-cli`](../../packages/pixifact-cli/CHANGELOG.md)、[`create-pixifact`](../../packages/create-pixifact/CHANGELOG.md)
 
-本次发布记录见 [GitHub Release v0.15.0](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)，包含 Scene 根节点属性、公开 Prop 默认值、原生事件绑定、画布右键平移及相关修复。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/36125343761) 已完成完整验证与五包 Trusted Publishing，npm registry 已确认五个包的 `latest` 均为 `0.15.0`。
-上一版本发布记录见 [`v0.14.0.md`](./v0.14.0.md)、[`v0.13.0.md`](./v0.13.0.md)。
+本次发布记录见 [GitHub Release v0.16.0](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0)，包含脚手架默认 Git 仓库、项目级 Pixifact skill、完整项目命令提示和 Editor 可视化布局约束控件。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/36496929698) 已通过 26 个测试文件 / 362 项测试、全部构建、包内容和安装验收，并完成五包 Trusted Publishing；npm registry 已确认五个包的 `latest` 均为 `0.16.0`。
+上一版本发布记录见 [GitHub Release v0.15.0](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)、[`v0.14.0.md`](./v0.14.0.md)、[`v0.13.0.md`](./v0.13.0.md)。
 历史发布记录见 [`v0.12.0.md`](./v0.12.0.md)、[`v0.11.2.md`](./v0.11.2.md)、[`v0.11.1.md`](./v0.11.1.md)、[`v0.11.0.md`](./v0.11.0.md)。
 首个 npm 发布记录见 [`v0.1.3.md`](./v0.1.3.md)。
 
@@ -95,7 +95,7 @@ git commit -m "Release vX.Y.Z"
 - `bun run editor:frontend:build`
 - `packages/create-pixifact` build
 - 五个发布包的 `npm pack --dry-run --json`
-- 当前 `pixifact` / `pixifact-cli` tarball 在仓库外 Pixifact 项目副本中的安装、CLI、构建和 Editor 启动冒烟
+- 当前 `create-pixifact` tarball 在仓库外生成 Git 仓库和完整项目 skill；`pixifact` / `pixifact-cli` tarball 的安装、CLI、构建和 Editor 启动冒烟
 - 五个包的 npm Trusted Publishing
 
 ## 触发发布
@@ -106,7 +106,7 @@ git commit -m "Release vX.Y.Z"
 bun run release:publish
 ```
 
-脚本会读取三个发布包版本，确认版本一致，然后：
+脚本会读取五个发布包版本，确认版本一致，然后：
 
 - 创建 `vX.Y.Z` tag
 - 向当前 `main` 分支配置的 upstream remote push `main`
