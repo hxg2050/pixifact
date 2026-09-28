@@ -1,5 +1,11 @@
 # create-pixifact
 
+## 0.16.0
+
+### Minor Changes
+
+- 新项目默认初始化 Git 仓库并生成 `.gitignore`，随脚手架安装项目级 Pixifact skill 和完整离线参考；补齐 Scene 编译、编辑器启动脚本，并在创建完成后列出 Web 启动、构建、编译、编辑器和校验命令。
+
 ## 0.15.0
 
 ## 0.14.0

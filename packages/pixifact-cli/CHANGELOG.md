@@ -1,5 +1,15 @@
 # pixifact-cli
 
+## 0.16.0
+
+### Minor Changes
+
+- Editor 检查器新增可视化布局约束控件，支持按轴设置贴边、居中和拉伸，并以紧凑面板展示约束；画布拖动与 Scene 属性写回保持布局语义一致。
+
+### Patch Changes
+
+- pixifact@0.16.0
+
 ## 0.15.0
 
 ### Minor Changes

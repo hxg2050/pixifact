@@ -4,10 +4,13 @@
 
 2026-09-28 续作：让 `create-pixifact` 默认初始化 Git 并安装项目级 Pixifact skill；把真实脚手架 tarball 纳入仓库外验收。
 
+2026-09-29 发布续作：发布五包 `0.16.0`，交付默认 Git / skill、项目脚本及上次发布后的 Editor 布局约束控件。
+
 建立一个使用当前仓库真实 npm tarball 的仓库外验收链路，确保外部 Agent 获得 `adventure-ui-demo` 后，可以只通过公开包入口完成 Scene 发现、检查、校验、编译、项目构建和 Editor 启动验证。
 
 ## Decisions
 
+- `0.16.0` 使用 minor Changesets，五个公开包按 fixed group 同版发布；本地生成版本并提交，推送 tag 后由 GitHub Actions 完成完整验证与 Trusted Publishing。
 - 新项目默认执行 `git init`，不创建首次提交、不配置 remote；缺少 Git 时直接报告命令错误。
 - 生成 `.gitignore`，忽略依赖、构建、Pixifact 缓存和本机 env；项目 skill 纳入可跟踪源文件。
 - skill 安装到 `.agents/skills/pixifact/`，完整复制 `skills/pixifact/` 的正文、agents metadata 和离线 references。
@@ -22,7 +25,7 @@
 
 ## Non-Goals
 
-- 不发布 npm 包、不创建 release 或 tag。
+- 2026-09-28 的实现不发布 npm 包；2026-09-29 用户已授权发布，按正常流程推送 tag 并创建 GitHub Release。
 - 不修改 `.scene` 语法、Compiler 语义或 Editor 产品功能。
 - 不处理微信小游戏示例的独立安装链路。
 - 不为旧版 npm 包增加兼容层。
@@ -43,6 +46,8 @@
 
 ## Test Plan
 
+2026-09-29 发布验证：检查版本与依赖同步、lockfile 和差异；完整测试、构建和 tarball 验收由 tag workflow 执行，发布后核对五包 registry 与 GitHub Release。
+
 2026-09-28 续作验证：
 
 1. 源码测试覆盖 Git 初始化、嵌套项目独立仓库、ignore 行为、全部 skill 文件内容以及 Git 不可用时的失败。
@@ -62,6 +67,7 @@
 
 ## Verification
 
+- 2026-09-29：Changesets 已生成五包 `0.16.0`，同步内部依赖与模板版本；`bun install --frozen-lockfile --dry-run`、`bun run editor:typecheck` 和 `git diff --check` 通过，`bun.lock` 无改动。
 - 2026-09-28：`bunx --no-install vitest run tests/create-pixifact.test.ts` 通过，6 项测试覆盖原有生成行为和默认 Git / skill。
 - 2026-09-28：`packages/create-pixifact` 的 `bun run build` 通过，skill 由仓库权威源复制到发布产物。
 - 2026-09-28：`bun scripts/check-release-install.mjs` 全部通过；真实脚手架 tarball 在仓库外安装并生成独立 Git 仓库和完整 skill，原有 Web / Editor / 微信 / 抖音验收也通过。
@@ -71,6 +77,7 @@
 
 ## Progress
 
+- [ ] 2026-09-29：生成 `0.16.0`、提交并推送 tag，确认 workflow、npm 五包和 GitHub Release。
 - [x] 2026-09-28：完成默认 Git / skill 的实现、源码测试和 tarball 验收。
 - [x] 独立 Agent 已复现公开 npm 包和示例之间的版本漂移与仓库外运行失败。
 - [x] 已确定 tarball 安装验收的边界和成功标准。
@@ -90,9 +97,10 @@
 
 ## Resume Notes
 
-Last updated: 2026-09-28
+Last updated: 2026-09-29
 
 Done:
+- 2026-09-29：已核对待发布提交，完成五包 `0.16.0` 版本、changelog 和发布前本地最小检查。
 - 2026-09-28：默认 Git 初始化、`.gitignore`、项目级 skill、构建打包和真实 tarball 生成项目验收已完成。
 - 已完成独立外部 Agent 评估。
 - 已确认现有发布检查只执行 `npm pack --dry-run`，没有安装并运行 tarball。
@@ -102,10 +110,11 @@ Done:
 - 当前源码 tarball 已完整通过 Agent 主命令链、项目构建和 Editor 启动验收。
 
 Current State:
-- 本计划及默认 Git / skill 的脚手架扩展均已完成。
+- `0.16.0` 发布变更已准备好，待提交并推送 tag；npm 最新仍为 `0.15.0`。
 
 Currently Failing:
 - 无。
 
 Next:
-1. 下次发布时运行 `bun run release:check`，通过后再 version / tag / publish。
+1. 提交发布变更，推送 `main` 和 `v0.16.0`，等待发布 workflow。
+2. 成功后核对 registry、创建 Release 并更新发布状态。
