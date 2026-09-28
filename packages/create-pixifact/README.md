@@ -18,6 +18,8 @@ bun run dev
 - Vite 项目脚本
 - `pixifact` 和 `pixifact-cli` 依赖
 - 开发模式下的 Pixifact Runtime 接入，可直接观察节点、截图、菜单状态并模拟输入
+- 已初始化的 Git 仓库和 `.gitignore`，忽略依赖、构建产物、Pixifact 缓存与本机 env 文件；首次提交由项目使用者创建
+- 项目级 `.agents/skills/pixifact/`，包含 Pixifact skill、Agent metadata 和完整离线参考，随脚手架包分发
 
 ## 生成脚本
 
@@ -47,3 +49,4 @@ pixifact runtime screenshot
 ## 环境要求
 
 - Bun
+- Git

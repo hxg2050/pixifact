@@ -29,7 +29,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "bunx --no-install tsc -p tsconfig.build.json"
+    "build": "bunx --no-install tsc -p tsconfig.build.json && bun ../../scripts/install-skills.mjs --target dist/skills --replace"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",

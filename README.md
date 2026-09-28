@@ -301,7 +301,7 @@ skills/pixifact
 bun run skills:install
 ```
 
-从已发布包安装将由后续独立的 `pixifact-skills` 包提供；当前公开 npm 包只包含 runtime、CLI 和项目脚手架。
+`bun create pixifact my-game` 默认初始化 Git 仓库，并将 Pixifact skill 及完整离线参考安装到新项目的 `.agents/skills/pixifact/`；skill 随脚手架包分发，无需单独下载。
 
 ## 许可证
 

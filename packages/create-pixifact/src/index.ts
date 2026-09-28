@@ -18,6 +18,7 @@ if (!name || name === '--help' || name === '-h') {
     try {
         const result = await createPixifactProject({ name });
         process.stdout.write(`已创建 ${result.name}：${result.root}\n`);
+        process.stdout.write('已初始化 Git 仓库，并安装 Pixifact skill 到 .agents/skills/pixifact/。\n');
         process.stdout.write([
             '下一步：',
             `  cd ${result.name}`,

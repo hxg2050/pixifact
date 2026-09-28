@@ -219,7 +219,7 @@ Install from the source checkout:
 bun run skills:install
 ```
 
-Installing skills from npm will be provided later by a separate `pixifact-skills` package. The current public npm packages only include the runtime package, CLI, and project scaffold.
+`bun create pixifact my-game` initializes a Git repository and installs the Pixifact skill with all offline references into the new project's `.agents/skills/pixifact/`. The skill ships with the scaffold package, so no separate download is needed.
 
 ## License
 

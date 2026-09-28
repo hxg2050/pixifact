@@ -1,6 +1,10 @@
+import { execFile } from 'node:child_process';
 import { cp, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
+
+const runFile = promisify(execFile);
 
 export interface CreatePixifactProjectOptions {
     cwd?: string;
@@ -24,6 +28,13 @@ function packageDirectory() {
 
 function templateDirectory(template: 'minimal') {
     return path.join(packageDirectory(), 'templates', template);
+}
+
+function skillDirectory() {
+    const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
+    return path.basename(currentDirectory) === 'src'
+        ? path.resolve(currentDirectory, '../../../skills/pixifact')
+        : path.join(currentDirectory, 'skills/pixifact');
 }
 
 function projectDisplayName(name: string) {
@@ -74,6 +85,17 @@ export async function createPixifactProject(options: CreatePixifactProjectOption
     const projectJson = JSON.parse(await readFile(projectJsonPath, 'utf8')) as Record<string, unknown>;
     projectJson.name = projectDisplayName(options.name);
     await writeJson(projectJsonPath, projectJson);
+
+    await cp(skillDirectory(), path.join(projectRoot, '.agents/skills/pixifact'), { recursive: true });
+    await writeFile(path.join(projectRoot, '.gitignore'), [
+        'node_modules/',
+        'dist/',
+        '.pixifact/',
+        '.env.local',
+        '.env.*.local',
+        '',
+    ].join('\n'), 'utf8');
+    await runFile('git', ['init', '--quiet'], { cwd: projectRoot });
 
     return {
         name: options.name,

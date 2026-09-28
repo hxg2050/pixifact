@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process';
-import { access, chmod, copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import { access, chmod, copyFile, mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -109,6 +110,30 @@ async function verifyMiniGameBuild(projectRoot, mode, excludedMarker) {
     }
 }
 
+async function verifyScaffold(temporaryRoot, tarball) {
+    const installRoot = path.join(temporaryRoot, 'scaffold');
+    await mkdir(installRoot);
+    await writeFile(path.join(installRoot, 'package.json'), JSON.stringify({
+        private: true,
+        dependencies: { 'create-pixifact': `file:${tarball}` },
+    }));
+    run('bun', ['install'], { cwd: installRoot });
+    run('bun', ['run', 'create-pixifact', 'my-game'], { cwd: installRoot });
+
+    const projectRoot = path.join(installRoot, 'my-game');
+    assert.equal(run('git', ['rev-parse', '--show-toplevel'], { cwd: projectRoot, silent: true }).trim(), await realpath(projectRoot));
+    await access(path.join(projectRoot, '.gitignore'));
+    const sourceRoot = path.join(repoRoot, 'skills/pixifact');
+    const installedRoot = path.join(projectRoot, '.agents/skills/pixifact');
+    const entries = await readdir(sourceRoot, { recursive: true });
+    assert.deepEqual((await readdir(installedRoot, { recursive: true })).sort(), entries.sort());
+    for (const entry of entries) {
+        if (!(await stat(path.join(sourceRoot, entry))).isFile()) continue;
+        assert.equal(await readFile(path.join(installedRoot, entry), 'utf8'), await readFile(path.join(sourceRoot, entry), 'utf8'));
+    }
+    console.log('Packed scaffold Git and project skill smoke passed.');
+}
+
 async function createBrowserCommandStub(directory) {
     if (process.platform === 'win32') return process.env.PATH;
     const command = process.platform === 'darwin' ? 'open' : 'xdg-open';
@@ -202,12 +227,15 @@ try {
     const cliTarball = packPackage('packages/pixifact-cli', artifactsRoot);
     const wechatTarball = packPackage('packages/platform-wechat', artifactsRoot);
     const douyinTarball = packPackage('packages/platform-douyin', artifactsRoot);
+    const scaffoldTarball = packPackage('packages/create-pixifact', artifactsRoot);
     const artifacts = {
         pixifact: pixifactTarball,
         cli: cliTarball,
         wechat: wechatTarball,
         douyin: douyinTarball,
     };
+
+    await verifyScaffold(temporaryRoot, scaffoldTarball);
 
     await copyProject(multiPlatformSampleRoot, projectRoot);
     await configurePackedProject(projectRoot, artifacts);

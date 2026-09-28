@@ -1,7 +1,8 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPixifactProject } from '../packages/create-pixifact/src/createPixifactProject';
 import pixifactPackage from '../packages/pixifact/package.json' with { type: 'json' };
 import pixifactCliPackage from '../packages/pixifact-cli/package.json' with { type: 'json' };
@@ -20,6 +21,7 @@ async function readProjectFile(projectRoot: string, filePath: string) {
 
 describe('create-pixifact scaffold', () => {
     afterEach(async () => {
+        vi.unstubAllEnvs();
         await Promise.all(tempRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
     });
 
@@ -98,6 +100,53 @@ describe('create-pixifact scaffold', () => {
                 mainMenu: 'src/scenes/MainMenu.scene',
             },
         });
+    });
+
+    it('initializes Git and ignores generated files while keeping the skill and source trackable', async () => {
+        const cwd = await makeTempRoot();
+        const { root } = await createPixifactProject({ cwd, name: 'my-game' });
+        const git = (...args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+
+        expect(git('rev-parse', '--show-toplevel')).toBe(await realpath(root));
+        expect(git('ls-files')).toBe('');
+        expect(git('rev-list', '--all')).toBe('');
+        const ignored = ['node_modules/pkg/index.js', 'dist/web/index.html', '.pixifact/generated/scene.ts', '.env.local', '.env.development.local'];
+        expect(git('check-ignore', '--', ...ignored).split('\n')).toEqual(ignored);
+        const trackable = git('ls-files', '--others', '--exclude-standard').split('\n');
+        expect(trackable).toEqual(expect.arrayContaining([
+            '.gitignore', '.env', 'package.json', 'src/scenes/MainMenu.scene', '.agents/skills/pixifact/SKILL.md',
+        ]));
+    });
+
+    it('copies the complete Pixifact skill and its offline references into the project', async () => {
+        const cwd = await makeTempRoot();
+        const { root } = await createPixifactProject({ cwd, name: 'my-game' });
+        const sourceRoot = join(process.cwd(), 'skills/pixifact');
+        const installedRoot = join(root, '.agents/skills/pixifact');
+        const entries = await readdir(sourceRoot, { recursive: true });
+
+        expect((await readdir(installedRoot, { recursive: true })).sort()).toEqual(entries.sort());
+        for (const entry of entries) {
+            if (!(await stat(join(sourceRoot, entry))).isFile()) continue;
+            expect(await readFile(join(installedRoot, entry), 'utf8')).toBe(await readFile(join(sourceRoot, entry), 'utf8'));
+        }
+    });
+
+    it('creates an independent repository inside an existing Git repository', async () => {
+        const cwd = await makeTempRoot();
+        execFileSync('git', ['init', '--quiet'], { cwd });
+
+        const { root } = await createPixifactProject({ cwd, name: 'nested-game' });
+
+        expect(execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: root, encoding: 'utf8' }).trim()).toBe(await realpath(root));
+        expect(execFileSync('git', ['ls-files'], { cwd, encoding: 'utf8' })).toBe('');
+    });
+
+    it('reports Git initialization failure when Git is unavailable', async () => {
+        const cwd = await makeTempRoot();
+        vi.stubEnv('PATH', cwd);
+
+        await expect(createPixifactProject({ cwd, name: 'my-game' })).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
     it('does not overwrite an existing non-empty project directory', async () => {
