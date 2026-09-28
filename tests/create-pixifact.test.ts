@@ -43,6 +43,8 @@ describe('create-pixifact scaffold', () => {
             scripts: {
                 dev: 'pixifact dev --mode development --project-root .',
                 build: 'pixifact build --mode production --project-root .',
+                compile: 'pixifact compile-scenes --project-root .',
+                editor: 'pixifact editor --project-root .',
                 validate: 'pixifact validate --mode production --project-root .',
             },
             dependencies: {

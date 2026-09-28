@@ -18,7 +18,19 @@ if (!name || name === '--help' || name === '-h') {
     try {
         const result = await createPixifactProject({ name });
         process.stdout.write(`已创建 ${result.name}：${result.root}\n`);
-        process.stdout.write(`下一步：cd ${result.name} && bun install && bun run dev\n`);
+        process.stdout.write([
+            '下一步：',
+            `  cd ${result.name}`,
+            '  bun install',
+            '',
+            '项目命令：',
+            '  bun run dev      启动 Web 开发服务',
+            '  bun run build    构建 Web 生产版本',
+            '  bun run compile  编译 Scene',
+            '  bun run editor   启动 Pixifact 编辑器',
+            '  bun run validate 校验项目',
+            '',
+        ].join('\n'));
     } catch (error) {
         process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
         process.exitCode = 1;

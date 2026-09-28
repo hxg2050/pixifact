@@ -21,6 +21,20 @@ bun run dev
 
 ## 生成脚本
 
+创建完成后的终端提示会列出以下命令，在项目根目录运行：
+
+| 命令 | 用途 |
+| --- | --- |
+| `bun run dev` | 启动 Web 开发服务 |
+| `bun run build` | 构建 Web 生产版本 |
+| `bun run compile` | 独立编译 `.scene` 到 `.pixifact/generated` |
+| `bun run editor` | 启动 Pixifact 编辑器 |
+| `bun run validate` | 校验项目 |
+
+模板的 `.env` 默认设置 `VITE_PLATFORM=web`。`dev` 和 `build` 会自动处理 Scene 编译，也可以使用 `compile` 单独编译 Scene。
+
+## 观察运行中的游戏
+
 ```bash
 bun run dev
 pixifact runtime tree
