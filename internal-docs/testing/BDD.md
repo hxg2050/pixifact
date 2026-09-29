@@ -710,6 +710,35 @@ Scenario: Editable controls retain their native keyboard behavior
 
 TDD 入口：`tests/editor-vue-ui.test.ts`、Editor 浏览器验收。
 
+### BDD-EDITOR-016 标签右键批量关闭
+
+Feature: Scene tab context menu
+
+```gherkin
+Scenario: User closes a range relative to a background tab
+  Given several Scene tabs are open
+  When the user right-clicks a background tab
+  Then the active Scene stays unchanged
+  And the menu offers close current, other, left and right tabs
+  And empty ranges and ranges containing a saving tab are disabled
+  When the user chooses a close action
+  Then only the chosen range is closed and the remaining tab order is persisted
+
+Scenario: Batch close encounters unsaved changes
+  Given a close range contains unsaved Scene tabs
+  When the user starts closing the range
+  Then each unsaved tab offers save, discard and cancel in tab order
+  And cancel, Escape, a failed save or a conflict stops the remaining closes
+  And all not-yet-closed drafts remain available
+
+Scenario: Many tabs overflow the tab bar
+  Given the open tabs exceed the available width
+  Then a thin themed horizontal scrollbar allows browsing them without covering their text
+  And Escape dismisses the context menu without clearing the Scene selection
+```
+
+TDD 入口：`tests/editor-vue-ui.test.ts` 与浏览器验收。
+
 ## 5. CLI
 
 ### BDD-CLI-001 Inspect and validate compiler scenes

@@ -1,4 +1,4 @@
-import { flushPromises, mount } from '@vue/test-utils';
+import { DOMWrapper, flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent, h, markRaw, ref, watch } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -297,6 +297,218 @@ describe('Editor Vue UI', () => {
         await wrapper.get('[role="dialog"] button:nth-child(2)').trigger('click');
         expect(wrapper.findAll('.scene-tab')).toHaveLength(2);
         wrapper.unmount();
+    });
+
+    describe('Scene tab context menu', () => {
+        const paths = ['Menu', 'Button', 'Dialog', 'Hud'].map((name) => `src/scenes/${name}.scene`);
+
+        async function openTabs() {
+            let uiState = { openScenePaths: paths, activeScenePath: paths[3] };
+            const writes: string[] = [];
+            let writeFailure: number | undefined;
+            let pendingWrite: Promise<void> | undefined;
+            vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+                const url = String(input);
+                if (url === '/api/project') return Response.json({
+                    name: 'demo', root: '/demo', scenes: paths, images: [],
+                    files: paths.map((path) => ({ kind: 'scene', path })),
+                });
+                if (url === '/api/scene-bindings') return Response.json({});
+                if (url === '/api/editor-ui-state') {
+                    if (init?.method === 'PUT') uiState = JSON.parse(String(init.body));
+                    return Response.json(uiState);
+                }
+                if (url.startsWith('/api/scene?')) {
+                    const path = new URL(url, 'http://localhost').searchParams.get('path')!;
+                    if (init?.method === 'PUT') {
+                        await pendingWrite;
+                        if (writeFailure) return Response.json({ error: '保存失败' }, { status: writeFailure });
+                        writes.push(path);
+                    }
+                    return Response.json({ path, source, version: `sha256:${path}:${writes.length}` });
+                }
+                throw new Error(`Unexpected Editor request: ${url}`);
+            }));
+            vi.stubGlobal('WebSocket', AcceptedEditorWebSocket);
+            const pinia = createPinia();
+            setActivePinia(pinia);
+            const wrapper = mount(EditorApp, {
+                attachTo: document.body,
+                global: { plugins: [pinia], stubs: { SceneCanvas: true } },
+            });
+            await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe(paths[3]));
+
+            async function menu(index: number) {
+                await wrapper.get(`[data-scene-tab="${paths[index]}"]`).trigger('contextmenu', { button: 2, clientX: 200, clientY: 60 });
+                await vi.waitFor(() => expect(document.querySelector('[role="menu"][aria-label="标签页操作"]')).not.toBeNull());
+                return new DOMWrapper(document.querySelector('[role="menu"][aria-label="标签页操作"]')!);
+            }
+
+            async function choose(index: number, label: string) {
+                const opened = await menu(index);
+                await opened.findAll('[role="menuitem"]').find((item) => item.text() === label)!.trigger('click');
+                await flushPromises();
+            }
+
+            async function edit(index: number) {
+                await wrapper.get(`[aria-label="切换到 ${paths[index]}"]`).trigger('click');
+                await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe(paths[index]));
+                await flushPromises();
+                await wrapper.get('[data-locator="0:title"]').trigger('click');
+                await wrapper.get('input[data-prop="text"]').setValue(`修改 ${index}`);
+                await wrapper.get('input[data-prop="text"]').trigger('blur');
+                await flushPromises();
+            }
+
+            return {
+                wrapper, menu, choose, edit, writes,
+                failWrites: (status = 500) => { writeFailure = status; },
+                holdWrites: () => {
+                    let release!: () => void;
+                    pendingWrite = new Promise<void>((resolve) => { release = resolve; });
+                    return release;
+                },
+                remaining: () => wrapper.findAll('[data-scene-tab]').map((tab) => tab.attributes('data-scene-tab')),
+                savedPaths: () => uiState.openScenePaths,
+            };
+        }
+
+        it.each([
+            ['关闭当前', [0, 2, 3], 3],
+            ['关闭其它', [1], 1],
+            ['关闭左边', [1, 2, 3], 3],
+            ['关闭右边', [0, 1], 1],
+        ] as const)('applies %s relative to the clicked background tab', async (label, indices, active) => {
+            const tabs = await openTabs();
+            try {
+                await tabs.menu(1);
+                expect(useEditorUiStore().currentScenePath).toBe(paths[3]);
+                await tabs.choose(1, label);
+                const expected = indices.map((index) => paths[index]);
+                expect(tabs.remaining()).toEqual(expected);
+                expect(useEditorUiStore().currentScenePath).toBe(paths[active]);
+                await vi.waitFor(() => expect(tabs.savedPaths()).toEqual(expected));
+            } finally {
+                tabs.wrapper.unmount();
+            }
+        });
+
+        it('disables empty close ranges and supports Escape dismissal', async () => {
+            const tabs = await openTabs();
+            try {
+                const firstMenu = await tabs.menu(0);
+                expect(firstMenu.findAll('[role="menuitem"]').find((item) => item.text() === '关闭左边')!.attributes('data-disabled')).toBeDefined();
+                await firstMenu.trigger('keydown', { key: 'Escape', code: 'Escape' });
+                await flushPromises();
+                expect(document.querySelector('[aria-label="标签页操作"]')).toBeNull();
+                const lastMenu = await tabs.menu(3);
+                expect(lastMenu.findAll('[role="menuitem"]').find((item) => item.text() === '关闭右边')!.attributes('data-disabled')).toBeDefined();
+                await tabs.choose(3, '关闭其它');
+                const onlyMenu = await tabs.menu(3);
+                expect(onlyMenu.findAll('[role="menuitem"]').filter((item) => item.attributes('data-disabled') !== undefined)).toHaveLength(3);
+                await tabs.choose(3, '关闭当前');
+                expect(tabs.remaining()).toEqual([]);
+            } finally {
+                tabs.wrapper.unmount();
+            }
+        });
+
+        it('confirms dirty tabs in order, saves one and discards the next', async () => {
+            const tabs = await openTabs();
+            try {
+                await tabs.edit(0);
+                await tabs.edit(1);
+                await tabs.choose(3, '关闭其它');
+                expect(tabs.wrapper.get('[role="dialog"]').text()).toContain(paths[0]);
+                await tabs.wrapper.get('[role="dialog"] button:nth-child(3)').trigger('click');
+                await vi.waitFor(() => expect(tabs.wrapper.get('[role="dialog"]').text()).toContain(paths[1]));
+                await tabs.wrapper.get('[role="dialog"] button:nth-child(2)').trigger('click');
+                await flushPromises();
+                expect(tabs.remaining()).toEqual([paths[3]]);
+                expect(tabs.writes).toEqual([paths[0]]);
+            } finally {
+                tabs.wrapper.unmount();
+            }
+        });
+
+        it('disables ranges containing a saving tab while allowing other ranges', async () => {
+            const tabs = await openTabs();
+            const releaseWrite = tabs.holdWrites();
+            try {
+                await tabs.edit(0);
+                await tabs.wrapper.get('[aria-label="保存 Scene"]').trigger('click');
+                await vi.waitFor(() => expect(tabs.wrapper.get('.sync-state').text()).toContain('正在写入'));
+                const opened = await tabs.menu(1);
+                expect(opened.findAll('[role="menuitem"]').filter((item) => item.attributes('data-disabled') !== undefined).map((item) => item.text())).toEqual(['关闭其它', '关闭左边']);
+                await tabs.choose(1, '关闭右边');
+                expect(tabs.remaining()).toEqual(paths.slice(0, 2));
+            } finally {
+                releaseWrite();
+                await flushPromises();
+                tabs.wrapper.unmount();
+            }
+        });
+
+        it('cancels an in-flight save-and-close without resuming the close queue', async () => {
+            const tabs = await openTabs();
+            const releaseWrite = tabs.holdWrites();
+            try {
+                await tabs.edit(0);
+                await tabs.choose(3, '关闭其它');
+                await tabs.wrapper.get('[role="dialog"] button:nth-child(3)').trigger('click');
+                expect(tabs.wrapper.get('[role="dialog"] button:nth-child(2)').attributes('disabled')).toBeDefined();
+                await tabs.wrapper.get('[role="dialog"] button:first-child').trigger('keydown', { key: 'Tab' });
+                expect(document.activeElement).toBe(tabs.wrapper.get('[role="dialog"] button:first-child').element);
+                await tabs.wrapper.get('[role="dialog"] button:first-child').trigger('click');
+                releaseWrite();
+                await flushPromises();
+                expect(tabs.remaining()).toEqual(paths);
+                expect(tabs.writes).toEqual([paths[0]]);
+            } finally {
+                releaseWrite();
+                await flushPromises();
+                tabs.wrapper.unmount();
+            }
+        });
+
+        it.each(['cancel', 'escape', 'failure', 'conflict'])('stops remaining closes on %s without losing drafts', async (action) => {
+            const tabs = await openTabs();
+            try {
+                await tabs.edit(1);
+                await tabs.choose(3, '关闭其它');
+                expect(tabs.remaining()).toEqual(paths.slice(1));
+                if (action === 'conflict') {
+                    tabs.failWrites(409);
+                    await tabs.wrapper.get('[role="dialog"] button:nth-child(3)').trigger('click');
+                    await vi.waitFor(() => expect(tabs.wrapper.get('[role="dialog"]').text()).toContain('Scene 文件已在外部修改'));
+                    expect(tabs.remaining()).toEqual(paths.slice(1));
+                    await tabs.wrapper.get('[role="dialog"] button:first-child').trigger('click');
+                    await tabs.wrapper.get(`[aria-label="关闭 ${paths[1]}"]`).trigger('click');
+                    await tabs.wrapper.get('[role="dialog"] button:nth-child(2)').trigger('click');
+                    expect(tabs.remaining()).toEqual(paths.slice(2));
+                } else if (action === 'failure') {
+                    tabs.failWrites();
+                    await tabs.wrapper.get('[role="dialog"] button:nth-child(3)').trigger('click');
+                    await vi.waitFor(() => expect(tabs.wrapper.find('.global-error').exists()).toBe(true));
+                    await tabs.wrapper.get('[role="dialog"] button:nth-child(2)').trigger('click');
+                    expect(tabs.remaining()).toEqual(paths.slice(2));
+                } else {
+                    if (action === 'escape') {
+                        await tabs.wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape', code: 'Escape' });
+                    } else {
+                        await tabs.wrapper.get('[role="dialog"] button:first-child').trigger('click');
+                    }
+                    expect(tabs.remaining()).toEqual(paths.slice(1));
+                    expect(tabs.wrapper.get(`[data-scene-tab="${paths[1]}"]`).text()).toContain('●');
+                    await tabs.wrapper.get(`[aria-label="关闭 ${paths[1]}"]`).trigger('click');
+                    await tabs.wrapper.get('[role="dialog"] button:nth-child(2)').trigger('click');
+                    expect(tabs.remaining()).toEqual(paths.slice(2));
+                }
+                expect(tabs.writes).toEqual([]);
+            } finally {
+                tabs.wrapper.unmount();
+            }
+        });
     });
 
     it('restores saved tab paths and can close the last Scene', async () => {

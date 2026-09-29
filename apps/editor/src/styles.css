@@ -312,8 +312,35 @@ summary:focus-visible,
     display: flex;
     min-width: 0;
     overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
     border-bottom: 1px solid var(--line);
     background: var(--chrome);
+}
+
+@supports selector(::-webkit-scrollbar) {
+    .scene-tabs {
+        scrollbar-width: auto;
+        scrollbar-color: auto;
+    }
+
+    .scene-tabs::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    .scene-tabs::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .scene-tabs::-webkit-scrollbar-thumb {
+        border-radius: 2px;
+        background: var(--line-strong);
+    }
+
+    .scene-tabs::-webkit-scrollbar-thumb:hover {
+        background: var(--faint);
+    }
 }
 
 .scene-tab {
@@ -343,7 +370,7 @@ summary:focus-visible,
     min-width: 0;
     align-items: center;
     gap: 7px;
-    height: 31px;
+    height: 100%;
     padding: 0 4px 0 12px;
     background: transparent;
     color: inherit;
@@ -924,7 +951,8 @@ summary:focus-visible,
     text-align: left;
 }
 
-.hierarchy-context-menu {
+.hierarchy-context-menu,
+.scene-tab-context-menu {
     z-index: 30;
     min-width: 156px;
     padding: 5px;
@@ -941,7 +969,8 @@ summary:focus-visible,
     overflow-y: auto;
 }
 
-.hierarchy-context-item {
+.hierarchy-context-item,
+.scene-tab-context-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -954,11 +983,13 @@ summary:focus-visible,
     cursor: default;
 }
 
-.hierarchy-context-item[data-highlighted] {
+.hierarchy-context-item[data-highlighted],
+.scene-tab-context-item[data-highlighted] {
     background: var(--hover);
 }
 
-.hierarchy-context-item[data-disabled] {
+.hierarchy-context-item[data-disabled],
+.scene-tab-context-item[data-disabled] {
     color: var(--faint);
 }
 

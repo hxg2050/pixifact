@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
 import { ArrowLeft, ArrowRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Redo2, RefreshCw, Save, Settings2, Undo2, X } from 'lucide-vue-next';
-import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui';
+import { ContextMenuContent, ContextMenuItem, ContextMenuPortal, ContextMenuRoot, ContextMenuTrigger, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui';
 import { computed, markRaw, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, triggerRef, watch } from 'vue';
 import {
     pairedSceneScriptPath,
@@ -86,6 +86,14 @@ watch([selectedChildScenePath, sceneDefaultsRevision], async ([path]) => {
 });
 const error = ref('');
 const closingPath = ref<string>();
+let remainingClosePaths: string[] = [];
+const tabCloseActions = [
+    { scope: 'current', label: '关闭当前' },
+    { scope: 'others', label: '关闭其它' },
+    { scope: 'left', label: '关闭左边' },
+    { scope: 'right', label: '关闭右边' },
+] as const;
+type TabCloseScope = typeof tabCloseActions[number]['scope'];
 const conflict = ref<{ path: string; localSource: string; diskSource: string; diskVersion: string }>();
 const closeModal = ref<HTMLElement>();
 const conflictModal = ref<HTMLElement>();
@@ -552,7 +560,7 @@ function handleModalKeyDown(event: KeyboardEvent) {
     if (event.key !== 'Tab') return;
     const modal = conflictModal.value ?? closeModal.value;
     if (!modal) return;
-    const buttons = Array.from(modal.querySelectorAll('button'));
+    const buttons = Array.from(modal.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
     const first = buttons[0];
     const last = buttons.at(-1);
     if (event.shiftKey && window.document.activeElement === first) {
@@ -678,7 +686,7 @@ async function loadConflict(tab: SceneTab) {
             diskSource: disk.source,
             diskVersion: disk.version,
         };
-        closingPath.value = undefined;
+        cancelClosingTabs();
     } catch (cause) {
         error.value = cause instanceof Error ? cause.message : String(cause);
     }
@@ -749,25 +757,64 @@ function finishCloseTab(tab: SceneTab) {
     if (conflict.value?.path === tab.path) conflict.value = undefined;
 }
 
-function closeTab(path: string) {
-    const tab = tabFor(path);
-    if (!tab) return;
-    if (tab.syncState === 'saving') return;
-    if (tab.document.dirty) {
-        closingPath.value = path;
-        return;
+function tabCloseTargets(path: string, scope: TabCloseScope) {
+    const index = sceneTabs.value.findIndex((tab) => tab.path === path);
+    switch (scope) {
+        case 'current': return sceneTabs.value.slice(index, index + 1);
+        case 'others': return sceneTabs.value.filter((tab) => tab.path !== path);
+        case 'left': return sceneTabs.value.slice(0, index);
+        case 'right': return sceneTabs.value.slice(index + 1);
     }
-    finishCloseTab(tab);
+}
+
+function canCloseTabs(path: string, scope: TabCloseScope) {
+    const targets = tabCloseTargets(path, scope);
+    return targets.length > 0 && targets.every((tab) => tab.syncState !== 'saving');
+}
+
+function cancelClosingTabs() {
+    remainingClosePaths = [];
+    closingPath.value = undefined;
+}
+
+function continueClosingTabs() {
+    while (remainingClosePaths.length > 0) {
+        const tab = tabFor(remainingClosePaths.shift()!);
+        if (!tab) continue;
+        if (tab.syncState === 'saving') {
+            cancelClosingTabs();
+            return;
+        }
+        if (tab.document.dirty) {
+            closingPath.value = tab.path;
+            return;
+        }
+        finishCloseTab(tab);
+    }
+}
+
+function closeTab(path: string, scope: TabCloseScope = 'current') {
+    remainingClosePaths = tabCloseTargets(path, scope).map((tab) => tab.path);
+    continueClosingTabs();
 }
 
 function discardAndCloseTab() {
     const tab = closingPath.value && tabFor(closingPath.value);
     if (tab) finishCloseTab(tab);
+    continueClosingTabs();
 }
 
 async function saveAndCloseTab() {
     const tab = closingPath.value && tabFor(closingPath.value);
-    if (tab && await saveTab(tab)) finishCloseTab(tab);
+    if (!tab) return;
+    const saved = await saveTab(tab);
+    if (closingPath.value !== tab.path) return;
+    if (!saved) {
+        remainingClosePaths = [];
+        return;
+    }
+    finishCloseTab(tab);
+    continueClosingTabs();
 }
 
 async function saveAfterInputBlur() {
@@ -793,10 +840,11 @@ function cancelEditorInteraction() {
 }
 
 function handleEditorKeyDown(event: KeyboardEvent) {
+    if (event.target instanceof Element && event.target.closest('.scene-tab-context-menu')) return;
     if (closingPath.value || conflict.value) {
         if (event.code === 'Escape') {
             event.preventDefault();
-            closingPath.value = undefined;
+            cancelClosingTabs();
             conflict.value = undefined;
         }
         return;
@@ -928,7 +976,7 @@ function clearWorkspace() {
     for (const tab of sceneTabs.value) tab.unsubscribe();
     sceneTabs.value = [];
     document.value = undefined;
-    closingPath.value = undefined;
+    cancelClosingTabs();
     conflict.value = undefined;
     assetTreeExpandedDirectories.value = undefined;
     autoSave.value = false;
@@ -1157,34 +1205,52 @@ onBeforeUnmount(() => {
     </header>
 
     <nav class="scene-tabs" aria-label="打开的 Scene">
-      <div
-        v-for="tab in sceneTabs"
-        :key="tab.path"
-        class="scene-tab"
-        :class="{ active: currentScenePath === tab.path }"
-        :data-scene-tab="tab.path"
-      >
-        <button
-          type="button"
-          class="scene-tab-activate"
-          :aria-label="`切换到 ${tab.path}`"
-          :aria-current="currentScenePath === tab.path ? 'page' : undefined"
-          :title="tab.path"
-          @click="navigateToScene(tab.path)"
-        >
-          <span>{{ tab.path.split('/').at(-1) }}</span>
-          <span v-if="tab.syncState === 'conflict' || tab.syncState === 'error'" class="scene-tab-status error">!</span>
-          <span v-else-if="tab.document.dirty" class="scene-tab-status">●</span>
-        </button>
-        <button
-          type="button"
-          class="scene-tab-close"
-          :aria-label="`关闭 ${tab.path}`"
-          :title="`关闭 ${tab.path}`"
-          :disabled="tab.syncState === 'saving'"
-          @click="closeTab(tab.path)"
-        ><X :size="13" /></button>
-      </div>
+      <ContextMenuRoot v-for="tab in sceneTabs" :key="tab.path" :modal="false">
+        <ContextMenuTrigger as-child>
+          <div
+            class="scene-tab"
+            :class="{ active: currentScenePath === tab.path }"
+            :data-scene-tab="tab.path"
+          >
+            <button
+              type="button"
+              class="scene-tab-activate"
+              :aria-label="`切换到 ${tab.path}`"
+              :aria-current="currentScenePath === tab.path ? 'page' : undefined"
+              :title="tab.path"
+              @click="navigateToScene(tab.path)"
+            >
+              <span>{{ tab.path.split('/').at(-1) }}</span>
+              <span v-if="tab.syncState === 'conflict' || tab.syncState === 'error'" class="scene-tab-status error">!</span>
+              <span v-else-if="tab.document.dirty" class="scene-tab-status">●</span>
+            </button>
+            <button
+              type="button"
+              class="scene-tab-close"
+              :aria-label="`关闭 ${tab.path}`"
+              :title="`关闭 ${tab.path}`"
+              :disabled="tab.syncState === 'saving'"
+              @click="closeTab(tab.path)"
+            ><X :size="13" /></button>
+          </div>
+        </ContextMenuTrigger>
+        <ContextMenuPortal>
+          <ContextMenuContent
+            class="scene-tab-context-menu"
+            aria-label="标签页操作"
+            :collision-padding="8"
+            @close-auto-focus="closingPath && $event.preventDefault()"
+          >
+            <ContextMenuItem
+              v-for="action in tabCloseActions"
+              :key="action.scope"
+              class="scene-tab-context-item"
+              :disabled="!canCloseTabs(tab.path, action.scope)"
+              @select="closeTab(tab.path, action.scope)"
+            >{{ action.label }}</ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenuPortal>
+      </ContextMenuRoot>
     </nav>
 
     <section class="workspace">
@@ -1400,9 +1466,9 @@ onBeforeUnmount(() => {
         <h2 id="close-scene-title">保存对 Scene 的修改？</h2>
         <p>{{ closingPath }} 有未保存的修改。</p>
         <div class="editor-modal-actions">
-          <button type="button" @click="closingPath = undefined">取消</button>
-          <button type="button" @click="discardAndCloseTab">放弃修改</button>
-          <button type="button" class="primary" @click="saveAndCloseTab">保存并关闭</button>
+          <button type="button" @click="cancelClosingTabs">取消</button>
+          <button type="button" :disabled="tabFor(closingPath)?.syncState === 'saving'" @click="discardAndCloseTab">放弃修改</button>
+          <button type="button" class="primary" :disabled="tabFor(closingPath)?.syncState === 'saving'" @click="saveAndCloseTab">保存并关闭</button>
         </div>
       </section>
     </div>
