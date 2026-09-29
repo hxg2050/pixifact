@@ -1,5 +1,15 @@
 # pixifact-cli
 
+## 0.17.0
+
+### Minor Changes
+
+- Editor 标签支持右键关闭当前、其它、左边和右边标签；批量关闭逐个保护未保存修改，取消、保存失败或冲突会停止后续关闭。新增标签拖动排序、插入位置提示、边缘自动滚动与顺序持久化，保留当前 Scene、草稿和 Undo / Redo。横向滚动条缩小并适配明暗主题。
+
+### Patch Changes
+
+- pixifact@0.17.0
+
 ## 0.16.0
 
 ### Minor Changes
