@@ -60,10 +60,11 @@
 - 浏览器检查 12 个溢出标签：滚动条高 4px，标签文字无遮挡，无垂直溢出，最右侧标签可达；右键后台标签不改变活动 Scene，左右关闭范围及活动页衔接正确，Esc 收起菜单。明暗主题均已检查。
 - 浏览器排序实测：Chrome 将首个标签向右移动至中间，内置浏览器将后台标签向左移动至首位；活动 Scene 不变，顺序写入 UI state，重新打开页面后恢复正确。
 - 发布准备（2026-09-29）：`bun run release:version` 已生成五包 `0.17.0` 及 changelog，模板依赖已同步；版本差异、`git diff --check` 和 `bun install --frozen-lockfile --dry-run` 检查通过。完整发布验证交由 tag workflow 执行。
+- 发布验证（2026-09-29）：[v0.17.0 workflow](https://github.com/hxg2050/pixifact/actions/runs/36555047981) 已通过 26 个测试文件 / 385 项测试、全部构建、包内容和安装验收，并完成五包 Trusted Publishing；npm registry 确认五个包的版本及 `latest` 均为 `0.17.0`。[GitHub Release](https://github.com/hxg2050/pixifact/releases/tag/v0.17.0) 已创建。
 
 ## Progress
 
-多标签、拖动排序、右键批量关闭及细滚动条已完成，相关测试、类型检查、构建与浏览器验证通过。正在准备 `0.17.0` 发布。
+多标签、拖动排序、右键批量关闭及细滚动条已完成，相关测试、类型检查、构建与浏览器验证通过。五包 `0.17.0` 已发布，完整发布验证和 registry 核对通过，GitHub Release 已创建。
 
 ## Resume Protocol
 
@@ -80,9 +81,10 @@ Done:
 - 右键四种关闭范围、禁用状态、逐个确认未保存内容、取消/失败/冲突中止以及保存中取消的保护已实现并通过回归测试。
 - 标签栏采用明暗主题适配的细滚动条，已在 12 标签溢出布局中检查。
 - 标签拖动排序、插入提示、边缘自动滚动、取消、点击区分和顺序持久化已实现；复用原有标签对象保留 Scene 状态。
+- `0.17.0` 版本提交及 main / tag 已推送，GitHub Actions 发布成功；五包版本与 `latest`、GitHub Release 均已核对。
 
 Current State:
-- 功能和本地验证已完成；用户已授权发布，五包 `0.17.0` 版本与 changelog 已生成并检查。
+- 功能、验证和 `0.17.0` 发布全部完成。
 
 Next:
-- 提交 release commit、推送 main / tag，等待 workflow 并核对五个 npm 包与 GitHub Release。
+- 无待办；后续新增需求另行更新计划。
