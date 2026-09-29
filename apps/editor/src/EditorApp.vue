@@ -56,6 +56,15 @@ const autoSave = ref(false);
 const theme = ref<EditorUiState['theme']>('dark');
 const document = ref<SceneDocument>();
 const sceneTabs = shallowRef<SceneTab[]>([]);
+const sceneTabBar = ref<HTMLElement>();
+const draggedSceneTabPath = ref<string>();
+const sceneTabDrop = ref<{ path: string; before: boolean }>();
+let sceneTabDragPoint: { x: number; y: number } | undefined;
+let sceneTabDragStart: { path: string; pointerId: number; x: number; y: number } | undefined;
+let suppressSceneTabClick = false;
+let sceneTabClickTimer: ReturnType<typeof setTimeout> | undefined;
+let sceneTabScrollFrame: number | undefined;
+let sceneTabScrollTime = 0;
 const documentRevision = ref(0);
 const selectedChildScenePath = computed(() => {
     void documentRevision.value;
@@ -757,6 +766,115 @@ function finishCloseTab(tab: SceneTab) {
     if (conflict.value?.path === tab.path) conflict.value = undefined;
 }
 
+function startSceneTabDrag(path: string, event: PointerEvent) {
+    if (event.button !== 0) return;
+    sceneTabDragStart = { path, pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+    window.addEventListener('pointermove', moveSceneTabDrag);
+    window.addEventListener('pointerup', dropSceneTab);
+    window.addEventListener('pointercancel', endSceneTabDrag);
+    window.addEventListener('blur', endSceneTabDrag);
+}
+
+function handleSceneTabClick(event: MouseEvent) {
+    if (!suppressSceneTabClick) return;
+    event.preventDefault();
+    event.stopPropagation();
+}
+
+function stopSceneTabScroll() {
+    if (sceneTabScrollFrame !== undefined) cancelAnimationFrame(sceneTabScrollFrame);
+    sceneTabScrollFrame = undefined;
+    sceneTabScrollTime = 0;
+}
+
+function endSceneTabDrag() {
+    if (draggedSceneTabPath.value) {
+        suppressSceneTabClick = true;
+        clearTimeout(sceneTabClickTimer);
+        sceneTabClickTimer = setTimeout(() => { suppressSceneTabClick = false; }, 0);
+    }
+    window.removeEventListener('pointermove', moveSceneTabDrag);
+    window.removeEventListener('pointerup', dropSceneTab);
+    window.removeEventListener('pointercancel', endSceneTabDrag);
+    window.removeEventListener('blur', endSceneTabDrag);
+    sceneTabDragStart = undefined;
+    stopSceneTabScroll();
+    draggedSceneTabPath.value = undefined;
+    sceneTabDragPoint = undefined;
+    sceneTabDrop.value = undefined;
+}
+
+function updateSceneTabDrop() {
+    const bar = sceneTabBar.value!;
+    const point = sceneTabDragPoint!;
+    const bounds = bar.getBoundingClientRect();
+    if (point.x < bounds.left || point.x > bounds.right || point.y < bounds.top || point.y > bounds.bottom) {
+        sceneTabDrop.value = undefined;
+        return;
+    }
+    const tabs = Array.from(bar.querySelectorAll<HTMLElement>('[data-scene-tab]'));
+    const next = tabs.find((tab) => {
+        const rect = tab.getBoundingClientRect();
+        return point.x < rect.left + rect.width / 2;
+    });
+    sceneTabDrop.value = { path: (next ?? tabs.at(-1)!).dataset.sceneTab!, before: !!next };
+}
+
+function scrollSceneTabs(timestamp: number) {
+    sceneTabScrollFrame = undefined;
+    if (!sceneTabDrop.value || !sceneTabDragPoint) return;
+    const bar = sceneTabBar.value!;
+    const bounds = bar.getBoundingClientRect();
+    const left = sceneTabDragPoint.x - bounds.left;
+    const right = bounds.right - sceneTabDragPoint.x;
+    const velocity = left < 32 ? -600 * (1 - left / 32) : right < 32 ? 600 * (1 - right / 32) : 0;
+    if (!velocity) return;
+    const elapsed = sceneTabScrollTime ? Math.min(timestamp - sceneTabScrollTime, 32) : 16;
+    sceneTabScrollTime = timestamp;
+    const previous = bar.scrollLeft;
+    bar.scrollLeft += velocity * elapsed / 1000;
+    if (bar.scrollLeft === previous) return;
+    updateSceneTabDrop();
+    sceneTabScrollFrame = requestAnimationFrame(scrollSceneTabs);
+}
+
+function moveSceneTabDrag(event: PointerEvent) {
+    const start = sceneTabDragStart;
+    if (!start || start.pointerId !== event.pointerId) return;
+    if (!draggedSceneTabPath.value && Math.hypot(event.clientX - start.x, event.clientY - start.y) < 4) return;
+    draggedSceneTabPath.value = start.path;
+    sceneTabDragPoint = { x: event.clientX, y: event.clientY };
+    updateSceneTabDrop();
+    if (!sceneTabDrop.value) {
+        stopSceneTabScroll();
+    } else if (sceneTabScrollFrame === undefined) {
+        sceneTabScrollTime = 0;
+        sceneTabScrollFrame = requestAnimationFrame(scrollSceneTabs);
+    }
+}
+
+function dropSceneTab(event: PointerEvent) {
+    if (sceneTabDragStart?.pointerId !== event.pointerId) return;
+    if (!draggedSceneTabPath.value) {
+        endSceneTabDrag();
+        return;
+    }
+    sceneTabDragPoint = { x: event.clientX, y: event.clientY };
+    updateSceneTabDrop();
+    const dragged = tabFor(draggedSceneTabPath.value)!;
+    const target = sceneTabDrop.value;
+    if (target && target.path !== dragged.path) {
+        const reordered = sceneTabs.value.filter((tab) => tab !== dragged);
+        const index = reordered.findIndex((tab) => tab.path === target.path) + (target.before ? 0 : 1);
+        reordered.splice(index, 0, dragged);
+        if (reordered.some((tab, position) => tab !== sceneTabs.value[position])) {
+            sceneTabs.value = reordered;
+            scheduleEditorUiStateSave();
+        }
+    }
+    endSceneTabDrag();
+}
+
 function tabCloseTargets(path: string, scope: TabCloseScope) {
     const index = sceneTabs.value.findIndex((tab) => tab.path === path);
     switch (scope) {
@@ -840,6 +958,10 @@ function cancelEditorInteraction() {
 }
 
 function handleEditorKeyDown(event: KeyboardEvent) {
+    if (draggedSceneTabPath.value) {
+        if (event.code === 'Escape') endSceneTabDrag();
+        return;
+    }
     if (event.target instanceof Element && event.target.closest('.scene-tab-context-menu')) return;
     if (closingPath.value || conflict.value) {
         if (event.code === 'Escape') {
@@ -971,6 +1093,7 @@ function endAssetDrag() {
 }
 
 function clearWorkspace() {
+    endSceneTabDrag();
     projectChangeGeneration += 1;
     sceneOpenGeneration += 1;
     for (const tab of sceneTabs.value) tab.unsubscribe();
@@ -1102,6 +1225,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    endSceneTabDrag();
+    clearTimeout(sceneTabClickTimer);
     globalThis.document.documentElement.removeAttribute('data-theme');
     endPanelResize();
     editorDisposed = true;
@@ -1204,12 +1329,22 @@ onBeforeUnmount(() => {
       <div class="sync-state" :data-state="syncState"><span />{{ syncLabel }}</div>
     </header>
 
-    <nav class="scene-tabs" aria-label="打开的 Scene">
+    <nav
+      ref="sceneTabBar"
+      class="scene-tabs"
+      aria-label="打开的 Scene"
+      @click.capture="handleSceneTabClick"
+    >
       <ContextMenuRoot v-for="tab in sceneTabs" :key="tab.path" :modal="false">
         <ContextMenuTrigger as-child>
           <div
             class="scene-tab"
-            :class="{ active: currentScenePath === tab.path }"
+            :class="{
+              active: currentScenePath === tab.path,
+              dragging: draggedSceneTabPath === tab.path,
+              'drop-before': sceneTabDrop?.path === tab.path && sceneTabDrop.before,
+              'drop-after': sceneTabDrop?.path === tab.path && !sceneTabDrop.before,
+            }"
             :data-scene-tab="tab.path"
           >
             <button
@@ -1219,6 +1354,8 @@ onBeforeUnmount(() => {
               :aria-current="currentScenePath === tab.path ? 'page' : undefined"
               :title="tab.path"
               @click="navigateToScene(tab.path)"
+              @pointerdown="startSceneTabDrag(tab.path, $event)"
+              @dragstart.prevent
             >
               <span>{{ tab.path.split('/').at(-1) }}</span>
               <span v-if="tab.syncState === 'conflict' || tab.syncState === 'error'" class="scene-tab-status error">!</span>

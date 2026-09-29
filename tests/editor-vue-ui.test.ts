@@ -299,7 +299,7 @@ describe('Editor Vue UI', () => {
         wrapper.unmount();
     });
 
-    describe('Scene tab context menu', () => {
+    describe('Scene tabs', () => {
         const paths = ['Menu', 'Button', 'Dialog', 'Hud'].map((name) => `src/scenes/${name}.scene`);
 
         async function openTabs() {
@@ -360,8 +360,27 @@ describe('Editor Vue UI', () => {
                 await flushPromises();
             }
 
+            function dragGeometry() {
+                vi.spyOn(wrapper.get('.scene-tabs').element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 400, 36));
+                wrapper.findAll('[data-scene-tab]').forEach((tab, index) => {
+                    vi.spyOn(tab.element, 'getBoundingClientRect').mockReturnValue(new DOMRect(index * 100, 0, 100, 36));
+                });
+            }
+
+            async function startDrag(index: number) {
+                dragGeometry();
+                await wrapper.get(`[aria-label="切换到 ${paths[index]}"]`).trigger('pointerdown', { button: 0, pointerId: 1, clientX: index * 100 + 50, clientY: 18 });
+            }
+
+            async function drop(index: number, clientX: number) {
+                await startDrag(index);
+                await wrapper.get('.scene-tabs').trigger('pointermove', { clientX, clientY: 18, pointerId: 1 });
+                await wrapper.get('.scene-tabs').trigger('pointerup', { clientX, clientY: 18, pointerId: 1 });
+                await flushPromises();
+            }
+
             return {
-                wrapper, menu, choose, edit, writes,
+                wrapper, menu, choose, edit, writes, startDrag, drop,
                 failWrites: (status = 500) => { writeFailure = status; },
                 holdWrites: () => {
                     let release!: () => void;
@@ -372,6 +391,135 @@ describe('Editor Vue UI', () => {
                 savedPaths: () => uiState.openScenePaths,
             };
         }
+
+        it.each([
+            [0, 390, [1, 2, 3, 0]],
+            [3, 10, [3, 0, 1, 2]],
+            [0, 240, [1, 0, 2, 3]],
+            [3, 160, [0, 1, 3, 2]],
+        ] as const)('moves tab %i to the gap at %i and persists the order', async (from, clientX, order) => {
+            const tabs = await openTabs();
+            try {
+                await tabs.drop(from, clientX);
+                const expected = order.map((index) => paths[index]);
+                expect(tabs.remaining()).toEqual(expected);
+                expect(useEditorUiStore().currentScenePath).toBe(paths[3]);
+                await vi.waitFor(() => expect(tabs.savedPaths()).toEqual(expected));
+            } finally {
+                tabs.wrapper.unmount();
+            }
+        });
+
+        it('restores the reordered tabs when the Editor is reopened', async () => {
+            const tabs = await openTabs();
+            await tabs.drop(3, 10);
+            await vi.waitFor(() => expect(tabs.savedPaths()).toEqual([paths[3], ...paths.slice(0, 3)]));
+            tabs.wrapper.unmount();
+            const pinia = createPinia();
+            setActivePinia(pinia);
+            const reopened = mount(EditorApp, { global: { plugins: [pinia], stubs: { SceneCanvas: true } } });
+            try {
+                await vi.waitFor(() => expect(reopened.findAll('[data-scene-tab]')).toHaveLength(4));
+                expect(reopened.findAll('[data-scene-tab]').map((tab) => tab.attributes('data-scene-tab'))).toEqual([paths[3], ...paths.slice(0, 3)]);
+                await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe(paths[3]));
+            } finally {
+                reopened.unmount();
+            }
+        });
+
+        it('switches on a click but suppresses the click following a drag', async () => {
+            const tabs = await openTabs();
+            try {
+                await tabs.startDrag(0);
+                const title = tabs.wrapper.get(`[aria-label="切换到 ${paths[0]}"]`);
+                await title.trigger('pointermove', { clientX: 52, clientY: 18, pointerId: 1 });
+                await title.trigger('pointerup', { clientX: 52, clientY: 18, pointerId: 1 });
+                await title.trigger('click');
+                await flushPromises();
+                expect(useEditorUiStore().currentScenePath).toBe(paths[0]);
+                expect(tabs.remaining()).toEqual(paths);
+
+                await tabs.startDrag(1);
+                await tabs.wrapper.get('.scene-tabs').trigger('pointermove', { clientX: 280, clientY: 18, pointerId: 1 });
+                await tabs.wrapper.get('.scene-tabs').trigger('pointerup', { clientX: 280, clientY: 18, pointerId: 1 });
+                await tabs.wrapper.get(`[aria-label="切换到 ${paths[1]}"]`).trigger('click');
+                await flushPromises();
+                expect(tabs.remaining()).toEqual([paths[0], paths[2], paths[1], paths[3]]);
+                expect(useEditorUiStore().currentScenePath).toBe(paths[0]);
+            } finally {
+                tabs.wrapper.unmount();
+            }
+        });
+
+        it('scrolls towards either edge while dragging and stops outside the bar', async () => {
+            const tabs = await openTabs();
+            let frame!: FrameRequestCallback;
+            let frameId = 0;
+            const cancelFrame = vi.fn();
+            vi.stubGlobal('requestAnimationFrame', vi.fn((callback: FrameRequestCallback) => {
+                frame = callback;
+                return ++frameId;
+            }));
+            vi.stubGlobal('cancelAnimationFrame', cancelFrame);
+            try {
+                await tabs.startDrag(0);
+                const bar = tabs.wrapper.get('.scene-tabs');
+                bar.element.scrollLeft = 100;
+                await bar.trigger('pointermove', { clientX: 398, clientY: 18, pointerId: 1 });
+                frame(16);
+                expect(bar.element.scrollLeft).toBeGreaterThan(100);
+                const rightScroll = bar.element.scrollLeft;
+                await bar.trigger('pointermove', { clientX: 2, clientY: 18, pointerId: 1 });
+                frame(32);
+                expect(bar.element.scrollLeft).toBeLessThan(rightScroll);
+                await bar.trigger('pointermove', { clientX: 2, clientY: 100, pointerId: 1 });
+                expect(cancelFrame).toHaveBeenCalledWith(frameId);
+                expect(tabs.wrapper.find('.scene-tab.drop-before, .scene-tab.drop-after').exists()).toBe(false);
+            } finally {
+                tabs.wrapper.unmount();
+            }
+        });
+
+        it('preserves drafts and undo when reordering and closes the new right-hand range', async () => {
+            const tabs = await openTabs();
+            try {
+                await tabs.edit(0);
+                await tabs.drop(0, 240);
+                expect(useEditorUiStore().currentScenePath).toBe(paths[0]);
+                expect((tabs.wrapper.get('input[data-prop="text"]').element as HTMLInputElement).value).toBe('修改 0');
+                expect(tabs.wrapper.get(`[data-scene-tab="${paths[0]}"]`).text()).toContain('●');
+                await tabs.wrapper.get('[aria-label="撤销"]').trigger('click');
+                await flushPromises();
+                expect((tabs.wrapper.get('input[data-prop="text"]').element as HTMLInputElement).value).toBe('开始');
+                await tabs.choose(0, '关闭右边');
+                expect(tabs.remaining()).toEqual([paths[1], paths[0]]);
+                expect(tabs.writes).toEqual([]);
+            } finally {
+                tabs.wrapper.unmount();
+            }
+        });
+
+        it.each(['escape', 'outside', 'same-position'])('keeps the order on %s and clears drag indicators', async (action) => {
+            const tabs = await openTabs();
+            try {
+                await tabs.startDrag(0);
+                await tabs.wrapper.get('.scene-tabs').trigger('pointermove', { clientX: action === 'same-position' ? 10 : 280, clientY: 18, pointerId: 1 });
+                expect(tabs.wrapper.find('.scene-tab.drop-before, .scene-tab.drop-after').exists()).toBe(true);
+                if (action === 'escape') {
+                    await tabs.wrapper.get('.scene-tabs').trigger('keydown', { key: 'Escape', code: 'Escape' });
+                } else if (action === 'outside') {
+                    await tabs.wrapper.get('.scene-tabs').trigger('pointermove', { clientX: 280, clientY: 100, pointerId: 1 });
+                    expect(tabs.wrapper.find('.scene-tab.drop-before, .scene-tab.drop-after').exists()).toBe(false);
+                    await tabs.wrapper.get(`[aria-label="切换到 ${paths[0]}"]`).trigger('pointerup', { clientX: 280, clientY: 100, pointerId: 1 });
+                } else {
+                    await tabs.wrapper.get('.scene-tabs').trigger('pointerup', { clientX: 10, clientY: 18, pointerId: 1 });
+                }
+                expect(tabs.remaining()).toEqual(paths);
+                expect(tabs.wrapper.find('.scene-tab.dragging, .scene-tab.drop-before, .scene-tab.drop-after').exists()).toBe(false);
+            } finally {
+                tabs.wrapper.unmount();
+            }
+        });
 
         it.each([
             ['关闭当前', [0, 2, 3], 3],

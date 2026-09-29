@@ -344,6 +344,7 @@ summary:focus-visible,
 }
 
 .scene-tab {
+    position: relative;
     display: flex;
     flex: 0 0 auto;
     align-items: center;
@@ -365,6 +366,31 @@ summary:focus-visible,
     color: var(--text);
 }
 
+.scene-tab.dragging {
+    opacity: 0.5;
+}
+
+.scene-tab.drop-before::before,
+.scene-tab.drop-after::after {
+    position: absolute;
+    z-index: 1;
+    top: 2px;
+    bottom: 2px;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--focus);
+    content: '';
+    pointer-events: none;
+}
+
+.scene-tab.drop-before::before {
+    left: -2px;
+}
+
+.scene-tab.drop-after::after {
+    right: -2px;
+}
+
 .scene-tab-activate {
     display: flex;
     min-width: 0;
@@ -372,6 +398,8 @@ summary:focus-visible,
     gap: 7px;
     height: 100%;
     padding: 0 4px 0 12px;
+    user-select: none;
+    touch-action: none;
     background: transparent;
     color: inherit;
     font-size: 12px;

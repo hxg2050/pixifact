@@ -735,6 +735,17 @@ Scenario: Many tabs overflow the tab bar
   Given the open tabs exceed the available width
   Then a thin themed horizontal scrollbar allows browsing them without covering their text
   And Escape dismisses the context menu without clearing the Scene selection
+
+Scenario: User reorders Scene tabs by dragging their titles
+  Given several Scene tabs are open with an unsaved draft
+  When the user drags a tab title between other tabs
+  Then an insertion indicator shows its destination
+  And the bar scrolls horizontally when the pointer stays near either edge
+  When the user releases within the bar
+  Then the tab order is saved and restored when the Editor is reopened
+  And the active Scene, draft, undo history and canvas view are preserved
+  And close left and close right follow the new order
+  But Escape or releasing outside the bar leaves the order unchanged
 ```
 
 TDD 入口：`tests/editor-vue-ui.test.ts` 与浏览器验收。
