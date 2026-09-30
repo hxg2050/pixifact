@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createPixifactAutomation } from './automation';
 import { hintForCommandError } from 'pixifact';
 import { CompileSceneError, compileScenes } from 'pixifact/compiler-node';
@@ -50,6 +50,7 @@ interface ParsedArgs {
 }
 
 const runtimeScreenshotDefaultOutput = '.pixifact/runtime/frame.png';
+const isCliEntrypoint = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 function parseArgs(argv: string[]): ParsedArgs {
     const positionals: string[] = [];
@@ -611,6 +612,30 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
             };
         }
 
+        if (isCliEntrypoint
+            && parsed.positionals.length === 1
+            && parsed.positionals[0] === 'dev'
+            && !process.execArgv.some((arg) => /^--inspect(?:-brk|-wait)?(?:=|$)/.test(arg))) {
+            assertAllowedFlags(parsed.flags, ['mode', 'project-root'], 'dev');
+            const child = Bun.spawn([
+                process.execPath,
+                ...process.execArgv,
+                '--inspect',
+                fileURLToPath(import.meta.url),
+                ...argv,
+            ], { stdin: 'inherit', stdout: 'inherit', stderr: 'inherit' });
+            const interrupt = () => child.kill('SIGINT');
+            const terminate = () => child.kill('SIGTERM');
+            process.on('SIGINT', interrupt);
+            process.on('SIGTERM', terminate);
+            try {
+                return { exitCode: await child.exited, stdout: '', stderr: '' };
+            } finally {
+                process.off('SIGINT', interrupt);
+                process.off('SIGTERM', terminate);
+            }
+        }
+
         const automation = options.automation ?? createPixifactAutomation();
         const result = await executeFileCommand(
             parsed.positionals,
@@ -650,7 +675,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
     }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isCliEntrypoint) {
     const result = await executePixifactCli(process.argv.slice(2), {
         onDevEvent: (event) => process.stdout.write(jsonLine(event)),
     });

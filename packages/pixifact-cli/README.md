@@ -122,6 +122,8 @@ pixifact dev --mode douyin
 
 Web mode 只需要 `pixifact`，不安装小游戏平台包也能构建。`dev` 默认 mode 为 `development`，`build` 和 `validate` 默认为 `production`；显式 `--mode` 原样交给 Vite。默认产物目录为 `dist/<platform>/`，需要修改时使用 Vite `build.outDir`。
 
+`pixifact dev` 默认自动启用 Bun Inspector，终端会输出调试地址；项目的 `dev` 脚本直接调用 `pixifact dev` 即可。若启动 Bun 时已指定 `--inspect`、`--inspect-brk` 或 `--inspect-wait`（包括自定义地址），CLI 使用已有调试参数。
+
 CLI 使用 Vite 完成 env、TypeScript、tree-shaking、watch、静态资源和产物生命周期；Pixifact 插件负责 Scene 编译、当前平台虚拟模块、Pixi manifest、资源分包、原生配置和包体检查。业务代码只使用 PixiJS `Assets`，不需要手动加载分包。
 
 完整配置见 [微信小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/wechat-minigame.md) 和 [抖音小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/douyin-minigame.md)，可运行三端示例见 [wechat-minigame-demo](https://github.com/hxg2050/pixifact/tree/main/sample-projects/wechat-minigame-demo)。

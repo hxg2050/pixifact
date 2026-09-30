@@ -35,7 +35,7 @@ bun run dev
 
 模板的 `.env` 默认设置 `VITE_PLATFORM=web`。`dev` 和 `build` 会自动处理 Scene 编译，也可以使用 `compile` 单独编译 Scene。
 
-`dev` 默认通过 `bun --inspect` 启动 Pixifact CLI，终端会输出 Bun Inspector 调试地址。用户和 Agent 直接运行 `bun run dev` 即可同时启动开发服务和调试入口。
+`dev` 脚本直接执行 `pixifact dev`，CLI 会自动启用 Bun Inspector 并在终端输出调试地址。用户和 Agent 直接运行 `bun run dev` 即可同时启动开发服务和调试入口。
 
 ## 观察运行中的游戏
 

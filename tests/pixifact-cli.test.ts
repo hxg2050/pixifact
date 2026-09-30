@@ -120,6 +120,32 @@ describe('Pixifact CLI', () => {
         });
     });
 
+    it.each([
+        { flags: [] },
+        { flags: ['--inspect=127.0.0.1:0'] },
+    ])('starts dev with one Inspector when Bun flags are $flags and preserves command errors', async ({ flags }) => {
+        const projectRoot = createViteTargetProject();
+        fs.writeFileSync(path.join(projectRoot, '.env.debug-game'), 'VITE_PLATFORM=invalid\n');
+        const cliPath = path.join(process.cwd(), 'packages/pixifact-cli/src/pixifact-cli.ts');
+
+        const result = await execFileAsync('bun', [
+            ...flags, cliPath, 'dev', '--mode', 'debug-game', '--project-root', projectRoot,
+        ]).catch((error) => error);
+
+        expect(result.code).toBe(1);
+        expect(result.stdout).toBe('');
+        expect(result.stderr.match(/Listening:/g)).toHaveLength(1);
+        expect(result.stderr).toContain('VITE_PLATFORM must be web, wechat, or douyin.');
+    });
+
+    it.each([['--help'], ['dev', '--help']])('prints help without starting Inspector for %j', async (...args) => {
+        const cliPath = path.join(process.cwd(), 'packages/pixifact-cli/src/pixifact-cli.ts');
+        const { stdout, stderr } = await execFileAsync('bun', [cliPath, ...args]);
+
+        expect(stderr).toBe('');
+        expect(JSON.parse(stdout).aiPrimaryCommands).toContain('dev [--mode <vite-mode>]');
+    });
+
     it('outputs a project summary as JSON', async () => {
         const projectRoot = createTempProject();
         const result = await runCli(['summary', '--project-root', projectRoot]);
