@@ -126,6 +126,7 @@ rtk bun run test -- --maxWorkers=1
 
 ## Progress
 
+- [ ] 发布 v0.18.0，核对 GitHub Actions、五个 npm 包和 GitHub Release。
 - [x] 2026-10-01：完成局域网开发预览、Bun Inspector 与 Runtime 接入。
 - [x] 完成产品边界与第一版命令讨论。
 - [x] 建立实现计划与 BDD。
@@ -161,6 +162,7 @@ Done:
 - 下游 Agent skill 和 Runtime 文档已明确输入前后读取状态、截图及增量日志的 Web 验证流程。本轮 322 项测试通过，核心包与 Web 示例 TypeScript 检查及 skill 校验通过；未运行发布构建。
 
 Current State:
+- 已生成 v0.18.0 五包版本、changelog 和模板依赖，发布检查由 tag workflow 执行。
 - 局域网开发预览和 Inspector 已实现，相关构建、端到端验证和 394 项全量回归测试通过。
 - Runtime v1 和 Web 开发期来源扩展均已实现。游戏脚本动态创建的节点不带 `.scene` 来源。
 
@@ -168,4 +170,5 @@ Currently Failing:
 - 无目标测试失败。
 
 Next:
-- 本轮任务已完成，无待办事项。
+1. 提交版本变更并推送 v0.18.0 tag。
+2. 等待发布工作流完成，确认 npm registry 和 GitHub Release，并更新发布记录。

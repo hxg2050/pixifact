@@ -1,5 +1,11 @@
 # create-pixifact
 
+## 0.18.0
+
+### Minor Changes
+
+- `pixifact dev` 默认启用 Bun Inspector，脚手架项目继续通过 `bun run dev` 启动。Web 预览和 Inspector 均默认支持局域网访问，启动结果提供本机与局域网游戏地址；保留显式 Vite `server.host` 和 Bun 调试参数。
+
 ## 0.17.0
 
 ## 0.16.0
