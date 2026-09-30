@@ -89,7 +89,8 @@ function createClient() {
 }
 
 describe('Pixifact Runtime client', () => {
-    it('reuses the injected client when the runtime-dev module is evaluated again', async () => {
+    it.each([true, false])('reuses the injected client across HMR with secure context %s', async (secureContext) => {
+        if (!secureContext) vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) });
         const runtimeHotKey = Symbol.for('pixifact.runtime.hot');
         const runtimeClientKey = Symbol.for('pixifact.runtime.client');
         const runtimeGlobal = globalThis as { [key: symbol]: unknown };
@@ -116,6 +117,7 @@ describe('Pixifact Runtime client', () => {
             delete runtimeGlobal[runtimeClientKey];
             delete runtimeGlobal[runtimeHotKey];
             vi.resetModules();
+            vi.unstubAllGlobals();
         }
     });
 

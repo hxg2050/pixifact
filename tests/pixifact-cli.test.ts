@@ -1,5 +1,7 @@
 import fs from 'node:fs';
 import { execFile } from 'node:child_process';
+import { once } from 'node:events';
+import { createServer as createNetServer } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -7,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSceneRevision } from 'pixifact/compiler';
 import { hintForCommandError } from 'pixifact';
 import { executePixifactCli } from '../packages/pixifact-cli/src/pixifact-cli';
+import { devPixifactTarget } from '../packages/pixifact-cli/src/viteTarget';
 
 const tempRoots: string[] = [];
 const execFileAsync = promisify(execFile);
@@ -121,9 +124,9 @@ describe('Pixifact CLI', () => {
     });
 
     it.each([
-        { flags: [] },
-        { flags: ['--inspect=127.0.0.1:0'] },
-    ])('starts dev with one Inspector when Bun flags are $flags and preserves command errors', async ({ flags }) => {
+        { flags: [], host: '0.0.0.0' },
+        { flags: ['--inspect=127.0.0.1:0'], host: '127.0.0.1' },
+    ])('starts dev with one Inspector when Bun flags are $flags and preserves command errors', async ({ flags, host }) => {
         const projectRoot = createViteTargetProject();
         fs.writeFileSync(path.join(projectRoot, '.env.debug-game'), 'VITE_PLATFORM=invalid\n');
         const cliPath = path.join(process.cwd(), 'packages/pixifact-cli/src/pixifact-cli.ts');
@@ -135,6 +138,7 @@ describe('Pixifact CLI', () => {
         expect(result.code).toBe(1);
         expect(result.stdout).toBe('');
         expect(result.stderr.match(/Listening:/g)).toHaveLength(1);
+        expect(new URL(result.stderr.match(/ws:\/\/[^\s]+/)[0]).hostname).toBe(host);
         expect(result.stderr).toContain('VITE_PLATFORM must be web, wechat, or douyin.');
     });
 
@@ -339,6 +343,40 @@ describe('Pixifact CLI', () => {
 
         expect(result.exitCode).toBe(1);
         expect(result.json.error).toBe('VITE_PLATFORM must be web, wechat, or douyin.');
+    });
+
+    it.each([undefined, '127.0.0.1'])('serves Web dev on the default LAN host or configured host %s and reports URLs', async (host) => {
+        const projectRoot = createViteTargetProject();
+        const addressPath = path.join(projectRoot, 'listening.json');
+        const compilerNode = path.join(process.cwd(), 'packages/pixifact/src/compiler-node/index.ts');
+        const portProbe = createNetServer().listen(0);
+        await once(portProbe, 'listening');
+        const port = (portProbe.address() as { port: number }).port;
+        await new Promise<void>((resolve) => portProbe.close(() => resolve()));
+        fs.writeFileSync(path.join(projectRoot, 'vite.config.ts'), [
+            "import { writeFileSync } from 'node:fs';",
+            `import { pixifact } from ${JSON.stringify(compilerNode)};`,
+            'export default ({ command }) => ({',
+            "  base: '/play/',",
+            `  server: command === 'serve' ? ${JSON.stringify({ port, host, strictPort: true })} : {},`,
+            '  plugins: [pixifact(), {',
+            "    name: 'record-listening-address',",
+            `    configureServer(server) { server.httpServer.once('listening', () => writeFileSync(${JSON.stringify(addressPath)}, JSON.stringify(server.httpServer.address()))); },`,
+            '  }],',
+            '});',
+        ].join('\n'));
+
+        const session = await devPixifactTarget(projectRoot, 'game1');
+        try {
+            expect(host ? [host] : ['0.0.0.0', '::']).toContain(JSON.parse(fs.readFileSync(addressPath, 'utf8')).address);
+            expect(session.urls?.local).toHaveLength(1);
+            expect(session.urls!.local[0]).toMatch(/\/play\/$/);
+            const page = await fetch(session.urls!.local[0]);
+            expect(page.status).toBe(200);
+            expect(await page.text()).toContain('src/main.ts');
+        } finally {
+            await session.close();
+        }
     });
 
     it('requires VITE_APP_ID only for mini game modes', async () => {

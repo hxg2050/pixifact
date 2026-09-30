@@ -25,7 +25,7 @@ if (!name || name === '--help' || name === '-h') {
             '  bun install',
             '',
             '项目命令：',
-            '  bun run dev      启动 Web 开发服务（默认启用 --inspect 调试）',
+            '  bun run dev      启动 Web 开发服务（预览和 --inspect 调试均支持局域网）',
             '  bun run build    构建 Web 生产版本',
             '  bun run compile  编译 Scene',
             '  bun run editor   启动 Pixifact 编辑器',

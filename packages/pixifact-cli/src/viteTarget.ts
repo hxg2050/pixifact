@@ -4,6 +4,7 @@ import {
     build,
     createServer,
     resolveConfig,
+    type ResolvedServerUrls,
     type Rollup,
 } from 'vite';
 import {
@@ -42,6 +43,7 @@ export interface PixifactDevSession {
     close(): Promise<void>;
     initialReport: PixifactBuildReport;
     platform: PixifactPlatform;
+    urls?: ResolvedServerUrls | null;
 }
 
 export class PixifactTargetError extends Error {
@@ -123,12 +125,17 @@ export async function devPixifactTarget(
             root: validation.projectRoot,
             mode,
             logLevel: 'silent',
+            plugins: [{
+                name: 'pixifact-dev-host',
+                config: (config) => ({ server: { host: config.server?.host ?? true } }),
+            }],
         });
         await server.listen();
         return {
             close: () => server.close(),
             initialReport: emptyReport('web', validation.resolved.build.outDir),
             platform: 'web',
+            urls: server.resolvedUrls,
         };
     }
     let resolveInitial: (report: PixifactBuildReport) => void;

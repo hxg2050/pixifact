@@ -371,7 +371,7 @@ export function runtimeSessionDescriptorPath(
 
 function isLoopbackOrigin(origin: string) {
     const hostname = new URL(origin).hostname;
-    return hostname === 'localhost' || hostname === '::1' || hostname.startsWith('127.');
+    return hostname === 'localhost' || hostname === '[::1]' || hostname.startsWith('127.');
 }
 
 function validateRuntimeSessionDescriptor(value: unknown): RuntimeSessionDescriptor {
@@ -484,10 +484,12 @@ function serverOrigin(server: RuntimeViteServer) {
     if (!address || typeof address === 'string') {
         throw new Error('Pixifact Runtime requires a listening Vite HTTP server.');
     }
-    if (!(address.address === '::1' || address.address.startsWith('127.'))) {
-        throw new Error('Pixifact Runtime requires the Vite server to bind to a loopback address.');
+    const host = address.address === '0.0.0.0' ? '127.0.0.1'
+        : address.address === '::' ? '::1' : address.address;
+    if (!(host === '::1' || host.startsWith('127.'))) {
+        throw new Error('Pixifact Runtime requires the Vite server to bind to a loopback or wildcard address.');
     }
-    const hostname = address.address === '::1' ? '[::1]' : address.address;
+    const hostname = host === '::1' ? '[::1]' : host;
     const protocol = server.config.server.https ? 'https' : 'http';
     return `${protocol}://${hostname}:${address.port}`;
 }

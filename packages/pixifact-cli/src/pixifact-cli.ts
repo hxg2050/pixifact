@@ -441,6 +441,7 @@ async function executeFileCommand(
                     mode,
                     watching: true,
                     report: session.initialReport,
+                    urls: session.urls,
                 };
             } catch (error) {
                 if (error instanceof PixifactTargetError) {
@@ -620,7 +621,7 @@ export async function executePixifactCli(argv: string[], options: CliOptions = {
             const child = Bun.spawn([
                 process.execPath,
                 ...process.execArgv,
-                '--inspect',
+                '--inspect=0.0.0.0:0',
                 fileURLToPath(import.meta.url),
                 ...argv,
             ], { stdin: 'inherit', stdout: 'inherit', stderr: 'inherit' });

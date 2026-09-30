@@ -124,7 +124,8 @@ pixifact runtime input keyup ArrowLeft
 
 ## 边界
 
-- 仅支持 Vite Web 开发模式和 loopback 开发服务器。
+- 支持在本机或局域网设备打开 Vite Web 开发页面；`pixifact dev` 默认监听所有网络接口，并输出本机和局域网游戏地址。普通 HTTP 局域网页面也能注册 Runtime 和使用 HMR。
+- Agent CLI 在开发服务器所在电脑运行，通过本机地址和项目 token 访问 Runtime；Vite Runtime 服务支持 loopback 或通配地址监听。
 - Transport 复用 Vite HMR WebSocket，并通过系统临时目录中的项目 descriptor 与私有 token 供 CLI 发现；不使用固定端口或额外 Runtime Host。
 - 不接入 Editor Authoring Preview，不执行 Editor 中的项目游戏逻辑。
 - 不支持 eval、节点 mutation、业务状态 mutation、直接节点 click、Scenario、断言、状态订阅、历史或日志持久化。

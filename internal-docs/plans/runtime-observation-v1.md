@@ -2,6 +2,8 @@
 
 ## Goal
 
+2026-10-01 续作：`pixifact dev` 默认提供局域网游戏预览和 Bun Inspector，输出本机与局域网游戏 URL，并确保 Runtime 注册、会话发现和 HMR 在普通 HTTP 局域网页面中可用。
+
 为 Vite Web 开发模式中的真实 PixiJS 游戏提供一条不依赖浏览器自动化工具的 Agent 运行时闭环：外部 Agent 可以发现当前游戏、读取 PixiJS 节点树与业务状态、读取日志，并通过等同玩家的指针和键盘输入操作游戏。
 
 ## Decisions
@@ -18,7 +20,10 @@
 - Runtime 输入只模拟用户可执行的 pointer 与 keyboard 输入，不提供节点方法调用、业务方法调用、eval、节点属性修改或业务状态修改。
 - 点击坐标使用 Pixi renderer screen 坐标，浏览器 Runtime 根据 Canvas DOM bounds 换算 client 坐标后分发正常事件序列；不提供 `node <uid> click`。
 - Transport 由 `pixifactRuntimePlugin` 复用 Vite 开发服务器和现有 HMR WebSocket，不启动额外 Runtime Host 或固定端口。
-- Vite 插件在系统临时目录登记项目级 `{ projectRoot, origin, token }` descriptor；CLI 按当前项目发现，所有 HTTP 请求限制为 loopback origin 并携带私有 token。
+- Vite 插件在系统临时目录登记项目级 `{ projectRoot, origin, token }` descriptor；CLI 按当前项目发现，通过 loopback origin 和私有 token 访问本机开发服务。Vite 可以监听通配地址供局域网设备打开游戏，descriptor 使用对应的 loopback 地址。
+- `pixifact dev` 的 Web 服务默认使用 Vite `server.host = true` 监听所有网络接口，保留项目显式配置的 `server.host`；启动结果复用 Vite 提供的 local / network URL。
+- 用户确认游戏预览和 Bun Inspector 都需要局域网访问；默认 Inspector 监听 `0.0.0.0` 并由系统分配空闲端口，已有显式 Bun Inspector 参数继续优先。
+- 浏览器 Runtime 的页面 ID 使用普通 HTTP 页面也可用的 `crypto.getRandomValues`；页面刷新生成新的 ID，HMR 继续复用当前客户端。
 - 一个 Vite 页面只允许一个注册的 `Application`。多个打开页面以每页生成的 `runtimeId` 区分；只有一个时 CLI 自动选择，多个时要求 `--runtime <runtime-id>`。
 - `runtime tree` 默认输出终端 JSON；传入 `--output <json-path>` 时，CLI 保存带有 `schemaVersion`、`capturedAt`、`runtimeId` 和 `root` 的一次性节点树快照。快照不是项目数据源，页面刷新后必须重新生成。
 - `runtime screenshot` 默认将 PNG 保存到项目根下 `.pixifact/runtime/frame.png`；传入 `--output <png-path>` 时覆盖默认路径。截图只捕获已注册 Application 的 `app.stage`。
@@ -81,6 +86,7 @@ pixifact runtime input keyup <key> [--runtime <runtime-id>]
 
 ## Implementation Scope
 
+- 2026-10-01：CLI Web dev 监听与 URL 输出、Runtime 通配监听的本机会话地址、浏览器页面 ID、相关测试与使用文档。
 - `packages/pixifact/src/runtime-dev/`：浏览器开发客户端、`registerPixiRuntime`、Pixi tree/node 序列化、状态快照、日志环形缓冲和输入分发。
 - `packages/pixifact/src/compiler-node/`：Vite Runtime plugin、项目级 session descriptor、HMR 请求路由和 loopback HTTP 入口。
 - `packages/pixifact-cli/src/`：Runtime session 查询与 CLI 参数/输出。
@@ -90,6 +96,7 @@ pixifact runtime input keyup <key> [--runtime <runtime-id>]
 
 ## Test Plan
 
+- [x] 2026-10-01：默认局域网监听、显式 host、通配地址的 Runtime descriptor、普通 HTTP 页面 ID；生成项目通过局域网 IP 完成加载、HMR、Runtime state、输入和 Inspector 调试验证。
 - [x] 浏览器 Runtime：现场遍历 stage、保持 children 顺序、按 Pixi uid 查询详情、类型字段与动态增删节点。
 - [x] 浏览器 Runtime：`getState` 按请求执行、未注册 state 时返回明确结果、非法快照返回结构化失败。
 - [x] 浏览器 Runtime：自动日志捕获、Error stack、seq、after/level 过滤、500 条上限和不影响原 console 输出。
@@ -103,6 +110,10 @@ pixifact runtime input keyup <key> [--runtime <runtime-id>]
 
 ## Verification
 
+- 2026-10-01：97 项 CLI、Runtime 和脚手架测试通过；`bun run build` 和 `packages/create-pixifact` 构建通过。
+- 2026-10-01：`bun run test` 全量回归通过，共 26 个测试文件、394 项测试。
+- 2026-10-01：生成项目运行 `bun run dev`，Chrome 通过本机局域网 IP 打开普通 HTTP 页面，确认 Runtime 注册、state/tree/input 和 CSS HMR；通过同一局域网 IP 连接 Inspector 并执行调试请求。服务停止后确认开发进程退出。
+
 ```bash
 rtk bunx --no-install vitest run tests/runtime-client.test.ts
 rtk bunx --no-install vitest run tests/runtime-session.test.ts tests/pixifact-cli.test.ts
@@ -115,6 +126,7 @@ rtk bun run test -- --maxWorkers=1
 
 ## Progress
 
+- [x] 2026-10-01：完成局域网开发预览、Bun Inspector 与 Runtime 接入。
 - [x] 完成产品边界与第一版命令讨论。
 - [x] 建立实现计划与 BDD。
 - [x] 完成浏览器 Runtime 客户端。
@@ -134,9 +146,10 @@ rtk bun run test -- --maxWorkers=1
 
 ## Resume Notes
 
-Last updated: 2026-09-24
+Last updated: 2026-10-01
 
 Done:
+- 2026-10-01：Web dev 和 Inspector 默认支持局域网，启动结果包含游戏访问 URL；修复通配监听、IPv6 loopback descriptor 和普通 HTTP 页面的 Runtime 初始化，相关测试、构建和真实浏览器验证通过。
 - 已完成 Runtime v1 产品讨论和实现计划。
 - 已实现 `pixifact/runtime-dev`、Vite Runtime plugin、项目 descriptor、CLI runtime 命令和示例项目接入。
 - Runtime client 已通过全局 Symbol 在模块热更新后复用，公开入口只保留 `registerPixiRuntime`。
@@ -148,10 +161,11 @@ Done:
 - 下游 Agent skill 和 Runtime 文档已明确输入前后读取状态、截图及增量日志的 Web 验证流程。本轮 322 项测试通过，核心包与 Web 示例 TypeScript 检查及 skill 校验通过；未运行发布构建。
 
 Current State:
+- 局域网开发预览和 Inspector 已实现，相关构建、端到端验证和 394 项全量回归测试通过。
 - Runtime v1 和 Web 开发期来源扩展均已实现。游戏脚本动态创建的节点不带 `.scene` 来源。
 
 Currently Failing:
-- 无目标测试失败。并行运行核心包构建与示例构建时会因核心 dist 清理产生竞争；已改为串行验证并通过。
+- 无目标测试失败。
 
 Next:
-1. 在重复 Agent 评测中检验 Web 验证流程，并根据实际定位困难决定是否需要扩展 CLI 输入结果、拖拽或等待。
+- 本轮任务已完成，无待办事项。

@@ -122,7 +122,9 @@ pixifact dev --mode douyin
 
 Web mode 只需要 `pixifact`，不安装小游戏平台包也能构建。`dev` 默认 mode 为 `development`，`build` 和 `validate` 默认为 `production`；显式 `--mode` 原样交给 Vite。默认产物目录为 `dist/<platform>/`，需要修改时使用 Vite `build.outDir`。
 
-`pixifact dev` 默认自动启用 Bun Inspector，终端会输出调试地址；项目的 `dev` 脚本直接调用 `pixifact dev` 即可。若启动 Bun 时已指定 `--inspect`、`--inspect-brk` 或 `--inspect-wait`（包括自定义地址），CLI 使用已有调试参数。
+`pixifact dev` 的 Web 开发服务默认监听所有网络接口，启动 JSON 的 `urls.local` 和 `urls.network` 分别提供本机与局域网游戏地址；同一局域网的手机或电脑可直接打开 `urls.network` 中的 URL。项目在 `vite.config.ts` 显式设置的 `server.host` 会优先使用，例如 `server: { host: '127.0.0.1' }` 只监听本机。
+
+`pixifact dev` 同时自动启用 Bun Inspector，默认监听 `0.0.0.0`，端口由系统分配；项目的 `dev` 脚本直接调用 `pixifact dev` 即可。远程调试时，将 Bun 输出的 WebSocket 或浏览器调试链接中的 `0.0.0.0` 替换为开发电脑的局域网 IP，保留端口和路径。若启动 Bun 时已指定 `--inspect`、`--inspect-brk` 或 `--inspect-wait`（包括自定义地址），CLI 使用已有调试参数。
 
 CLI 使用 Vite 完成 env、TypeScript、tree-shaking、watch、静态资源和产物生命周期；Pixifact 插件负责 Scene 编译、当前平台虚拟模块、Pixi manifest、资源分包、原生配置和包体检查。业务代码只使用 PixiJS `Assets`，不需要手动加载分包。
 

@@ -1,10 +1,14 @@
 import fs from 'node:fs';
+import { once } from 'node:events';
+import { createServer as createNetServer } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createServer } from 'vite';
 import {
     createRuntimeHostSession,
     findActiveRuntimeSession,
+    pixifactRuntimePlugin,
     readRuntimeSessionDescriptor,
     removeRuntimeSessionDescriptor,
     runtimeSessionDescriptorPath,
@@ -329,13 +333,13 @@ describe('Pixifact Runtime host session', () => {
 });
 
 describe('Pixifact Runtime session descriptor', () => {
-    it('writes, reads, and removes only the matching project descriptor', () => {
+    it.each(['http://127.0.0.1:5178', 'http://[::1]:5178'])('writes, reads, and removes the matching project descriptor at %s', (origin) => {
         const { projectRoot, sessionsRoot } = createTempProject();
         const descriptor: RuntimeSessionDescriptor = {
             protocolVersion: runtimeSessionProtocolVersion,
             projectRoot,
             pid: 123,
-            origin: 'http://127.0.0.1:5178',
+            origin,
             token: 'secret',
         };
 
@@ -351,6 +355,36 @@ describe('Pixifact Runtime session descriptor', () => {
 
         removeRuntimeSessionDescriptor(descriptor, sessionsRoot);
         expect(readRuntimeSessionDescriptor(projectRoot, sessionsRoot)).toBeUndefined();
+    });
+
+    it('serves a wildcard-bound Vite page and discovers its Runtime through loopback', async () => {
+        const { projectRoot } = createTempProject();
+        fs.writeFileSync(path.join(projectRoot, 'index.html'), '<h1>LAN game</h1>');
+        const portProbe = createNetServer().listen(0);
+        await once(portProbe, 'listening');
+        const port = (portProbe.address() as { port: number }).port;
+        await new Promise<void>((resolve) => portProbe.close(() => resolve()));
+        const server = await createServer({
+            root: projectRoot,
+            configFile: false,
+            logLevel: 'silent',
+            server: { host: '0.0.0.0', port, strictPort: true },
+            plugins: [pixifactRuntimePlugin()],
+        });
+        try {
+            await server.listen();
+            const page = await fetch(server.resolvedUrls!.local[0]);
+            expect(page.status).toBe(200);
+            expect(await page.text()).toContain('LAN game');
+            await vi.waitFor(() => expect(readRuntimeSessionDescriptor(projectRoot)).toBeDefined());
+            const descriptor = await findActiveRuntimeSession({ projectRoot });
+            expect(descriptor?.origin).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+            const unauthorized = await fetch(`${descriptor!.origin}/__pixifact_runtime__/list`);
+            expect(unauthorized.status).toBe(401);
+        } finally {
+            await server.close();
+        }
+        expect(readRuntimeSessionDescriptor(projectRoot)).toBeUndefined();
     });
 
     it('finds only a reachable host for the canonical current project', async () => {

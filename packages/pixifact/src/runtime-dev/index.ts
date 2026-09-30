@@ -16,7 +16,7 @@ const existingRuntimeClient = runtimeGlobal[runtimeClientKey] as
     | undefined;
 const runtimeClient = existingRuntimeClient ?? (injectedHot
     ? createPixifactRuntimeClient({
-        runtimeId: crypto.randomUUID(),
+        runtimeId: crypto.getRandomValues(new Uint32Array(4)).join('-'),
         hot: injectedHot,
         console,
         window,

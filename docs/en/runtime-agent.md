@@ -124,7 +124,8 @@ Programmatically dispatched browser events have `isTrusted === false`, so they c
 
 ## Boundaries
 
-- Vite Web development and loopback servers only.
+- Vite Web development pages can run on the local computer or LAN devices. `pixifact dev` listens on all network interfaces by default and reports local and network game URLs. Plain HTTP LAN pages also support Runtime registration and HMR.
+- Run the agent CLI on the development server computer. It connects to Runtime through a loopback address and the project token; the Vite Runtime server supports loopback or wildcard bindings.
 - Transport reuses the Vite HMR WebSocket and a token-protected project descriptor in the system temporary directory. There is no fixed port or additional Runtime Host.
 - Editor Authoring Preview is not registered and still executes no project gameplay logic.
 - No eval, node mutation, business state mutation, direct node click, Scenario, assertions, state subscriptions, history, or persistent logs.

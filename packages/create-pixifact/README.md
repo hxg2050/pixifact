@@ -27,7 +27,7 @@ bun run dev
 
 | 命令 | 用途 |
 | --- | --- |
-| `bun run dev` | 启动 Web 开发服务，默认启用 Bun `--inspect` 调试 |
+| `bun run dev` | 启动 Web 开发服务和 Bun Inspector，均支持局域网访问 |
 | `bun run build` | 构建 Web 生产版本 |
 | `bun run compile` | 独立编译 `.scene` 到 `.pixifact/generated` |
 | `bun run editor` | 启动 Pixifact 编辑器 |
@@ -36,6 +36,8 @@ bun run dev
 模板的 `.env` 默认设置 `VITE_PLATFORM=web`。`dev` 和 `build` 会自动处理 Scene 编译，也可以使用 `compile` 单独编译 Scene。
 
 `dev` 脚本直接执行 `pixifact dev`，CLI 会自动启用 Bun Inspector 并在终端输出调试地址。用户和 Agent 直接运行 `bun run dev` 即可同时启动开发服务和调试入口。
+
+同一局域网设备可打开启动结果 `urls.network` 中的游戏地址。远程连接 Inspector 时，将 Bun 输出的调试链接中的 `0.0.0.0` 替换为开发电脑的局域网 IP，保留端口和路径。
 
 ## 观察运行中的游戏
 
