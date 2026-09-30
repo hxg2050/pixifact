@@ -27,13 +27,15 @@ bun run dev
 
 | 命令 | 用途 |
 | --- | --- |
-| `bun run dev` | 启动 Web 开发服务 |
+| `bun run dev` | 启动 Web 开发服务，默认启用 Bun `--inspect` 调试 |
 | `bun run build` | 构建 Web 生产版本 |
 | `bun run compile` | 独立编译 `.scene` 到 `.pixifact/generated` |
 | `bun run editor` | 启动 Pixifact 编辑器 |
 | `bun run validate` | 校验项目 |
 
 模板的 `.env` 默认设置 `VITE_PLATFORM=web`。`dev` 和 `build` 会自动处理 Scene 编译，也可以使用 `compile` 单独编译 Scene。
+
+`dev` 默认通过 `bun --inspect` 启动 Pixifact CLI，终端会输出 Bun Inspector 调试地址。用户和 Agent 直接运行 `bun run dev` 即可同时启动开发服务和调试入口。
 
 ## 观察运行中的游戏
 

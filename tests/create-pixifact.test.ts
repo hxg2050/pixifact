@@ -43,7 +43,7 @@ describe('create-pixifact scaffold', () => {
             name: 'my-game',
             type: 'module',
             scripts: {
-                dev: 'pixifact dev --mode development --project-root .',
+                dev: 'bun --inspect ./node_modules/.bin/pixifact dev --mode development --project-root .',
                 build: 'pixifact build --mode production --project-root .',
                 compile: 'pixifact compile-scenes --project-root .',
                 editor: 'pixifact editor --project-root .',
