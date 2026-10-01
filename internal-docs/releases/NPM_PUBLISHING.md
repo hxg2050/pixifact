@@ -12,14 +12,14 @@ Pixifact 发布五个公开 npm 包：
 
 ## 当前发布状态
 
-当前已发布版本为 `0.17.0`：
+当前已发布版本为 `0.18.0`：
 
-- npm packages: `0.17.0`
-- git tag: `v0.17.0`
+- npm packages: `0.18.0`
+- git tag: `v0.18.0`
 - changelog sources: [`pixifact`](../../packages/pixifact/CHANGELOG.md)、[`pixifact-cli`](../../packages/pixifact-cli/CHANGELOG.md)、[`create-pixifact`](../../packages/create-pixifact/CHANGELOG.md)
 
-本次发布记录见 [GitHub Release v0.17.0](https://github.com/hxg2050/pixifact/releases/tag/v0.17.0)，包含 Editor 标签右键关闭、批量关闭未保存保护、拖动排序与顺序恢复、边缘自动滚动和细滚动条。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/36555047981) 已通过 26 个测试文件 / 385 项测试、全部构建、包内容和安装验收，并完成五包 Trusted Publishing；npm registry 已确认五个包的 `latest` 均为 `0.17.0`。
-上一版本发布记录见 [GitHub Release v0.16.0](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0)、[GitHub Release v0.15.0](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)、[`v0.14.0.md`](./v0.14.0.md)、[`v0.13.0.md`](./v0.13.0.md)。
+本次发布记录见 [GitHub Release v0.18.0](https://github.com/hxg2050/pixifact/releases/tag/v0.18.0)，包含 `pixifact dev` 默认启用 Bun Inspector、游戏预览和调试的局域网访问，以及 Runtime 通配监听、IPv6 本机会话和普通 HTTP 页面初始化修复。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/36752401489) 已通过 26 个测试文件 / 394 项测试、全部构建、包内容和安装验收，并完成五包 Trusted Publishing；npm registry 已确认五个包的 `latest` 均为 `0.18.0`。
+上一版本发布记录见 [GitHub Release v0.17.0](https://github.com/hxg2050/pixifact/releases/tag/v0.17.0)、[GitHub Release v0.16.0](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0)、[GitHub Release v0.15.0](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)、[`v0.14.0.md`](./v0.14.0.md)、[`v0.13.0.md`](./v0.13.0.md)。
 历史发布记录见 [`v0.12.0.md`](./v0.12.0.md)、[`v0.11.2.md`](./v0.11.2.md)、[`v0.11.1.md`](./v0.11.1.md)、[`v0.11.0.md`](./v0.11.0.md)。
 首个 npm 发布记录见 [`v0.1.3.md`](./v0.1.3.md)。
 

@@ -3,7 +3,7 @@
 状态：活跃
 权威范围：Pixifact npm 发布流程和发布记录目录入口
 上游文档：[../index.md](../index.md)
-下游文档：[./NPM_PUBLISHING.md](./NPM_PUBLISHING.md)、[v0.17.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.17.0)、[v0.16.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0)、[v0.15.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)、各包 `CHANGELOG.md`
+下游文档：[./NPM_PUBLISHING.md](./NPM_PUBLISHING.md)、[v0.18.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.18.0)、[v0.17.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.17.0)、[v0.16.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0)、[v0.15.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)、各包 `CHANGELOG.md`
 更新规则：发布流程或版本发布记录变化时更新
 
 ## 当前文档
@@ -14,6 +14,7 @@
 | [pixifact CHANGELOG](../../packages/pixifact/CHANGELOG.md) | `pixifact` 版本记录 |
 | [pixifact-cli CHANGELOG](../../packages/pixifact-cli/CHANGELOG.md) | `pixifact-cli` 版本记录 |
 | [create-pixifact CHANGELOG](../../packages/create-pixifact/CHANGELOG.md) | `create-pixifact` 版本记录 |
+| [v0.18.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.18.0) | 默认 Bun Inspector、局域网游戏预览与调试、Runtime 接入修复版本记录 |
 | [v0.17.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.17.0) | Editor 标签右键关闭、拖动排序和细滚动条版本记录 |
 | [v0.16.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0) | 默认 Git / skill、项目命令提示和 Editor 布局约束控件版本记录 |
 | [v0.15.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0) | Scene 根节点编辑、默认值、原生事件、画布右键平移与修复版本记录 |

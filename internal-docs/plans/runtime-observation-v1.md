@@ -110,6 +110,7 @@ pixifact runtime input keyup <key> [--runtime <runtime-id>]
 
 ## Verification
 
+- 2026-10-01：[v0.18.0 发布工作流](https://github.com/hxg2050/pixifact/actions/runs/36752401489) 通过 394 项测试、全部构建、包内容和安装验收，五包 Trusted Publishing 成功；npm `latest` 均为 `0.18.0`，GitHub Release 已创建。
 - 2026-10-01：97 项 CLI、Runtime 和脚手架测试通过；`bun run build` 和 `packages/create-pixifact` 构建通过。
 - 2026-10-01：`bun run test` 全量回归通过，共 26 个测试文件、394 项测试。
 - 2026-10-01：生成项目运行 `bun run dev`，Chrome 通过本机局域网 IP 打开普通 HTTP 页面，确认 Runtime 注册、state/tree/input 和 CSS HMR；通过同一局域网 IP 连接 Inspector 并执行调试请求。服务停止后确认开发进程退出。
@@ -126,7 +127,7 @@ rtk bun run test -- --maxWorkers=1
 
 ## Progress
 
-- [ ] 发布 v0.18.0，核对 GitHub Actions、五个 npm 包和 GitHub Release。
+- [x] 发布 v0.18.0，核对 GitHub Actions、五个 npm 包和 GitHub Release。
 - [x] 2026-10-01：完成局域网开发预览、Bun Inspector 与 Runtime 接入。
 - [x] 完成产品边界与第一版命令讨论。
 - [x] 建立实现计划与 BDD。
@@ -150,6 +151,7 @@ rtk bun run test -- --maxWorkers=1
 Last updated: 2026-10-01
 
 Done:
+- 2026-10-01：已发布 v0.18.0，五个 npm 包和 GitHub Release 均验证完成。
 - 2026-10-01：Web dev 和 Inspector 默认支持局域网，启动结果包含游戏访问 URL；修复通配监听、IPv6 loopback descriptor 和普通 HTTP 页面的 Runtime 初始化，相关测试、构建和真实浏览器验证通过。
 - 已完成 Runtime v1 产品讨论和实现计划。
 - 已实现 `pixifact/runtime-dev`、Vite Runtime plugin、项目 descriptor、CLI runtime 命令和示例项目接入。
@@ -162,7 +164,7 @@ Done:
 - 下游 Agent skill 和 Runtime 文档已明确输入前后读取状态、截图及增量日志的 Web 验证流程。本轮 322 项测试通过，核心包与 Web 示例 TypeScript 检查及 skill 校验通过；未运行发布构建。
 
 Current State:
-- 已生成 v0.18.0 五包版本、changelog 和模板依赖，发布检查由 tag workflow 执行。
+- v0.18.0 已发布，GitHub Actions 完整验证和五包 Trusted Publishing 通过。
 - 局域网开发预览和 Inspector 已实现，相关构建、端到端验证和 394 项全量回归测试通过。
 - Runtime v1 和 Web 开发期来源扩展均已实现。游戏脚本动态创建的节点不带 `.scene` 来源。
 
@@ -170,5 +172,4 @@ Currently Failing:
 - 无目标测试失败。
 
 Next:
-1. 提交版本变更并推送 v0.18.0 tag。
-2. 等待发布工作流完成，确认 npm registry 和 GitHub Release，并更新发布记录。
+- 本轮实现和发布均已完成，无待办事项。
