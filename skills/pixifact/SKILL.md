@@ -37,11 +37,11 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
    ```bash
    pixifact scene validate --all
    ```
-10. 视觉任务在校验通过后截取目标 Scene，不需要启动 Editor：
+10. 视觉任务默认在校验通过后直接截取指定 Scene，Editor 未启动时也可使用：
    ```bash
    pixifact scene screenshot --scene src/scenes/MainMenu.scene --output /tmp/main-menu.png
    ```
-   查看 PNG 后继续调整 `.scene`，直到静态画面符合目标；此命令需要本机 Google Chrome，不执行游戏脚本。游戏运行状态用 `runtime screenshot` 验证。
+   命令从磁盘读取目标 `.scene`、配对脚本接口和项目资源，不需要启动 Editor 或游戏，也不切换已打开的 Editor Scene。查看 PNG 后继续调整 `.scene`，直到静态画面符合目标；此命令需要本机 Google Chrome，不执行游戏脚本。游戏运行状态用 `runtime screenshot` 验证。
 11. 校验通过后编译：
    ```bash
    pixifact compile-scenes
@@ -60,14 +60,14 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 
 ## Editor 协作工作流
 
-用户需要在 Editor 预览或人工微调时，在项目根目录运行 `pixifact editor`；已运行时复用。用户指向当前 Scene、选中节点或当前画面时：
+静态视觉检查沿用上面的 `scene screenshot` 流程。用户需要打开 Editor 浏览、选择或人工微调时，在项目根目录运行 `pixifact editor`；已运行时复用。用户指向已打开 Editor 的当前 Scene、选中节点或当前画面时：
 
 1. 修改前读取只读上下文：
    ```bash
    pixifact editor context
    ```
    核对 `projectRoot`，用 `scene.path` 确定活动 Scene，读取 `scene.revision`、`scene.syncState`、`selection` 和 `openScenes`。`selection.kind="scene"` 表示 Scene 根；`kind="node"` 时用返回的 `locator` 和节点 `id` 定位源码，不凭名称猜目标。需要节点详情时使用 `pixifact node inspect --scene <scene.path> --node <locator>`；层级变化后重新获取 locator。
-2. 检查目标文件的同步状态。活动 Scene 未同步时 `editor context` 会拒绝返回上下文；成功返回也不代表其他标签已同步，编辑其他已打开 Scene 前检查 `openScenes` 中对应路径的 `syncState`。`saving` 或 context 正在更新时等待后重读；`unsaved` 或 `conflict` 时先让用户保存草稿或解决冲突，再重新读取 context 和磁盘源文件；`error` 时结合 CLI 错误和 Editor 提示排查。保留用户未保存内容，不擅自覆盖或放弃草稿。没有活动 Editor 或 Scene 时，先按用户指向打开目标，不猜当前选择。
+2. 检查目标文件的同步状态。活动 Scene 未同步时 `editor context` 会拒绝返回上下文；成功返回也不代表其他标签已同步，编辑其他已打开 Scene 前检查 `openScenes` 中对应路径的 `syncState`。`saving` 或 context 正在更新时等待后重读；`unsaved` 或 `conflict` 时先让用户保存草稿或解决冲突，再重新读取 context 和磁盘源文件；`error` 时结合 CLI 错误和 Editor 提示排查。保留用户未保存内容，不擅自覆盖或放弃草稿。没有活动 Editor 或 Scene 时，已知目标路径就直接走 Scene 工作流；任务依赖当前选择且目标不明确时，先请用户明确目标。
 3. 按 Scene 工作流直接编辑目标 `.scene` 和必要的同名 `.ts`，运行 validate、compile 和项目最小相关检查。`editor context` 不提供修改入口。
 4. 外部改动会自动刷新已同步的标签；有未保存修改的标签会保留草稿，保存时可能出现版本冲突。改完后再次运行 `pixifact editor context`，确认活动 `scene.path` 仍是目标且 `scene.syncState="synced"`；成功返回表示该 context 的 revision 与当前磁盘文件一致。若仍在更新，等待后重读；若用户已切换 Scene，不能据此宣称目标 Scene 的预览已确认。
 5. 需要检查当前 Editor 画面时，确认目标 Scene 已同步且 `scene.previewState="ready"`，再截图并查看 PNG：
