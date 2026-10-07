@@ -1,0 +1,25 @@
+{
+  "name": "pixifact-game-starter",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "bun@1.3.13",
+  "type": "module",
+  "scripts": {
+    "dev": "pixifact dev --mode development --project-root .",
+    "build": "pixifact build --mode production --project-root .",
+    "compile": "pixifact compile-scenes --project-root .",
+    "editor": "pixifact editor --project-root .",
+    "validate": "pixifact validate --mode production --project-root .",
+    "typecheck": "tsc --noEmit",
+    "ui:apply": "bun scripts/apply-ui.mjs"
+  },
+  "dependencies": {
+    "pixi.js": "8.18.1",
+    "pixifact": "^0.18.0"
+  },
+  "devDependencies": {
+    "pixifact-cli": "^0.18.0",
+    "typescript": "^5.3.3",
+    "vite": "^8.0.10"
+  }
+}

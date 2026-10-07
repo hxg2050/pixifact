@@ -131,7 +131,17 @@ async function verifyScaffold(temporaryRoot, tarball) {
         if (!(await stat(path.join(sourceRoot, entry))).isFile()) continue;
         assert.equal(await readFile(path.join(installedRoot, entry), 'utf8'), await readFile(path.join(sourceRoot, entry), 'utf8'));
     }
-    console.log('Packed scaffold Git and project skill smoke passed.');
+    run('bun', ['run', 'create-pixifact', 'game-starter', '--template', 'game'], { cwd: installRoot });
+    const gameRoot = path.join(installRoot, 'game-starter');
+    for (const file of ['src/core/GameSession.ts', 'src/ui/Button.scene', 'ui-kits/mint/src/ui/Button.scene', 'scripts/apply-ui.mjs']) {
+        await access(path.join(gameRoot, file));
+    }
+    run('bun', ['run', 'ui:apply', 'mint'], { cwd: gameRoot, silent: true });
+    assert.equal(
+        await readFile(path.join(gameRoot, 'src/ui/Button.scene'), 'utf8'),
+        await readFile(path.join(gameRoot, 'ui-kits/mint/src/ui/Button.scene'), 'utf8'),
+    );
+    console.log('Packed scaffold minimal/game templates, Git, project skill and UI replacement smoke passed.');
 }
 
 async function createBrowserCommandStub(directory) {

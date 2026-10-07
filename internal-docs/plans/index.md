@@ -28,6 +28,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [game-starter-template.md](./game-starter-template.md) | 独立基础游戏模板、完整游戏流程与可替换 UI Scene 库 |
 | [editor-multi-scene-tabs.md](./editor-multi-scene-tabs.md) | 多 Scene 标签、拖动排序、右键批量关闭、未保存保护与细滚动条 |
 | [release-v0.14.0.md](./release-v0.14.0.md) | Editor 主题、多选、快捷布局、资产预览和层级拖动改进的五包 `0.14.0` 发布 |
 | [release-v0.13.0.md](./release-v0.13.0.md) | Editor 画布工具、手动保存和多 Scene 标签的五包 `0.13.0` 发布 |

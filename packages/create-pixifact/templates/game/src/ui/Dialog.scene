@@ -1,0 +1,10 @@
+<Scene name="Dialog" width="750" height="1334" eventMode="static">
+  <Rect id="shade" left="0" right="0" top="0" bottom="0" fillColor="#25322d" fillAlpha="0.42" eventMode="none" />
+  <Group id="body" horizontal="0" vertical="0" width="620" height="480">
+    <NineImage id="background" texture="assets/ui/panel.svg" left="0" right="0" top="0" bottom="0" leftWidth="24" rightWidth="24" topHeight="24" bottomHeight="24" eventMode="none" />
+    <Label id="titleLabel" text="{title}" left="48" right="48" top="28" height="56" fontSize="34" fontFamily="sans-serif" fontWeight="700" fill="#25322d" alignX="center" alignY="center" eventMode="none" />
+    <Label id="messageLabel" text="{message}" left="48" right="48" top="96" height="120" fontSize="25" fontFamily="sans-serif" fill="#52635b" alignX="center" alignY="center" wordWrap="true" eventMode="none" />
+    <Button id="confirm" scene="./Button.scene" left="48" right="48" bottom="132" height="88" text="{confirmText}" @clicked="confirm" />
+    <Button id="cancel" scene="./Button.scene" left="48" right="48" bottom="28" height="88" text="{cancelText}" @clicked="cancel" />
+  </Group>
+</Scene>

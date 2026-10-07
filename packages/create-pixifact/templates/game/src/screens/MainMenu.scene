@@ -1,0 +1,14 @@
+<Scene name="MainMenu" width="750" height="1334">
+  <Panel id="page" scene="../ui/Panel.scene" width="750" height="1334" title="拾光 · 游戏起点">
+    <Group id="menuContent" slot="content" left="0" right="0" top="0" bottom="0">
+      <Label id="eyebrow" left="44" right="44" top="100" height="48" text="PIXIFACT / GAME STARTER" fontSize="22" letterSpacing="3" fill="#516158" alignX="center" />
+      <Label id="headline" left="44" right="44" top="194" height="96" text="从一次点击开始" fontSize="50" fontWeight="700" fill="#25322d" alignX="center" alignY="center" />
+      <Label id="description" left="48" right="48" top="326" height="44" text="收集 8 份星光，完成第一局游戏。" fontSize="26" fill="#516158" alignX="center" alignY="center" />
+      <Label id="descriptionNext" left="40" right="40" top="374" height="44" text="换上你的玩法与美术，创造下一款游戏。" fontSize="24" fill="#516158" alignX="center" alignY="center" />
+      <Label id="record" left="48" right="48" top="490" height="56" text="{bestText}" fontSize="28" fill="#25322d" alignX="center" />
+      <Button id="startButton" scene="../ui/Button.scene" horizontal="0" top="634" width="420" height="88" text="开始游戏" @clicked="start" />
+      <Label id="hint" left="48" right="48" bottom="116" height="36" text="菜单 · 游戏 · 暂停 · 结算" fontSize="22" fill="#516158" alignX="center" />
+      <Label id="hintNext" left="48" right="48" bottom="80" height="36" text="一套可替换 UI，一个游戏开发起点" fontSize="22" fill="#516158" alignX="center" />
+    </Group>
+  </Panel>
+</Scene>

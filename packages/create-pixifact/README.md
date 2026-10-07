@@ -11,6 +11,17 @@ bun install
 bun run dev
 ```
 
+创建包含基础游戏流程和可替换 UI 库的项目：
+
+```bash
+bun create pixifact my-game --template game
+cd my-game
+bun install
+bun run dev
+```
+
+`game` 模板提供竖屏 Web 游戏骨架、菜单／游戏／暂停／结算流程、纯 TypeScript 游戏状态、页面销毁与订阅清理、最高分保存，以及 Button / Panel / Dialog / ProgressBar。两套 UI 通过 `bun run ui:apply paper` 或 `bun run ui:apply mint` 替换 Scene 外观和图片，行为契约与游戏代码保持不变。详细模块和自定义方式见 [模板说明](./templates/game/README.md)。默认不指定 `--template` 时仍创建最小项目。
+
 生成的项目包含：
 
 - `pixifact.project.json`

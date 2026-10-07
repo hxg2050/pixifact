@@ -118,6 +118,33 @@ describe('create-pixifact scaffold', () => {
         ]));
     });
 
+    it('creates a game framework project with reusable UI and two replaceable appearances', async () => {
+        const cwd = await makeTempRoot();
+        const result = await createPixifactProject({ cwd, name: 'starter-game', template: 'game' });
+
+        expect(result.template).toBe('game');
+        const project = JSON.parse(await readProjectFile(result.root, 'pixifact.project.json'));
+        expect(project.resolution).toEqual({ width: 750, height: 1334 });
+        expect(project.scenes).toMatchObject({
+            mainMenu: 'src/screens/MainMenu.scene',
+            play: 'src/screens/PlayScreen.scene',
+            result: 'src/screens/ResultScreen.scene',
+        });
+        const manifest = JSON.parse(await readProjectFile(result.root, 'package.json'));
+        expect(manifest.scripts).toMatchObject({
+            typecheck: 'tsc --noEmit',
+            'ui:apply': 'bun scripts/apply-ui.mjs',
+        });
+        expect(manifest.dependencies.pixifact).toBe(`^${pixifactPackage.version}`);
+        expect(manifest.devDependencies['pixifact-cli']).toBe(`^${pixifactCliPackage.version}`);
+        expect(await readProjectFile(result.root, 'src/main.ts')).toContain('registerPixiRuntime');
+        for (const component of ['Button', 'Panel', 'Dialog', 'ProgressBar']) {
+            expect(await readProjectFile(result.root, `src/ui/${component}.ts`)).toContain(`export class ${component}`);
+            expect(await readProjectFile(result.root, `src/ui/${component}.scene`)).toContain('<Scene');
+        }
+        expect(await readProjectFile(result.root, 'README.md')).toContain('ui:apply');
+    });
+
     it('copies the complete Pixifact skill and its offline references into the project', async () => {
         const cwd = await makeTempRoot();
         const { root } = await createPixifactProject({ cwd, name: 'my-game' });
@@ -130,6 +157,16 @@ describe('create-pixifact scaffold', () => {
             if (!(await stat(join(sourceRoot, entry))).isFile()) continue;
             expect(await readFile(join(installedRoot, entry), 'utf8')).toBe(await readFile(join(sourceRoot, entry), 'utf8'));
         }
+    });
+
+    it('selects the game template through the CLI and rejects unknown templates before creating files', async () => {
+        const cwd = await makeTempRoot();
+        const cli = join(process.cwd(), 'packages/create-pixifact/src/index.ts');
+        const output = execFileSync('bun', [cli, 'cli-game', '--template', 'game'], { cwd, encoding: 'utf8' });
+        expect(output).toContain('已创建 cli-game');
+        expect(await readProjectFile(join(cwd, 'cli-game'), 'src/core/GameSession.ts')).toContain('export class GameSession');
+        expect(() => execFileSync('bun', [cli, 'unknown-game', '--template', 'unknown'], { cwd, stdio: 'pipe' })).toThrow();
+        expect(await readdir(cwd)).not.toContain('unknown-game');
     });
 
     it('creates an independent repository inside an existing Git repository', async () => {

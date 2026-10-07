@@ -6,16 +6,18 @@ import { promisify } from 'node:util';
 
 const runFile = promisify(execFile);
 
+export type PixifactProjectTemplate = 'minimal' | 'game';
+
 export interface CreatePixifactProjectOptions {
     cwd?: string;
     name: string;
-    template?: 'minimal';
+    template?: PixifactProjectTemplate;
 }
 
 export interface CreatePixifactProjectResult {
     name: string;
     root: string;
-    template: 'minimal';
+    template: PixifactProjectTemplate;
 }
 
 function packageDirectory() {
@@ -26,7 +28,7 @@ function packageDirectory() {
         : path.resolve(currentFile, '..');
 }
 
-function templateDirectory(template: 'minimal') {
+function templateDirectory(template: PixifactProjectTemplate) {
     return path.join(packageDirectory(), 'templates', template);
 }
 
