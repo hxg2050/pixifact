@@ -60,6 +60,8 @@ function tap(boundary: pixi.EventBoundary, target: Button) {
     updateTransforms(boundary);
     const point = target.toGlobal({ x: target.width / 2, y: target.height / 2 });
     expect(boundary.hitTest(point.x, point.y) === target).toBe(true);
+    target.emit('pointerdown');
+    target.emit('pointerup');
     target.emit('pointertap');
 }
 
@@ -104,6 +106,9 @@ describe('game starter complete flow', () => {
             expect(game.snapshot().showcase).toEqual({
                 buttonClicks: 0, previewDisabled: true, progress: 50, dialogResult: null,
             });
+            expect(button(menu, 'sampleButton').size).toBe('large');
+            expect(button(menu, 'mediumButton').size).toBe('medium');
+            expect(button(menu, 'smallButton').size).toBe('small');
             const sample = button(menu, 'sampleButton');
             const disabled = button(menu, 'disabledButton');
             tap(boundary, sample);
@@ -115,6 +120,9 @@ describe('game starter complete flow', () => {
             tap(boundary, button(menu, 'toggleButton'));
             tap(boundary, disabled);
             expect(game.snapshot().showcase).toMatchObject({ buttonClicks: 2, previewDisabled: true });
+            tap(boundary, button(menu, 'mediumButton'));
+            tap(boundary, button(menu, 'smallButton'));
+            expect(game.snapshot().showcase?.buttonClicks).toBe(4);
 
             const decrease = button(menu, 'decreaseButton');
             const increase = button(menu, 'increaseButton');
@@ -144,7 +152,7 @@ describe('game starter complete flow', () => {
             tap(boundary, button(cancelledDialog, 'cancel'));
             expect(game.snapshot()).toMatchObject({
                 phase: 'menu', score: 0, modalOpen: false,
-                showcase: { buttonClicks: 2, progress: 100, dialogResult: 'cancelled' },
+                showcase: { buttonClicks: 4, progress: 100, dialogResult: 'cancelled' },
             });
             expect(values.size).toBe(0);
             tap(boundary, button(menu, 'startButton'));

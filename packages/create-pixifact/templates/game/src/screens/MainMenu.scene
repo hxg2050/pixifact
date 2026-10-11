@@ -1,45 +1,47 @@
 <Scene name="MainMenu" width="750" height="1334">
   <Panel id="page" scene="../ui/Panel.scene" width="750" height="1334" title="Pixifact / UI 组件库">
     <Group id="menuContent" slot="content" left="0" right="0" top="0" bottom="0">
-      <Label id="headline" left="8" right="8" top="0" height="60" text="基础组件，直接试用" fontSize="42" fontWeight="700" fill="#25322d" alignY="center" />
-      <Label id="description" left="8" right="8" top="64" height="38" text="四个组件，两套外观，点击查看状态。" fontSize="24" fill="#516158" alignY="center" />
+      <Label id="headline" left="8" right="8" top="0" height="56" text="基础组件，直接试用" fontSize="42" fontWeight="700" fill="#25322d" alignY="center" />
+      <Label id="description" left="8" right="8" top="56" height="36" text="四个组件，两套外观，点击查看状态。" fontSize="24" fill="#516158" alignY="center" />
 
-      <Panel id="buttonsPanel" scene="../ui/Panel.scene" left="0" right="0" top="120" height="294" title="01 / Button 按钮">
+      <Panel id="buttonsPanel" scene="../ui/Panel.scene" left="0" right="0" top="104" height="360" title="01 / Button 按钮">
         <Group id="buttonsContent" slot="content" left="0" right="0" top="0" bottom="0">
-          <Button id="sampleButton" scene="../ui/Button.scene" left="0" top="0" width="300" height="80" text="点击试试" @clicked="click">
-            <Group id="sampleIcon" slot="icon" width="32" height="32" eventMode="none">
+          <Button id="sampleButton" scene="../ui/Button.scene" left="0" top="0" width="260" height="96" size="large" text="大号" @clicked="click">
+            <Group id="sampleIcon" slot="icon" left="0" right="0" top="0" bottom="0" eventMode="none">
               <Label id="star" left="0" right="0" top="0" bottom="0" text="★" fontSize="28" fill="#25322d" alignX="center" alignY="center" />
             </Group>
           </Button>
-          <Button id="disabledButton" scene="../ui/Button.scene" right="0" top="0" width="300" height="80" text="{previewText}" disabled="{previewDisabled}" @clicked="click" />
-          <Button id="toggleButton" scene="../ui/Button.scene" left="0" top="96" width="300" height="64" text="{toggleText}" @clicked="togglePreview" />
-          <Label id="clickCount" right="0" top="96" width="300" height="64" text="{clickText}" fontSize="26" fill="#516158" alignX="center" alignY="center" />
+          <Button id="mediumButton" scene="../ui/Button.scene" left="276" top="8" width="190" height="80" size="medium" text="中号" @clicked="click" />
+          <Button id="smallButton" scene="../ui/Button.scene" right="0" top="16" width="140" height="64" size="small" text="小号" @clicked="click" />
+          <Button id="disabledButton" scene="../ui/Button.scene" left="0" top="112" width="300" text="{previewText}" disabled="{previewDisabled}" @clicked="click" />
+          <Button id="toggleButton" scene="../ui/Button.scene" right="0" top="112" width="300" text="{toggleText}" @clicked="togglePreview" />
+          <Label id="clickCount" left="0" right="0" top="200" height="32" text="{clickText}" fontSize="24" fill="#516158" alignX="center" alignY="center" />
         </Group>
       </Panel>
 
-      <Panel id="progressPanel" scene="../ui/Panel.scene" left="0" right="0" top="430" height="274" title="02 / ProgressBar 进度条">
+      <Panel id="progressPanel" scene="../ui/Panel.scene" left="0" right="0" top="476" height="256" title="02 / ProgressBar 进度条">
         <Group id="progressContent" slot="content" left="0" right="0" top="0" bottom="0">
-          <Label id="progressLabel" left="0" right="0" top="0" height="32" text="{progressText}" fontSize="26" fill="#516158" alignY="center" />
-          <ProgressBar id="progressBar" scene="../ui/ProgressBar.scene" left="0" right="0" top="40" height="24" />
-          <Button id="decreaseButton" scene="../ui/Button.scene" left="0" top="80" width="300" height="64" text="− 25%" @clicked="decrease" />
-          <Button id="increaseButton" scene="../ui/Button.scene" right="0" top="80" width="300" height="64" text="+ 25%" @clicked="increase" />
+          <Label id="progressLabel" left="0" right="0" top="0" height="28" text="{progressText}" fontSize="26" fill="#516158" alignY="center" />
+          <ProgressBar id="progressBar" scene="../ui/ProgressBar.scene" left="0" right="0" top="32" height="20" />
+          <Button id="decreaseButton" scene="../ui/Button.scene" left="0" top="64" width="300" height="64" size="small" text="− 25%" @clicked="decrease" />
+          <Button id="increaseButton" scene="../ui/Button.scene" right="0" top="64" width="300" height="64" size="small" text="+ 25%" @clicked="increase" />
         </Group>
       </Panel>
 
-      <Panel id="panelSample" scene="../ui/Panel.scene" left="0" right="0" top="720" height="164" title="03 / Panel 面板">
+      <Panel id="panelSample" scene="../ui/Panel.scene" left="0" right="0" top="744" height="156" title="03 / Panel 面板">
         <Group id="panelContent" slot="content" left="0" right="0" top="0" bottom="0">
-          <Label id="slotDescription" left="0" top="0" width="370" height="36" text="内容区可组合任意组件" fontSize="24" fill="#516158" alignY="center" />
-          <Label id="record" right="0" top="0" width="220" height="36" text="{bestText}" fontSize="24" fill="#516158" alignX="end" alignY="center" />
+          <Label id="slotDescription" left="0" top="0" width="370" height="28" text="内容区可组合任意组件" fontSize="24" fill="#516158" alignY="center" />
+          <Label id="record" right="0" top="0" width="220" height="28" text="{bestText}" fontSize="24" fill="#516158" alignX="end" alignY="center" />
         </Group>
       </Panel>
 
-      <Panel id="dialogPanel" scene="../ui/Panel.scene" left="0" right="0" top="900" height="208" title="04 / Dialog 弹窗">
+      <Panel id="dialogPanel" scene="../ui/Panel.scene" left="0" right="0" top="912" height="208" title="04 / Dialog 弹窗">
         <Group id="dialogContent" slot="content" left="0" right="0" top="0" bottom="0">
           <Button id="dialogButton" scene="../ui/Button.scene" left="0" right="0" top="0" height="80" text="{dialogText}" @clicked="openDialog" />
         </Group>
       </Panel>
 
-      <Button id="startButton" scene="../ui/Button.scene" left="0" right="0" top="1124" height="72" text="体验游戏流程" @clicked="start" />
+      <Button id="startButton" scene="../ui/Button.scene" left="0" right="0" top="1132" height="72" text="体验游戏流程" @clicked="start" />
     </Group>
   </Panel>
 </Scene>

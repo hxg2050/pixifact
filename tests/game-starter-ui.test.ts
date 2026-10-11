@@ -53,7 +53,7 @@ describe('game starter replaceable UI', () => {
             expect(await readFile(join(templateRoot, 'src/ui', `${name}.scene`), 'utf8'))
                 .toBe(await readFile(join(templateRoot, 'ui-kits/paper/src/ui', `${name}.scene`), 'utf8'));
         }
-        expect(Object.keys(active['src/ui/Button.scene'].interface.props)).toEqual(['text', 'disabled']);
+        expect(Object.keys(active['src/ui/Button.scene'].interface.props)).toEqual(['text', 'disabled', 'size']);
         expect(Object.keys(active['src/ui/Button.scene'].interface.events)).toEqual(['clicked']);
         expect(Object.keys(active['src/ui/Panel.scene'].interface.slots)).toEqual(['content']);
         expect(Object.keys(active['src/ui/Dialog.scene'].interface.events)).toEqual(['confirmed', 'cancelled']);
@@ -95,15 +95,70 @@ describe('game starter replaceable UI', () => {
             button.emit('pointertap');
             button.disabled = true;
             button.emit('pointertap');
-            expect((sceneRuntime.getSceneNode(button, '3:disabledShade') as runtime.Rect).visible).toBe(true);
+            expect((sceneRuntime.getSceneNode(button, '0:visual/3:disabledShade') as runtime.Rect).visible).toBe(true);
             button.disabled = false;
             button.emit('pointertap');
             expect(clicks).toBe(2);
             button.text = '继续';
-            expect((sceneRuntime.getSceneNode(button, '1:label') as runtime.Label).text).toBe('继续');
+            const label = sceneRuntime.getSceneNode(button, '0:visual/1:label') as runtime.Label;
+            expect(label.text).toBe('继续');
             const icon = new runtime.Group({ width: 32, height: 32 });
             sceneRuntime.mount(button, icon, 'icon');
             expect(icon.parent).toBe(button.icon);
+
+            expect(button.size).toBe('medium');
+            for (const [size, width, height, fontSize, iconSize] of [
+                ['large', 420, 96, 30, 32], ['medium', 300, 80, 26, 28], ['small', 200, 64, 22, 24],
+            ] as const) {
+                button.size = size;
+                expect([button.width, button.height, label.fontSize]).toEqual([width, height, fontSize]);
+                expect([button.icon.width, button.icon.height]).toEqual([iconSize, iconSize]);
+            }
+            button.setSize(260, 72);
+            const visual = sceneRuntime.getSceneNode(button, '0:visual') as runtime.Group;
+            const now = vi.spyOn(performance, 'now').mockReturnValue(0);
+            try {
+                button.emit('pointerdown');
+                expect(visual.scale.x).toBeLessThan(1);
+                expect(visual.scale.x).toBeGreaterThan(0.9);
+                expect([button.width, button.height]).toEqual([260, 72]);
+                expect((button.hitArea as pixi.Rectangle).contains(259, 1)).toBe(true);
+                button.emit('pointerup');
+                now.mockReturnValue(70);
+                button.onRender!({} as pixi.Renderer);
+                expect(visual.scale.x).toBeGreaterThan(0.97);
+                expect(visual.scale.x).toBeLessThan(1);
+                now.mockReturnValue(200);
+                button.onRender!({} as pixi.Renderer);
+                expect([visual.scale.x, visual.x, visual.y]).toEqual([1, 0, 0]);
+                expect(button.onRender).toBeNull();
+
+                for (const releaseEvent of ['pointerupoutside', 'pointerout', 'pointercancel']) {
+                    button.emit('pointerdown');
+                    button.emit(releaseEvent);
+                    now.mockReturnValue(performance.now() + 200);
+                    button.onRender!({} as pixi.Renderer);
+                    expect(visual.scale.x).toBe(1);
+                    expect(clicks).toBe(2);
+                }
+
+                for (let index = 0; index < 3; index += 1) {
+                    button.emit('pointerdown');
+                    button.emit('pointerup');
+                    button.emit('pointertap');
+                }
+                expect(clicks).toBe(5);
+                button.disabled = true;
+                button.onRender!({} as pixi.Renderer);
+                expect(visual.scale.x).toBe(1);
+                button.emit('pointerdown');
+                button.emit('pointertap');
+                expect(clicks).toBe(5);
+                expect(button.onRender).toBeNull();
+                button.disabled = false;
+            } finally {
+                now.mockRestore();
+            }
 
             await sceneRuntime.prepareSceneClass(Panel);
             const panel = new Panel();
@@ -138,7 +193,19 @@ describe('game starter replaceable UI', () => {
             (sceneRuntime.getSceneNode(dialog, '1:body/3:confirm') as Button).emit('pointertap');
             (sceneRuntime.getSceneNode(dialog, '1:body/4:cancel') as Button).emit('pointertap');
             expect([confirmed, cancelled]).toEqual([1, 1]);
+            const renderRoot = new pixi.Container({ isRenderGroup: true });
+            renderRoot.addChild(button);
+            button.emit('pointerdown');
+            expect(button.onRender).toBeTypeOf('function');
+            const animate = vi.fn(button.onRender!);
+            button.onRender = animate;
+            renderRoot.renderGroup.runOnRender({} as pixi.Renderer);
+            expect(animate).toHaveBeenCalledTimes(1);
             for (const node of [button, panel, progress, dialog]) node.destroy({ children: true });
+            renderRoot.renderGroup.runOnRender({} as pixi.Renderer);
+            expect(animate).toHaveBeenCalledTimes(1);
+            expect(visual.destroyed).toBe(true);
+            renderRoot.destroy();
         } finally {
             load.mockRestore();
             texture.destroy();

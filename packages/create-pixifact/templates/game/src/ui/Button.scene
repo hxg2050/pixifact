@@ -1,8 +1,10 @@
-<Scene name="Button" width="420" height="88" eventMode="static" cursor="pointer" on:pointertap="activate">
-  <NineImage id="background" texture="assets/ui/button.svg" left="0" right="0" top="0" bottom="0" leftWidth="24" rightWidth="24" topHeight="24" bottomHeight="24" eventMode="none" />
-  <Label id="label" text="{text}" left="72" right="72" top="0" bottom="0" fontSize="28" fontFamily="sans-serif" fontWeight="700" fill="#25322d" alignX="center" alignY="center" eventMode="none" />
-  <Group id="iconHost" left="28" vertical="0" width="32" height="32" eventMode="none">
-    <slot name="icon" />
+<Scene name="Button" width="300" height="80" eventMode="static" cursor="pointer" on:pointerdown="press" on:pointerup="release" on:pointerupoutside="release" on:pointerout="release" on:pointertap="activate">
+  <Group id="visual" left="0" right="0" top="0" bottom="0" eventMode="none">
+    <NineImage id="background" texture="assets/ui/button.svg" left="0" right="0" top="0" bottom="0" leftWidth="24" rightWidth="24" topHeight="24" bottomHeight="24" eventMode="none" />
+    <Label id="label" text="{text}" left="{size.labelPadding}" right="{size.labelPadding}" top="0" bottom="0" fontSize="{size.fontSize}" fontFamily="sans-serif" fontWeight="700" fill="#25322d" alignX="center" alignY="center" eventMode="none" />
+    <Group id="iconHost" left="{size.iconInset}" vertical="0" width="{size.iconSize}" height="{size.iconSize}" eventMode="none">
+      <slot name="icon" />
+    </Group>
+    <Rect id="disabledShade" left="0" right="0" top="0" bottom="0" fillColor="#25322d" fillAlpha="0.18" radius="18" visible="{disabled}" eventMode="none" />
   </Group>
-  <Rect id="disabledShade" left="0" right="0" top="0" bottom="0" fillColor="#25322d" fillAlpha="0.18" radius="18" visible="{disabled}" eventMode="none" />
 </Scene>

@@ -13,7 +13,7 @@ bun run dev
 
 打开终端输出的地址，先在组件展台试用：
 
-- **Button**：带图标的按钮、禁用按钮、启用／禁用切换与点击计数。
+- **Button**：大、中、小三种尺寸、轻微按压回弹、图标、禁用状态、启用／禁用切换与点击计数。
 - **ProgressBar**：每次增减 25%，到达 0% 或 100% 后禁用对应方向的按钮。
 - **Panel**：标题和内容区组合；展台各区块也复用同一个 Panel。
 - **Dialog**：确认／取消、结果反馈与模态遮罩；弹窗期间不能操作底层组件，关闭后保留展台状态。
@@ -53,7 +53,7 @@ bun run editor
 
 | 组件 | 公开契约 | 组合方式 |
 | --- | --- | --- |
-| Button | `text`、`disabled`，`clicked` 事件 | `icon` slot；禁用状态禁止触发事件 |
+| Button | `text`、`disabled`、`size`，`clicked` 事件 | `icon` slot；禁用状态禁止触发事件和按压动画 |
 | Panel | `title` | `content` slot |
 | Dialog | `title`、`message`、`confirmText`、`cancelText`；`confirmed` / `cancelled` 事件 | 全屏遮罩和居中面板，用于模态操作 |
 | ProgressBar | `setProgress(value, max)`，`max > 0` | 可改变宽高；填充比例保持不变 |
@@ -62,9 +62,19 @@ bun run editor
 
 ```xml
 <Button id="startButton" scene="../ui/Button.scene"
-  horizontal="0" top="400" width="420" height="88"
+  horizontal="0" top="400" width="420" height="96" size="large"
   text="开始游戏" @clicked="start" />
 ```
+
+`size` 默认为 `medium`，可在 Scene 中指定或在脚本中赋值。三种尺寸同步调整按钮默认宽高、字号和图标区域：
+
+| size | 默认宽 × 高 | 字号 | 图标区域 |
+| --- | --- | --- | --- |
+| `large` | 420 × 96 | 30 | 32 × 32 |
+| `medium` | 300 × 80 | 26 | 28 × 28 |
+| `small` | 200 × 64 | 22 | 24 × 24 |
+
+Scene 的 `width` / `height` 或 frame layout 可覆盖默认宽高。按下时视觉缩小到 97%，松开后约 140ms 平滑回到原位；移出按钮、在按钮外松开或取消触摸也会复位。动画仅缩放内部 `visual` 节点，按钮布局和命中区域保持稳定；节点移除后不再执行渲染回调。
 
 页面的 `start()` action 负责发出业务事件。文字通过 Prop Binding 更新，父页面依赖公开事件和 slot，不依赖 Button 背景、Panel 内部节点等实现细节。
 
