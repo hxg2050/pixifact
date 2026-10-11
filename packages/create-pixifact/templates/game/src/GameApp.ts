@@ -21,7 +21,12 @@ export class GameApp extends Group {
     }
 
     snapshot() {
-        return { ...this.session.snapshot(), modalOpen: this.modalOpen };
+        const screen = this.screens.children[0];
+        return {
+            ...this.session.snapshot(),
+            modalOpen: this.modalOpen,
+            showcase: screen instanceof MainMenu ? screen.snapshot() : null,
+        };
     }
 
     pause() {
@@ -33,7 +38,7 @@ export class GameApp extends Group {
         dialog.title = '休息一下';
         dialog.message = '星光会等你回来。';
         dialog.confirmText = '继续游戏';
-        dialog.cancelText = '返回菜单';
+        dialog.cancelText = '返回组件展台';
         this.modals.replace(dialog);
         this.modals.track(dialog.confirmed.connect(() => {
             this.session.resume();
@@ -69,6 +74,26 @@ export class GameApp extends Group {
         screen.bestText = `最高记录 · ${this.session.snapshot().bestScore}`;
         this.screens.replace(screen);
         this.screens.track(screen.started.connect(() => this.start()));
+        this.screens.track(screen.dialogRequested.connect(() => this.previewDialog(screen)));
+    }
+
+    private previewDialog(screen: MainMenu) {
+        this.screens.interactiveChildren = false;
+        this.modalOpen = true;
+        const dialog = new Dialog();
+        dialog.title = 'Dialog · 弹窗预览';
+        dialog.message = '确认或取消后，按钮会显示结果。';
+        dialog.confirmText = '确认';
+        dialog.cancelText = '取消';
+        this.modals.replace(dialog);
+        this.modals.track(dialog.confirmed.connect(() => {
+            this.closeModal();
+            screen.reportDialog(true);
+        }));
+        this.modals.track(dialog.cancelled.connect(() => {
+            this.closeModal();
+            screen.reportDialog(false);
+        }));
     }
 
     private showResult() {

@@ -1,14 +1,45 @@
 <Scene name="MainMenu" width="750" height="1334">
-  <Panel id="page" scene="../ui/Panel.scene" width="750" height="1334" title="拾光 · 游戏起点">
+  <Panel id="page" scene="../ui/Panel.scene" width="750" height="1334" title="Pixifact / UI 组件库">
     <Group id="menuContent" slot="content" left="0" right="0" top="0" bottom="0">
-      <Label id="eyebrow" left="44" right="44" top="100" height="48" text="PIXIFACT / GAME STARTER" fontSize="22" letterSpacing="3" fill="#516158" alignX="center" />
-      <Label id="headline" left="44" right="44" top="194" height="96" text="从一次点击开始" fontSize="50" fontWeight="700" fill="#25322d" alignX="center" alignY="center" />
-      <Label id="description" left="48" right="48" top="326" height="44" text="收集 8 份星光，完成第一局游戏。" fontSize="26" fill="#516158" alignX="center" alignY="center" />
-      <Label id="descriptionNext" left="40" right="40" top="374" height="44" text="换上你的玩法与美术，创造下一款游戏。" fontSize="24" fill="#516158" alignX="center" alignY="center" />
-      <Label id="record" left="48" right="48" top="490" height="56" text="{bestText}" fontSize="28" fill="#25322d" alignX="center" />
-      <Button id="startButton" scene="../ui/Button.scene" horizontal="0" top="634" width="420" height="88" text="开始游戏" @clicked="start" />
-      <Label id="hint" left="48" right="48" bottom="116" height="36" text="菜单 · 游戏 · 暂停 · 结算" fontSize="22" fill="#516158" alignX="center" />
-      <Label id="hintNext" left="48" right="48" bottom="80" height="36" text="一套可替换 UI，一个游戏开发起点" fontSize="22" fill="#516158" alignX="center" />
+      <Label id="headline" left="8" right="8" top="0" height="60" text="基础组件，直接试用" fontSize="42" fontWeight="700" fill="#25322d" alignY="center" />
+      <Label id="description" left="8" right="8" top="64" height="38" text="四个组件，两套外观，点击查看状态。" fontSize="24" fill="#516158" alignY="center" />
+
+      <Panel id="buttonsPanel" scene="../ui/Panel.scene" left="0" right="0" top="120" height="294" title="01 / Button 按钮">
+        <Group id="buttonsContent" slot="content" left="0" right="0" top="0" bottom="0">
+          <Button id="sampleButton" scene="../ui/Button.scene" left="0" top="0" width="300" height="80" text="点击试试" @clicked="click">
+            <Group id="sampleIcon" slot="icon" width="32" height="32" eventMode="none">
+              <Label id="star" left="0" right="0" top="0" bottom="0" text="★" fontSize="28" fill="#25322d" alignX="center" alignY="center" />
+            </Group>
+          </Button>
+          <Button id="disabledButton" scene="../ui/Button.scene" right="0" top="0" width="300" height="80" text="{previewText}" disabled="{previewDisabled}" @clicked="click" />
+          <Button id="toggleButton" scene="../ui/Button.scene" left="0" top="96" width="300" height="64" text="{toggleText}" @clicked="togglePreview" />
+          <Label id="clickCount" right="0" top="96" width="300" height="64" text="{clickText}" fontSize="26" fill="#516158" alignX="center" alignY="center" />
+        </Group>
+      </Panel>
+
+      <Panel id="progressPanel" scene="../ui/Panel.scene" left="0" right="0" top="430" height="274" title="02 / ProgressBar 进度条">
+        <Group id="progressContent" slot="content" left="0" right="0" top="0" bottom="0">
+          <Label id="progressLabel" left="0" right="0" top="0" height="32" text="{progressText}" fontSize="26" fill="#516158" alignY="center" />
+          <ProgressBar id="progressBar" scene="../ui/ProgressBar.scene" left="0" right="0" top="40" height="24" />
+          <Button id="decreaseButton" scene="../ui/Button.scene" left="0" top="80" width="300" height="64" text="− 25%" @clicked="decrease" />
+          <Button id="increaseButton" scene="../ui/Button.scene" right="0" top="80" width="300" height="64" text="+ 25%" @clicked="increase" />
+        </Group>
+      </Panel>
+
+      <Panel id="panelSample" scene="../ui/Panel.scene" left="0" right="0" top="720" height="164" title="03 / Panel 面板">
+        <Group id="panelContent" slot="content" left="0" right="0" top="0" bottom="0">
+          <Label id="slotDescription" left="0" top="0" width="370" height="36" text="内容区可组合任意组件" fontSize="24" fill="#516158" alignY="center" />
+          <Label id="record" right="0" top="0" width="220" height="36" text="{bestText}" fontSize="24" fill="#516158" alignX="end" alignY="center" />
+        </Group>
+      </Panel>
+
+      <Panel id="dialogPanel" scene="../ui/Panel.scene" left="0" right="0" top="900" height="208" title="04 / Dialog 弹窗">
+        <Group id="dialogContent" slot="content" left="0" right="0" top="0" bottom="0">
+          <Button id="dialogButton" scene="../ui/Button.scene" left="0" right="0" top="0" height="80" text="{dialogText}" @clicked="openDialog" />
+        </Group>
+      </Panel>
+
+      <Button id="startButton" scene="../ui/Button.scene" left="0" right="0" top="1124" height="72" text="体验游戏流程" @clicked="start" />
     </Group>
   </Panel>
 </Scene>

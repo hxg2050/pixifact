@@ -100,12 +100,60 @@ describe('game starter complete flow', () => {
             game.enableRenderGroup();
             const boundary = new pixi.EventBoundary(game);
             const menu = page(game) as MainMenu;
-            expect(game.snapshot()).toEqual({ phase: 'menu', score: 0, goal: 8, bestScore: 0, modalOpen: false });
+            expect(game.snapshot()).toMatchObject({ phase: 'menu', score: 0, goal: 8, bestScore: 0, modalOpen: false });
+            expect(game.snapshot().showcase).toEqual({
+                buttonClicks: 0, previewDisabled: true, progress: 50, dialogResult: null,
+            });
+            const sample = button(menu, 'sampleButton');
+            const disabled = button(menu, 'disabledButton');
+            tap(boundary, sample);
+            tap(boundary, disabled);
+            expect(game.snapshot().showcase?.buttonClicks).toBe(1);
+            tap(boundary, button(menu, 'toggleButton'));
+            tap(boundary, disabled);
+            expect(game.snapshot().showcase).toMatchObject({ buttonClicks: 2, previewDisabled: false });
+            tap(boundary, button(menu, 'toggleButton'));
+            tap(boundary, disabled);
+            expect(game.snapshot().showcase).toMatchObject({ buttonClicks: 2, previewDisabled: true });
+
+            const decrease = button(menu, 'decreaseButton');
+            const increase = button(menu, 'increaseButton');
+            for (let index = 0; index < 3; index += 1) tap(boundary, decrease);
+            expect(game.snapshot().showcase?.progress).toBe(0);
+            expect(decrease.disabled).toBe(true);
+            for (let index = 0; index < 5; index += 1) tap(boundary, increase);
+            expect(game.snapshot().showcase?.progress).toBe(100);
+            expect(increase.disabled).toBe(true);
+
+            const openDialog = button(menu, 'dialogButton');
+            tap(boundary, openDialog);
+            const sampleDialog = game.children[1].children[0] as Dialog;
+            expect(game.snapshot()).toMatchObject({ phase: 'menu', modalOpen: true, score: 0 });
+            expect(game.children[0].interactiveChildren).toBe(false);
+            updateTransforms(boundary);
+            const samplePoint = sample.toGlobal({ x: sample.width / 2, y: sample.height / 2 });
+            expect(boundary.hitTest(samplePoint.x, samplePoint.y) === sampleDialog).toBe(true);
+            tap(boundary, button(sampleDialog, 'confirm'));
+            expect(game.snapshot()).toMatchObject({ modalOpen: false, showcase: { dialogResult: 'confirmed' } });
+            expect(game.children[0].interactiveChildren).toBe(true);
+            expect(sampleDialog.destroyed).toBe(true);
+            sampleDialog.cancelled.emit();
+            expect(game.snapshot().showcase?.dialogResult).toBe('confirmed');
+            tap(boundary, openDialog);
+            const cancelledDialog = game.children[1].children[0] as Dialog;
+            tap(boundary, button(cancelledDialog, 'cancel'));
+            expect(game.snapshot()).toMatchObject({
+                phase: 'menu', score: 0, modalOpen: false,
+                showcase: { buttonClicks: 2, progress: 100, dialogResult: 'cancelled' },
+            });
+            expect(values.size).toBe(0);
             tap(boundary, button(menu, 'startButton'));
             const play = page(game) as PlayScreen;
             expect(menu.destroyed).toBe(true);
             menu.started.emit();
+            menu.dialogRequested.emit();
             expect(page(game) === play).toBe(true);
+            expect(game.snapshot()).toMatchObject({ modalOpen: false, showcase: null });
 
             const collect = button(play, 'collectButton');
             tap(boundary, collect);
@@ -132,7 +180,7 @@ describe('game starter complete flow', () => {
             for (let index = 0; index < 7; index += 1) tap(boundary, collect);
 
             const result = page(game) as ResultScreen;
-            expect(game.snapshot()).toEqual({ phase: 'finished', score: 8, goal: 8, bestScore: 8, modalOpen: false });
+            expect(game.snapshot()).toMatchObject({ phase: 'finished', score: 8, goal: 8, bestScore: 8, modalOpen: false });
             expect(play.destroyed).toBe(true);
             play.collected.emit();
             play.paused.emit();
@@ -155,7 +203,7 @@ describe('game starter complete flow', () => {
             const returnedMenu = page(game) as MainMenu;
             expect(replay.destroyed).toBe(true);
             expect(replayDialog.destroyed).toBe(true);
-            expect(game.snapshot()).toEqual({ phase: 'menu', score: 0, goal: 8, bestScore: 8, modalOpen: false });
+            expect(game.snapshot()).toMatchObject({ phase: 'menu', score: 0, goal: 8, bestScore: 8, modalOpen: false });
             expect(returnedMenu.bestText).toBe('最高记录 · 8');
             replay.collected.emit();
             replay.paused.emit();

@@ -5,7 +5,7 @@
       <Label id="score" left="48" right="48" top="348" height="64" text="{scoreText}" fontSize="32" fill="#25322d" alignX="center" />
       <Label id="record" left="48" right="48" top="438" height="56" text="{bestText}" fontSize="26" fill="#516158" alignX="center" />
       <Button id="restartButton" scene="../ui/Button.scene" horizontal="0" top="598" width="420" height="88" text="再玩一次" @clicked="restart" />
-      <Button id="menuButton" scene="../ui/Button.scene" horizontal="0" top="722" width="420" height="88" text="返回菜单" @clicked="menu" />
+      <Button id="menuButton" scene="../ui/Button.scene" horizontal="0" top="722" width="420" height="88" text="返回组件展台" @clicked="menu" />
     </Group>
   </Panel>
 </Scene>

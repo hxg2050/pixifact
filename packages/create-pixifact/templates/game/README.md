@@ -1,6 +1,6 @@
 # Pixifact 基础游戏模板
 
-这是可以直接复制开发新游戏的 Web 项目。默认设计尺寸为 `750 × 1334`，包含主菜单、游戏页、暂停弹窗、结算页、最高分保存，以及可替换外观的基础 UI 库。
+这是可以直接复制开发新游戏的 Web 项目。默认设计尺寸为 `750 × 1334`，启动首页集中展示可替换外观的基础 UI 组件，并附带游戏、暂停、结算和最高分保存的代码示例。
 
 本模板使用 Bun `1.3.13` 验证；需要本机安装 Bun 和 Git。
 
@@ -11,7 +11,14 @@ bun install
 bun run dev
 ```
 
-打开终端输出的地址。点击「开始游戏」，收集 8 份星光即可结算；可以暂停、继续、返回菜单和重玩。暂停期间不能得分。最高记录保存在当前浏览器，同一地址刷新后仍可读取；页面切到后台时自动暂停。
+打开终端输出的地址，先在组件展台试用：
+
+- **Button**：带图标的按钮、禁用按钮、启用／禁用切换与点击计数。
+- **ProgressBar**：每次增减 25%，到达 0% 或 100% 后禁用对应方向的按钮。
+- **Panel**：标题和内容区组合；展台各区块也复用同一个 Panel。
+- **Dialog**：确认／取消、结果反馈与模态遮罩；弹窗期间不能操作底层组件，关闭后保留展台状态。
+
+点击底部「体验游戏流程」，收集 8 份星光即可结算；可以暂停、继续、返回组件展台和重玩。暂停期间不能得分。最高记录保存在当前浏览器，同一地址刷新后仍可读取；页面切到后台时自动暂停。返回展台会创建新的展示页，组件演示状态恢复初始值。
 
 ```bash
 bun run validate
@@ -28,11 +35,12 @@ bun run editor
 | 位置 | 职责 |
 | --- | --- |
 | `src/main.ts` | Application、Assets、Scene 准备、视口适配、后台暂停、开发期 Runtime |
-| `src/GameApp.ts` | 连接游戏状态、页面事件、暂停弹窗和存档 |
+| `src/GameApp.ts` | 连接组件预览弹窗、游戏状态、页面事件、暂停和存档 |
 | `src/core/GameSession.ts` | 纯 TypeScript 规则和状态，可替换为自己的玩法 |
 | `src/core/ScreenManager.ts` | 页面替换、断开外部订阅、销毁旧节点；共享纹理继续复用 |
 | `src/core/WebRecordStore.ts` | 显式读写最高分；使用 Web 原生 localStorage |
 | `src/screens/` | 页面 `.scene` 外观和同名 `.ts` 行为契约 |
+| `src/screens/MainMenu.scene/.ts` | 默认组件展台、演示状态和次要游戏入口 |
 | `src/ui/` | 当前生效的基础 UI Scene 与脚本 |
 | `assets/ui/` | 当前生效的按钮和面板九宫格 SVG 图片 |
 | `ui-kits/` | paper / mint 两套配对 Scene 与资源，用于替换外观 |
@@ -88,6 +96,6 @@ pixifact runtime tree
 pixifact runtime screenshot
 ```
 
-业务快照包含 `phase`、`score`、`goal`、`bestScore`、`modalOpen`。可以结合真实节点树检查页面切换、暂停和最高分保存。
+业务快照包含 `phase`、`score`、`goal`、`bestScore`、`modalOpen`；首页额外提供 `showcase`，包含 `buttonClicks`、`previewDisabled`、`progress`、`dialogResult`，进入游戏后为 `null`。可以结合真实节点树检查组件状态、弹窗隔离、页面切换、暂停和最高分保存。
 
 首版入口和存档使用 Web API。接入微信／抖音时，按 Pixifact 的平台文档接入现有平台包，并将 DOM 入口、visibility 事件和 WebRecordStore 替换为对应平台实现。

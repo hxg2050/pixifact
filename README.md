@@ -39,7 +39,7 @@ bun install
 bun run build
 ```
 
-需要基础游戏代码和可替换 UI 库时，使用 `bun create pixifact my-game --template game`。模板包含菜单、游戏、暂停、结算、最高分保存，以及两套保持统一契约的 UI 外观；详见 [基础游戏模板](./packages/create-pixifact/templates/game/README.md)。
+需要基础游戏代码和可替换 UI 库时，使用 `bun create pixifact my-game --template game`。模板默认展示可交互的 UI 组件，附带游戏、暂停、结算、最高分保存，以及两套保持统一契约的 UI 外观；详见 [基础游戏模板](./packages/create-pixifact/templates/game/README.md)。
 
 在已有 Bun 项目中使用 runtime 和 compiler：
 
