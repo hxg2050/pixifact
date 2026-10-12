@@ -44,6 +44,7 @@ bun run editor
 | `src/screens/` | 页面 `.scene` 外观和同名 `.ts` 行为契约 |
 | `src/screens/MainMenu.scene/.ts` | 默认组件展台、演示状态和次要游戏入口 |
 | `src/ui/` | 当前生效的基础 UI Scene 与脚本 |
+| `src/ui/nine/` | 每张九宫格素材对应的 Scene，集中设置图片路径和切片参数 |
 | `assets/ui/` | 当前生效的按钮和面板九宫格 PNG 图片（96 × 96，透明 RGBA） |
 
 开始开发自己的游戏时，先修改 `GameSession` 中的规则，再修改 `PlayScreen` 的视觉和公开事件，最后在 `GameApp` 中连接数据流。游戏规则不读取 UI 内部节点。给新页面增加同目录同 basename 的 `.scene/.ts`，启动前用 `prepareSceneClass()` 准备，再交给 `ScreenManager.replace()`。
@@ -83,12 +84,21 @@ Scene 的 `width` / `height` 或 frame layout 可覆盖默认宽高。按下时�
 
 模板只提供一套基础 UI。开发自己的游戏时，直接替换同名 PNG 即可更换对应背景，无需修改 Scene、组件脚本或游戏逻辑。
 
-| 图片 | 用途 | 尺寸 | 九宫格边距 |
+| 图片 | 素材 Scene | 用途 | 默认尺寸／切片边距 |
 | --- | --- | --- | --- |
-| `assets/ui/button.png` | 所有尺寸按钮的背景 | 96 × 96 | 四边各 24 像素 |
-| `assets/ui/panel.png` | 面板和弹窗的背景 | 96 × 96 | 四边各 24 像素 |
+| `assets/ui/button.png` | `src/ui/nine/ButtonBackground.scene` | 所有尺寸按钮的背景 | 96 × 96／四边各 24 像素 |
+| `assets/ui/panel.png` | `src/ui/nine/PanelBackground.scene` | 面板和弹窗的背景 | 96 × 96／四边各 24 像素 |
 
 新素材保持文件名、路径、尺寸与透明 PNG 格式。四个角保持原形，边缘沿单轴拉伸，中间区域随组件尺寸拉伸；将需要保留的边框和圆角放在 24 像素的切片区域内。大、中、小按钮共用同一张图片，文字和点击动画由组件负责。
+
+每张九宫格 PNG 只在对应素材 Scene 中配置一个 `NineImage`。图片路径和 `leftWidth`、`rightWidth`、`topHeight`、`bottomHeight` 集中维护；Button、Panel、Dialog 引用素材 Scene，自身只设置背景的位置和尺寸。例如，在 `src/ui/` 的组件中铺满面板背景：
+
+```xml
+<PanelBackground id="background" scene="./nine/PanelBackground.scene"
+  left="0" right="0" top="0" bottom="0" />
+```
+
+需要调整切片边距或换成不同规格图片时，只修改对应素材 Scene 的 `NineImage` 参数；所有引用位置会使用同一份配置。新增九宫格素材也按一张 PNG 一个 `.scene/.ts` 配对文件组织，素材 Scene 的根和内部图像均设为 `eventMode="none"`，内部图像通过四边为 0 铺满实例。
 
 覆盖图片后，重新启动开发服务并刷新预览；发布构建使用 `bun run build`。PNG 负责上述背景，文字、禁用蒙层和进度条由 Scene 节点渲染；需要调整这些部分的颜色或布局时，再编辑对应 `.scene`。
 

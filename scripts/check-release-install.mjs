@@ -133,7 +133,12 @@ async function verifyScaffold(temporaryRoot, tarball) {
     }
     run('bun', ['run', 'create-pixifact', 'game-starter', '--template', 'game'], { cwd: installRoot });
     const gameRoot = path.join(installRoot, 'game-starter');
-    for (const file of ['src/core/GameSession.ts', 'src/ui/Button.scene', 'assets/ui/button.png', 'assets/ui/panel.png']) {
+    for (const file of [
+        'src/core/GameSession.ts', 'src/ui/Button.scene',
+        'src/ui/nine/ButtonBackground.scene', 'src/ui/nine/ButtonBackground.ts',
+        'src/ui/nine/PanelBackground.scene', 'src/ui/nine/PanelBackground.ts',
+        'assets/ui/button.png', 'assets/ui/panel.png',
+    ]) {
         await access(path.join(gameRoot, file));
     }
     assert.equal(await exists(path.join(gameRoot, 'ui-kits')), false);

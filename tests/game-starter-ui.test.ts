@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { cp, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import ts from 'typescript';
@@ -12,10 +12,12 @@ import { Button } from '../packages/create-pixifact/templates/game/src/ui/Button
 import { Panel } from '../packages/create-pixifact/templates/game/src/ui/Panel';
 import { Dialog } from '../packages/create-pixifact/templates/game/src/ui/Dialog';
 import { ProgressBar } from '../packages/create-pixifact/templates/game/src/ui/ProgressBar';
+import { ButtonBackground } from '../packages/create-pixifact/templates/game/src/ui/nine/ButtonBackground';
+import { PanelBackground } from '../packages/create-pixifact/templates/game/src/ui/nine/PanelBackground';
 
 const templateRoot = resolve('packages/create-pixifact/templates/game');
-const components = { Button, Panel, Dialog, ProgressBar };
-const names = ['Button', 'Panel', 'Dialog', 'ProgressBar'] as const;
+const components = { Button, Panel, Dialog, ProgressBar, ButtonBackground, PanelBackground };
+const names = ['Button', 'Panel', 'Dialog', 'ProgressBar', 'nine/ButtonBackground', 'nine/PanelBackground'] as const;
 
 async function contracts(root: string) {
     return extractSceneScriptInterfaces(await Promise.all(names.map(async (name) => ({
@@ -55,13 +57,19 @@ describe('game starter basic UI', () => {
         }
     });
 
-    it('compiles and runs the basic UI with its PNG assets', async () => {
+    it('runs the UI with shared nine-slice settings and resizable background Scenes', async () => {
         const root = await mkdtemp(join(tmpdir(), 'pixifact-game-ui-'));
         const texture = new pixi.Texture({ source: new pixi.TextureSource({ width: 96, height: 96 }) });
         const load = vi.spyOn(pixi.Assets, 'load').mockResolvedValue(texture);
         try {
             await cp(join(templateRoot, 'src/ui'), join(root, 'src/ui'), { recursive: true });
             await cp(join(templateRoot, 'assets'), join(root, 'assets'), { recursive: true });
+            const panelScene = join(root, 'src/ui/nine/PanelBackground.scene');
+            await writeFile(panelScene, (await readFile(panelScene, 'utf8'))
+                .replace('leftWidth="24"', 'leftWidth="18"')
+                .replace('rightWidth="24"', 'rightWidth="20"')
+                .replace('topHeight="24"', 'topHeight="14"')
+                .replace('bottomHeight="24"', 'bottomHeight="12"'));
             const descriptors = await contracts(root);
             const interfaces = Object.fromEntries(Object.entries(descriptors).map(([path, descriptor]) => [path, descriptor.interface]));
             for (const name of names) {
@@ -96,6 +104,12 @@ describe('game starter basic UI', () => {
             button.text = '继续';
             const label = sceneRuntime.getSceneNode(button, '0:visual/1:label') as runtime.Label;
             expect(label.text).toBe('继续');
+            const buttonBackground = sceneRuntime.getSceneNode(button, '0:visual/0:background') as ButtonBackground;
+            expect(buttonBackground).toBeInstanceOf(ButtonBackground);
+            expect(buttonBackground.eventMode).toBe('none');
+            const buttonImage = sceneRuntime.getSceneNode(buttonBackground, '0:image') as runtime.NineImage;
+            expect([buttonImage.leftWidth, buttonImage.rightWidth, buttonImage.topHeight, buttonImage.bottomHeight])
+                .toEqual([24, 24, 24, 24]);
             const icon = new runtime.Group({ width: 32, height: 32 });
             sceneRuntime.mount(button, icon, 'icon');
             expect(icon.parent).toBe(button.icon);
@@ -107,6 +121,8 @@ describe('game starter basic UI', () => {
                 button.size = size;
                 expect([button.width, button.height, label.fontSize]).toEqual([width, height, fontSize]);
                 expect([button.icon.width, button.icon.height]).toEqual([iconSize, iconSize]);
+                expect(buttonBackground.getSize()).toEqual({ width, height });
+                expect([buttonImage.width, buttonImage.height]).toEqual([width, height]);
             }
             button.setSize(260, 72);
             const visual = sceneRuntime.getSceneNode(button, '0:visual') as runtime.Group;
@@ -162,6 +178,12 @@ describe('game starter basic UI', () => {
             expect(child.parent).toBe(panel.content);
             expect(panel.content.width).toBe(576);
             expect(panel.content.height).toBe(352);
+            const panelBackground = sceneRuntime.getSceneNode(panel, '0:background') as PanelBackground;
+            expect(panelBackground).toBeInstanceOf(PanelBackground);
+            const panelImage = sceneRuntime.getSceneNode(panelBackground, '0:image') as runtime.NineImage;
+            expect([panelImage.width, panelImage.height]).toEqual([640, 480]);
+            expect([panelImage.leftWidth, panelImage.rightWidth, panelImage.topHeight, panelImage.bottomHeight])
+                .toEqual([18, 20, 14, 12]);
 
             const progress = new ProgressBar();
             progress.setSize(420, 24);
@@ -180,6 +202,13 @@ describe('game starter basic UI', () => {
             expect(dialog.width).toBe(1080);
             expect(dialog.height).toBe(1920);
             expect(dialog.eventMode).toBe('static');
+            const dialogBackground = sceneRuntime.getSceneNode(dialog, '1:body/0:background') as PanelBackground;
+            expect(dialogBackground).toBeInstanceOf(PanelBackground);
+            expect(dialogBackground.eventMode).toBe('none');
+            const dialogImage = sceneRuntime.getSceneNode(dialogBackground, '0:image') as runtime.NineImage;
+            expect([dialogImage.width, dialogImage.height]).toEqual([800, 400]);
+            expect([dialogImage.leftWidth, dialogImage.rightWidth, dialogImage.topHeight, dialogImage.bottomHeight])
+                .toEqual([18, 20, 14, 12]);
             let confirmed = 0;
             let cancelled = 0;
             dialog.confirmed.connect(() => confirmed++);

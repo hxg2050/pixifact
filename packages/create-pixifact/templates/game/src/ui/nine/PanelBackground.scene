@@ -1,0 +1,3 @@
+<Scene name="PanelBackground" width="96" height="96" eventMode="none">
+  <NineImage id="image" texture="assets/ui/panel.png" left="0" right="0" top="0" bottom="0" leftWidth="24" rightWidth="24" topHeight="24" bottomHeight="24" eventMode="none" />
+</Scene>

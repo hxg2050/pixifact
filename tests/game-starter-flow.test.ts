@@ -17,10 +17,13 @@ import { Button } from '../packages/create-pixifact/templates/game/src/ui/Button
 import { Panel } from '../packages/create-pixifact/templates/game/src/ui/Panel';
 import { Dialog } from '../packages/create-pixifact/templates/game/src/ui/Dialog';
 import { ProgressBar } from '../packages/create-pixifact/templates/game/src/ui/ProgressBar';
+import { ButtonBackground } from '../packages/create-pixifact/templates/game/src/ui/nine/ButtonBackground';
+import { PanelBackground } from '../packages/create-pixifact/templates/game/src/ui/nine/PanelBackground';
 
 const templateRoot = resolve('packages/create-pixifact/templates/game');
-const classes = { MainMenu, PlayScreen, ResultScreen, Button, Panel, Dialog, ProgressBar };
+const classes = { MainMenu, PlayScreen, ResultScreen, Button, Panel, Dialog, ProgressBar, ButtonBackground, PanelBackground };
 const sceneFiles = [
+    'src/ui/nine/ButtonBackground', 'src/ui/nine/PanelBackground',
     'src/ui/Button', 'src/ui/Panel', 'src/ui/Dialog', 'src/ui/ProgressBar',
     'src/screens/MainMenu', 'src/screens/PlayScreen', 'src/screens/ResultScreen',
 ];

@@ -1,6 +1,6 @@
 # Game Starter Template
 
-状态：已按用户澄清收敛为一套基础 UI，支持直接覆盖同名 PNG
+状态：已完成每张九宫格 PNG 的独立 Scene 封装与集中调参验证
 权威范围：独立游戏项目模板、基础游戏流程与可替换 UI 库的实现和验收
 上游文档：[./index.md](./index.md)、[../../AGENTS.md](../../AGENTS.md)、[../testing/TESTING.md](../testing/TESTING.md)
 
@@ -28,6 +28,7 @@
 - 用户要求素材使用 PNG：沿用已有美术，将当前外观与 Paper / Mint 中的按钮、面板素材转换为透明 RGBA PNG，同步全部 Scene 引用并移除不再使用的 SVG；不新增项目依赖。
 - 2026-10-12 用户澄清 UI 替换方式：提供一套基础，使用者自己替换图片文件即可；删除此前增加的 Paper / Mint kit 副本、`ui:apply` 与安装脚本，并迁移 CLI、文档、测试和发布安装检查。当前基础外观继续使用已有两张 PNG；进度条颜色和文字由 Scene 表达，图片只负责对应组件背景。
 - 打包验证发现本任务在模板目录生成的 `.pixifact`、`dist` 和 Vite 依赖缓存也会被 `templates/` 文件清单带入包；发布清单排除这三类生成目录，基础源码与两张 PNG 正常分发。
+- 2026-10-12 用户要求每张 nine 素材封装一个 Scene：在 `src/ui/nine/` 添加 `ButtonBackground.scene/.ts` 和 `PanelBackground.scene/.ts`，分别维护 `button.png` 与 `panel.png` 的 NineImage 路径、四边切片参数和拉伸方式。Button、Panel、Dialog 只引用这些 Scene，并指定实例布局；Panel 和 Dialog 共享同一个素材 Scene。使用现有 Scene 依赖准备与 Group frame layout，不新增配置层、加载逻辑或公共行为 API。
 
 ## Non-Goals
 
@@ -42,6 +43,7 @@
 - 示例可在桌面和竖屏触摸视口完整运行；Runtime 能观察游戏阶段、得分、记录与弹窗状态。
 - 启动即展示 UI 组件；Runtime 增加展台的点击次数、禁用状态、进度和弹窗结果快照。
 - Button 展示区同时提供大、中、小三种按钮，三者均可点击；更换 PNG 后继续使用相同 size 和输入契约。
+- 每张九宫格图片的参数在对应素材 Scene 中集中调整；调用方按普通子 Scene 设置位置和尺寸，无需重复 NineImage 配置。
 
 ## Implementation Scope
 
@@ -60,6 +62,7 @@
 6. 验证三种尺寸、字号与图标区域联动、点击动画不改变命中盒、快速连点、移出松开／取消、禁用与销毁时结束动画。
 7. 验证模板的 1080p / fixedWidth 配置、页面与弹层随视口高度调整、短窗口滚动和遮罩隔离；真实检查默认窗口、375 × 667 与较短的宽窗口。
 8. 校验 PNG 文件签名、96 × 96 尺寸、RGBA 编码，以及生成项目不携带多套 kit 和安装脚本。
+9. 修改临时项目中 PanelBackground 的切片参数，验证 Panel 与 Dialog 使用同一配置；素材 Scene 跟随父组件尺寸，按钮背景随三种 size 更新，输入命中与动画不受嵌套影响。
 
 ## Verification
 
@@ -125,8 +128,19 @@
 - npm 打包内容检查确认基础 PNG 正常分发，无 kit、安装脚本、生成 Scene、构建输出或模板 node_modules 缓存。
 - 当前预览 `http://127.0.0.1:5175/` 已同步新文案，Runtime ready 为 true，错误日志为空；真实 Canvas 截图 `/tmp/pixifact-basic-ui-final.png` 为 `482 × 844`。本次不改变用户存档；临时替换素材验证项目已清理。
 
+### 2026-10-12 九宫格素材 Scene
+
+- `button.png` 与 `panel.png` 分别由 `src/ui/nine/ButtonBackground.scene/.ts`、`PanelBackground.scene/.ts` 封装；每个 Scene 只有一个 NineImage，统一配置图片路径和四边切片参数。Button 引用按钮背景，Panel 与 Dialog 共用面板背景，调用位置不再配置 NineImage 参数。
+- 素材 Scene 使用 Group 根，默认逻辑尺寸 96 × 96，内部 NineImage 四边为 0 铺满；根与内部图像的 eventMode 均为 none。调用方通过原生 frame layout 指定背景尺寸，Scene 依赖自动准备素材，不新增脚本行为或加载 API。
+- 先验证脚手架测试因缺少配对素材 Scene 而失败，实装后 4 个相关文件、20 项通过。组件测试只修改临时 PanelBackground 的四边参数为 18 / 20 / 14 / 12，验证 Panel 与 Dialog 都采用新值；按钮三种 size、嵌套背景尺寸、原有动画与命中盒、完整游戏流程继续通过。
+- 全部 9 个 Scene 校验、compile-scenes、模板 TypeScript 检查与 Web 生产构建通过，发布安装脚本语法检查通过。npm 打包内容包含两个素材 Scene、配对脚本和两张 PNG，无模板生成缓存；未执行完整网络安装或发布流程。
+- `482 × 844` 的改造后初始 Canvas 截图与此前基础 UI 截图字节一致，确认视觉未变；实际分别点击三档按钮后计数为 3。在 `375 × 667` 检查背景拉伸和弹窗，真实 Runtime 标准输入确认关闭后 dialogResult 为 confirmed、计数仍为 3，节点树确认弹窗引用 PanelBackground。
+- 证据：`/tmp/pixifact-nine-scene-baseline.png`、`/tmp/pixifact-nine-scene-mobile.png`、`/tmp/pixifact-nine-scene-dialog-mobile.png`、`/tmp/pixifact-nine-scene-final.png`。最终预览恢复默认 `482 × 844`，Runtime 错误日志为空，5175 服务和浏览器标签继续保留。
+- 素材数量保持 2 个 PNG，新增 4 个 `.scene/.ts` 源文件是用户要求的每素材 Scene 封装，随相关源码提交。
+
 ## Progress
 
+- [x] 每张九宫格 PNG 封装独立 Scene，迁移引用并验证集中调参、动态尺寸和真实预览。
 - [x] 收敛为一套基础 UI，移除 kit 与切换命令，验证直接替换 PNG 和预览。
 - [x] PNG 素材转换、引用迁移、两套外观回归与真实加载检查。
 - [x] 按用户反馈校准按钮、1080p fixedWidth、页面与弹窗适配、短窗口验证。
@@ -151,11 +165,12 @@ Done:
 - 实现 `game` 模板、4 个基础 UI 组件、交互展台和游戏／暂停／结算流程。
 - Button 支持三种 size、97% 按压与 140ms 回弹；使用 1080p fixedWidth，页面与弹窗随可用视口高度变化，短窗口可滚动。
 - 已按用户最新要求删除多套 kit 和安装入口，只保留一套基础 UI；使用者覆盖两张同名 PNG 即可更换对应背景。
-- 完成 20 项相关测试、7 个 Scene 校验／编译、模板类型检查、Web 构建、脚手架构建与 PNG 替换的静态显示验证。
+- 完成 20 项相关测试、9 个 Scene 校验／编译、模板类型检查、Web 构建、脚手架构建与 PNG 替换的静态显示验证。
 - 发布清单排除模板生成缓存；npm 打包内容检查基础 PNG、kit 清理和缓存排除通过。
+- 两张九宫格 PNG 已封装独立配对 Scene，Button／Panel／Dialog 引用背景 Scene；集中修改切片参数、动态尺寸、实际视口和点击／弹窗验证通过。
 
 Current State:
-- 最新要求已完成；`http://127.0.0.1:5175/` 继续展示一套基础 UI，开发服务 session 为 78225，等待用户检查。
+- 最新要求已完成；`http://127.0.0.1:5175/` 使用素材 Scene 并保留一套基础 UI，开发服务 session 为 78225，等待用户检查。
 
 Currently Failing:
 - 本次定向测试、构建和组件展台真实输入无失败；初版全量套件与游戏手动全流程限制见上方记录。

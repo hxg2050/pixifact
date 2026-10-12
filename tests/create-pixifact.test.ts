@@ -146,6 +146,10 @@ describe('create-pixifact scaffold', () => {
             expect(await readProjectFile(result.root, `src/ui/${component}.ts`)).toContain(`export class ${component}`);
             expect(await readProjectFile(result.root, `src/ui/${component}.scene`)).toContain('<Scene');
         }
+        for (const background of ['ButtonBackground', 'PanelBackground']) {
+            expect(await readProjectFile(result.root, `src/ui/nine/${background}.ts`)).toContain(`export class ${background}`);
+            expect(await readProjectFile(result.root, `src/ui/nine/${background}.scene`)).toContain('<NineImage');
+        }
         expect(await readProjectFile(result.root, 'README.md')).toContain('直接替换同名 PNG');
     });
 

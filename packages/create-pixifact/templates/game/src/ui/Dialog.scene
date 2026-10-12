@@ -1,7 +1,7 @@
 <Scene name="Dialog" width="1080" height="1920" eventMode="static">
   <Rect id="shade" left="0" right="0" top="0" bottom="0" fillColor="#25322d" fillAlpha="0.42" eventMode="none" />
   <Group id="body" horizontal="0" vertical="0" width="800" height="400">
-    <NineImage id="background" texture="assets/ui/panel.png" left="0" right="0" top="0" bottom="0" leftWidth="24" rightWidth="24" topHeight="24" bottomHeight="24" eventMode="none" />
+    <PanelBackground id="background" scene="./nine/PanelBackground.scene" left="0" right="0" top="0" bottom="0" />
     <Label id="titleLabel" text="{title}" left="40" right="40" top="24" height="64" fontSize="44" fontFamily="sans-serif" fontWeight="700" fill="#25322d" alignX="center" alignY="center" eventMode="none" />
     <Label id="messageLabel" text="{message}" left="40" right="40" top="112" height="136" fontSize="36" fontFamily="sans-serif" fill="#52635b" alignX="center" alignY="center" wordWrap="true" eventMode="none" />
     <Button id="confirm" scene="./Button.scene" left="40" bottom="32" width="320" height="80" size="medium" text="{confirmText}" @clicked="confirm" />
