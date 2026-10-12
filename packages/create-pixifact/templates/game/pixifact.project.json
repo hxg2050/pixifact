@@ -1,8 +1,8 @@
 {
   "version": 2,
   "name": "Pixifact Game Starter",
-  "resolution": { "width": 750, "height": 1334 },
-  "viewport": { "mode": "showAll" },
+  "resolution": { "width": 1080, "height": 1920 },
+  "viewport": { "mode": "fixedWidth" },
   "scenes": {
     "mainMenu": "src/screens/MainMenu.scene",
     "play": "src/screens/PlayScreen.scene",

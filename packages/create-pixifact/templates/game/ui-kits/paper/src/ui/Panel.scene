@@ -1,6 +1,6 @@
 <Scene name="Panel" width="620" height="400">
-  <NineImage id="background" texture="assets/ui/panel.svg" left="0" right="0" top="0" bottom="0" leftWidth="24" rightWidth="24" topHeight="24" bottomHeight="24" eventMode="none" />
-  <Label id="titleLabel" text="{title}" left="32" right="32" top="24" height="48" fontSize="30" fontFamily="sans-serif" fontWeight="700" fill="#25322d" alignY="center" eventMode="none" />
+  <NineImage id="background" texture="assets/ui/panel.png" left="0" right="0" top="0" bottom="0" leftWidth="24" rightWidth="24" topHeight="24" bottomHeight="24" eventMode="none" />
+  <Label id="titleLabel" text="{title}" left="32" right="32" top="24" height="48" fontSize="36" fontFamily="sans-serif" fontWeight="700" fill="#25322d" alignY="center" eventMode="none" />
   <Group id="contentHost" left="32" right="32" top="96" bottom="32">
     <slot name="content" />
   </Group>

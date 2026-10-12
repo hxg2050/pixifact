@@ -1,6 +1,6 @@
 # Pixifact 基础游戏模板
 
-这是可以直接复制开发新游戏的 Web 项目。默认设计尺寸为 `750 × 1334`，启动首页集中展示可替换外观的基础 UI 组件，并附带游戏、暂停、结算和最高分保存的代码示例。
+这是可以直接复制开发新游戏的 Web 项目。默认设计尺寸为竖屏 `1080 × 1920`，适配模式为 `fixedWidth`。启动首页集中展示可替换外观的基础 UI 组件，并附带游戏、暂停、结算和最高分保存的代码示例。
 
 本模板使用 Bun `1.3.13` 验证；需要本机安装 Bun 和 Git。
 
@@ -30,6 +30,8 @@ bun run editor
 
 `dev` / `build` 自动编译 Scene；独立执行 `compile` 便于检查生成结果。生成目录 `.pixifact/` 和构建目录 `dist/` 不作为源码维护。
 
+`fixedWidth` 使用屏幕宽度除以 1080 作为缩放比例，再由屏幕高度反推 Scene 的可用高度。页面背景和弹窗遮罩随视口铺满；组件展台和游戏示例的内容在短窗口中可以纵向滚动。
+
 ## 基础代码
 
 | 位置 | 职责 |
@@ -42,12 +44,12 @@ bun run editor
 | `src/screens/` | 页面 `.scene` 外观和同名 `.ts` 行为契约 |
 | `src/screens/MainMenu.scene/.ts` | 默认组件展台、演示状态和次要游戏入口 |
 | `src/ui/` | 当前生效的基础 UI Scene 与脚本 |
-| `assets/ui/` | 当前生效的按钮和面板九宫格 SVG 图片 |
+| `assets/ui/` | 当前生效的按钮和面板九宫格 PNG 图片（96 × 96，透明 RGBA） |
 | `ui-kits/` | paper / mint 两套配对 Scene 与资源，用于替换外观 |
 
 开始开发自己的游戏时，先修改 `GameSession` 中的规则，再修改 `PlayScreen` 的视觉和公开事件，最后在 `GameApp` 中连接数据流。游戏规则不读取 UI 内部节点。给新页面增加同目录同 basename 的 `.scene/.ts`，启动前用 `prepareSceneClass()` 准备，再交给 `ScreenManager.replace()`。
 
-`ScreenManager.track(event.connect(handler))` 注册当前页面的外部连接，必须在 `replace()` 之后调用。移除页面和关闭弹窗时会统一取消这些连接。页面尺寸由项目设计分辨率和 frame layout 控制；切换设计分辨率时同步修改页面与 Dialog 的根尺寸、GameApp 盒子尺寸。
+`ScreenManager.track(event.connect(handler))` 注册当前页面的外部连接，必须在 `replace()` 之后调用。移除页面和关闭弹窗时会统一取消这些连接。GameApp 的初始尺寸读取项目设计分辨率；页面、模态管理器和当前 Scene 通过 frame layout 跟随可用视口。切换设计分辨率时同步修改页面与 Dialog 的根尺寸及页面内容坐标。
 
 ## UI 库契约
 
@@ -62,7 +64,7 @@ bun run editor
 
 ```xml
 <Button id="startButton" scene="../ui/Button.scene"
-  horizontal="0" top="400" width="420" height="96" size="large"
+  horizontal="0" top="400" width="360" height="96" size="large"
   text="开始游戏" @clicked="start" />
 ```
 
@@ -70,9 +72,9 @@ bun run editor
 
 | size | 默认宽 × 高 | 字号 | 图标区域 |
 | --- | --- | --- | --- |
-| `large` | 420 × 96 | 30 | 32 × 32 |
-| `medium` | 300 × 80 | 26 | 28 × 28 |
-| `small` | 200 × 64 | 22 | 24 × 24 |
+| `large` | 360 × 96 | 42 | 36 × 36 |
+| `medium` | 280 × 80 | 36 | 32 × 32 |
+| `small` | 200 × 64 | 32 | 28 × 28 |
 
 Scene 的 `width` / `height` 或 frame layout 可覆盖默认宽高。按下时视觉缩小到 97%，松开后约 140ms 平滑回到原位；移出按钮、在按钮外松开或取消触摸也会复位。动画仅缩放内部 `visual` 节点，按钮布局和命中区域保持稳定；节点移除后不再执行渲染回调。
 
@@ -92,7 +94,7 @@ bun run build
 
 `paper` 是暖色纸感外观，`mint` 是清爽薄荷外观；两套均采用浅色背景，与示例页面的深色文字搭配。`ui-kits/<name>/src/ui/` 中保留配对 `.ts` 作为契约参考，安装外观时不复制这些脚本。
 
-自定义 UI 时，可以复制一套 kit 为自己的目录，保留组件文件名、公开 Props / Events / Slots 和脚本使用的 `@part` 节点 ID，再自由调整 `.scene` 的视觉结构、字体、颜色和静态图片引用。如果换成深色背景，同时调整 `src/screens/*.scene` 内的内容文字颜色。更换同路径 SVG / PNG 时可保持 Scene 引用不变；图片路径使用静态 `texture="assets/ui/..."`，更改后执行校验和编译。
+自定义 UI 时，可以复制一套 kit 为自己的目录，保留组件文件名、公开 Props / Events / Slots 和脚本使用的 `@part` 节点 ID，再自由调整 `.scene` 的视觉结构、字体、颜色和静态图片引用。如果换成深色背景，同时调整 `src/screens/*.scene` 内的内容文字颜色。素材统一使用透明 PNG；更换同路径 `button.png` / `panel.png` 时可保持 Scene 引用不变。默认素材为 96 × 96，九宫格四边各 24 个设计单位；图片路径使用静态 `texture="assets/ui/..."`，更改后执行校验和编译。
 
 每个 `.scene` 与同目录同名 `.ts` 配对；`@scene()` 类继承 `Group`，不声明自定义构造参数。非 Prop 依赖用显式方法传入。新增视觉节点或修改事件后运行 `pixifact scene validate --all`，避免外观替换破坏组件契约。
 

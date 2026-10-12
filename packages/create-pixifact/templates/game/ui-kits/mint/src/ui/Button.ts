@@ -3,9 +3,9 @@ import { Group } from 'pixifact/runtime';
 import { bindSceneNodeProp, createEvent, defineVariants, event, part, prop, scene, slot } from 'pixifact/scene';
 
 const buttonSizes = defineVariants({
-    large: { width: 420, height: 96, fontSize: 30, labelPadding: 64, iconInset: 28, iconSize: 32 },
-    medium: { width: 300, height: 80, fontSize: 26, labelPadding: 56, iconInset: 24, iconSize: 28 },
-    small: { width: 200, height: 64, fontSize: 22, labelPadding: 40, iconInset: 16, iconSize: 24 },
+    large: { width: 360, height: 96, fontSize: 42, labelPadding: 60, iconInset: 28, iconSize: 36 },
+    medium: { width: 280, height: 80, fontSize: 36, labelPadding: 48, iconInset: 24, iconSize: 32 },
+    small: { width: 200, height: 64, fontSize: 32, labelPadding: 32, iconInset: 16, iconSize: 28 },
 });
 
 @scene()

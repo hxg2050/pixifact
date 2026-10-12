@@ -1,11 +1,12 @@
 import type { DestroyOptions } from 'pixi.js';
-import { Group } from 'pixifact/runtime';
+import { Group, setFrameLayout } from 'pixifact/runtime';
 
 export class ScreenManager extends Group {
     private disconnects: (() => void)[] = [];
 
     replace(screen: Group) {
         this.clear();
+        setFrameLayout(screen, { left: 0, right: 0, top: 0, bottom: 0 });
         this.addChild(screen);
     }
 

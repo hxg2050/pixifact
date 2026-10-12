@@ -1,11 +1,13 @@
-<Scene name="PlayScreen" width="750" height="1334">
-  <Panel id="page" scene="../ui/Panel.scene" width="750" height="1334" title="收集星光">
-    <Group id="playContent" slot="content" left="0" right="0" top="0" bottom="0">
-      <Label id="score" left="48" right="48" top="100" height="72" text="{scoreText}" fontSize="42" fontWeight="700" fill="#25322d" alignX="center" alignY="center" />
-      <ProgressBar id="progress" scene="../ui/ProgressBar.scene" left="80" right="80" top="218" height="24" />
-      <Label id="instruction" left="48" right="48" top="330" height="80" text="点击下方按钮，收集一份星光。" fontSize="26" fill="#516158" alignX="center" alignY="center" />
-      <Button id="collectButton" scene="../ui/Button.scene" horizontal="0" top="520" width="440" height="136" text="✦  收集星光" @clicked="collect" />
-      <Button id="pauseButton" scene="../ui/Button.scene" horizontal="0" bottom="100" width="300" height="80" text="暂停" @clicked="pause" />
-    </Group>
+<Scene name="PlayScreen" width="1080" height="1920">
+  <Panel id="page" scene="../ui/Panel.scene" left="0" right="0" top="0" bottom="0" title="收集星光">
+    <ScrollContainer id="playScroll" slot="content" left="0" right="0" top="0" bottom="0" direction="vertical">
+      <Group id="playContent" width="1016" height="840">
+        <Label id="score" left="48" right="48" top="100" height="72" text="{scoreText}" fontSize="42" fontWeight="700" fill="#25322d" alignX="center" alignY="center" />
+        <ProgressBar id="progress" scene="../ui/ProgressBar.scene" left="80" right="80" top="218" height="24" />
+        <Label id="instruction" left="48" right="48" top="330" height="80" text="点击下方按钮，收集一份星光。" fontSize="26" fill="#516158" alignX="center" alignY="center" />
+        <Button id="collectButton" scene="../ui/Button.scene" horizontal="0" top="520" width="420" height="96" size="large" text="✦  收集星光" @clicked="collect" />
+        <Button id="pauseButton" scene="../ui/Button.scene" horizontal="0" bottom="60" width="280" height="80" text="暂停" @clicked="pause" />
+      </Group>
+    </ScrollContainer>
   </Panel>
 </Scene>

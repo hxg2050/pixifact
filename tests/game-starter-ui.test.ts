@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import ts from 'typescript';
@@ -57,6 +57,15 @@ describe('game starter replaceable UI', () => {
         expect(Object.keys(active['src/ui/Button.scene'].interface.events)).toEqual(['clicked']);
         expect(Object.keys(active['src/ui/Panel.scene'].interface.slots)).toEqual(['content']);
         expect(Object.keys(active['src/ui/Dialog.scene'].interface.events)).toEqual(['confirmed', 'cancelled']);
+        for (const root of [templateRoot, ...['paper', 'mint'].map((kit) => join(templateRoot, 'ui-kits', kit))]) {
+            const assets = join(root, 'assets/ui');
+            expect((await readdir(assets)).sort()).toEqual(['button.png', 'panel.png']);
+            for (const name of ['button', 'panel']) {
+                const png = await readFile(join(assets, `${name}.png`));
+                expect(png.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+                expect([png.readUInt32BE(16), png.readUInt32BE(20), png[25]]).toEqual([96, 96, 6]);
+            }
+        }
     });
 
     it.each(['paper', 'mint'])('compiles and runs %s with the active behavior scripts', async (kit) => {
@@ -78,7 +87,7 @@ describe('game starter replaceable UI', () => {
                     content: await readFile(join(root, path), 'utf8'),
                     sceneInterface: interfaces[path],
                     sceneInterfaces: interfaces,
-                    existingAssets: new Set(['assets/ui/button.svg', 'assets/ui/panel.svg']),
+                    existingAssets: new Set(['assets/ui/button.png', 'assets/ui/panel.png']),
                     normalizeSceneReference: (reference) => resolveSceneReference(path, reference),
                 })).toMatchObject({ ok: true });
             }
@@ -108,7 +117,7 @@ describe('game starter replaceable UI', () => {
 
             expect(button.size).toBe('medium');
             for (const [size, width, height, fontSize, iconSize] of [
-                ['large', 420, 96, 30, 32], ['medium', 300, 80, 26, 28], ['small', 200, 64, 22, 24],
+                ['large', 360, 96, 42, 36], ['medium', 280, 80, 36, 32], ['small', 200, 64, 32, 28],
             ] as const) {
                 button.size = size;
                 expect([button.width, button.height, label.fontSize]).toEqual([width, height, fontSize]);
@@ -183,8 +192,8 @@ describe('game starter replaceable UI', () => {
             expect(fill.width).toBe(0);
 
             const dialog = new Dialog();
-            expect(dialog.width).toBe(750);
-            expect(dialog.height).toBe(1334);
+            expect(dialog.width).toBe(1080);
+            expect(dialog.height).toBe(1920);
             expect(dialog.eventMode).toBe('static');
             let confirmed = 0;
             let cancelled = 0;

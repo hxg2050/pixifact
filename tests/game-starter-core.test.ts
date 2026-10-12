@@ -59,6 +59,19 @@ describe('game starter session', () => {
 });
 
 describe('game starter screen manager', () => {
+    it('fits current and replacement pages to the available viewport size', () => {
+        const manager = new ScreenManager({ width: 1080, height: 1920 });
+        const screen = new Group({ width: 120, height: 80 });
+        manager.replace(screen);
+        expect(screen.getSize()).toEqual({ width: 1080, height: 1920 });
+        manager.setSize(1080, 1440);
+        expect(screen.getSize()).toEqual({ width: 1080, height: 1440 });
+        const replacement = new Group();
+        manager.replace(replacement);
+        expect(replacement.getSize()).toEqual({ width: 1080, height: 1440 });
+        manager.destroy();
+    });
+
     it('replaces the page, destroys descendants, and disconnects old external events', () => {
         const manager = new ScreenManager();
         const first = new Group();

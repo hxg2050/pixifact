@@ -1,6 +1,6 @@
 # Game Starter Template
 
-状态：已完成按钮尺寸与点击反馈改版
+状态：已完成 1080p fixedWidth、按钮尺寸校准与 PNG 素材迁移
 权威范围：独立游戏项目模板、基础游戏流程与可替换 UI 库的实现和验收
 上游文档：[./index.md](./index.md)、[../../AGENTS.md](../../AGENTS.md)、[../testing/TESTING.md](../testing/TESTING.md)
 
@@ -23,6 +23,9 @@
 - 按下时视觉层缩至 97%，松开后 140ms 恢复；只变换内层视觉 Group，根布局盒与命中区域保持稳定。使用 Pixi 原生 onRender，不新增动画依赖或全局 ticker；禁用、移出松开、取消和销毁都能结束反馈。
 - UI `.ts` 行为契约保持稳定；提供两套可以安装到同一路径的 `.scene` 外观和静态图片资产。替换后执行校验与编译，不新增全局运行时主题系统。
 - 配对脚本和 `.scene` 是源码，生成代码、依赖与构建产物不提交。
+- 2026-10-12 用户要求按钮再缩小，设计分辨率改为竖屏 `1080 × 1920`，viewport 使用 `fixedWidth`；随后反馈分辨率变更后按钮又过小。按新设计坐标重新校准为 `360 × 96 / 280 × 80 / 200 × 64`，字号为 `42 / 36 / 32`。展示、弹窗和游戏入口同步调整，不以拉伸按钮填满面板。
+- 页面和模态管理器采用原生 frame layout 随 GameApp 可用高度变化；页面背景与弹窗遮罩铺满实际逻辑视口。组件展台和示例页面复用原生 ScrollContainer，在短窗口中保留底部操作可达性，不新增适配依赖。
+- 用户要求素材使用 PNG：沿用已有美术，将当前外观与 Paper / Mint 中的按钮、面板素材转换为透明 RGBA PNG，同步全部 Scene 引用并移除不再使用的 SVG；不新增项目依赖。
 
 ## Non-Goals
 
@@ -53,10 +56,12 @@
 4. 更换第二套外观后重复关键流程，确认游戏代码和 UI 行为契约不变。
 5. 两套外观验证展台状态变化、进度边界、模态输入隔离和关闭后的状态保留；基准视口与短屏检查所有操作可达。
 6. 验证三种尺寸、字号与图标区域联动、点击动画不改变命中盒、快速连点、移出松开／取消、禁用与销毁时结束动画；两套外观均通过组件与流程回归。
+7. 验证模板的 1080p / fixedWidth 配置、页面与弹层随视口高度调整、短窗口滚动和遮罩隔离；真实检查默认窗口、375 × 667 与较短的宽窗口。
+8. 校验 PNG 文件签名、96 × 96 尺寸、RGBA 编码，验证两套外观切换后无 SVG 引用并可真实加载。
 
 ## Verification
 
-- `bun run test -- tests/create-pixifact.test.ts tests/game-starter-core.test.ts tests/game-starter-ui.test.ts tests/game-starter-flow.test.ts`：4 个文件、21 项通过。
+- `bun run test -- tests/create-pixifact.test.ts tests/game-starter-core.test.ts tests/game-starter-ui.test.ts tests/game-starter-flow.test.ts`：当前 4 个文件、22 项通过。
 - 两套 UI 用真实 compiler 生成节点，使用官方 Pixi events extension 和 RenderGroup 变换更新进行 EventBoundary 命中检查；暂停、恢复、结算、重玩、返回、旧事件隔离和重新实例化恢复存档均通过。
 - `bun run build`：核心包和平台包构建通过；create-pixifact 自身 TypeScript 构建通过。
 - `scene validate --all`：全部 7 个 Scene 通过；compile-scenes 与模板 typecheck 通过。
@@ -88,11 +93,31 @@
 
 ### 本次素材盘点
 
-- 已有可用：`assets/ui/button.svg` 与 `assets/ui/panel.svg`，均为 `96 × 96`、透明背景的 SVG，用于按钮与面板九宫格；Paper / Mint 沿用各自 kit 的对应原稿，星标由 Label 节点表达。
+- 已有可用：当前外观与 Paper / Mint kit 的 `assets/ui/button.png`、`assets/ui/panel.png`，共 6 个文件，均为 `96 × 96`、透明 RGBA PNG，用于按钮与面板九宫格；沿用原有美术，星标由 Label 节点表达。
 - 需要新增：0。
+
+### 2026-10-12 1080p fixedWidth 与尺寸校准
+
+- 配置改为竖屏 `1080 × 1920` 与 `fixedWidth`；GameApp 读取项目分辨率，页面与模态管理器通过原生 frame layout 跟随实际逻辑视口。三种按钮、图标和字号按新坐标校准，两套 kit 同步。
+- 最初将按钮进一步缩小后，用户指出分辨率变更导致显示过小；最终采用 `360 × 96 / 280 × 80 / 200 × 64` 和 `42 / 36 / 32` 字号，点击动画保持不变。
+- 先验证旧实现的配置、页面适配和尺寸测试失败；最终 4 个相关文件、22 项通过，覆盖替换页面后的尺寸、短窗口滚动、弹窗打开期间调整视口和输入隔离，以及完整游戏流程。
+- Paper / Mint 均通过 7 个 Scene 校验、compile-scenes、TypeScript 检查与 Web 生产构建。Mint 在仓库外临时项目验证，静态 `1080 × 1920` 截图为 `/tmp/pixifact-fixedwidth-mint-final.png`；静态截图不执行进度脚本。
+- 真实预览检查了 `482 × 844`、`375 × 667` 和 `960 × 640`：三档点击计数为 3，禁用及遮罩后的点击不增加计数；在移动端，GameApp 与 Dialog 都是 `1080 × 1920.96` 的逻辑盒子，实际边界完整覆盖 `375 × 667`。
+- 宽而短窗口使用真实滚轮滚动到末尾，内容偏移为 `-832`，弹窗和游戏入口完整可达。证据为 `/tmp/pixifact-fixedwidth-mobile-dialog-final.png`、`/tmp/pixifact-fixedwidth-short-window.png` 与 `/tmp/pixifact-fixedwidth-paper-final.png`。移动端标准 Runtime 输入确认弹窗关闭，展台计数与状态保留。
+- 最终 Runtime 错误日志为空；已清除临时视口覆盖并保留预览标签，`http://127.0.0.1:5175/` 继续运行。
+
+### 2026-10-12 PNG 素材
+
+- 使用已安装的 Sharp 将现有美术转换为 6 个 PNG，未引入项目依赖；删除 6 个失去引用的 SVG，当前外观与两套 kit 的 Scene 全部引用 PNG，更新换肤说明。
+- 测试检查实际 PNG 签名、96 × 96 尺寸与 RGBA 编码，确认资源目录只包含 `button.png`、`panel.png`；先验证旧资源失败，转换后 4 个文件、22 项测试全部通过。
+- 两套外观再次通过 7 个 Scene 校验、编译与 Web 生产构建。Mint 静态截图为 `/tmp/pixifact-game-png-mint.png`，Paper 真实 Canvas 截图为 `/tmp/pixifact-game-png-paper-final.png`。
+- Vite 热更新保留了旧 SVG 清单，重启本任务的 5175 预览服务后正常加载 PNG；未改变其他服务。真实点击将展台计数更新为 1，最终 Runtime ready 为 true，错误日志为空。
+- PNG 格式迁移新增 6 个素材文件，移除 6 个 SVG；新增 PNG 是用户明确要求的交付资产，与本次相关源码一起提交。
 
 ## Progress
 
+- [x] PNG 素材转换、引用迁移、两套外观回归与真实加载检查。
+- [x] 按用户反馈校准按钮、1080p fixedWidth、页面与弹窗适配、短窗口验证。
 - [x] 大中小按钮、轻微点击动画、两套外观验证与预览更新。
 - [x] UI 组件展台改版、定向验证及预览更新。
 - [x] 读取仓库规范并审查当前能力。
@@ -115,9 +140,11 @@ Done:
 - 完成 21 项相关测试、两套 Web 构建、模板类型检查与打包内容检查。
 - 默认首页改为 UI 组件展台，保留底部游戏入口；完成两套外观回归、真实输入与短屏检查，更新使用说明。
 - Button 新增三种 size、97% 按压与 140ms 回弹；完成两套外观的测试、校验、类型检查、构建、截图和真实点击检查。
+- 改为 1080p fixedWidth，按最新反馈校准按钮和字号，接通页面与弹窗的动态高度；完成 22 项测试、两套构建和真实视口／滚动／遮罩验证。
+- 全部正式 UI 纹理改为透明 PNG，完成资产签名检查、两套构建与真实加载／点击验证。
 
 Current State:
-- 最新要求已实现并验证；Paper 预览在 `http://127.0.0.1:5175/` 保持运行，等待用户检查。
+- 最新要求已实现并验证；PNG 预览继续在 `http://127.0.0.1:5175/` 运行，新开发服务 session 为 78225，等待用户检查。
 
 Currently Failing:
 - 本次定向测试、构建和组件展台真实输入无失败；初版全量套件与游戏手动全流程限制见上方记录。

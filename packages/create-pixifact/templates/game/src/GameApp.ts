@@ -1,4 +1,5 @@
-import { Group } from 'pixifact/runtime';
+import { Group, setFrameLayout } from 'pixifact/runtime';
+import project from '../pixifact.project.json';
 import { GameSession } from './core/GameSession';
 import { ScreenManager } from './core/ScreenManager';
 import { WebRecordStore } from './core/WebRecordStore';
@@ -9,13 +10,16 @@ import { Dialog } from './ui/Dialog';
 
 export class GameApp extends Group {
     private readonly session: GameSession;
-    private readonly screens = new ScreenManager({ width: 750, height: 1334 });
-    private readonly modals = new ScreenManager({ width: 750, height: 1334 });
+    private readonly screens = new ScreenManager();
+    private readonly modals = new ScreenManager();
     private modalOpen = false;
 
     constructor(private readonly records: WebRecordStore) {
-        super({ width: 750, height: 1334 });
+        super(project.resolution);
         this.session = new GameSession(records.read());
+        for (const layer of [this.screens, this.modals]) {
+            setFrameLayout(layer, { left: 0, right: 0, top: 0, bottom: 0 });
+        }
         this.addChild(this.screens, this.modals);
         this.showMenu();
     }

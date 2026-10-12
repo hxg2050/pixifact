@@ -100,7 +100,19 @@ describe('game starter complete flow', () => {
             const game = new GameApp(new WebRecordStore(storage));
             games.push(game);
             game.enableRenderGroup();
-            const boundary = new pixi.EventBoundary(game);
+            const stage = new pixi.Container({ isRenderGroup: true });
+            stage.addChild(game);
+            const resize = (width: number, height: number) => {
+                const layout = runtime.calculatePixifactViewportLayout({
+                    resolution: { width: 1080, height: 1920 }, mode: 'fixedWidth', screen: { width, height },
+                });
+                runtime.applyPixifactViewportLayout({ root: game, stage }, layout);
+                expect(page(game).getSize()).toEqual(layout.scene);
+                for (const layer of game.children) expect((layer as runtime.Group).getSize()).toEqual(layout.scene);
+                return layout;
+            };
+            resize(609, 844);
+            const boundary = new pixi.EventBoundary(stage);
             const menu = page(game) as MainMenu;
             expect(game.snapshot()).toMatchObject({ phase: 'menu', score: 0, goal: 8, bestScore: 0, modalOpen: false });
             expect(game.snapshot().showcase).toEqual({
@@ -133,11 +145,18 @@ describe('game starter complete flow', () => {
             expect(game.snapshot().showcase?.progress).toBe(100);
             expect(increase.disabled).toBe(true);
 
+            resize(960, 640);
+            const scroll = sceneRuntime.getSceneNode(menu, '0:page/slot:content/0:menuScroll') as runtime.ScrollContainer;
+            scroll.emit('wheel', { deltaX: 0, deltaY: 10_000, preventDefault: vi.fn(), stopPropagation: vi.fn() });
+            expect(scroll.scrollY).toBeGreaterThan(0);
             const openDialog = button(menu, 'dialogButton');
             tap(boundary, openDialog);
             const sampleDialog = game.children[1].children[0] as Dialog;
             expect(game.snapshot()).toMatchObject({ phase: 'menu', modalOpen: true, score: 0 });
             expect(game.children[0].interactiveChildren).toBe(false);
+            const tallLayout = resize(375, 667);
+            expect(sampleDialog.getSize()).toEqual(tallLayout.scene);
+            expect(scroll.scrollY).toBe(0);
             updateTransforms(boundary);
             const samplePoint = sample.toGlobal({ x: sample.width / 2, y: sample.height / 2 });
             expect(boundary.hitTest(samplePoint.x, samplePoint.y) === sampleDialog).toBe(true);
@@ -223,6 +242,7 @@ describe('game starter complete flow', () => {
             games.push(refreshed);
             expect(refreshed.snapshot()).toEqual(game.snapshot());
             expect((page(refreshed) as MainMenu).bestText).toBe('最高记录 · 8');
+            stage.destroy();
         } finally {
             for (const game of games) game.destroy({ children: true });
             load.mockRestore();

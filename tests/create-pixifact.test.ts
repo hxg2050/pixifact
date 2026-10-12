@@ -124,7 +124,8 @@ describe('create-pixifact scaffold', () => {
 
         expect(result.template).toBe('game');
         const project = JSON.parse(await readProjectFile(result.root, 'pixifact.project.json'));
-        expect(project.resolution).toEqual({ width: 750, height: 1334 });
+        expect(project.resolution).toEqual({ width: 1080, height: 1920 });
+        expect(project.viewport).toEqual({ mode: 'fixedWidth' });
         expect(project.scenes).toMatchObject({
             mainMenu: 'src/screens/MainMenu.scene',
             play: 'src/screens/PlayScreen.scene',
