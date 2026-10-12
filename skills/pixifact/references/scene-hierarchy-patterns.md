@@ -129,6 +129,44 @@ Graphics
 
 不要手写大量 `x/y` 去模拟横排、竖排或网格，除非每个元素确实需要独立位置。
 
+## 排列容器中的单独偏移
+
+排列容器管理的是直接子节点的两个坐标：
+
+| 父容器 | 子节点 `x` | 子节点 `y` |
+| --- | --- | --- |
+| `HBoxContainer` | 顺序排列与 `gap` / `justify` | `alignY` 对齐 |
+| `VBoxContainer` | `alignX` 对齐 | 顺序排列与 `gap` / `justify` |
+| `GridContainer` | 列位置与 `alignX` | 行位置与 `alignY` |
+
+所以横排子节点的 `y`、竖排子节点的 `x` 也不能作为自由偏移使用；直接写 `x/y` 会在重新布局时被覆盖。不要用直接子节点的 frame layout 约束或脚本反复改位置来绕过排列。
+
+整组对齐用父容器的 `alignY` / `alignX`，间距和分布用 `gap` / `justify`。只需微调一个元素时，用明确宽高的 `Group` 作为排列占位，内部节点保留自由位置。
+
+横排中把第一个元素单独下移 `8`：
+
+```xml
+<HBoxContainer id="buttonRow" width="280" height="80" gap="16" alignY="center">
+  <Group id="firstSlot" width="120" height="64">
+    <Label id="firstLabel" y="8" width="120" height="48" text="下移 8" fontSize="24" />
+  </Group>
+  <Label id="secondLabel" width="120" height="64" text="保持对齐" fontSize="24" />
+</HBoxContainer>
+```
+
+竖排中把第一个元素单独右移 `8`：
+
+```xml
+<VBoxContainer id="buttonColumn" width="180" height="160" gap="16" alignX="center">
+  <Group id="firstSlot" width="120" height="64">
+    <Label id="firstLabel" x="8" width="104" height="64" text="右移 8" fontSize="24" />
+  </Group>
+  <Label id="secondLabel" width="120" height="64" text="保持对齐" fontSize="24" />
+</VBoxContainer>
+```
+
+排列按外层 `Group.width` / `height` 计算，不会因为内部节点偏移自动扩大占位。需要为内容留出空间时，显式调整占位尺寸；同时检查是否与邻项重叠或被滚动区域裁剪。内部节点若也设置了同轴 frame layout 约束，其 `x/y` 仍会被该约束覆盖。
+
 ## ScrollContainer 标准结构
 
 滚动容器通常只直接承载一个内容 layout container：

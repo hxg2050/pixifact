@@ -58,6 +58,11 @@ description: 用于下游 Pixifact 游戏项目：编辑项目相对 .scene 文�
 
 默认项目根是当前工作目录；不在项目根运行时再加 `--project-root <path>`。项目自己的 `bun run build`、`bun run dev` 等命令只作为后续检查或预览入口。
 
+## UI 最佳实践
+
+- 九宫格 UI 素材推荐每张 PNG 对应一个 `.scene` / `.ts` 文件对，在 Scene 内集中设置 `NineImage` 的图片路径和四边切片参数；按钮、面板等调用方直接引用该 Scene，只设置位置和盒子尺寸。封装、引用和换图示例见 [NineImage](references/scene-objects.md#nineimage)。
+- `HBoxContainer`、`VBoxContainer`、`GridContainer` 会接管直接子节点的 `x/y`；横排的 `y`、竖排的 `x` 也会被对齐结果覆盖。需要单独微调时，让一个明确尺寸的 `Group` 参与排列，再调整其内部节点。示例和占位尺寸规则见 [排列容器中的单独偏移](references/scene-hierarchy-patterns.md#排列容器中的单独偏移)。
+
 ## Editor 协作工作流
 
 静态视觉检查沿用上面的 `scene screenshot` 流程。用户需要打开 Editor 浏览、选择或人工微调时，在项目根目录运行 `pixifact editor`；已运行时复用。用户指向已打开 Editor 的当前 Scene、选中节点或当前画面时：

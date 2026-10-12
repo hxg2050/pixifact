@@ -41,6 +41,7 @@ Decision:
 优先不拆。只有满足下面至少一条时才新建子 Scene：
 
 - 会在多个父 Scene 中复用。
+- 九宫格 UI 素材需要集中维护图片路径和切片参数，采用每张 PNG 一个素材 Scene 的推荐写法，见 [NineImage](scene-objects.md#nineimage)。
 - 有独立 public props、events 或 slots。
 - 自身有明确交互行为，例如按钮、列表项、弹窗。
 - 层级足够复杂，拆出后能减少父 Scene 噪音。
@@ -88,6 +89,7 @@ Decision:
 | 横向资源条、工具栏 | `HBoxContainer` |
 | 纵向菜单、任务列表 | `VBoxContainer` |
 | 背包、关卡卡片、固定列 | `GridContainer` |
+| 排列中的单个元素需要位置微调 | 明确尺寸的 `Group` 参与排列，偏移写在内部节点；见 [排列容器中的单独偏移](scene-hierarchy-patterns.md#排列容器中的单独偏移) |
 | 长列表、背包滚动区 | `ScrollContainer` + 内部 `VBoxContainer` / `GridContainer` |
 | 纯分组、统一移动或显隐 | `Container` |
 

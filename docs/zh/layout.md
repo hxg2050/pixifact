@@ -234,6 +234,36 @@ Inspector：
 - Editor Authoring Preview 不激活这些行为；它显示同一份静态视觉状态，但交互事件不会修改预览。
 - 直接 `new ScrollContainer()` 并加入普通 Pixi 容器不会自动获得输入行为；需要交互滚动时应把节点声明在 `.scene` 中。
 
+### 排列容器中的单独偏移
+
+`HBoxContainer`、`VBoxContainer`、`GridContainer` 会接管直接子节点的两个坐标：横排的 `x` 按顺序分布、`y` 由 `alignY` 对齐；竖排的 `y` 按顺序分布、`x` 由 `alignX` 对齐；网格按单元格位置和对齐计算 `x/y`。横排子节点的 `y`、竖排子节点的 `x` 也不能作为自由偏移使用，重新布局时会被覆盖。直接子节点的 frame layout 约束也不能用来覆盖排列结果。
+
+整组对齐用父容器的 `alignY` / `alignX`，间距和分布用 `gap` / `justify`。只需微调一个元素时，用明确宽高的 `Group` 作为排列占位，再调整内部节点。
+
+横排中把第一个元素单独下移 `8`：
+
+```xml
+<HBoxContainer id="buttonRow" width="280" height="80" gap="16" alignY="center">
+  <Group id="firstSlot" width="120" height="64">
+    <Label id="firstLabel" y="8" width="120" height="48" text="下移 8" fontSize="24" />
+  </Group>
+  <Label id="secondLabel" width="120" height="64" text="保持对齐" fontSize="24" />
+</HBoxContainer>
+```
+
+竖排中把第一个元素单独右移 `8`：
+
+```xml
+<VBoxContainer id="buttonColumn" width="180" height="160" gap="16" alignX="center">
+  <Group id="firstSlot" width="120" height="64">
+    <Label id="firstLabel" x="8" width="104" height="64" text="右移 8" fontSize="24" />
+  </Group>
+  <Label id="secondLabel" width="120" height="64" text="保持对齐" fontSize="24" />
+</VBoxContainer>
+```
+
+排列按外层 `Group.width` / `height` 计算，不会因为内部节点偏移自动扩大占位。需要为内容留出空间时，显式调整占位尺寸；同时检查是否与邻项重叠或被滚动区域裁剪。内部节点若也设置了同轴 frame layout 约束，其 `x/y` 仍会被该约束覆盖。
+
 ## 绘制和图片节点
 
 `Rect`：

@@ -164,6 +164,8 @@
 
 `HBoxContainer` 横向排列直接子节点。它继承 `Control`，自身可以使用 frame layout。
 
+直接子节点的 `x/y` 都由容器管理，`y` 由 `alignY` 决定。单独上下微调时，使用明确尺寸的 `Group` 占位并调整内部节点，见 [排列容器中的单独偏移](./layout.md#排列容器中的单独偏移)。
+
 专属属性：
 
 | 属性 | 类型 | 可选值 | 说明 |
@@ -184,6 +186,8 @@
 ## VBoxContainer
 
 `VBoxContainer` 纵向排列直接子节点。它继承 `Control`，自身可以使用 frame layout。
+
+直接子节点的 `x/y` 都由容器管理，`x` 由 `alignX` 决定。单独左右微调时，使用明确尺寸的 `Group` 占位并调整内部节点，见 [排列容器中的单独偏移](./layout.md#排列容器中的单独偏移)。
 
 专属属性：
 
@@ -350,9 +354,41 @@
 
 适合：按钮底图、弹窗面板、提示气泡、卡片背景。
 
+推荐每张九宫格 PNG 对应一个素材 Scene，集中维护 `texture` 和四边切片参数；使用相同图片的按钮、面板、弹窗直接引用该 Scene，避免在各处重复配置。
+
+例如 `assets/ui/panel.png` 为 `96 × 96`、四边切片各 `24` 的素材，在 `src/ui/nine/PanelBackground.scene` 中设置：
+
 ```xml
-<NineImage id="dialogPanel" texture="assets/ui/panel.png" horizontal="0" vertical="0" width="620" height="420" leftWidth="32" rightWidth="32" topHeight="32" bottomHeight="32" />
+<Scene name="PanelBackground" width="96" height="96" eventMode="none">
+  <NineImage id="image" texture="assets/ui/panel.png"
+    left="0" right="0" top="0" bottom="0"
+    leftWidth="24" rightWidth="24" topHeight="24" bottomHeight="24"
+    eventMode="none" />
+</Scene>
 ```
+
+配对的 `src/ui/nine/PanelBackground.ts` 只需要声明 Scene：
+
+```ts
+import { Group } from 'pixifact/runtime';
+import { scene } from 'pixifact/scene';
+
+@scene()
+export class PanelBackground extends Group {}
+```
+
+调用方 `src/ui/Panel.scene` 只负责位置与尺寸，内部 `NineImage` 随 Scene 盒子铺满：
+
+```xml
+<Scene name="Panel" width="620" height="420">
+  <PanelBackground id="background" scene="./nine/PanelBackground.scene"
+    left="0" right="0" top="0" bottom="0" />
+</Scene>
+```
+
+调用方仍需同名 `Panel.ts`。纯背景的 `eventMode="none"` 让输入由外层组件处理。
+
+图片尺寸和切片值按素材实际像素设置，`96` / `24` 是示例，不是固定规格。替换同名、同尺寸、同切片边距的 PNG 即可换外观；素材规格变化时，集中修改对应素材 Scene 的图片路径、切片参数和必要的默认盒子尺寸，再校验所有引用并检查不同尺寸下的效果。布局中改变背景尺寸时，使用 Scene 的 `width/height` 或 frame layout；`scaleX/scaleY` 会把边角一起缩放。
 
 ## TileImage
 
@@ -587,7 +623,7 @@ export class PrimaryButton extends Group {
 
 ```xml
 <Scene name="PrimaryButton" width="420" height="88">
-  <NineImage id="background" texture="assets/ui/button.png" left="0" right="0" top="0" bottom="0" leftWidth="24" rightWidth="24" topHeight="24" bottomHeight="24" />
+  <ButtonBackground id="background" scene="./nine/ButtonBackground.scene" left="0" right="0" top="0" bottom="0" />
   <HBoxContainer id="content" horizontal="0" vertical="0" gap="12" alignY="center">
     <slot name="icon" />
     <Text id="label" text="Button" fontSize="28" fill="#ffffff" />
@@ -596,6 +632,8 @@ export class PrimaryButton extends Group {
 ```
 
 `<slot />` 省略 `name` 时表示 `default` slot。
+
+`ButtonBackground` 按上面的 `NineImage` 推荐方式封装 `assets/ui/button.png`，并配对同名 `.ts`。
 
 ## 当前不要使用的标签
 

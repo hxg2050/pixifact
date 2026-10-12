@@ -164,6 +164,8 @@ Note: `Container.width` / `Container.height` keep native Pixi bounds / scale sem
 
 `HBoxContainer` lays out direct children horizontally. It extends `Control`, so it can also use frame layout.
 
+The container manages both `x` and `y` of its direct children; `alignY` determines `y`. To move one element vertically, give a wrapper `Group` explicit dimensions and adjust its inner node. See [Individual offsets inside layout containers](./layout.md#individual-offsets-inside-layout-containers).
+
 Object-specific props:
 
 | Prop | Type | Values | Description |
@@ -184,6 +186,8 @@ Use for toolbars, bottom button rows, and resource bars with an icon plus text.
 ## VBoxContainer
 
 `VBoxContainer` lays out direct children vertically. It extends `Control`, so it can also use frame layout.
+
+The container manages both `x` and `y` of its direct children; `alignX` determines `x`. To move one element horizontally, give a wrapper `Group` explicit dimensions and adjust its inner node. See [Individual offsets inside layout containers](./layout.md#individual-offsets-inside-layout-containers).
 
 Object-specific props:
 
@@ -350,9 +354,41 @@ Object-specific props:
 
 Use for button backgrounds, dialogs, bubbles, and card backgrounds.
 
+Prefer one material Scene per nine-slice PNG, with `texture` and the four slice parameters defined there. Buttons, panels, and dialogs that share the image reference this Scene instead of repeating its configuration.
+
+For a `96 × 96` image at `assets/ui/panel.png` with `24`-pixel borders, define `src/ui/nine/PanelBackground.scene`:
+
 ```xml
-<NineImage id="dialogPanel" texture="assets/ui/panel.png" horizontal="0" vertical="0" width="620" height="420" leftWidth="32" rightWidth="32" topHeight="32" bottomHeight="32" />
+<Scene name="PanelBackground" width="96" height="96" eventMode="none">
+  <NineImage id="image" texture="assets/ui/panel.png"
+    left="0" right="0" top="0" bottom="0"
+    leftWidth="24" rightWidth="24" topHeight="24" bottomHeight="24"
+    eventMode="none" />
+</Scene>
 ```
+
+Its paired `src/ui/nine/PanelBackground.ts` only declares the Scene:
+
+```ts
+import { Group } from 'pixifact/runtime';
+import { scene } from 'pixifact/scene';
+
+@scene()
+export class PanelBackground extends Group {}
+```
+
+The caller, `src/ui/Panel.scene`, sets position and dimensions. The inner `NineImage` fills the Scene box:
+
+```xml
+<Scene name="Panel" width="620" height="420">
+  <PanelBackground id="background" scene="./nine/PanelBackground.scene"
+    left="0" right="0" top="0" bottom="0" />
+</Scene>
+```
+
+The caller also needs a paired `Panel.ts`. A decorative background uses `eventMode="none"` so the outer component handles input.
+
+Use the image's actual pixel dimensions and borders; `96` and `24` are examples, not fixed requirements. Replace the PNG with the same filename, dimensions, and borders to change its appearance. When the asset specification changes, update its path, slice parameters, and any required default box dimensions in the material Scene, then validate all callers and check several target sizes. Use Scene `width/height` or frame layout to resize a background in the layout; `scaleX/scaleY` also scale its corners.
 
 ## TileImage
 
@@ -587,7 +623,7 @@ Do not write structured props as JSON strings. See [Agent Scene Authoring](./age
 
 ```xml
 <Scene name="PrimaryButton" width="420" height="88">
-  <NineImage id="background" texture="assets/ui/button.png" left="0" right="0" top="0" bottom="0" leftWidth="24" rightWidth="24" topHeight="24" bottomHeight="24" />
+  <ButtonBackground id="background" scene="./nine/ButtonBackground.scene" left="0" right="0" top="0" bottom="0" />
   <HBoxContainer id="content" horizontal="0" vertical="0" gap="12" alignY="center">
     <slot name="icon" />
     <Text id="label" text="Button" fontSize="28" fill="#ffffff" />
@@ -596,6 +632,8 @@ Do not write structured props as JSON strings. See [Agent Scene Authoring](./age
 ```
 
 `<slot />` without `name` means the `default` slot.
+
+`ButtonBackground` wraps `assets/ui/button.png` using the recommended `NineImage` Scene pattern above and has a paired `.ts` file.
 
 ## Do Not Use These Tags
 

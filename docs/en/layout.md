@@ -234,6 +234,36 @@ Inspector:
 - Editor Authoring Preview does not activate this behavior. It displays the same static visual state, but interaction events do not mutate the preview.
 - Adding a directly constructed `new ScrollContainer()` to a regular Pixi container does not automatically enable input behavior; declare interactive scroll nodes in `.scene`.
 
+### Individual offsets inside layout containers
+
+`HBoxContainer`, `VBoxContainer`, and `GridContainer` manage both coordinates of their direct children. A horizontal row distributes `x` and sets `y` through `alignY`; a vertical column distributes `y` and sets `x` through `alignX`; a grid derives `x/y` from cell position and alignment. A horizontal child's `y` or a vertical child's `x` is not a free offset: the next layout pass overwrites it. Frame layout constraints on direct children cannot override the arrangement either.
+
+Use the parent's `alignY` / `alignX` for group alignment and `gap` / `justify` for spacing and distribution. To adjust one element, place an explicitly sized wrapper `Group` in the layout and move its inner node.
+
+Move only the first element down by `8` in a horizontal row:
+
+```xml
+<HBoxContainer id="buttonRow" width="280" height="80" gap="16" alignY="center">
+  <Group id="firstSlot" width="120" height="64">
+    <Label id="firstLabel" y="8" width="120" height="48" text="Down 8" fontSize="24" />
+  </Group>
+  <Label id="secondLabel" width="120" height="64" text="Aligned" fontSize="24" />
+</HBoxContainer>
+```
+
+Move only the first element right by `8` in a vertical column:
+
+```xml
+<VBoxContainer id="buttonColumn" width="180" height="160" gap="16" alignX="center">
+  <Group id="firstSlot" width="120" height="64">
+    <Label id="firstLabel" x="8" width="104" height="64" text="Right 8" fontSize="24" />
+  </Group>
+  <Label id="secondLabel" width="120" height="64" text="Aligned" fontSize="24" />
+</VBoxContainer>
+```
+
+The layout measures the outer `Group.width` / `height`; an inner offset does not enlarge that space. Increase the wrapper dimensions explicitly when needed, and check for overlap or clipping by a scroll area. Same-axis frame layout constraints on an inner node still override its `x/y`.
+
 ## Drawing And Image Nodes
 
 `Rect`:
