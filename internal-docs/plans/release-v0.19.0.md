@@ -1,6 +1,6 @@
 # Release v0.19.0
 
-Status: In Progress
+Status: Complete
 
 ## Goal
 
@@ -42,16 +42,19 @@ Status: In Progress
 - 2026-10-12：工作区干净；本地九个待发布提交包含游戏模板和 skill 更新。
 - 2026-10-12：Changesets 已生成五包 `0.19.0`，同步 minimal / game 模板和内部依赖；`bun.lock` 无改动。
 - 2026-10-12：五包版本一致性、两套模板依赖、`bun install --frozen-lockfile --dry-run`、8 项脚手架测试与 `git diff --check` 通过。
-- 2026-10-12：GitHub API 确认远端 `main` 仍为 `cde4457`；默认 Git 拉取遇到 HTTP/2 framing error，正在临时使用 HTTP/1.1 重试。
-- CI 和发布后验证待执行。
+- 2026-10-12：GitHub API 确认原远端 `main` 为 `cde4457`；Git 拉取出现 HTTP/2 framing error 与 HTTP/1.1 empty reply，随后发布脚本临时使用 HTTP/1.1 成功推送 `main` 和 tag，未修改永久 Git 配置。
+- 2026-10-12：发布提交 `089afbe` 和 `v0.19.0` 已推送；[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/38205470360) 正在执行。
+- 2026-10-12：[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/38205470360) 成功，29 个测试文件 / 408 项测试、全部构建、包内容和仓库外安装验收通过，五包 Trusted Publishing 完成。
+- 2026-10-12：[GitHub Release](https://github.com/hxg2050/pixifact/releases/tag/v0.19.0) 已创建；npm registry 已确认五包目标版本和 `latest` 均为 `0.19.0`。
+- 2026-10-12：npm metadata 和 tarball 在发布后短暂返回旧缓存，随后标准查询和正式 tarball 下载均成功；已确认游戏模板、两个九宫格素材 Scene 及配对脚本、两张 PNG 与更新后的 skill，且无模板缓存产物。
 
 ## Progress
 
 - [x] 核对当前版本和待发布内容。
 - [x] 生成并审阅版本改动，完成本地最小检查。
-- [ ] 提交发布变更并推送 tag。
-- [ ] 确认 CI 成功与五包 npm 发布。
-- [ ] 创建 GitHub Release 并更新发布记录。
+- [x] 提交发布变更并推送 tag。
+- [x] 确认 CI 成功与五包 npm 发布。
+- [x] 创建 GitHub Release 并更新发布记录。
 
 ## Resume Protocol
 
@@ -67,13 +70,15 @@ Done:
 - 确认 `0.19.0` 为本次目标版本，待发布内容和 npm 版本已核对。
 - 创建 minor Changeset。
 - 已生成并检查五包 `0.19.0`、内部依赖、模板与 changelog，完成本地最小检查。
+- 发布提交 `089afbe` 和 `v0.19.0` 已推送，工作流 `38205470360` 已启动。
+- 工作流成功，五包 Trusted Publishing 完成，GitHub Release 已创建。
+- npm registry 已确认五包目标版本与 `latest`；正式 tarball 内容与源 skill 一致，发布状态和计划索引已更新。
 
 Current State:
-- 版本生成完成，准备提交并推送发布。
+- `0.19.0` 发布完成，CI、npm 五包、正式脚手架 tarball 与 GitHub Release 均已确认。
 
 Currently Failing:
 - 无。
 
 Next:
-1. 提交后推送发布 tag，等待 CI 并核对 registry。
-2. 创建 GitHub Release，补齐发布记录。
+- 无；不要重新创建 tag 或重复发布同一版本。

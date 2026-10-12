@@ -12,14 +12,14 @@ Pixifact 发布五个公开 npm 包：
 
 ## 当前发布状态
 
-当前已发布版本为 `0.18.0`：
+当前已发布版本为 `0.19.0`：
 
-- npm packages: `0.18.0`
-- git tag: `v0.18.0`
+- npm packages: `0.19.0`
+- git tag: `v0.19.0`
 - changelog sources: [`pixifact`](../../packages/pixifact/CHANGELOG.md)、[`pixifact-cli`](../../packages/pixifact-cli/CHANGELOG.md)、[`create-pixifact`](../../packages/create-pixifact/CHANGELOG.md)
 
-本次发布记录见 [GitHub Release v0.18.0](https://github.com/hxg2050/pixifact/releases/tag/v0.18.0)，包含 `pixifact dev` 默认启用 Bun Inspector、游戏预览和调试的局域网访问，以及 Runtime 通配监听、IPv6 本机会话和普通 HTTP 页面初始化修复。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/36752401489) 已通过 26 个测试文件 / 394 项测试、全部构建、包内容和安装验收，并完成五包 Trusted Publishing；npm registry 已确认五个包的 `latest` 均为 `0.18.0`。
-上一版本发布记录见 [GitHub Release v0.17.0](https://github.com/hxg2050/pixifact/releases/tag/v0.17.0)、[GitHub Release v0.16.0](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0)、[GitHub Release v0.15.0](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)、[`v0.14.0.md`](./v0.14.0.md)、[`v0.13.0.md`](./v0.13.0.md)。
+本次发布记录见 [GitHub Release v0.19.0](https://github.com/hxg2050/pixifact/releases/tag/v0.19.0)，包含基础游戏/UI 展示模板、可直接替换 PNG 的基础 UI、独立九宫格素材 Scene，以及项目 skill 的最佳实践和 Editor 协作流程。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/38205470360) 已通过 29 个测试文件 / 408 项测试、全部构建、包内容和安装验收，并完成五包 Trusted Publishing；npm registry 已确认五包目标版本和 `latest` 均为 `0.19.0`。正式 `create-pixifact` tarball 已确认包含游戏模板、九宫格 Scene、PNG 和更新后的 skill。
+上一版本发布记录见 [GitHub Release v0.18.0](https://github.com/hxg2050/pixifact/releases/tag/v0.18.0)、[GitHub Release v0.17.0](https://github.com/hxg2050/pixifact/releases/tag/v0.17.0)、[GitHub Release v0.16.0](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0)、[GitHub Release v0.15.0](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)、[`v0.14.0.md`](./v0.14.0.md)、[`v0.13.0.md`](./v0.13.0.md)。
 历史发布记录见 [`v0.12.0.md`](./v0.12.0.md)、[`v0.11.2.md`](./v0.11.2.md)、[`v0.11.1.md`](./v0.11.1.md)、[`v0.11.0.md`](./v0.11.0.md)。
 首个 npm 发布记录见 [`v0.1.3.md`](./v0.1.3.md)。
 
@@ -55,7 +55,7 @@ bun run release:version
 - 更新五个发布包版本
 - 更新 `CHANGELOG.md`
 - 删除已消费的 changeset 文件
-- 同步 `packages/create-pixifact/templates/minimal/package.json` 中的 `pixifact` / `pixifact-cli` 版本
+- 同步 `packages/create-pixifact/templates/minimal/package.json` 和 `templates/game/package.json` 中的 `pixifact` / `pixifact-cli` 版本
 - 更新 `bun.lock`
 
 检查生成结果：
