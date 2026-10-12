@@ -1,5 +1,13 @@
 # create-pixifact
 
+## 0.19.0
+
+### Minor Changes
+
+- 新增 `--template game`，创建包含基础游戏流程和 UI 组件展台的独立项目。提供大中小按钮、轻微按压回弹、面板、弹窗和进度条，采用 1080 × 1920 设计分辨率与 `fixedWidth` 适配。
+
+  提供一套可直接替换同名 PNG 的基础 UI；每张九宫格素材由独立 Scene 集中维护图片路径和切片参数。随项目安装的 Pixifact skill 补充九宫格 Scene 封装、排列容器中单个元素偏移、Editor 上下文与静态截图工作流。
+
 ## 0.18.0
 
 ### Minor Changes

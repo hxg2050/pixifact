@@ -10,6 +10,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [release-v0.19.0.md](./release-v0.19.0.md) | 基础游戏模板、可替换 PNG 的基础 UI 和项目 skill 最佳实践的五包 `0.19.0` 发布 |
 | [editor-canvas-tools.md](./editor-canvas-tools.md) | Editor 画布平移、移动节点和调整大小三工具交互 |
 | [release-v0.12.0.md](./release-v0.12.0.md) | Web Agent Runtime、Scene 来源定位和任意 Scene 截图的五包 `0.12.0` 发布 |
 | [playable-sample-agent-eval.md](./playable-sample-agent-eval.md) | Web 可玩样板游戏与固定 Agent 任务评测；首轮完成，统计复测待开展 |
