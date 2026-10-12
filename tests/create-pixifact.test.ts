@@ -118,7 +118,7 @@ describe('create-pixifact scaffold', () => {
         ]));
     });
 
-    it('creates a game framework project with reusable UI and two replaceable appearances', async () => {
+    it('creates a game framework project with one basic UI and replaceable PNG assets', async () => {
         const cwd = await makeTempRoot();
         const result = await createPixifactProject({ cwd, name: 'starter-game', template: 'game' });
 
@@ -134,8 +134,11 @@ describe('create-pixifact scaffold', () => {
         const manifest = JSON.parse(await readProjectFile(result.root, 'package.json'));
         expect(manifest.scripts).toMatchObject({
             typecheck: 'tsc --noEmit',
-            'ui:apply': 'bun scripts/apply-ui.mjs',
         });
+        expect(manifest.scripts).not.toHaveProperty('ui:apply');
+        expect(await readdir(result.root)).not.toContain('ui-kits');
+        expect(await readdir(result.root)).not.toContain('scripts');
+        expect((await readdir(join(result.root, 'assets/ui'))).sort()).toEqual(['button.png', 'panel.png']);
         expect(manifest.dependencies.pixifact).toBe(`^${pixifactPackage.version}`);
         expect(manifest.devDependencies['pixifact-cli']).toBe(`^${pixifactCliPackage.version}`);
         expect(await readProjectFile(result.root, 'src/main.ts')).toContain('registerPixiRuntime');
@@ -143,7 +146,7 @@ describe('create-pixifact scaffold', () => {
             expect(await readProjectFile(result.root, `src/ui/${component}.ts`)).toContain(`export class ${component}`);
             expect(await readProjectFile(result.root, `src/ui/${component}.scene`)).toContain('<Scene');
         }
-        expect(await readProjectFile(result.root, 'README.md')).toContain('ui:apply');
+        expect(await readProjectFile(result.root, 'README.md')).toContain('直接替换同名 PNG');
     });
 
     it('copies the complete Pixifact skill and its offline references into the project', async () => {
@@ -165,6 +168,7 @@ describe('create-pixifact scaffold', () => {
         const cli = join(process.cwd(), 'packages/create-pixifact/src/index.ts');
         const output = execFileSync('bun', [cli, 'cli-game', '--template', 'game'], { cwd, encoding: 'utf8' });
         expect(output).toContain('已创建 cli-game');
+        expect(output).toContain('直接替换 assets/ui/ 中的同名 PNG');
         expect(await readProjectFile(join(cwd, 'cli-game'), 'src/core/GameSession.ts')).toContain('export class GameSession');
         expect(() => execFileSync('bun', [cli, 'unknown-game', '--template', 'unknown'], { cwd, stdio: 'pipe' })).toThrow();
         expect(await readdir(cwd)).not.toContain('unknown-game');

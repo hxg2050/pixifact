@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import { execFileSync } from 'node:child_process';
 import { cp, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
@@ -72,7 +71,7 @@ function updateTransforms(boundary: pixi.EventBoundary) {
 }
 
 describe('game starter complete flow', () => {
-    it.each(['paper', 'mint'])('runs the complete game with the applied %s UI', async (kit) => {
+    it('runs the component showcase and complete game with the basic UI', async () => {
         const root = await mkdtemp(join(tmpdir(), 'pixifact-game-flow-'));
         const texture = new pixi.Texture({ source: new pixi.TextureSource({ width: 96, height: 96 }) });
         const load = vi.spyOn(pixi.Assets, 'load').mockResolvedValue(texture);
@@ -82,10 +81,6 @@ describe('game starter complete flow', () => {
                 recursive: true,
                 filter: (source) => !['node_modules', '.pixifact', 'dist', '.git'].includes(basename(source)),
             });
-            const scripts = await Promise.all(sceneFiles.map((file) => readFile(join(root, `${file}.ts`), 'utf8')));
-            execFileSync('bun', ['scripts/apply-ui.mjs', kit], { cwd: root, stdio: 'pipe' });
-            expect(await Promise.all(sceneFiles.map((file) => readFile(join(root, `${file}.ts`), 'utf8'))))
-                .toEqual(scripts);
             await compileScenes({ projectRoot: root });
             for (const file of sceneFiles) {
                 registerGeneratedModule(await readFile(join(root, '.pixifact/generated', `${file}.scene.generated.ts`), 'utf8'));

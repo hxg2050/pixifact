@@ -133,15 +133,17 @@ async function verifyScaffold(temporaryRoot, tarball) {
     }
     run('bun', ['run', 'create-pixifact', 'game-starter', '--template', 'game'], { cwd: installRoot });
     const gameRoot = path.join(installRoot, 'game-starter');
-    for (const file of ['src/core/GameSession.ts', 'src/ui/Button.scene', 'ui-kits/mint/src/ui/Button.scene', 'scripts/apply-ui.mjs']) {
+    for (const file of ['src/core/GameSession.ts', 'src/ui/Button.scene', 'assets/ui/button.png', 'assets/ui/panel.png']) {
         await access(path.join(gameRoot, file));
     }
-    run('bun', ['run', 'ui:apply', 'mint'], { cwd: gameRoot, silent: true });
-    assert.equal(
-        await readFile(path.join(gameRoot, 'src/ui/Button.scene'), 'utf8'),
-        await readFile(path.join(gameRoot, 'ui-kits/mint/src/ui/Button.scene'), 'utf8'),
-    );
-    console.log('Packed scaffold minimal/game templates, Git, project skill and UI replacement smoke passed.');
+    assert.equal(await exists(path.join(gameRoot, 'ui-kits')), false);
+    const gamePackage = JSON.parse(await readFile(path.join(gameRoot, 'package.json'), 'utf8'));
+    assert.equal(Object.hasOwn(gamePackage.scripts, 'ui:apply'), false);
+    for (const name of ['button', 'panel']) {
+        const png = await readFile(path.join(gameRoot, 'assets/ui', `${name}.png`));
+        assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+    }
+    console.log('Packed scaffold minimal/game templates, Git, project skill and basic UI PNG smoke passed.');
 }
 
 async function createBrowserCommandStub(directory) {

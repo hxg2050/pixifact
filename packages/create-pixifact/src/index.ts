@@ -6,7 +6,7 @@ function usage() {
     return [
         '用法：',
         '  bun create pixifact <project-name> [--template minimal|game]',
-        '  minimal：最小 Scene 项目；game：基础游戏框架和可替换 UI 库。',
+        '  minimal：最小 Scene 项目；game：基础游戏框架和一套基础 UI。',
         '',
     ].join('\n');
 }
@@ -48,8 +48,7 @@ try {
         ].join('\n'));
         if (template === 'game') {
             process.stdout.write('  bun run typecheck     检查游戏 TypeScript\n');
-            process.stdout.write('  bun run ui:apply mint 切换 UI 外观（覆盖 Scene 和同名图片，保留行为脚本）\n');
-            process.stdout.write('切换 UI 后运行 validate、compile、typecheck，并重新启动开发服务。\n');
+            process.stdout.write('更换 UI 素材：直接替换 assets/ui/ 中的同名 PNG，保持图片尺寸和九宫格边距；然后重启开发服务。详见 README。\n');
         }
     }
 } catch (error) {

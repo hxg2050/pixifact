@@ -9,7 +9,10 @@
   },
   "files": [
     "dist/",
-    "templates/"
+    "templates/",
+    "!templates/**/.pixifact/**",
+    "!templates/**/dist/**",
+    "!templates/**/node_modules/**"
   ],
   "repository": {
     "type": "git",

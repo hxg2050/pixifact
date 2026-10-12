@@ -20,7 +20,7 @@ bun install
 bun run dev
 ```
 
-`game` 模板默认打开 Button / Panel / Dialog / ProgressBar 的交互展台，演示按钮禁用、点击反馈、进度边界和弹窗。底部入口提供竖屏 Web 游戏／暂停／结算流程，包含纯 TypeScript 游戏状态、页面销毁与订阅清理、最高分保存。两套 UI 通过 `bun run ui:apply paper` 或 `bun run ui:apply mint` 替换 Scene 外观和图片，行为契约与游戏代码保持不变。详细模块和自定义方式见 [模板说明](./templates/game/README.md)。默认不指定 `--template` 时仍创建最小项目。
+`game` 模板默认打开 Button / Panel / Dialog / ProgressBar 的交互展台，演示按钮禁用、点击反馈、进度边界和弹窗。底部入口提供竖屏 Web 游戏／暂停／结算流程，包含纯 TypeScript 游戏状态、页面销毁与订阅清理、最高分保存。模板只提供一套基础 UI，用户直接覆盖 `assets/ui/button.png` 和 `assets/ui/panel.png` 即可更换对应背景，保持 96 × 96 尺寸与四边各 24 像素的九宫格边距。详细模块和自定义方式见 [模板说明](./templates/game/README.md)。默认不指定 `--template` 时仍创建最小项目。
 
 生成的项目包含：
 

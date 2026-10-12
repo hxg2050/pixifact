@@ -45,7 +45,6 @@ bun run editor
 | `src/screens/MainMenu.scene/.ts` | 默认组件展台、演示状态和次要游戏入口 |
 | `src/ui/` | 当前生效的基础 UI Scene 与脚本 |
 | `assets/ui/` | 当前生效的按钮和面板九宫格 PNG 图片（96 × 96，透明 RGBA） |
-| `ui-kits/` | paper / mint 两套配对 Scene 与资源，用于替换外观 |
 
 开始开发自己的游戏时，先修改 `GameSession` 中的规则，再修改 `PlayScreen` 的视觉和公开事件，最后在 `GameApp` 中连接数据流。游戏规则不读取 UI 内部节点。给新页面增加同目录同 basename 的 `.scene/.ts`，启动前用 `prepareSceneClass()` 准备，再交给 `ScreenManager.replace()`。
 
@@ -80,21 +79,18 @@ Scene 的 `width` / `height` 或 frame layout 可覆盖默认宽高。按下时�
 
 页面的 `start()` action 负责发出业务事件。文字通过 Prop Binding 更新，父页面依赖公开事件和 slot，不依赖 Button 背景、Panel 内部节点等实现细节。
 
-## 替换整套 UI
+## 直接替换图片素材
 
-```bash
-bun run ui:apply mint
-bun run validate
-bun run compile
-bun run typecheck
-bun run build
-```
+模板只提供一套基础 UI。开发自己的游戏时，直接替换同名 PNG 即可更换对应背景，无需修改 Scene、组件脚本或游戏逻辑。
 
-恢复默认外观使用 `bun run ui:apply paper`。命令覆盖 `src/ui/*.scene` 和 `assets/ui/` 中的同名图片，保留行为脚本 `src/ui/*.ts` 和全部游戏代码。更换后重启开发服务。
+| 图片 | 用途 | 尺寸 | 九宫格边距 |
+| --- | --- | --- | --- |
+| `assets/ui/button.png` | 所有尺寸按钮的背景 | 96 × 96 | 四边各 24 像素 |
+| `assets/ui/panel.png` | 面板和弹窗的背景 | 96 × 96 | 四边各 24 像素 |
 
-`paper` 是暖色纸感外观，`mint` 是清爽薄荷外观；两套均采用浅色背景，与示例页面的深色文字搭配。`ui-kits/<name>/src/ui/` 中保留配对 `.ts` 作为契约参考，安装外观时不复制这些脚本。
+新素材保持文件名、路径、尺寸与透明 PNG 格式。四个角保持原形，边缘沿单轴拉伸，中间区域随组件尺寸拉伸；将需要保留的边框和圆角放在 24 像素的切片区域内。大、中、小按钮共用同一张图片，文字和点击动画由组件负责。
 
-自定义 UI 时，可以复制一套 kit 为自己的目录，保留组件文件名、公开 Props / Events / Slots 和脚本使用的 `@part` 节点 ID，再自由调整 `.scene` 的视觉结构、字体、颜色和静态图片引用。如果换成深色背景，同时调整 `src/screens/*.scene` 内的内容文字颜色。素材统一使用透明 PNG；更换同路径 `button.png` / `panel.png` 时可保持 Scene 引用不变。默认素材为 96 × 96，九宫格四边各 24 个设计单位；图片路径使用静态 `texture="assets/ui/..."`，更改后执行校验和编译。
+覆盖图片后，重新启动开发服务并刷新预览；发布构建使用 `bun run build`。PNG 负责上述背景，文字、禁用蒙层和进度条由 Scene 节点渲染；需要调整这些部分的颜色或布局时，再编辑对应 `.scene`。
 
 每个 `.scene` 与同目录同名 `.ts` 配对；`@scene()` 类继承 `Group`，不声明自定义构造参数。非 Prop 依赖用显式方法传入。新增视觉节点或修改事件后运行 `pixifact scene validate --all`，避免外观替换破坏组件契约。
 

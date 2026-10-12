@@ -10,8 +10,7 @@
     "compile": "pixifact compile-scenes --project-root .",
     "editor": "pixifact editor --project-root .",
     "validate": "pixifact validate --mode production --project-root .",
-    "typecheck": "tsc --noEmit",
-    "ui:apply": "bun scripts/apply-ui.mjs"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "pixi.js": "8.18.1",

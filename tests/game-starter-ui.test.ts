@@ -39,45 +39,29 @@ function registerGeneratedModule(source: string) {
     new Function('require', 'module', 'exports', code)(requireModule, module, module.exports);
 }
 
-describe('game starter replaceable UI', () => {
-    it('keeps the active and both kit scripts on the same public contracts', async () => {
+describe('game starter basic UI', () => {
+    it('exposes component contracts and provides two replaceable PNG assets', async () => {
         const active = await contracts(templateRoot);
-        for (const kit of ['paper', 'mint']) {
-            expect(await contracts(join(templateRoot, 'ui-kits', kit))).toEqual(active);
-            for (const name of names) {
-                expect(await readFile(join(templateRoot, 'ui-kits', kit, 'src/ui', `${name}.ts`), 'utf8'))
-                    .toBe(await readFile(join(templateRoot, 'src/ui', `${name}.ts`), 'utf8'));
-            }
-        }
-        for (const name of names) {
-            expect(await readFile(join(templateRoot, 'src/ui', `${name}.scene`), 'utf8'))
-                .toBe(await readFile(join(templateRoot, 'ui-kits/paper/src/ui', `${name}.scene`), 'utf8'));
-        }
         expect(Object.keys(active['src/ui/Button.scene'].interface.props)).toEqual(['text', 'disabled', 'size']);
         expect(Object.keys(active['src/ui/Button.scene'].interface.events)).toEqual(['clicked']);
         expect(Object.keys(active['src/ui/Panel.scene'].interface.slots)).toEqual(['content']);
         expect(Object.keys(active['src/ui/Dialog.scene'].interface.events)).toEqual(['confirmed', 'cancelled']);
-        for (const root of [templateRoot, ...['paper', 'mint'].map((kit) => join(templateRoot, 'ui-kits', kit))]) {
-            const assets = join(root, 'assets/ui');
-            expect((await readdir(assets)).sort()).toEqual(['button.png', 'panel.png']);
-            for (const name of ['button', 'panel']) {
-                const png = await readFile(join(assets, `${name}.png`));
-                expect(png.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
-                expect([png.readUInt32BE(16), png.readUInt32BE(20), png[25]]).toEqual([96, 96, 6]);
-            }
+        const assets = join(templateRoot, 'assets/ui');
+        expect((await readdir(assets)).sort()).toEqual(['button.png', 'panel.png']);
+        for (const name of ['button', 'panel']) {
+            const png = await readFile(join(assets, `${name}.png`));
+            expect(png.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a');
+            expect([png.readUInt32BE(16), png.readUInt32BE(20), png[25]]).toEqual([96, 96, 6]);
         }
     });
 
-    it.each(['paper', 'mint'])('compiles and runs %s with the active behavior scripts', async (kit) => {
+    it('compiles and runs the basic UI with its PNG assets', async () => {
         const root = await mkdtemp(join(tmpdir(), 'pixifact-game-ui-'));
         const texture = new pixi.Texture({ source: new pixi.TextureSource({ width: 96, height: 96 }) });
         const load = vi.spyOn(pixi.Assets, 'load').mockResolvedValue(texture);
         try {
             await cp(join(templateRoot, 'src/ui'), join(root, 'src/ui'), { recursive: true });
-            for (const name of names) {
-                await cp(join(templateRoot, 'ui-kits', kit, 'src/ui', `${name}.scene`), join(root, 'src/ui', `${name}.scene`));
-            }
-            await cp(join(templateRoot, 'ui-kits', kit, 'assets'), join(root, 'assets'), { recursive: true });
+            await cp(join(templateRoot, 'assets'), join(root, 'assets'), { recursive: true });
             const descriptors = await contracts(root);
             const interfaces = Object.fromEntries(Object.entries(descriptors).map(([path, descriptor]) => [path, descriptor.interface]));
             for (const name of names) {
@@ -97,6 +81,7 @@ describe('game starter replaceable UI', () => {
             }
             await sceneRuntime.prepareSceneClass(Dialog);
             await sceneRuntime.prepareSceneClass(ProgressBar);
+            expect(load.mock.calls.map(([asset]) => asset).sort()).toEqual(['assets/ui/button.png', 'assets/ui/panel.png']);
 
             const button = new Button();
             let clicks = 0;

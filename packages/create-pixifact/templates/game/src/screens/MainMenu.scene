@@ -4,7 +4,7 @@
       <VBoxContainer id="menuContent" width="1016" height="1424" gap="24" alignX="center">
         <Group id="intro" width="1016" height="144">
           <Label id="headline" left="8" right="8" top="0" height="72" text="基础组件，直接试用" fontSize="54" fontWeight="700" fill="#25322d" alignY="center" />
-          <Label id="description" left="8" right="8" top="88" height="48" text="四个组件，两套外观，点击查看状态。" fontSize="32" fill="#516158" alignY="center" />
+          <Label id="description" left="8" right="8" top="88" height="48" text="四个基础组件，点击查看状态。" fontSize="32" fill="#516158" alignY="center" />
         </Group>
 
         <Panel id="buttonsPanel" scene="../ui/Panel.scene" width="1016" height="384" title="01 / Button 按钮">
