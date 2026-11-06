@@ -347,10 +347,19 @@ Feature: Project asset browsing
 
 ```gherkin
 Scenario: User opens a source asset
-  Given a project contains images, audio, scripts, and data files
-  When the user double-clicks a concrete asset
+  Given the asset panel displays a project image
+  When the user double-clicks that image
   Then Pixifact delegates to the system default application
   And Pixifact does not edit the asset bytes
+  And the current Scene and selection remain unchanged
+  And a single click still previews the image inside the Editor
+  But double-clicking a Scene opens it in the Editor
+
+Scenario: The source asset cannot be opened
+  Given an image was deleted externally or its system default application fails to launch
+  When the user double-clicks that image
+  Then the Editor displays the opening failure
+  And the current Scene document remains unchanged
 
 Scenario: User browses supported assets by project directory
   Given the project index contains Scenes, images, scripts, and data files in nested directories
@@ -394,7 +403,7 @@ Scenario: User assigns an indexed image to an Inspector resource field
   But Scene assets, bound fields, and ordinary string fields are not accepted
 ```
 
-TDD 入口：`tests/editor-vue-ui.test.ts`、`tests/project-file-tree.test.ts`、`tests/editor-server.test.ts`；系统程序调用仍需补自动化覆盖。
+TDD 入口：`tests/editor-vue-ui.test.ts`、`tests/project-file-tree.test.ts`、`tests/editor-server.test.ts`；真实系统默认程序打开以本机浏览器验收补充。
 
 ### BDD-EDITOR-004 Pinia 不保存项目数据
 

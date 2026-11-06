@@ -1031,6 +1031,48 @@ describe('Editor Vue UI', () => {
         ]);
     });
 
+    it.each([false, true])('opens an image through the local service and surfaces launch errors (failure=%s)', async (failure) => {
+        const assetPath = 'assets/图标 & 按钮.png';
+        const project = {
+            name: 'demo', root: '/demo', scenes: ['src/scenes/Menu.scene'], images: [assetPath],
+            files: [{ kind: 'scene', path: 'src/scenes/Menu.scene' }, { kind: 'image', path: assetPath }],
+        };
+        const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+            const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+            if (url === '/api/project') return Response.json(project);
+            if (url === '/api/editor-ui-state') return Response.json({ autoSave: false, theme: 'system', assetTreeExpandedDirectories: ['assets'] });
+            if (url === '/api/scene-bindings') return Response.json({});
+            if (url.startsWith('/api/scene?')) return Response.json({ path: 'src/scenes/Menu.scene', source, version: 'sha256:before' });
+            if (url.startsWith('/api/open-file?') && init?.method === 'POST') {
+                return failure ? Response.json({ error: '无法使用系统默认程序打开图片' }, { status: 500 }) : Response.json({ ok: true });
+            }
+            throw new Error('Unexpected Editor request: ' + url);
+        });
+        vi.stubGlobal('fetch', fetcher);
+        vi.stubGlobal('WebSocket', AcceptedEditorWebSocket);
+        const pinia = createPinia();
+        setActivePinia(pinia);
+        const wrapper = mount(EditorApp, { global: { plugins: [pinia], stubs: { SceneCanvas: true } } });
+        try {
+            await vi.waitFor(() => expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Menu.scene'));
+            useEditorUiStore().selectedLocator = '0:title';
+            useEditorUiStore().selectedLocators = ['0:title'];
+            await flushPromises();
+            await wrapper.get(`[data-asset-path="${assetPath}"]`).trigger('dblclick');
+            await flushPromises();
+
+            const requests = fetcher.mock.calls.filter(([input]) => String(input).startsWith('/api/open-file?'));
+            expect(requests).toHaveLength(1);
+            expect(requests[0]).toEqual([`/api/open-file?path=${encodeURIComponent(assetPath)}`, { method: 'POST' }]);
+            expect(useEditorUiStore().currentScenePath).toBe('src/scenes/Menu.scene');
+            expect(useEditorUiStore().selectedLocators).toEqual(['0:title']);
+            expect(fetcher.mock.calls.some(([, init]) => init?.method === 'PUT' && String(init.body).includes('expectedVersion'))).toBe(false);
+            expect(wrapper.text().includes('无法使用系统默认程序打开图片')).toBe(failure);
+        } finally {
+            wrapper.unmount();
+        }
+    });
+
     it('restores and writes asset tree expansion through the Editor service', async () => {
         const project = {
             name: 'demo',
@@ -1230,6 +1272,13 @@ describe('Editor Vue UI', () => {
             draggable: 'false',
             src: '/api/file?path=assets%2Ficons%2Fmap.svg&generation=0',
         });
+        await image.trigger('pointerdown', { button: 0, pointerId: 1 });
+        await image.trigger('pointerup', { button: 0, pointerId: 1 });
+        expect(wrapper.emitted('previewImage')).toEqual([['assets/icons/map.svg']]);
+        expect(wrapper.emitted('openAsset')).toBeUndefined();
+        await image.trigger('dblclick');
+        expect(wrapper.emitted('openAsset')).toEqual([['assets/icons/map.svg']]);
+        expect(wrapper.emitted('openScene')).toEqual([['src/scenes/Button.scene']]);
         expect(wrapper.emitted('assetTreeExpansionChange')).toEqual([
             [['assets', 'src', 'src/scenes']],
             [['assets', 'assets/icons', 'src', 'src/scenes']],

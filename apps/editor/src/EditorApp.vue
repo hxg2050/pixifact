@@ -29,6 +29,7 @@ import {
     connectEditorSession,
     createEditorProjectTree,
     editorSceneFileApi,
+    openEditorProjectFile,
     readEditorProject,
     readEditorScene,
     readEditorUiState,
@@ -1059,6 +1060,14 @@ function previewImage(path: string) {
     rightPanelCollapsed.value = false;
 }
 
+async function openAsset(path: string) {
+    try {
+        await openEditorProjectFile(path);
+    } catch (cause) {
+        error.value = `${path}：${cause instanceof Error ? cause.message : String(cause)}`;
+    }
+}
+
 function saveAssetTreeExpansion(directories: string[]) {
     assetTreeExpandedDirectories.value = directories;
     scheduleEditorUiStateSave();
@@ -1443,6 +1452,7 @@ onBeforeUnmount(() => {
             :preview-image="previewImagePath"
             @asset-drag-start="startAssetDrag"
             @asset-tree-expansion-change="saveAssetTreeExpansion"
+            @open-asset="openAsset"
             @open-scene="navigateToScene"
             @preview-image="previewImage"
           />

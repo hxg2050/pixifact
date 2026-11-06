@@ -84,6 +84,8 @@ pixifact editor screenshot --output /tmp/scene.png
 
 图片必须由用户或外部 Agent 放入项目；Editor 只索引现有图片，不提供导入、移动、重命名或删除源资源。
 
+资产面板中单击图片在 Editor 内预览，双击图片调用系统默认程序打开原文件；双击 `.scene` 在 Editor 中打开编辑。系统打开失败会显示错误，Scene 文档和当前选区保持不变。
+
 ## Agent 工作流
 
 Codex、Claude Code 和其他 coding agent 应直接编辑 `.scene` 文件，然后运行：

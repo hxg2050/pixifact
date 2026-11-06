@@ -48,6 +48,7 @@ const props = defineProps<{
 const emit = defineEmits<{
     assetDragStart: [asset: EditorSceneAsset];
     assetTreeExpansionChange: [directories: string[]];
+    openAsset: [path: string];
     openScene: [path: string];
     previewImage: [path: string];
 }>();
@@ -278,6 +279,7 @@ onBeforeUnmount(cancelPendingDrag);
         type="button"
         @pointerdown="prepareAssetDrag($event, { kind: 'image', path: row.node.path })"
         @pointerup="previewImageOnPointerUp($event, row.node.path)"
+        @dblclick="emit('openAsset', row.node.path)"
         @click="$event.detail === 0 && emit('previewImage', row.node.path)"
         @selectstart.prevent
       >

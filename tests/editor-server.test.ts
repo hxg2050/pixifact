@@ -1,10 +1,13 @@
+// @vitest-environment node
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import childProcess, { type ChildProcess } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createEditorProjectService, watchEditorProject } from '../packages/pixifact-cli/src/editorServer';
 
 const tempRoots: string[] = [];
+const hostPlatform = process.platform;
 
 function createFixture() {
     const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-editor-project-'));
@@ -39,6 +42,7 @@ async function json(response: Response) {
 }
 
 afterEach(() => {
+    Object.defineProperty(process, 'platform', { value: hostPlatform });
     vi.restoreAllMocks();
     for (const root of tempRoots.splice(0)) {
         fs.rmSync(root, { recursive: true, force: true });
@@ -46,6 +50,96 @@ afterEach(() => {
 });
 
 describe('Editor project service', () => {
+    it.each(['darwin', 'linux', 'win32'])('opens a project file with the %s default application without changing its bytes', async (platform) => {
+        const fixture = createFixture();
+        const assetPath = "assets/图标 & 100% '按钮'.png";
+        const absolutePath = path.join(fixture.projectRoot, assetPath);
+        fs.writeFileSync(absolutePath, 'original-image');
+        const realPath = fs.realpathSync(absolutePath);
+        const execute = vi.spyOn(childProcess, 'execFile').mockImplementation((...args: unknown[]) => {
+            const callback = args.at(-1) as (error: Error | null, stdout: string, stderr: string) => void;
+            callback(null, '', '');
+            return {} as ChildProcess;
+        });
+        Object.defineProperty(process, 'platform', { value: platform });
+        const service = createEditorProjectService(fixture);
+
+        const response = await service.fetch(new Request(`http://localhost/api/open-file?path=${encodeURIComponent(assetPath)}`, {
+            method: 'POST', headers: { origin: 'http://localhost' },
+        }));
+
+        expect(response.status).toBe(200);
+        expect(await json(response)).toEqual({ ok: true });
+        expect(execute).toHaveBeenCalledTimes(1);
+        const [command, args, options] = execute.mock.calls[0];
+        expect(options).toEqual({ windowsHide: true });
+        if (platform === 'win32') {
+            expect(command).toBe('powershell.exe');
+            const script = (args as string[]).at(-1)!;
+            const encodedPath = /FromBase64String\('([^']+)'\)/.exec(script)![1];
+            expect(Buffer.from(encodedPath, 'base64').toString('utf8')).toBe(realPath);
+            expect(script).toContain('Start-Process -FilePath');
+            expect(script).toContain('-ErrorAction Stop');
+        } else {
+            expect(command).toBe(platform === 'darwin' ? 'open' : 'xdg-open');
+            expect(args).toEqual([realPath]);
+        }
+        expect(fs.readFileSync(absolutePath, 'utf8')).toBe('original-image');
+    });
+
+    it('rejects system-open requests from another origin or without an origin', async () => {
+        const fixture = createFixture();
+        const execute = vi.spyOn(childProcess, 'execFile');
+        const service = createEditorProjectService(fixture);
+        for (const origin of [undefined, 'https://example.com']) {
+            const response = await service.fetch(new Request('http://localhost/api/open-file?path=assets%2Fbutton.png', {
+                method: 'POST', headers: origin ? { origin } : {},
+            }));
+            expect(response.status).toBe(403);
+        }
+        expect((await service.fetch(new Request('http://localhost/api/open-file?path=assets%2Fbutton.png'))).status).toBe(404);
+        expect(execute).not.toHaveBeenCalled();
+    });
+
+    it('rejects opening directories and files outside the project, including symbolic links', async () => {
+        const fixture = createFixture();
+        const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-editor-outside-'));
+        tempRoots.push(outside);
+        fs.writeFileSync(path.join(outside, 'outside.png'), 'outside');
+        fs.symlinkSync(outside, path.join(fixture.projectRoot, 'assets', 'outside'), 'junction');
+        const execute = vi.spyOn(childProcess, 'execFile');
+        const service = createEditorProjectService(fixture);
+        for (const assetPath of ['../outside.png', path.join(outside, 'outside.png'), 'assets/outside/outside.png', 'assets']) {
+            const response = await service.fetch(new Request(`http://localhost/api/open-file?path=${encodeURIComponent(assetPath)}`, {
+                method: 'POST', headers: { origin: 'http://localhost' },
+            }));
+            expect(response.status).toBe(400);
+        }
+        expect(execute).not.toHaveBeenCalled();
+    });
+
+    it('reports a deleted asset and a failed system opener separately', async () => {
+        const fixture = createFixture();
+        const execute = vi.spyOn(childProcess, 'execFile').mockImplementation((...args: unknown[]) => {
+            const callback = args.at(-1) as (error: Error) => void;
+            callback(Object.assign(new Error('系统打开程序不可用'), { code: 'ENOENT' }));
+            return {} as ChildProcess;
+        });
+        const service = createEditorProjectService(fixture);
+        const request = () => new Request('http://localhost/api/open-file?path=assets%2Fbutton.png', {
+            method: 'POST', headers: { origin: 'http://localhost' },
+        });
+
+        const failed = await service.fetch(request());
+        expect(failed.status).toBe(500);
+        expect(await json(failed)).toMatchObject({ error: expect.stringContaining('系统打开程序不可用') });
+        fs.unlinkSync(path.join(fixture.projectRoot, 'assets', 'button.png'));
+        const deleted = await service.fetch(request());
+        expect(deleted.status).toBe(404);
+        expect(await json(deleted)).toMatchObject({ error: expect.stringContaining('资源文件不存在') });
+        expect(execute).toHaveBeenCalledTimes(1);
+    });
+
     it('invalidates cached indexes when an entire Scene directory is added or removed', async () => {
         const fixture = createFixture();
         const service = createEditorProjectService(fixture);
@@ -131,31 +225,35 @@ describe('Editor project service', () => {
     it('coalesces external Scene, paired script, and image file notifications', async () => {
         const fixture = createFixture();
         const changedPaths: string[] = [];
+        let notify: fs.WatchListener<string>;
+        const close = vi.fn();
+        vi.spyOn(fs, 'watch').mockImplementation((...args: unknown[]) => {
+            notify = args.at(-1) as fs.WatchListener<string>;
+            return { close } as unknown as fs.FSWatcher;
+        });
+        vi.useFakeTimers();
         const stopWatcher = watchEditorProject(fixture.projectRoot, (changedPath) => {
             changedPaths.push(changedPath);
         });
         try {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            fs.appendFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.scene'), '\n');
-            fs.appendFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.scene'), '\n');
-            fs.appendFileSync(path.join(fixture.projectRoot, 'src', 'scenes', 'Menu.ts'), '\n');
-            fs.writeFileSync(path.join(fixture.projectRoot, 'assets', 'button.png'), 'changed-png');
-            fs.mkdirSync(path.join(fixture.projectRoot, '.pixifact', 'editor'), { recursive: true });
-            fs.writeFileSync(path.join(fixture.projectRoot, '.pixifact', 'editor', 'ui-state.json'), '{}\n');
-
-            await vi.waitFor(() => {
-                expect(new Set(changedPaths)).toEqual(new Set([
-                    'src/scenes/Menu.scene',
-                    'src/scenes/Menu.ts',
-                    'assets/button.png',
-                ]));
-            });
-            await new Promise((resolve) => setTimeout(resolve, 60));
+            notify!('change', 'src/scenes/Menu.scene');
+            notify!('change', 'src/scenes/Menu.scene');
+            notify!('change', 'src/scenes/Menu.ts');
+            notify!('change', 'assets/button.png');
+            notify!('rename', '.pixifact/editor/ui-state.json');
+            await vi.runAllTimersAsync();
+            expect(new Set(changedPaths)).toEqual(new Set([
+                'src/scenes/Menu.scene',
+                'src/scenes/Menu.ts',
+                'assets/button.png',
+            ]));
             expect(changedPaths.filter((changedPath) => changedPath === 'src/scenes/Menu.scene')).toHaveLength(1);
             expect(changedPaths).not.toContain('.pixifact/editor/ui-state.json');
         } finally {
             stopWatcher();
+            vi.useRealTimers();
         }
+        expect(close).toHaveBeenCalledOnce();
     });
 
     it('indexes project scenes and images and serves the browser app', async () => {

@@ -1,7 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import childProcess from 'node:child_process';
+import { promisify } from 'node:util';
 import {
     normalizeSceneAssetId,
     pairedSceneScriptPath,
@@ -330,6 +331,29 @@ export function createEditorProjectService(options: EditorProjectServiceOptions)
                     },
                 });
             }
+            if (url.pathname === '/api/open-file' && request.method === 'POST') {
+                if (request.headers.get('origin') !== url.origin) {
+                    throw new EditorRequestError(403, '资源打开请求必须来自当前 Editor。');
+                }
+                let filePath: string;
+                try {
+                    filePath = resolveInsideRoot(projectRoot, requestPath(url));
+                    if (!fs.statSync(filePath).isFile()) {
+                        throw new EditorRequestError(400, '只能使用系统默认程序打开项目内的文件。');
+                    }
+                } catch (error) {
+                    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+                        throw new EditorRequestError(404, '资源文件不存在，请刷新资产列表。');
+                    }
+                    throw error;
+                }
+                try {
+                    await openSystemFile(filePath);
+                } catch (error) {
+                    throw new EditorRequestError(500, `无法使用系统默认程序打开文件：${error instanceof Error ? error.message : String(error)}`);
+                }
+                return jsonResponse({ ok: true });
+            }
             if (url.pathname.startsWith('/api/')) {
                 return jsonResponse({ ok: false, error: 'Editor API route was not found.' }, 404);
             }
@@ -349,13 +373,23 @@ function defaultEditorStaticRoot() {
     return path.resolve(import.meta.dir, '..', 'editor');
 }
 
+async function openSystemFile(filePath: string) {
+    const command = process.platform === 'win32'
+        ? [
+            'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+            `Start-Process -FilePath ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${Buffer.from(filePath).toString('base64')}'))) -ErrorAction Stop`,
+        ]
+        : [process.platform === 'darwin' ? 'open' : 'xdg-open', filePath];
+    await promisify(childProcess.execFile)(command[0], command.slice(1), { windowsHide: true });
+}
+
 function openBrowser(url: string) {
     const command = process.platform === 'darwin'
         ? ['open', url]
         : process.platform === 'win32'
             ? ['cmd', '/c', 'start', '', url]
             : ['xdg-open', url];
-    spawn(command[0], command.slice(1), { detached: true, stdio: 'ignore' }).unref();
+    childProcess.spawn(command[0], command.slice(1), { detached: true, stdio: 'ignore' }).unref();
 }
 
 export function watchEditorProject(projectRoot: string, onProjectFileChanged: (path: string) => void) {

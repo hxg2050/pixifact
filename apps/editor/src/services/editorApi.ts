@@ -133,6 +133,10 @@ export async function readEditorProjectFile(path: string) {
     return checkedResponse(await fetch(editorProjectFileUrl(path)));
 }
 
+export async function openEditorProjectFile(path: string) {
+    await checkedResponse(await fetch(`/api/open-file?path=${encodeURIComponent(path)}`, { method: 'POST' }));
+}
+
 export function connectEditorSession(
     onProjectFileChanged: (path: string) => void,
     onDisconnected: () => void,

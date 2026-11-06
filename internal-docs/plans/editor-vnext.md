@@ -2,6 +2,34 @@
 
 后续已实施的 [手动保存](./editor-manual-save.md) 与 [多 Scene 标签](./editor-multi-scene-tabs.md) 决策覆盖下文的首版单 Scene、自动保存约束；下方进度记录保留当时的实现历史。
 
+## 2026-11-07：图片资源双击系统打开
+
+Goal：补齐现有资产面板的图片双击行为，通过本机系统默认程序打开原始文件。
+
+用户追加要求：完成后发布更新；本次按固定六包发布 `0.20.1`，由 tag workflow 完成发布检查并验证 Three 的首次 OIDC 发布。
+
+Decisions：保留 Scene 双击在 Editor 中编辑、图片单击预览和 Pointer 拖拽；不扩大资产面板的文件类型。浏览器通过同源 POST 请求本地服务，复用项目根路径校验，服务仅接受现有文件；使用 Node 标准库和系统原生打开命令，不引入依赖。打开失败在现有错误区域显示，不改变 Scene 文档和选区。
+
+Non-Goals：新增资源类型浏览、内嵌源资源编辑器、文件管理和默认程序配置。
+
+Public API / User-Facing Behavior：图片双击调用系统默认程序；内部新增 `POST /api/open-file?path=<项目相对路径>`。
+
+Implementation Scope：AssetsPanel、Editor API、EditorApp 和本地服务；补充既有 UI / 服务测试和 CLI README。
+
+Test Plan：先验证双击请求链路和失败提示；服务覆盖默认程序委派、含空格及中文路径、同源限制、项目根 / 符号链接边界、目录拒绝、文件删除和启动失败。运行相关测试、Editor 类型检查及构建，并在 macOS 浏览器验证实际系统打开。
+
+Verification：新增测试先以 9 项失败复现入口缺失；实现后相关 82 项测试通过，全量 32 个文件 / 451 项测试通过，`editor:typecheck`、`editor:frontend:build` 和 `git diff --check` 通过。服务测试使用 Node Request；通知合并测试改在可控事件边界验证，保留实际目录监听集成覆盖，避免依赖 macOS 原生事件批次。macOS Chrome 实测单击图片预览、双击一次 POST、系统“预览”显示含中文 / 空格 / 特殊字符的原始图片；源文件、当前 Scene、选区和单 Canvas 保持，删除图片后返回 404 并显示原因，浏览器无异常。Windows / Linux 的委派参数已自动测试，尚无实机验收。浏览器记录位于 `/tmp/pixifact-system-open-browser.json`。
+
+Progress：
+- [x] 检查当前 UI、项目服务、BDD 和既有计划，确认图片双击入口缺失。
+- [x] 补充失败测试，实现并验证系统打开。
+- [ ] 发布 `0.20.1`，核对六包 registry、发布 CI 和 Three 首次 OIDC 验证。
+
+Resume Notes：
+- Done：系统打开、错误反馈、路径边界、UI 回归、类型检查、构建和 macOS 实际窗口验收完成；全量 451 项通过。
+- Current State：功能完成；用户已授权随后发布，准备生成 `0.20.1`。
+- Next：提交本任务 tracked 功能变动，消费 Changeset 生成版本，提交并推送 main / tag，等待 CI 并核对 npm、GitHub Release 和 Three OIDC 状态。
+
 状态：活跃，第一条浏览器 Editor 纵向闭环已完成
 权威范围：Pixifact Editor vNext 的产品边界、用户行为、数据流和首版实现范围
 上游文档：[./index.md](./index.md)、[../../AGENTS.md](../../AGENTS.md)
