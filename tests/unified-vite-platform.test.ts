@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { SourceMap } from 'node:module';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { createContext, runInContext } from 'node:vm';
@@ -165,8 +166,8 @@ async function createCodeProject() {
     await writeFile(path.join(root, 'src/main.ts'), [
         "import { shared } from './shared';",
         'globalThis.shared = shared;',
-        "globalThis.loadGame = () => import('./game');",
-        "globalThis.loadExtra = () => import('./extra');",
+        "globalThis.loadGame = (__pixifactLoadCodePackage = 'user-owned') => { globalThis.loaderName = __pixifactLoadCodePackage; return import('./game'); };",
+        'globalThis.loadExtra = () => import(`./extra`);',
         "globalThis.loadFailure = () => import('./failing');",
         "globalThis.importText = \"import('./game')\";",
     ].join('\n'));
@@ -302,6 +303,7 @@ describe('unified Vite platform build', () => {
         expect(game.count).toBe(1);
         expect(runtime.context.shared.count).toBe(1);
         expect(runtime.context.evaluations).toBe(1);
+        expect(runtime.context.loaderName).toBe('user-owned');
         expect(await runtime.context.loadGame()).toBe(game);
         expect(runtime.pending).toHaveLength(2);
 
@@ -403,6 +405,18 @@ describe('unified Vite platform build', () => {
             expect((await loaded).default).toBe('UPDATED_PRIVATE_GAME_CODE');
             const sourceMap = JSON.parse(await readFile(path.join(report.outputDirectory, 'subpackages/local/game.js.map'), 'utf8'));
             expect(sourceMap.sources.some((source: string) => source.endsWith('src/game.ts'))).toBe(true);
+            const mainCode = await readFile(path.join(report.outputDirectory, 'game.js'), 'utf8');
+            const mainMap = new SourceMap(JSON.parse(await readFile(path.join(report.outputDirectory, 'game.js.map'), 'utf8')));
+            const original = (await readFile(path.join(root, 'src/main.ts'), 'utf8')).split('\n');
+            for (const marker of ['globalThis.loadGame', 'globalThis.importText']) {
+                const offset = mainCode.indexOf(marker);
+                expect(offset).toBeGreaterThan(-1);
+                const prefix = mainCode.slice(0, offset).split('\n');
+                const entry = mainMap.findEntry(prefix.length - 1, prefix.at(-1)!.length);
+                expect(entry.originalSource).toMatch(/src\/main\.ts$/);
+                expect(entry.originalLine).toBe(original.findIndex((line) => line.includes(marker)));
+                expect(entry.originalColumn).toBe(0);
+            }
             const packageFiles = (await collectFiles(path.join(report.outputDirectory, 'subpackages/local')))
                 .filter(file => !file.endsWith('.map'));
             const bytes = (await Promise.all(packageFiles.map(file => readFile(file)))).reduce((sum, file) => sum + file.byteLength, 0);

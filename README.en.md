@@ -78,6 +78,8 @@ The standard Vite mode env file selects the platform through `VITE_PLATFORM`; Mi
 
 `pixifact-cli` and `create-pixifact` are Bun-first tools in this release, so Bun must be installed locally.
 
+The source tree and scaffolds pin TypeScript `7.1.0-beta`. Editor type checking uses Vue content mapper `4.0.0-alpha.3` directly, with Vue runtime staying on 3.5. Both tools are prereleases; see the [testing guide](./internal-docs/testing/TESTING.md) for the development environment and checks.
+
 ## Core Model
 
 Pixifact uses a Godot-style unified `Scene` asset model. It does not use a Unity-style split between Scene resources and Prefab resources.

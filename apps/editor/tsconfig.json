@@ -1,6 +1,14 @@
 {
   "extends": "../../tsconfig.json",
+  "contentMappers": [
+    {
+      "package": "@vue/content-mapper",
+      "extensions": [".vue"],
+      "options": { "target": 3.5, "dataAttributes": ["data-*"] }
+    }
+  ],
   "compilerOptions": {
+    "rootDir": "../..",
     "noEmit": true,
     "noImplicitReturns": false,
     "noUnusedLocals": false,

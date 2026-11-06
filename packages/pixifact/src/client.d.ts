@@ -1,3 +1,5 @@
+declare module 'pixifact:scenes' {}
+
 declare module 'pixifact:platform' {
     import type { Application, ApplicationOptions } from 'pixi.js';
 

@@ -8,20 +8,20 @@ import {
 } from '../compiler/builtinScenes';
 import { extractSceneScriptInterfaces } from './scriptInterfaceExtractor';
 
-export function builtinSceneInterface(
+export async function builtinSceneInterface(
     assetId: string,
     scriptSources: BuiltinSceneScriptSources,
-): SceneTemplateInterface {
-    return builtinSceneInterfaceDescriptors(scriptSources)[assetId].interface;
+): Promise<SceneTemplateInterface> {
+    return (await builtinSceneInterfaceDescriptors(scriptSources))[assetId].interface;
 }
 
-export function builtinSceneInterfaces(scriptSources: BuiltinSceneScriptSources) {
-    const descriptors = builtinSceneInterfaceDescriptors(scriptSources);
+export async function builtinSceneInterfaces(scriptSources: BuiltinSceneScriptSources) {
+    const descriptors = await builtinSceneInterfaceDescriptors(scriptSources);
     return Object.fromEntries(builtinSceneAssetIds().map((assetId) => [assetId, descriptors[assetId].interface]));
 }
 
-function builtinSceneInterfaceDescriptors(scriptSources: BuiltinSceneScriptSources) {
-    const descriptors = extractSceneScriptInterfaces(builtinSceneNames.map((name) => ({
+async function builtinSceneInterfaceDescriptors(scriptSources: BuiltinSceneScriptSources) {
+    const descriptors = await extractSceneScriptInterfaces(builtinSceneNames.map((name) => ({
         scene: builtinSceneAssetId(name),
         fileName: `${name}.ts`,
         source: scriptSources[name],

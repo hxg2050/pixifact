@@ -1,4 +1,43 @@
-import ts from 'typescript';
+import { API } from 'typescript/async';
+import {
+    ScriptKind,
+    SyntaxKind,
+    isAssertionExpression,
+    isCallExpression,
+    isClassDeclaration,
+    isConstructorDeclaration,
+    isDecorator,
+    isExpressionWithTypeArguments,
+    isGetAccessorDeclaration,
+    isIdentifier,
+    isImportDeclaration,
+    isMethodDeclaration,
+    isNamedImports,
+    isNoSubstitutionTemplateLiteral,
+    isNumericLiteral,
+    isObjectLiteralExpression,
+    isParenthesizedExpression,
+    isPrefixUnaryExpression,
+    isPropertyAccessExpression,
+    isPropertyAssignment,
+    isPropertyDeclaration,
+    isSatisfiesExpression,
+    isSetAccessorDeclaration,
+    isStringLiteral,
+    isTypeOperatorNode,
+    isTypeQueryNode,
+    isTypeReferenceNode,
+    isVariableStatement,
+    type ClassDeclaration,
+    type ClassElement,
+    type Decorator,
+    type Expression,
+    type Identifier,
+    type Node,
+    type PropertyName,
+    type SourceFile,
+    type TypeNode,
+} from 'typescript/ast';
 import type {
     SceneScriptInterface,
     SceneTemplateEventContract,
@@ -30,12 +69,12 @@ interface ExtractedSceneScriptClass {
     parts: Record<string, string>;
 }
 
-export function extractSceneScriptInterface(
+export async function extractSceneScriptInterface(
     source: string,
     fileName = 'scene-script.ts',
     options: ExtractSceneScriptInterfaceOptions,
-): SceneScriptInterface {
-    const descriptors = composeSceneScriptClasses(extractSceneScriptClasses(source, fileName, options));
+): Promise<SceneScriptInterface> {
+    const descriptors = await extractSceneScriptInterfaces([{ source, fileName, scene: options.scene }]);
     const descriptor = descriptors[options.scene];
     if (!descriptor) {
         throw new Error('No @scene decorator found.');
@@ -43,22 +82,32 @@ export function extractSceneScriptInterface(
     return descriptor;
 }
 
-export function extractSceneScriptInterfaces(
+export async function extractSceneScriptInterfaces(
     sources: readonly ExtractSceneScriptInterfaceSource[],
-): Record<string, SceneScriptInterface> {
-    return composeSceneScriptClasses(sources.flatMap((source) => extractSceneScriptClasses(
-        source.source,
-        source.fileName ?? 'scene-script.ts',
-        { scene: source.scene },
-    )));
+): Promise<Record<string, SceneScriptInterface>> {
+    const api = new API();
+    try {
+        const classes: ExtractedSceneScriptClass[] = [];
+        for (const source of sources) {
+            const fileName = source.fileName ?? 'scene-script.ts';
+            const file = await api.createSourceFile(fileName, source.source, { scriptKind: ScriptKind.TS });
+            try {
+                classes.push(...extractSceneScriptClasses(file.sourceFile, fileName, { scene: source.scene }));
+            } finally {
+                await file.dispose();
+            }
+        }
+        return composeSceneScriptClasses(classes);
+    } finally {
+        await api.close();
+    }
 }
 
 function extractSceneScriptClasses(
-    source: string,
+    sourceFile: SourceFile,
     fileName: string,
     options: ExtractSceneScriptInterfaceOptions,
 ): ExtractedSceneScriptClass[] {
-    const sourceFile = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
     const sourceId = normalizeScriptSourceId(fileName);
     const imports = collectNamedImports(sourceFile, sourceId);
     const structClasses = collectStructClasses(sourceFile);
@@ -66,7 +115,7 @@ function extractSceneScriptClasses(
     const classes: ExtractedSceneScriptClass[] = [];
 
     for (const statement of sourceFile.statements) {
-        if (!ts.isClassDeclaration(statement)) {
+        if (!isClassDeclaration(statement)) {
             continue;
         }
         const isSceneClass = hasSceneDecorator(statement);
@@ -87,7 +136,8 @@ function extractSceneScriptClasses(
         const parts: Record<string, string> = {};
 
         for (const member of statement.members) {
-            const name = memberName(member.name);
+            const name = isPropertyDeclaration(member) || isMethodDeclaration(member)
+                || isGetAccessorDeclaration(member) || isSetAccessorDeclaration(member) ? memberName(member.name) : undefined;
             if (!name) {
                 continue;
             }
@@ -138,12 +188,12 @@ function extractSceneScriptClasses(
     return classes;
 }
 
-export function emitSceneScriptInterfaceDescriptor(
+export async function emitSceneScriptInterfaceDescriptor(
     source: string,
     fileName = 'scene-script.ts',
     options: ExtractSceneScriptInterfaceOptions,
 ) {
-    return `${JSON.stringify(extractSceneScriptInterface(source, fileName, options), null, 2)}\n`;
+    return `${JSON.stringify(await extractSceneScriptInterface(source, fileName, options), null, 2)}\n`;
 }
 
 function composeSceneScriptClasses(classes: readonly ExtractedSceneScriptClass[]): Record<string, SceneScriptInterface> {
@@ -285,10 +335,10 @@ function hasPublicContract(
         || Object.keys(parts).length > 0;
 }
 
-function collectNamedImports(sourceFile: ts.SourceFile, sourceId: string) {
+function collectNamedImports(sourceFile: SourceFile, sourceId: string) {
     const imports = new Map<string, string>();
     for (const statement of sourceFile.statements) {
-        if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) {
+        if (!isImportDeclaration(statement) || !isStringLiteral(statement.moduleSpecifier)) {
             continue;
         }
         const moduleSpecifier = statement.moduleSpecifier.text;
@@ -296,7 +346,7 @@ function collectNamedImports(sourceFile: ts.SourceFile, sourceId: string) {
             continue;
         }
         const namedBindings = statement.importClause?.namedBindings;
-        if (!namedBindings || !ts.isNamedImports(namedBindings)) {
+        if (!namedBindings || !isNamedImports(namedBindings)) {
             continue;
         }
         const targetSource = resolveScriptSourceId(sourceId, moduleSpecifier);
@@ -346,7 +396,7 @@ function normalizePosixPath(value: string) {
     return segments.join('/');
 }
 
-function hasSceneDecorator(node: ts.ClassDeclaration) {
+function hasSceneDecorator(node: ClassDeclaration) {
     const decorator = decorators(node).find((item) => decoratorName(item) === 'scene');
     if (!decorator) {
         return false;
@@ -358,26 +408,27 @@ function hasSceneDecorator(node: ts.ClassDeclaration) {
     return true;
 }
 
-function sceneConstructorHasParameters(node: ts.ClassDeclaration) {
-    return node.members.some((member) => ts.isConstructorDeclaration(member) && member.parameters.length > 0);
+function sceneConstructorHasParameters(node: ClassDeclaration) {
+    return node.members.some((member) => isConstructorDeclaration(member) && member.parameters.length > 0);
 }
 
-function parentClassNameOf(node: ts.ClassDeclaration) {
-    const heritage = node.heritageClauses?.find((item) => item.token === ts.SyntaxKind.ExtendsKeyword);
-    const parent = heritage?.types[0]?.expression;
-    if (!parent) {
+function parentClassNameOf(node: ClassDeclaration) {
+    const heritage = node.heritageClauses?.find((item) => item.token === SyntaxKind.ExtendsKeyword);
+    const parentType = heritage?.types[0];
+    if (!parentType || !isExpressionWithTypeArguments(parentType)) {
         return undefined;
     }
-    if (ts.isIdentifier(parent)) {
+    const parent = parentType.expression;
+    if (isIdentifier(parent)) {
         return parent.text;
     }
-    if (ts.isPropertyAccessExpression(parent)) {
+    if (isPropertyAccessExpression(parent)) {
         return parent.name.text;
     }
     return undefined;
 }
 
-function memberDecoratorOptions(member: ts.ClassElement, name: string) {
+function memberDecoratorOptions(member: ClassElement, name: string) {
     const decorator = decorators(member).find((item) => decoratorName(item) === name);
     if (!decorator) {
         return undefined;
@@ -392,31 +443,31 @@ function memberDecoratorOptions(member: ts.ClassElement, name: string) {
     return objectLiteralValue(args[0], `@${name} argument`);
 }
 
-function decorators(node: ts.Node) {
-    return ts.canHaveDecorators(node) ? ts.getDecorators(node) ?? [] : [];
+function decorators(node: ClassDeclaration | ClassElement) {
+    return 'modifiers' in node ? node.modifiers?.filter(isDecorator) ?? [] : [];
 }
 
-function decoratorName(decorator: ts.Decorator) {
+function decoratorName(decorator: Decorator) {
     const expression = decorator.expression;
-    if (ts.isIdentifier(expression)) {
+    if (isIdentifier(expression)) {
         return expression.text;
     }
-    if (ts.isCallExpression(expression) && ts.isIdentifier(expression.expression)) {
+    if (isCallExpression(expression) && isIdentifier(expression.expression)) {
         return expression.expression.text;
     }
     return undefined;
 }
 
-function decoratorArguments(decorator: ts.Decorator) {
+function decoratorArguments(decorator: Decorator) {
     const expression = decorator.expression;
-    return ts.isCallExpression(expression) ? [...expression.arguments] : [];
+    return isCallExpression(expression) ? [...expression.arguments] : [];
 }
 
-function memberName(name: ts.PropertyName | undefined) {
+function memberName(name: PropertyName | undefined) {
     if (!name) {
         return undefined;
     }
-    if (ts.isIdentifier(name) || ts.isStringLiteral(name) || ts.isNumericLiteral(name)) {
+    if (isIdentifier(name) || isStringLiteral(name) || isNumericLiteral(name)) {
         return name.text;
     }
     return undefined;
@@ -426,11 +477,11 @@ interface DecoratorObjectValue {
     [key: string]: DecoratorValue;
 }
 
-type DecoratorValue = SceneTemplateScalarValue | ts.Identifier;
+type DecoratorValue = SceneTemplateScalarValue | Identifier;
 
 interface StructClassInfo {
     exported: boolean;
-    node: ts.ClassDeclaration;
+    node: ClassDeclaration;
 }
 
 interface StructContractInfo {
@@ -441,20 +492,20 @@ interface StructContractInfo {
     hasRequiredConstructorParameters: boolean;
 }
 
-function collectVariantDeclarations(sourceFile: ts.SourceFile) {
+function collectVariantDeclarations(sourceFile: SourceFile) {
     const variants = new Map<string, SceneTemplateVariants>();
     for (const statement of sourceFile.statements) {
-        if (!ts.isVariableStatement(statement)) {
+        if (!isVariableStatement(statement)) {
             continue;
         }
         for (const declaration of statement.declarationList.declarations) {
-            if (!ts.isIdentifier(declaration.name) || !declaration.initializer) {
+            if (!isIdentifier(declaration.name) || !declaration.initializer) {
                 continue;
             }
             const initializer = unwrapExpression(declaration.initializer);
             if (
-                !ts.isCallExpression(initializer)
-                || !ts.isIdentifier(initializer.expression)
+                !isCallExpression(initializer)
+                || !isIdentifier(initializer.expression)
                 || initializer.expression.text !== 'defineVariants'
             ) {
                 continue;
@@ -471,15 +522,15 @@ function collectVariantDeclarations(sourceFile: ts.SourceFile) {
     return variants;
 }
 
-function variantObjectValue(expression: ts.Expression, label: string): SceneTemplateVariants {
+function variantObjectValue(expression: Expression, label: string): SceneTemplateVariants {
     const object = unwrapExpression(expression);
-    if (!ts.isObjectLiteralExpression(object)) {
+    if (!isObjectLiteralExpression(object)) {
         throw new Error(`${label} must be an object literal.`);
     }
     const variants: SceneTemplateVariants = {};
     let expectedFields: Record<string, string> | undefined;
     for (const property of object.properties) {
-        if (!ts.isPropertyAssignment(property)) {
+        if (!isPropertyAssignment(property)) {
             throw new Error(`${label} only supports property assignments.`);
         }
         const name = memberName(property.name);
@@ -487,12 +538,12 @@ function variantObjectValue(expression: ts.Expression, label: string): SceneTemp
             throw new Error(`${label} only supports literal case names.`);
         }
         const caseExpression = unwrapExpression(property.initializer);
-        if (!ts.isObjectLiteralExpression(caseExpression)) {
+        if (!isObjectLiteralExpression(caseExpression)) {
             throw new Error(`${label}.${name} must be an object literal.`);
         }
         const fields: Record<string, SceneTemplateScalarValue> = {};
         for (const field of caseExpression.properties) {
-            if (!ts.isPropertyAssignment(field)) {
+            if (!isPropertyAssignment(field)) {
                 throw new Error(`${label}.${name} only supports property assignments.`);
             }
             const fieldName = memberName(field.name);
@@ -521,36 +572,35 @@ function sameFieldTypes(left: Record<string, string>, right: Record<string, stri
         && leftEntries.every(([name, type]) => right[name] === type);
 }
 
-function unwrapExpression(expression: ts.Expression): ts.Expression {
+function unwrapExpression(expression: Expression): Expression {
     if (
-        ts.isAsExpression(expression)
-        || ts.isTypeAssertionExpression(expression)
-        || ts.isSatisfiesExpression(expression)
-        || ts.isParenthesizedExpression(expression)
+        isAssertionExpression(expression)
+        || isSatisfiesExpression(expression)
+        || isParenthesizedExpression(expression)
     ) {
         return unwrapExpression(expression.expression);
     }
     return expression;
 }
 
-function collectStructClasses(sourceFile: ts.SourceFile) {
+function collectStructClasses(sourceFile: SourceFile) {
     const classes = new Map<string, StructClassInfo>();
     for (const statement of sourceFile.statements) {
-        if (!ts.isClassDeclaration(statement) || !statement.name) {
+        if (!isClassDeclaration(statement) || !statement.name) {
             continue;
         }
         classes.set(statement.name.text, {
-            exported: statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? false,
+            exported: statement.modifiers?.some((modifier) => modifier.kind === SyntaxKind.ExportKeyword) ?? false,
             node: statement,
         });
     }
     return classes;
 }
 
-function structFields(node: ts.ClassDeclaration) {
+function structFields(node: ClassDeclaration) {
     const fields: StructContractInfo['fields'] = {};
     for (const member of node.members) {
-        if (!ts.isPropertyDeclaration(member)) {
+        if (!isPropertyDeclaration(member)) {
             continue;
         }
         const name = memberName(member.name);
@@ -572,10 +622,10 @@ function structFields(node: ts.ClassDeclaration) {
     return fields;
 }
 
-function assertStaticPropMember(member: ts.ClassElement, name: string) {
-    const isDeclareProperty = ts.isPropertyDeclaration(member)
-        && member.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DeclareKeyword)
-        && !member.modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.AccessorKeyword)
+function assertStaticPropMember(member: ClassElement, name: string) {
+    const isDeclareProperty = isPropertyDeclaration(member)
+        && member.modifiers?.some((modifier) => modifier.kind === SyntaxKind.DeclareKeyword)
+        && !member.modifiers.some((modifier) => modifier.kind === SyntaxKind.AccessorKeyword)
         && !member.initializer;
     if (!isDeclareProperty) {
         throw new Error(`@prop "${name}" must decorate a declare property without an initializer.`);
@@ -587,11 +637,11 @@ function assertStaticPropMember(member: ts.ClassElement, name: string) {
 
 function propContract(
     prop: DecoratorObjectValue,
-    member: ts.ClassElement,
+    member: ClassElement,
     structClasses: ReadonlyMap<string, StructClassInfo>,
     variantDeclarations: ReadonlyMap<string, SceneTemplateVariants>,
 ): SceneTemplatePropContract {
-    if (!ts.isPropertyDeclaration(member) || !member.type) {
+    if (!isPropertyDeclaration(member) || !member.type) {
         throw new Error('@prop requires a typed declare property.');
     }
     if (prop.type !== undefined) {
@@ -656,46 +706,46 @@ function propContract(
     };
 }
 
-function assertVariantPropertyType(type: ts.TypeNode, variantsName: string) {
+function assertVariantPropertyType(type: TypeNode, variantsName: string) {
     if (
-        !ts.isTypeOperatorNode(type)
-        || type.operator !== ts.SyntaxKind.KeyOfKeyword
-        || !ts.isTypeQueryNode(type.type)
-        || !ts.isIdentifier(type.type.exprName)
+        !isTypeOperatorNode(type)
+        || type.operator !== SyntaxKind.KeyOfKeyword
+        || !isTypeQueryNode(type.type)
+        || !isIdentifier(type.type.exprName)
         || type.type.exprName.text !== variantsName
     ) {
         throw new Error(`@prop Variant type must be "keyof typeof ${variantsName}".`);
     }
 }
 
-function primitivePropertyType(type: ts.TypeNode): SceneTemplatePrimitivePropType | undefined {
-    if (type.kind === ts.SyntaxKind.StringKeyword) {
+function primitivePropertyType(type: TypeNode): SceneTemplatePrimitivePropType | undefined {
+    if (type.kind === SyntaxKind.StringKeyword) {
         return 'string';
     }
-    if (type.kind === ts.SyntaxKind.NumberKeyword) {
+    if (type.kind === SyntaxKind.NumberKeyword) {
         return 'number';
     }
-    if (type.kind === ts.SyntaxKind.BooleanKeyword) {
+    if (type.kind === SyntaxKind.BooleanKeyword) {
         return 'boolean';
     }
     return undefined;
 }
 
-function typeReferenceName(type: ts.TypeNode) {
-    return ts.isTypeReferenceNode(type) && ts.isIdentifier(type.typeName)
+function typeReferenceName(type: TypeNode) {
+    return isTypeReferenceNode(type) && isIdentifier(type.typeName)
         ? type.typeName.text
         : undefined;
 }
 
-function structContractInfo(node: ts.ClassDeclaration): StructContractInfo {
+function structContractInfo(node: ClassDeclaration): StructContractInfo {
     return {
         fields: structFields(node),
-        hasRequiredConstructorParameters: node.members.some((member) => ts.isConstructorDeclaration(member) && member.parameters.some((parameter) => !parameter.questionToken && !parameter.initializer)),
+        hasRequiredConstructorParameters: node.members.some((member) => isConstructorDeclaration(member) && member.parameters.some((parameter) => !parameter.questionToken && !parameter.initializer)),
     };
 }
 
-function isIdentifierValue(value: DecoratorValue): value is ts.Identifier {
-    return typeof value === 'object' && ts.isIdentifier(value as ts.Node);
+function isIdentifierValue(value: DecoratorValue): value is Identifier {
+    return typeof value === 'object' && isIdentifier(value as Node);
 }
 
 function isSceneTemplateScalarValue(value: DecoratorValue): value is SceneTemplateScalarValue {
@@ -712,13 +762,13 @@ function sceneTemplateScalarType(value: SceneTemplateScalarValue): SceneTemplate
     return 'boolean';
 }
 
-function objectLiteralValue(expression: ts.Expression, label: string): DecoratorObjectValue {
-    if (!ts.isObjectLiteralExpression(expression)) {
+function objectLiteralValue(expression: Expression, label: string): DecoratorObjectValue {
+    if (!isObjectLiteralExpression(expression)) {
         throw new Error(`${label} must be an object literal.`);
     }
     const result: DecoratorObjectValue = {};
     for (const property of expression.properties) {
-        if (!ts.isPropertyAssignment(property)) {
+        if (!isPropertyAssignment(property)) {
             throw new Error(`${label} only supports property assignments.`);
         }
         const name = memberName(property.name);
@@ -730,27 +780,27 @@ function objectLiteralValue(expression: ts.Expression, label: string): Decorator
     return result;
 }
 
-function decoratorValue(expression: ts.Expression, label: string): DecoratorValue {
-    if (ts.isIdentifier(expression)) {
+function decoratorValue(expression: Expression, label: string): DecoratorValue {
+    if (isIdentifier(expression)) {
         return expression;
     }
     return literalValue(expression, label);
 }
 
-function literalValue(expression: ts.Expression, label: string): SceneTemplateScalarValue {
-    if (ts.isStringLiteral(expression) || ts.isNoSubstitutionTemplateLiteral(expression)) {
+function literalValue(expression: Expression, label: string): SceneTemplateScalarValue {
+    if (isStringLiteral(expression) || isNoSubstitutionTemplateLiteral(expression)) {
         return expression.text;
     }
-    if (expression.kind === ts.SyntaxKind.TrueKeyword) {
+    if (expression.kind === SyntaxKind.TrueKeyword) {
         return true;
     }
-    if (expression.kind === ts.SyntaxKind.FalseKeyword) {
+    if (expression.kind === SyntaxKind.FalseKeyword) {
         return false;
     }
-    if (ts.isNumericLiteral(expression)) {
+    if (isNumericLiteral(expression)) {
         return Number(expression.text);
     }
-    if (ts.isPrefixUnaryExpression(expression) && expression.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(expression.operand)) {
+    if (isPrefixUnaryExpression(expression) && expression.operator === SyntaxKind.MinusToken && isNumericLiteral(expression.operand)) {
         return -Number(expression.operand.text);
     }
     throw new Error(`${label} must be a string, number, or boolean literal.`);

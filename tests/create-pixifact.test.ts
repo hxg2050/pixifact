@@ -55,7 +55,7 @@ describe('create-pixifact scaffold', () => {
             },
             devDependencies: {
                 'pixifact-cli': `^${pixifactCliPackage.version}`,
-                typescript: '^5.3.3',
+                typescript: '7.1.0-beta',
                 vite: '^8.0.10',
             },
         });

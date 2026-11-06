@@ -82,6 +82,8 @@ pixifact dev --mode douyin
 
 当前 `pixifact-cli` 和 `create-pixifact` 都是 Bun-first 工具，需要本机安装 Bun。
 
+当前源码和脚手架固定使用 TypeScript `7.1.0-beta`；Editor 类型检查直接使用 Vue content mapper `4.0.0-alpha.3`，Vue runtime 保持 3.5。两项工具均处于预发布阶段，仓库开发环境与验证方式见 [测试说明](./internal-docs/testing/TESTING.md)。
+
 ## 核心心智
 
 Pixifact 使用 Godot-style 统一 `Scene` 资产，不做 Unity 式 Scene + Prefab 双资源体系。

@@ -433,8 +433,8 @@ describe('Pixifact scene compiler spike', () => {
         }
     });
 
-    it('does not expose runtime layout containers as built-in Scene interfaces', () => {
-        expect(builtinSceneInterfaces(builtinSceneScriptSources)).toEqual({});
+    it('does not expose runtime layout containers as built-in Scene interfaces', async () => {
+        expect(await builtinSceneInterfaces(builtinSceneScriptSources)).toEqual({});
     });
 
     it('lays out GridContainer children by columns, gaps, and cell alignment', () => {
@@ -1299,8 +1299,8 @@ describe('Pixifact scene compiler spike', () => {
         });
     });
 
-    it('validates Scene instances against inherited script contracts', () => {
-        const descriptors = extractSceneScriptInterfaces([
+    it('validates Scene instances against inherited script contracts', async () => {
+        const descriptors = await extractSceneScriptInterfaces([
             {
                 scene: 'src/ui/BaseControl.scene',
                 fileName: 'BaseControl.ts',
@@ -1404,18 +1404,19 @@ describe('Pixifact scene compiler spike', () => {
             .toThrow('Scene script binding is inferred from the colocated TypeScript file.');
     });
 
-    it('does not treat empty explicit Scene references as built-in defaults', () => {
+    it('does not treat empty explicit Scene references as built-in defaults', async () => {
+        const sceneInterfaces = await builtinSceneInterfaces(builtinSceneScriptSources);
         expect(() => validateSceneContent({
             scene: 'src/scenes/MainMenu.scene',
             content: '<Scene name="MainMenu"><VBoxContainer scene="" /></Scene>',
-            sceneInterfaces: builtinSceneInterfaces(builtinSceneScriptSources),
+            sceneInterfaces,
             normalizeSceneReference: (scenePath) => resolveSceneReference('src/scenes/MainMenu.scene', scenePath),
         })).not.toThrow();
 
         expect(validateSceneContent({
             scene: 'src/scenes/MainMenu.scene',
             content: '<Scene name="MainMenu"><VBoxContainer scene="" /></Scene>',
-            sceneInterfaces: builtinSceneInterfaces(builtinSceneScriptSources),
+            sceneInterfaces,
             normalizeSceneReference: (scenePath) => resolveSceneReference('src/scenes/MainMenu.scene', scenePath),
         })).toMatchObject({
             ok: false,
@@ -1668,8 +1669,8 @@ import { Group } from 'pixifact/runtime';`);
         expect(anonymousCode).toContain('const button1 = new Button({ rectTransform: { width: 420 } });');
     });
 
-    it('imports inherited structured prop constructors from the declaring scene script', () => {
-        const descriptors = extractSceneScriptInterfaces([
+    it('imports inherited structured prop constructors from the declaring scene script', async () => {
+        const descriptors = await extractSceneScriptInterfaces([
             {
                 scene: 'src/ui/BasePanel.scene',
                 fileName: 'BasePanel.ts',
@@ -2066,7 +2067,7 @@ import { Group } from 'pixifact/runtime';`);
         expect(next).toEqual(template);
     });
 
-    it('parses runtime layout container tags as primitive nodes', () => {
+    it('parses runtime layout container tags as primitive nodes', async () => {
         const template = parseSceneTemplate(`
             <Scene name="MainMenu">
               <GridContainer id="itemGrid" columns="3" gapX="12" gapY="18" alignX="center" alignY="end">
@@ -2100,7 +2101,7 @@ import { Group } from 'pixifact/runtime';`);
         expect(validateSceneContent({
             scene: 'src/scenes/MainMenu.scene',
             content: source,
-            sceneInterfaces: builtinSceneInterfaces(builtinSceneScriptSources),
+            sceneInterfaces: await builtinSceneInterfaces(builtinSceneScriptSources),
         })).toMatchObject({
             ok: true,
         });
@@ -2713,7 +2714,7 @@ import { Group, Image, NineImage, TileImage, setFrameLayout } from 'pixifact/run
         `)).toThrow('Unsupported template tag <Control>');
     });
 
-    it('parses and validates frame layout props on compiler nodes', () => {
+    it('parses and validates frame layout props on compiler nodes', async () => {
         const template = parseSceneTemplate(`
             <Scene name="Hud">
               <Graphics id="panel" shape="roundRect" left="24" right="24" top="16" bottom="16" radius="12" fill="#111827" />
@@ -2748,7 +2749,7 @@ import { Group, Image, NineImage, TileImage, setFrameLayout } from 'pixifact/run
         expect(validateSceneContent({
             scene: 'src/scenes/Hud.scene',
             content: source,
-            sceneInterfaces: builtinSceneInterfaces(builtinSceneScriptSources),
+            sceneInterfaces: await builtinSceneInterfaces(builtinSceneScriptSources),
         })).toMatchObject({
             ok: true,
         });

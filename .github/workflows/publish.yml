@@ -64,6 +64,9 @@ jobs:
       - name: Test
         run: bun run test
 
+      - name: Check editor types
+        run: bun run editor:typecheck
+
       - name: Build runtime packages
         run: bun run build
 

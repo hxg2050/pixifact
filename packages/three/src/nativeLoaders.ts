@@ -52,8 +52,9 @@ export class FileLoader extends Loader {
 export class ImageLoader extends Loader<HTMLImageElement> {
     load(url: string, onLoad: (image: HTMLImageElement) => void, _onProgress?: Progress, onError?: Failure) {
         url = this.manager.resolveURL(this.path + url);
-        const image = DOMAdapter.get().createImage() as HTMLImageElement;
-        image.crossOrigin = this.crossOrigin;
+        const source = DOMAdapter.get().createImage();
+        source.crossOrigin = this.crossOrigin;
+        const image = source as HTMLImageElement;
         this.manager.itemStart(url);
         void (async () => {
             try {

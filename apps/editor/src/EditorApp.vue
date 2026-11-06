@@ -1406,18 +1406,20 @@ onBeforeUnmount(() => {
         </ContextMenuTrigger>
         <ContextMenuPortal>
           <ContextMenuContent
+            as-child
             class="scene-tab-context-menu"
-            aria-label="标签页操作"
             :collision-padding="8"
             @close-auto-focus="closingPath && $event.preventDefault()"
           >
-            <ContextMenuItem
-              v-for="action in tabCloseActions"
-              :key="action.scope"
-              class="scene-tab-context-item"
-              :disabled="!canCloseTabs(tab.path, action.scope)"
-              @select="closeTab(tab.path, action.scope)"
-            >{{ action.label }}</ContextMenuItem>
+            <div aria-label="标签页操作">
+              <ContextMenuItem
+                v-for="action in tabCloseActions"
+                :key="action.scope"
+                class="scene-tab-context-item"
+                :disabled="!canCloseTabs(tab.path, action.scope)"
+                @select="closeTab(tab.path, action.scope)"
+              >{{ action.label }}</ContextMenuItem>
+            </div>
           </ContextMenuContent>
         </ContextMenuPortal>
       </ContextMenuRoot>
@@ -1459,9 +1461,11 @@ onBeforeUnmount(() => {
         </div>
         <div v-show="!leftPanelCollapsed" class="left-panel-footer">
           <PopoverRoot>
-            <PopoverTrigger class="settings-trigger" type="button" aria-label="设置" title="设置">
-              <Settings2 :size="16" />
-              <span>设置</span>
+            <PopoverTrigger as-child>
+              <button class="settings-trigger" type="button" aria-label="设置" title="设置">
+                <Settings2 :size="16" />
+                <span>设置</span>
+              </button>
             </PopoverTrigger>
             <PopoverPortal>
               <PopoverContent class="editor-settings-popover" side="top" align="start" :side-offset="8">

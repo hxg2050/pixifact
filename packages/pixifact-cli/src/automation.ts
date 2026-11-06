@@ -35,8 +35,8 @@ interface ToolInput {
     node?: unknown;
 }
 
-type CompilerSceneValidationSuccess = ReturnType<typeof validateCompilerSceneFile> & { ok: true };
-type CompilerSceneValidationFailure = ReturnType<typeof validateCompilerSceneFile> & { ok: false };
+type CompilerSceneValidationSuccess = Awaited<ReturnType<typeof validateCompilerSceneFile>> & { ok: true };
+type CompilerSceneValidationFailure = Awaited<ReturnType<typeof validateCompilerSceneFile>> & { ok: false };
 
 type DetailedCompilerNode = SceneTemplateNode & {
     locator: string;
@@ -151,7 +151,7 @@ function collectAssetFiles(root: string, directory: string, assets: Set<string>)
     }
 }
 
-function collectCompilerSceneInterfaces(root: string, skippedScene?: string) {
+async function collectCompilerSceneInterfaces(root: string, skippedScene?: string) {
     const sceneSources: {
         scenePath: string;
         template: SceneTemplate;
@@ -182,7 +182,7 @@ function collectCompilerSceneInterfaces(root: string, skippedScene?: string) {
     }
 
     const builtinSources = readBuiltinSceneScriptSourcesSync();
-    const descriptors = extractSceneScriptInterfaces([
+    const descriptors = await extractSceneScriptInterfaces([
         ...builtinSceneAssetIds().map((scene) => {
             const name = builtinSceneNameFromAssetId(scene);
             return {
@@ -203,7 +203,7 @@ function collectCompilerSceneInterfaces(root: string, skippedScene?: string) {
 
     for (const source of sceneSources) {
         try {
-            const pair = readCompilerScenePairContract(root, source.scenePath, source.template, descriptors[source.scenePath]);
+            const pair = await readCompilerScenePairContract(root, source.scenePath, source.template, descriptors[source.scenePath]);
             if (pair.diagnostics.length > 0 || !pair.sceneInterface) {
                 continue;
             }
@@ -273,12 +273,12 @@ function compilerSceneSourceRootFailure(scenePath: string) {
     };
 }
 
-function readCompilerScenePairContract(
+async function readCompilerScenePairContract(
     root: string,
     scenePath: string,
     template: SceneTemplate,
     descriptor?: SceneScriptInterface,
-): { diagnostics: SceneValidationDiagnostic[]; sceneInterface?: SceneTemplateInterface } {
+): Promise<{ diagnostics: SceneValidationDiagnostic[]; sceneInterface?: SceneTemplateInterface }> {
     const expectedName = sceneLocalName(scenePath);
     if (template.name !== expectedName) {
         return {
@@ -296,11 +296,11 @@ function readCompilerScenePairContract(
 
     let sceneDescriptor = descriptor;
     try {
-        sceneDescriptor ??= extractSceneScriptInterfaces([{
+        sceneDescriptor ??= (await extractSceneScriptInterfaces([{
             scene: scenePath,
             fileName: absoluteScriptPath,
             source: readTextFile(absoluteScriptPath),
-        }])[scenePath];
+        }]))[scenePath];
     } catch (error) {
         return {
             diagnostics: [compilerSceneScriptContractDiagnostic(error)],
@@ -390,7 +390,7 @@ function compilerSceneValidationFailure(scenePath: string, content: string, diag
     };
 }
 
-function validateCompilerSceneFile(root: string, scenePath: string) {
+async function validateCompilerSceneFile(root: string, scenePath: string) {
     const content = readTextFile(path.join(root, scenePath));
     const sourceRootFailure = compilerSceneSourceRootFailure(scenePath);
     if (sourceRootFailure) {
@@ -405,7 +405,7 @@ function validateCompilerSceneFile(root: string, scenePath: string) {
             content,
         });
     }
-    const pair = readCompilerScenePairContract(root, scenePath, template);
+    const pair = await readCompilerScenePairContract(root, scenePath, template);
     if (pair.diagnostics.length > 0 || !pair.sceneInterface) {
         return compilerSceneValidationFailure(scenePath, content, pair.diagnostics);
     }
@@ -413,7 +413,7 @@ function validateCompilerSceneFile(root: string, scenePath: string) {
         scene: scenePath,
         content,
         existingAssets: collectProjectAssets(root),
-        sceneInterfaces: collectCompilerSceneInterfaces(root, scenePath),
+        sceneInterfaces: await collectCompilerSceneInterfaces(root, scenePath),
         sceneInterface: pair.sceneInterface,
         normalizeSceneReference: normalizeCompilerSceneReference(scenePath),
     });
@@ -426,8 +426,8 @@ function validateCompilerSceneFile(root: string, scenePath: string) {
     };
 }
 
-function validateAllCompilerScenes(root: string) {
-    const results = collectCompilerScenePaths(root).map((scenePath) => validateCompilerSceneFile(root, scenePath));
+async function validateAllCompilerScenes(root: string) {
+    const results = await Promise.all(collectCompilerScenePaths(root).map((scenePath) => validateCompilerSceneFile(root, scenePath)));
     const failures = results.filter((result): result is CompilerSceneValidationFailure => !result.ok);
     const scenes = results
         .filter((result): result is CompilerSceneValidationSuccess => result.ok)
@@ -599,11 +599,11 @@ export function createPixifactAutomation() {
             };
         },
 
-        inspectCompilerScene(input: unknown) {
+        async inspectCompilerScene(input: unknown) {
             const args = assertRecord(input, 'input') as ToolInput;
             const loaded = loadCompilerScene(args.projectRoot, args.scenePath);
             const template = parseSceneTemplate(loaded.content);
-            const sceneInterface = collectCompilerSceneInterfaces(loaded.root)[loaded.scenePath];
+            const sceneInterface = (await collectCompilerSceneInterfaces(loaded.root))[loaded.scenePath];
             if (!sceneInterface) {
                 throw new Error(`Scene "${loaded.scenePath}" requires a readable paired @scene contract.`);
             }

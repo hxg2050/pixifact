@@ -301,7 +301,7 @@ export function createEditorProjectService(options: EditorProjectServiceOptions)
             if (url.pathname === '/api/scene-bindings' && request.method === 'GET') {
                 files ??= listProjectFiles(projectRoot);
                 bindings ??= readProjectSceneBindings(projectRoot, files);
-                return jsonResponse(bindings);
+                return jsonResponse(await bindings);
             }
             if (url.pathname === '/api/scene' && request.method === 'PUT') {
                 const scenePath = requestPath(url);

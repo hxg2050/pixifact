@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { cp, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import ts from 'typescript';
+import { API, ModuleKind } from 'typescript/async';
+import { ScriptTarget } from 'typescript/ast';
 import * as pixi from 'pixi.js';
 import * as runtime from 'pixifact/runtime';
 import * as sceneRuntime from 'pixifact/scene';
@@ -27,10 +28,16 @@ async function contracts(root: string) {
     }))));
 }
 
-function registerGeneratedModule(source: string) {
-    const code = ts.transpileModule(source, {
-        compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-    }).outputText;
+async function registerGeneratedModule(source: string) {
+    const api = new API();
+    let code: string;
+    try {
+        code = (await api.transpileModule(source, {
+            compilerOptions: { target: ScriptTarget.ES2022, module: ModuleKind.CommonJS },
+        })).outputText;
+    } finally {
+        await api.close();
+    }
     const requireModule = (id: string) => {
         if (id === 'pixi.js') return pixi;
         if (id === 'pixifact/runtime') return runtime;
@@ -85,7 +92,7 @@ describe('game starter basic UI', () => {
             }
             await compileScenes({ projectRoot: root });
             for (const name of names) {
-                registerGeneratedModule(await readFile(join(root, '.pixifact/generated/src/ui', `${name}.scene.generated.ts`), 'utf8'));
+                await registerGeneratedModule(await readFile(join(root, '.pixifact/generated/src/ui', `${name}.scene.generated.ts`), 'utf8'));
             }
             await sceneRuntime.prepareSceneClass(Dialog);
             await sceneRuntime.prepareSceneClass(ProgressBar);

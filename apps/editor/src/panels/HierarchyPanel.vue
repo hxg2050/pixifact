@@ -490,25 +490,29 @@ watch(() => props.draggedAsset, (asset) => {
         </div>
       </ContextMenuTrigger>
       <ContextMenuPortal>
-        <ContextMenuContent class="hierarchy-context-menu" aria-label="节点操作" :collision-padding="8">
-          <ContextMenuSub>
-            <ContextMenuSubTrigger class="hierarchy-context-item">
-              添加
-              <ChevronRight :size="13" aria-hidden="true" />
-            </ContextMenuSubTrigger>
-            <ContextMenuPortal>
-              <ContextMenuSubContent class="hierarchy-context-menu hierarchy-context-submenu" aria-label="添加节点" :side-offset="4" :collision-padding="8">
-                <template v-for="group in addGroups" :key="group.label">
-                  <ContextMenuLabel class="hierarchy-context-label">{{ group.label }}</ContextMenuLabel>
-                  <ContextMenuItem v-for="type in group.types" :key="type" class="hierarchy-context-item" @select="addNode(type, contextTarget)">{{ type }}</ContextMenuItem>
-                </template>
-              </ContextMenuSubContent>
-            </ContextMenuPortal>
-          </ContextMenuSub>
-          <ContextMenuItem class="hierarchy-context-item" :disabled="!canCopyContext" @select="copyToClipboard">复制</ContextMenuItem>
-          <ContextMenuItem class="hierarchy-context-item" :disabled="!canPaste" @select="pasteNode(contextTarget)">粘贴</ContextMenuItem>
-          <ContextMenuSeparator class="hierarchy-context-separator" />
-          <ContextMenuItem class="hierarchy-context-item" :disabled="!canDeleteContext" @select="deleteNode">删除</ContextMenuItem>
+        <ContextMenuContent as-child class="hierarchy-context-menu" :collision-padding="8">
+          <div aria-label="节点操作">
+            <ContextMenuSub>
+              <ContextMenuSubTrigger class="hierarchy-context-item">
+                添加
+                <ChevronRight :size="13" aria-hidden="true" />
+              </ContextMenuSubTrigger>
+              <ContextMenuPortal>
+                <ContextMenuSubContent as-child class="hierarchy-context-menu hierarchy-context-submenu" :side-offset="4" :collision-padding="8">
+                  <div aria-label="添加节点">
+                    <template v-for="group in addGroups" :key="group.label">
+                      <ContextMenuLabel class="hierarchy-context-label">{{ group.label }}</ContextMenuLabel>
+                      <ContextMenuItem v-for="type in group.types" :key="type" class="hierarchy-context-item" @select="addNode(type, contextTarget)">{{ type }}</ContextMenuItem>
+                    </template>
+                  </div>
+                </ContextMenuSubContent>
+              </ContextMenuPortal>
+            </ContextMenuSub>
+            <ContextMenuItem class="hierarchy-context-item" :disabled="!canCopyContext" @select="copyToClipboard">复制</ContextMenuItem>
+            <ContextMenuItem class="hierarchy-context-item" :disabled="!canPaste" @select="pasteNode(contextTarget)">粘贴</ContextMenuItem>
+            <ContextMenuSeparator class="hierarchy-context-separator" />
+            <ContextMenuItem class="hierarchy-context-item" :disabled="!canDeleteContext" @select="deleteNode">删除</ContextMenuItem>
+          </div>
         </ContextMenuContent>
       </ContextMenuPortal>
     </ContextMenuRoot>

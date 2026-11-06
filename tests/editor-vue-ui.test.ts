@@ -2,6 +2,10 @@ import { DOMWrapper, flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent, h, markRaw, ref, watch } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { execFile } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { promisify } from 'node:util';
 import { parseSceneTemplate, type SceneTemplateInterface } from 'pixifact/compiler';
 import EditorApp from '../apps/editor/src/EditorApp.vue';
 import AssetsPanel from '../apps/editor/src/panels/AssetsPanel.vue';
@@ -10,6 +14,36 @@ import InspectorPanel from '../apps/editor/src/panels/InspectorPanel.vue';
 import { SceneDocument } from '../apps/editor/src/document/SceneDocument';
 import { createSceneAssetNode, duplicateSceneNode } from '../apps/editor/src/document/sceneTree';
 import { useEditorUiStore } from '../apps/editor/src/stores/editorUi';
+
+it('checks Vue templates and component props through the native TypeScript content mapper', async () => {
+    const root = await mkdtemp(path.join(process.cwd(), '.pixifact-vue-types-test-'));
+    const check = () => promisify(execFile)(process.execPath, [
+        path.resolve('node_modules/typescript/bin/tsc'), '--runExternalCode', '--noEmit', '-p', root,
+    ]);
+    try {
+        await writeFile(path.join(root, 'tsconfig.json'), JSON.stringify({
+            extends: path.resolve('apps/editor/tsconfig.json'),
+            compilerOptions: { rootDir: '.' },
+            include: ['*.vue'],
+        }));
+        await writeFile(path.join(root, 'Child.vue'), '<script setup lang="ts">defineProps<{ count: number }>();</script>');
+        await writeFile(path.join(root, 'Parent.vue'), [
+            '<script setup lang="ts">import Child from "./Child.vue"; const count = 3;</script>',
+            '<template><Child :count="count" /><div :data-count="count">{{ count.toFixed(1) }}</div></template>',
+        ].join('\n'));
+        await expect(check()).resolves.toMatchObject({ stdout: '', stderr: '' });
+        await writeFile(path.join(root, 'Parent.vue'), [
+            '<script setup lang="ts">import Child from "./Child.vue"; const count = 3;</script>',
+            '<template><Child :count="\'wrong\'" /><div>{{ count.toUpperCase() }}</div></template>',
+        ].join('\n'));
+        const result = await check().catch((error) => error);
+        expect(result).toMatchObject({ code: 2, stderr: '' });
+        expect(result.stdout).toMatch(/Parent\.vue\(2,\d+\): error TS2322/);
+        expect(result.stdout).toMatch(/Parent\.vue\(2,\d+\): error TS2339/);
+    } finally {
+        await rm(root, { recursive: true, force: true });
+    }
+});
 
 const source = [
     '<Scene name="Menu">',

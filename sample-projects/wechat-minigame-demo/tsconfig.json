@@ -8,7 +8,6 @@
     "useDefineForClassFields": true,
     "lib": ["ESNext", "DOM"],
     "skipLibCheck": true,
-    "baseUrl": ".",
     "paths": {
       "pixifact": ["../../packages/pixifact/src/index.ts"],
       "pixifact/internal/minigame": ["../../packages/pixifact/src/platform/minigame/index.ts"],

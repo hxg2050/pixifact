@@ -2,10 +2,13 @@ import { access, readFile, readdir, stat } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
+import MagicString from 'magic-string';
 import {
     loadEnv,
+    parseAst,
+    Visitor,
     type ConfigEnv,
+    type ESTree,
     type Plugin,
     type ResolvedConfig,
     type UserConfig,
@@ -239,16 +242,19 @@ function codePackagesPlugin(state: PixifactPluginState): Plugin {
                 return 'export function __vitePreload(load) { return load(); }';
             }
             if (!code.includes('import')) return;
-            const source = ts.createSourceFile(id, code, ts.ScriptTarget.Latest, true);
-            const specifiers = new Set<string>();
-            function visit(node: ts.Node) {
-                if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-                    const argument = node.arguments[0];
-                    if (argument && ts.isStringLiteralLike(argument)) specifiers.add(argument.text);
-                }
-                ts.forEachChild(node, visit);
-            }
-            visit(source);
+            const source = parseAst(code);
+            const dynamicImports: { node: ESTree.ImportExpression; specifier: string }[] = [];
+            const identifiers = new Set<string>();
+            new Visitor({
+                Identifier(node) { identifiers.add(node.name); },
+                ImportExpression(node) {
+                    const argument = node.source;
+                    const specifier = argument.type === 'TemplateLiteral' && argument.expressions.length === 0
+                        ? argument.quasis[0]!.value.cooked : argument.type === 'Literal' ? argument.value : undefined;
+                    if (typeof specifier === 'string') dynamicImports.push({ node, specifier });
+                },
+            }).visit(source);
+            const specifiers = new Set(dynamicImports.map(({ specifier }) => specifier));
             const packagesById = new Map([...state.codePackages].map(([name, entry]) => [entry, name]));
             const imports = new Map<string, string>();
             for (const specifier of specifiers) {
@@ -257,47 +263,19 @@ function codePackagesPlugin(state: PixifactPluginState): Plugin {
                 if (name) imports.set(specifier, name);
             }
             if (imports.size === 0) return;
-            const result = ts.transpileModule(code, {
-                fileName: id,
-                compilerOptions: {
-                    target: ts.ScriptTarget.ESNext,
-                    module: ts.ModuleKind.ESNext,
-                    verbatimModuleSyntax: true,
-                    sourceMap: true,
-                    inlineSources: true,
-                },
-                transformers: { before: [(context) => (file) => {
-                    const factory = context.factory;
-                    const loader = factory.createUniqueName('__pixifactLoadCodePackage');
-                    const transform: ts.Visitor = (node) => {
-                        if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
-                            const argument = node.arguments[0];
-                            const name = argument && ts.isStringLiteralLike(argument) && imports.get(argument.text);
-                            if (name) {
-                                return factory.createCallExpression(
-                                    factory.createPropertyAccessExpression(
-                                        factory.createCallExpression(loader, undefined, [factory.createStringLiteral(name)]),
-                                        'then',
-                                    ),
-                                    undefined,
-                                    [factory.createArrowFunction(undefined, undefined, [], undefined,
-                                        factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken), node)],
-                                );
-                            }
-                        }
-                        return ts.visitEachChild(node, transform, context);
-                    };
-                    const transformed = ts.visitEachChild(file, transform, context);
-                    return factory.updateSourceFile(transformed, [
-                        factory.createImportDeclaration(undefined,
-                            factory.createImportClause(false, undefined, factory.createNamedImports([
-                                factory.createImportSpecifier(false, factory.createIdentifier('loadCodePackage'), loader),
-                            ])), factory.createStringLiteral(virtualCodeLoaderId)),
-                        ...transformed.statements,
-                    ]);
-                }] },
-            });
-            return { code: result.outputText, map: result.sourceMapText };
+            let loader = '__pixifactLoadCodePackage';
+            while (identifiers.has(loader)) loader += '_';
+            const transformed = new MagicString(code);
+            for (const { node, specifier } of dynamicImports) {
+                const name = imports.get(specifier);
+                if (name) {
+                    transformed.appendLeft(node.start, `${loader}(${JSON.stringify(name)}).then(() => `);
+                    transformed.appendRight(node.end, ')');
+                }
+            }
+            transformed.appendLeft(source.body[0]!.start,
+                `import { loadCodePackage as ${loader} } from ${JSON.stringify(virtualCodeLoaderId)};\n`);
+            return { code: transformed.toString(), map: transformed.generateMap({ source: id, includeContent: true, hires: true }) };
         },
         buildEnd(error) {
             if (error || state.platform === 'web' || state.codePackages.size === 0) return;

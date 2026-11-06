@@ -17,7 +17,7 @@
 | [release-v0.11.1.md](./release-v0.11.1.md) | Editor 布局节点编辑和画布拖拽修复的五包 `0.11.1` 发布 |
 | [unified-vite-platform-build.md](./unified-vite-platform-build.md) | Web、微信、抖音统一 Vite 构建、资源链路与代码分包扩展 |
 | [runtime-observation-v1.md](./runtime-observation-v1.md) | 真实 Vite Web 游戏的 Runtime 观测闭环、局域网开发预览和 Inspector |
-| [editor-vnext.md](./editor-vnext.md) | 浏览器 Editor vNext 的产品边界、数据流、实现范围和续作记录 |
+| [editor-vnext.md](./editor-vnext.md) | 浏览器 Editor vNext；已完成 TypeScript 7.1 与 Vue content mapper 迁移 |
 | [scene-binding.md](./scene-binding.md) | Scene 静态 Prop、Variant、声明式绑定、Runtime 构造与 Editor Authoring 预览 |
 | [release-v0.9.0.md](./release-v0.9.0.md) | 简化 Scene 创建命令和资产树展开状态持久化的五包 `0.9.0` 发布 |
 | [release-v0.8.0.md](./release-v0.8.0.md) | Runtime Canvas 截图与 Vite 8 路径修复的五包 `0.8.0` 发布 |

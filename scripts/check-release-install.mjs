@@ -110,7 +110,7 @@ async function verifyMiniGameBuild(projectRoot, mode, excludedMarker) {
     }
 }
 
-async function verifyScaffold(temporaryRoot, tarball) {
+async function verifyScaffold(temporaryRoot, tarball, artifacts) {
     const installRoot = path.join(temporaryRoot, 'scaffold');
     await mkdir(installRoot);
     await writeFile(path.join(installRoot, 'package.json'), JSON.stringify({
@@ -147,6 +147,23 @@ async function verifyScaffold(temporaryRoot, tarball) {
     for (const name of ['button', 'panel']) {
         const png = await readFile(path.join(gameRoot, 'assets/ui', `${name}.png`));
         assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
+    }
+    for (const target of [projectRoot, gameRoot]) {
+        const manifestPath = path.join(target, 'package.json');
+        const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+        for (const [name, tarball] of Object.entries({
+            pixifact: artifacts.pixifact,
+            '@pixifact/platform-wechat': artifacts.wechat,
+            '@pixifact/platform-douyin': artifacts.douyin,
+        })) {
+            if (Object.hasOwn(manifest.dependencies, name)) manifest.dependencies[name] = `file:${tarball}`;
+        }
+        manifest.devDependencies['pixifact-cli'] = `file:${artifacts.cli}`;
+        manifest.overrides = { pixifact: `file:${artifacts.pixifact}` };
+        await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+        run('bun', ['install'], { cwd: target });
+        run('bun', ['run', 'tsc', '--noEmit'], { cwd: target });
+        run('bun', ['run', 'build'], { cwd: target });
     }
     console.log('Packed scaffold minimal/game templates, Git, project skill and basic UI PNG smoke passed.');
 }
@@ -253,7 +270,7 @@ try {
         douyin: douyinTarball,
     };
 
-    await verifyScaffold(temporaryRoot, scaffoldTarball);
+    await verifyScaffold(temporaryRoot, scaffoldTarball, artifacts);
 
     await copyProject(multiPlatformSampleRoot, projectRoot);
     await configurePackedProject(projectRoot, artifacts);
@@ -272,6 +289,7 @@ try {
     run('bun', ['run', 'pixifact', 'scene', 'inspect', '--scene', 'src/scenes/Main.scene'], { cwd: projectRoot, silent: true });
     run('bun', ['run', 'pixifact', 'scene', 'validate', '--all'], { cwd: projectRoot, silent: true });
     run('bun', ['run', 'pixifact', 'compile-scenes'], { cwd: projectRoot, silent: true });
+    run('bun', ['run', 'tsc', '--noEmit'], { cwd: projectRoot });
     run('bun', ['run', 'build'], { cwd: projectRoot });
     await verifyEditor(projectRoot, browserStubRoot);
 
@@ -303,6 +321,7 @@ try {
     threeManifest.overrides = { pixifact: `file:${pixifactTarball}` };
     await writeFile(threeManifestPath, `${JSON.stringify(threeManifest, null, 2)}\n`);
     run('bun', ['install'], { cwd: threeRoot });
+    run('bun', ['run', 'tsc', '--noEmit'], { cwd: threeRoot });
     run('bun', ['run', 'pixifact', 'scene', 'validate', '--all'], { cwd: threeRoot, silent: true });
     for (const mode of ['web', 'wechat', 'douyin']) {
         run('bun', ['run', 'pixifact', 'build', '--mode', mode], { cwd: threeRoot });

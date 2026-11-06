@@ -13,8 +13,8 @@ import {
 } from 'pixifact/scene';
 
 describe('scene script interface extractor', () => {
-    it('extracts declare props and static variants without executing TypeScript', () => {
-        const contract = extractSceneScriptInterface(`
+    it('extracts declare props and static variants without executing TypeScript', async () => {
+        const contract = await extractSceneScriptInterface(`
             import { Group } from 'pixifact/runtime';
             import { defineVariants, prop, scene } from 'pixifact/scene';
 
@@ -65,18 +65,18 @@ describe('scene script interface extractor', () => {
         });
     });
 
-    it('rejects executable prop members and dynamic variants', () => {
-        expect(() => extractSceneScriptInterface(`
+    it('rejects executable prop members and dynamic variants', async () => {
+        await expect(extractSceneScriptInterface(`
             @scene()
             export class Button {
                 @prop({ default: 'Button' })
                 set label(value: string) {}
             }
-        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow(
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).rejects.toThrow(
             '@prop "label" must decorate a declare property without an initializer.',
         );
 
-        expect(() => extractSceneScriptInterface(`
+        await expect(extractSceneScriptInterface(`
             const buttonTones = defineVariants(loadTheme());
 
             @scene()
@@ -84,13 +84,13 @@ describe('scene script interface extractor', () => {
                 @prop({ default: 'primary', variants: buttonTones })
                 declare tone: keyof typeof buttonTones;
             }
-        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow(
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).rejects.toThrow(
             'defineVariants argument must be an object literal.',
         );
     });
 
-    it('extracts scene public contract from narrow TypeScript decorators', () => {
-        const contract = extractSceneScriptInterface(`
+    it('extracts scene public contract from narrow TypeScript decorators', async () => {
+        const contract = await extractSceneScriptInterface(`
             import { Text } from 'pixi.js';
 import { Group } from 'pixifact/runtime';
             import { event, part, prop, scene, slot } from 'pixifact/scene';
@@ -147,8 +147,8 @@ import { Group } from 'pixifact/runtime';
         });
     });
 
-    it('supports explicit event and slot names', () => {
-        const contract = extractSceneScriptInterface(`
+    it('supports explicit event and slot names', async () => {
+        const contract = await extractSceneScriptInterface(`
             @scene()
             export class Panel {
                 @event({ name: 'close' })
@@ -169,8 +169,8 @@ import { Group } from 'pixifact/runtime';
         });
     });
 
-    it('composes inherited public contracts across scene scripts', () => {
-        const contracts = extractSceneScriptInterfaces([
+    it('composes inherited public contracts across scene scripts', async () => {
+        const contracts = await extractSceneScriptInterfaces([
             {
                 scene: 'src/ui/BaseControl.scene',
                 fileName: 'BaseControl.ts',
@@ -233,8 +233,8 @@ import { Group } from 'pixifact/runtime';
         });
     });
 
-    it('resolves inherited contracts through explicit relative imports', () => {
-        const contracts = extractSceneScriptInterfaces([
+    it('resolves inherited contracts through explicit relative imports', async () => {
+        const contracts = await extractSceneScriptInterfaces([
             {
                 scene: 'src/base/BasePanel.scene',
                 fileName: 'src/base/BasePanel.ts',
@@ -284,8 +284,8 @@ import { Group } from 'pixifact/runtime';
         });
     });
 
-    it('rejects ambiguous cross-file inheritance without an import source', () => {
-        expect(() => extractSceneScriptInterfaces([
+    it('rejects ambiguous cross-file inheritance without an import source', async () => {
+        await expect(extractSceneScriptInterfaces([
             {
                 scene: 'src/base/BasePanel.scene',
                 fileName: 'src/base/BasePanel.ts',
@@ -317,11 +317,11 @@ import { Group } from 'pixifact/runtime';
                     }
                 `,
             },
-        ])).toThrow('Scene script parent class "BasePanel" is ambiguous for "Button".');
+        ])).rejects.toThrow('Scene script parent class "BasePanel" is ambiguous for "Button".');
     });
 
-    it('emits a stable JSON descriptor for editor and AI consumption', () => {
-        const descriptor = emitSceneScriptInterfaceDescriptor(`
+    it('emits a stable JSON descriptor for editor and AI consumption', async () => {
+        const descriptor = await emitSceneScriptInterfaceDescriptor(`
             @scene()
             export class Button {
                 @prop({ default: 'Button' })
@@ -368,8 +368,8 @@ import { Group } from 'pixifact/runtime';
         expect(typeof slot()).toBe('function');
     });
 
-    it('rejects non-literal decorator options', () => {
-        expect(() => extractSceneScriptInterface(`
+    it('rejects non-literal decorator options', async () => {
+        await expect(extractSceneScriptInterface(`
             const defaults = { default: 'Button' };
 
             @scene()
@@ -377,21 +377,21 @@ import { Group } from 'pixifact/runtime';
                 @prop(defaults)
                 declare label: string;
             }
-        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('@prop argument must be an object literal.');
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).rejects.toThrow('@prop argument must be an object literal.');
     });
 
-    it('rejects explicit prop type options because TypeScript owns the type', () => {
-        expect(() => extractSceneScriptInterface(`
+    it('rejects explicit prop type options because TypeScript owns the type', async () => {
+        await expect(extractSceneScriptInterface(`
             @scene()
             export class Button {
                 @prop({ type: 'string', default: 'Button' })
                 declare label: string;
             }
-        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('@prop type is inferred from the TypeScript property declaration; remove the type option.');
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).rejects.toThrow('@prop type is inferred from the TypeScript property declaration; remove the type option.');
     });
 
-    it('extracts RectTransform struct props from constructor type declarations', () => {
-        const contract = extractSceneScriptInterface(`
+    it('extracts RectTransform struct props from constructor type declarations', async () => {
+        const contract = await extractSceneScriptInterface(`
             export class RectTransform {
                 x = 0;
                 y = 0;
@@ -422,8 +422,8 @@ import { Group } from 'pixifact/runtime';
         });
     });
 
-    it('rejects struct props with required constructor parameters', () => {
-        expect(() => extractSceneScriptInterface(`
+    it('rejects struct props with required constructor parameters', async () => {
+        await expect(extractSceneScriptInterface(`
             export class RectTransform {
                 x = 0;
                 constructor(x: number) {
@@ -436,11 +436,11 @@ import { Group } from 'pixifact/runtime';
                 @prop({})
                 declare rectTransform: RectTransform;
             }
-        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('Struct prop type RectTransform must be constructable with no required parameters.');
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).rejects.toThrow('Struct prop type RectTransform must be constructable with no required parameters.');
     });
 
-    it('rejects struct props that are not exported', () => {
-        expect(() => extractSceneScriptInterface(`
+    it('rejects struct props that are not exported', async () => {
+        await expect(extractSceneScriptInterface(`
             class RectTransform {
                 x = 0;
             }
@@ -450,11 +450,11 @@ import { Group } from 'pixifact/runtime';
                 @prop({})
                 declare rectTransform: RectTransform;
             }
-        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('Struct prop type RectTransform must be exported.');
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).rejects.toThrow('Struct prop type RectTransform must be exported.');
     });
 
-    it('rejects struct prop defaults', () => {
-        expect(() => extractSceneScriptInterface(`
+    it('rejects struct prop defaults', async () => {
+        await expect(extractSceneScriptInterface(`
             export class RectTransform {
                 x = 0;
             }
@@ -464,25 +464,25 @@ import { Group } from 'pixifact/runtime';
                 @prop({ default: 0 })
                 declare rectTransform: RectTransform;
             }
-        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow('@prop default is only supported for primitive props.');
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).rejects.toThrow('@prop default is only supported for primitive props.');
     });
 
-    it('rejects @scene arguments because scripts are paired with colocated .scene files', () => {
-        expect(() => extractSceneScriptInterface(`
+    it('rejects @scene arguments because scripts are paired with colocated .scene files', async () => {
+        await expect(extractSceneScriptInterface(`
             @scene('src/scenes/Button.scene')
             export class Button {}
-        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow(
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).rejects.toThrow(
             '@scene does not accept arguments. Pair scripts by colocating a same-basename .ts file next to the .scene file.',
         );
     });
 
-    it('rejects Scene constructors with parameters', () => {
-        expect(() => extractSceneScriptInterface(`
+    it('rejects Scene constructors with parameters', async () => {
+        await expect(extractSceneScriptInterface(`
             @scene()
             export class Button {
                 constructor(label: string) {}
             }
-        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).toThrow(
+        `, 'Button.ts', { scene: 'src/scenes/Button.scene' })).rejects.toThrow(
             '@scene class "Button" must not declare constructor parameters. Use @prop() or an explicit method after construction.',
         );
     });

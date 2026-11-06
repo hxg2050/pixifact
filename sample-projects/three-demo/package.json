@@ -20,6 +20,7 @@
   "devDependencies": {
     "@types/three": "0.186.0",
     "pixifact-cli": "workspace:*",
+    "typescript": "7.1.0-beta",
     "vite": "^8.0.10"
   }
 }

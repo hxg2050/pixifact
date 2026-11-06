@@ -536,7 +536,7 @@ async function executeFileCommand(
         assertAllowedFlags(flags, ['scene', 'output', 'project-root'], 'scene screenshot');
         const scenePath = requireFlag(flags, 'scene');
         const output = path.resolve(requireFlag(flags, 'output'));
-        const validation = automation.validateCompilerScene({ projectRoot, scenePath });
+        const validation = await automation.validateCompilerScene({ projectRoot, scenePath });
         if (!validation.ok) return validation;
         const screenshot = await captureScene({ projectRoot, scenePath: validation.scene });
         fs.mkdirSync(path.dirname(output), { recursive: true });

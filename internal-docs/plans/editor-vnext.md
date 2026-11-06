@@ -2,6 +2,35 @@
 
 后续已实施的 [手动保存](./editor-manual-save.md) 与 [多 Scene 标签](./editor-multi-scene-tabs.md) 决策覆盖下文的首版单 Scene、自动保存约束；下方进度记录保留当时的实现历史。
 
+## 2026-11-07：TypeScript 7.1 与 Vue content mapper
+
+Goal：框架、CLI、示例与脚手架直接使用 TypeScript 7.1 官方 API，Editor 使用 Vue content mapper 类型检查。
+
+Decisions：用户已选择不使用桥接；固定 `typescript@7.1.0-beta` 和 `@vue/content-mapper@4.0.0-alpha.3`，删除旧 Compiler API、vue-tsc、旧 Rollup TypeScript 构建入口及其专用依赖。保留 Scene 契约与代码分包语义；契约提取改用官方异步 API，并迁移所有调用方（同步 API 在 Bun 中访问 stdout._handle.fd 失败，异步 API 已实测通过）。不引入旧 TypeScript 别名、兼容层或 fallback。契约提取使用新官方 AST API；分包使用 Vite 自带 AST 与现有 magic-string 生成映射，避免重新打印源码导致映射偏移。预发布版本状态在维护文档中明确记录。
+
+Non-Goals：其他第三方库的批量升级、改变 Scene 格式或游戏运行时语义、自动发布新版本。
+
+Public API / User-Facing Behavior：契约提取与内置契约读取 API 改为 Promise，所有调用方直接 await；Scene inspect / validate / compile、Editor 和三端出包保持现有行为；`editor:typecheck` 改为 `tsc --runExternalCode --noEmit`。
+
+Implementation Scope：Scene script extractor、Vite 分包转换、生成模块测试、依赖与锁文件、各 tsconfig、脚手架模板、CI 与相关维护文档。
+
+Test Plan：先跑 Scene 接口和分包既有测试基线，切换依赖后记录失败；迁移后验证契约提取、生成模块执行、真实 Web / 微信 / 抖音构建及 sourcemap。Editor 同时验证正确 Vue 组件通过、错误模板属性被拒绝和真实 Editor 类型检查；随后全量测试、runtime / frontend / scaffold 构建、六包内容与仓库外安装验收。检查锁文件无旧 TS / bridge，工作区只提交本轮 tracked 变动。
+
+Verification：基线 Scene 接口与分包测试 2 文件 / 31 项通过；换依赖后既有测试 27 项 Red，迁移后恢复通过。Node / Bun 1.3.13 异步 API 探针、Vue CLI 正反例、变量捕获与 sourcemap 精确行列回归通过。第一轮完整 release:check 通过 32 文件 / 452 项、Editor 类型检查、全部构建、六包内容与仓库外安装；两个生成模板及 2D / Three 示例也经过原生 tsc。最终审查补充无插值模板字符串 import() 回归，在微信 / 抖音各复现 1 项 Red；已保留该静态导入语义。修复后相关平台 / Three 测试 2 文件 / 17 项通过，最终完整 release:check 再次通过 32 文件 / 452 项、Editor 类型检查、全部构建、六包内容、仓库外 Web / 微信 / 抖音 / Three 安装、两个生成模板类型检查与构建；bun install --frozen-lockfile 和 git diff --check 通过。
+
+Progress：
+- [x] 读取规范与依赖、确认官方新路线和用户授权范围。
+- [x] 核对 API、测试基线并记录 Red。
+- [x] 迁移实现、配置、依赖与测试。
+- [x] 完成最小及全量验证、文档和提交。
+
+Resume Protocol：先读本节、检查 git status 和下列 Resume Notes，继续最小失败项。
+
+Resume Notes：
+- Done：官方异步 API、Vite 原生 AST 分包与源码映射、Vue content mapper、Reka as-child 原生属性、依赖 / 锁文件、模板 / 示例、CI 与维护说明均完成；原生 Vue 错误定位、变量捕获、模板字符串导入和源码行列映射有持续回归覆盖。最终 452 项及完整 release:check 通过，三个仓库内示例原生类型检查通过。
+- Current State：已完成并随本节提交，工作区只纳入本轮 tracked 变动。最初一次 Bun help 子进程内存分配 stderr 在独立 CLI 65 项和两轮完整 452 项复测中均未重现；截图命令异步等待与模板字符串导入遗漏均已修复。工具链使用明确固定的 Beta / Alpha 版本，本轮不发布 npm 版本。
+- Next：本轮无剩余工作；后续发布按单独的版本发布任务执行。
+
 ## 2026-11-07：图片资源双击系统打开
 
 Goal：补齐现有资产面板的图片双击行为，通过本机系统默认程序打开原始文件。

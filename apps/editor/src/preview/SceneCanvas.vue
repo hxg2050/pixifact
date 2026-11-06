@@ -1298,14 +1298,16 @@ onBeforeUnmount(() => {
         <Scaling :size="15" />
       </button>
       <PopoverRoot v-model:open="layoutMenuOpen">
-        <PopoverTrigger
-          class="canvas-layout-trigger"
-          type="button"
-          title="快捷布局"
-          aria-label="快捷布局"
-        >
-          <LayoutGrid :size="15" />
-          <ChevronDown :size="10" />
+        <PopoverTrigger as-child>
+          <button
+            class="canvas-layout-trigger"
+            type="button"
+            title="快捷布局"
+            aria-label="快捷布局"
+          >
+            <LayoutGrid :size="15" />
+            <ChevronDown :size="10" />
+          </button>
         </PopoverTrigger>
         <PopoverPortal>
           <PopoverContent class="canvas-layout-popover" side="bottom" align="start" :side-offset="8">
