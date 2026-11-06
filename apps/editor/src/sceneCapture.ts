@@ -4,6 +4,8 @@ import { captureCompilerScenePreview } from './preview/captureCompilerScenePrevi
 import {
     createCompilerSceneRuntimePreview,
     destroyCompilerSceneRuntimePreview,
+    CompilerScenePreviewCache,
+    type CompilerSceneRuntimePreview,
 } from './preview/compilerSceneRuntimePreview';
 import { createEditorProjectTree, readEditorProject, readEditorScene } from './services/editorApi';
 
@@ -26,17 +28,20 @@ window.capturePixifactScene = async (scenePath) => {
         readEditorProject(),
         readEditorScene(scenePath),
     ]);
-    const preview = await createCompilerSceneRuntimePreview({
-        document: {
-            template: parseSceneTemplate(scene.source),
-            sceneInterfaces: {},
-        },
-        projectTree: createEditorProjectTree(project),
-        scenePath,
-    });
+    const cache = new CompilerScenePreviewCache();
+    let preview: CompilerSceneRuntimePreview | undefined;
     const app = new Application();
     let initialized = false;
     try {
+        preview = await createCompilerSceneRuntimePreview({
+            cache,
+            document: {
+                template: parseSceneTemplate(scene.source),
+                sceneInterfaces: {},
+            },
+            projectTree: createEditorProjectTree(project),
+            scenePath,
+        });
         await app.init({
             width: preview.width,
             height: preview.height,
@@ -56,9 +61,10 @@ window.capturePixifactScene = async (scenePath) => {
         };
     } finally {
         if (initialized) {
-            app.stage.removeChild(preview.root);
+            app.stage.removeChild(preview!.root);
             app.destroy({ removeView: true }, { children: false });
         }
         destroyCompilerSceneRuntimePreview(preview);
+        await cache.clear();
     }
 };

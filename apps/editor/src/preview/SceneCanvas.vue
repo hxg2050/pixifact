@@ -33,6 +33,7 @@ import type { ProjectFileTreeNode } from '../services/projectFileTree';
 import {
     createCompilerSceneRuntimePreview,
     destroyCompilerSceneRuntimePreview,
+    type CompilerScenePreviewCache,
     type CompilerSceneRuntimePreview,
 } from './compilerSceneRuntimePreview';
 import { captureCompilerScenePreview } from './captureCompilerScenePreview';
@@ -63,6 +64,7 @@ import { sceneCanvasLayoutDeltas, type SceneCanvasLayoutAction } from './sceneCa
 import { incrementalScenePreviewCommands } from './scenePreviewCommands';
 
 const props = defineProps<{
+    previewCache: CompilerScenePreviewCache;
     document?: SceneDocument;
     draggedAsset?: EditorSceneAsset;
     projectTree?: ProjectFileTreeNode;
@@ -230,7 +232,7 @@ function readLayoutFrame(locator: string) {
     return { ...targetGeometry(target), parentWidth: target.parent.width, parentHeight: target.parent.height };
 }
 
-defineExpose({ cancelCurrentInteraction, captureScreenshot, captureView, restoreView, readLayoutFrame });
+defineExpose({ cancelCurrentInteraction, cancelPreviewBuild, resumePreviewBuild, captureScreenshot, captureView, restoreView, readLayoutFrame });
 
 function fitPreview() {
     if (!preview || !host.value) return;
@@ -260,11 +262,33 @@ function handleCanvasWheel(event: WheelEvent) {
     applyView();
 }
 
+let buildController: AbortController | undefined;
+
+function cancelPreviewBuild() {
+    buildController?.abort();
+}
+
+function resumePreviewBuild() {
+    if (buildController?.signal.aborted) void rebuildPreview();
+}
+
 async function rebuildPreview() {
+    buildController?.abort();
+    const controller = new AbortController();
+    buildController = controller;
     const revision = ++buildRevision;
     const document = props.document;
     const projectTree = props.projectTree;
-    if (!app || !document || !projectTree) return;
+    if (!app || !document || !projectTree) {
+        if (preview) {
+            app?.stage.removeChild(preview.root);
+            destroyCompilerSceneRuntimePreview(preview);
+            preview = undefined;
+            previewDocument = undefined;
+        }
+        buildController = undefined;
+        return;
+    }
     if (viewScenePath !== document.path) {
         viewScenePath = document.path;
         view = undefined;
@@ -274,6 +298,8 @@ async function rebuildPreview() {
     emit('previewState', 'loading');
     try {
         const next = await createCompilerSceneRuntimePreview({
+            cache: props.previewCache,
+            signal: controller.signal,
             document: {
                 template: document.template,
                 sceneInterfaces: props.sceneInterfaces ?? {},
@@ -281,7 +307,7 @@ async function rebuildPreview() {
             projectTree,
             scenePath: document.path,
         });
-        if (revision !== buildRevision) {
+        if (controller.signal.aborted || revision !== buildRevision) {
             destroyCompilerSceneRuntimePreview(next);
             return;
         }
@@ -309,9 +335,11 @@ async function rebuildPreview() {
         status.value = '';
         emit('previewState', 'ready');
     } catch (error) {
-        if (revision !== buildRevision) return;
+        if (controller.signal.aborted || revision !== buildRevision) return;
         status.value = error instanceof Error ? error.message : String(error);
         emit('previewState', 'error');
+    } finally {
+        if (buildController === controller && !controller.signal.aborted) buildController = undefined;
     }
 }
 
@@ -1150,7 +1178,7 @@ function updateSelectionOverlay(locator = props.selected) {
     }
 }
 
-watch(() => props.document, (document) => {
+watch([() => props.document, () => props.projectTree, () => props.sceneInterfaces], ([document]) => {
     cancelInteraction();
     finishCanvasPan();
     unsubscribeDocument?.();
@@ -1158,14 +1186,13 @@ watch(() => props.document, (document) => {
     void rebuildPreview();
 }, { immediate: true });
 
-watch([() => props.projectTree, () => props.sceneInterfaces], () => void rebuildPreview());
 watch([() => props.selected, () => props.selections], () => updateSelectionOverlay());
 
 onMounted(async () => {
-    app = new Application();
+    const application = new Application();
     const size = hostSize();
     viewportSize = size;
-    await app.init({
+    await application.init({
         width: size.width,
         height: size.height,
         backgroundAlpha: 0,
@@ -1173,6 +1200,11 @@ onMounted(async () => {
         autoDensity: true,
         resolution: Math.min(window.devicePixelRatio || 1, 2),
     });
+    if (!host.value) {
+        application.destroy({ removeView: true }, { children: true });
+        return;
+    }
+    app = application;
     app.canvas.className = 'scene-canvas';
     host.value!.appendChild(app.canvas);
     app.renderer.events.features.globalMove = true;
@@ -1201,6 +1233,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    buildController?.abort();
     buildRevision += 1;
     interaction = undefined;
     groupInteraction = undefined;

@@ -39,12 +39,95 @@ async function json(response: Response) {
 }
 
 afterEach(() => {
+    vi.restoreAllMocks();
     for (const root of tempRoots.splice(0)) {
         fs.rmSync(root, { recursive: true, force: true });
     }
 });
 
 describe('Editor project service', () => {
+    it('invalidates cached indexes when an entire Scene directory is added or removed', async () => {
+        const fixture = createFixture();
+        const service = createEditorProjectService(fixture);
+        await service.fetch(new Request('http://localhost/api/project'));
+        const importedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pixifact-editor-import-'));
+        tempRoots.push(importedRoot);
+        fs.writeFileSync(path.join(importedRoot, 'Imported.scene'), '<Scene name="Imported" />');
+        fs.writeFileSync(path.join(importedRoot, 'Imported.ts'), '@scene() export class Imported {}');
+        const changes: string[] = [];
+        const stop = watchEditorProject(fixture.projectRoot, (changedPath) => {
+            service.invalidate(changedPath);
+            changes.push(changedPath);
+        });
+        try {
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            const destination = path.join(fixture.projectRoot, 'src/scenes/imported');
+            fs.renameSync(importedRoot, destination);
+            await vi.waitFor(() => expect(changes).toContain('src/scenes/imported'));
+            expect(await json(await service.fetch(new Request('http://localhost/api/project')))).toMatchObject({
+                scenes: ['src/scenes/imported/Imported.scene', 'src/scenes/Menu.scene'],
+            });
+            fs.rmSync(destination, { recursive: true });
+            await vi.waitFor(async () => expect(await json(await service.fetch(new Request('http://localhost/api/project'))))
+                .toMatchObject({ scenes: ['src/scenes/Menu.scene'] }));
+        } finally {
+            stop();
+        }
+    });
+
+    it('reuses the project index and contracts until a file notification invalidates them', async () => {
+        const fixture = createFixture();
+        const service = createEditorProjectService(fixture);
+        const scan = vi.spyOn(fs, 'readdirSync');
+        const read = vi.spyOn(fs, 'readFileSync');
+        const bindingsUrl = 'http://localhost/api/scene-bindings';
+        const initial = await json(await service.fetch(new Request(bindingsUrl)));
+        const scans = scan.mock.calls.length;
+        const reads = read.mock.calls.length;
+        expect(await json(await service.fetch(new Request(bindingsUrl)))).toEqual(initial);
+        expect(scan).toHaveBeenCalledTimes(scans);
+        expect(read).toHaveBeenCalledTimes(reads);
+        fs.appendFileSync(path.join(fixture.projectRoot, 'src/scenes/Menu.scene'), '\n');
+        service.invalidate('src/scenes/Menu.scene');
+        expect(await json(await service.fetch(new Request(bindingsUrl)))).toEqual(initial);
+        expect(read).toHaveBeenCalledTimes(reads);
+
+        const scriptPath = path.join(fixture.projectRoot, 'src/scenes/Menu.ts');
+        fs.writeFileSync(scriptPath, fs.readFileSync(scriptPath, 'utf8').replace("default: '开始'", "default: '最新'"));
+        service.invalidate('src/scenes/Menu.ts');
+        const updated = await json(await service.fetch(new Request(bindingsUrl)));
+        expect(updated).toMatchObject({ 'src/scenes/Menu.scene': { interface: { props: { title: { default: '最新' } } } } });
+        expect(scan).toHaveBeenCalledTimes(scans);
+
+        fs.writeFileSync(path.join(fixture.projectRoot, 'src/scenes/Other.scene'), '<Scene name="Other" />');
+        fs.writeFileSync(path.join(fixture.projectRoot, 'src/scenes/Other.ts'), '@scene() export class Other {}');
+        service.invalidate('src/scenes/Other.scene');
+        expect(await json(await service.fetch(new Request(bindingsUrl)))).toHaveProperty('src/scenes/Other.scene');
+        fs.unlinkSync(path.join(fixture.projectRoot, 'src/scenes/Other.scene'));
+        service.invalidate('src/scenes/Other.scene');
+        expect(await json(await service.fetch(new Request(bindingsUrl)))).not.toHaveProperty('src/scenes/Other.scene');
+    });
+
+    it('refreshes cached contracts on an explicit project read and serves versioned image bytes without HTTP caching', async () => {
+        const fixture = createFixture();
+        const service = createEditorProjectService(fixture);
+        const url = 'http://localhost/api/scene-bindings';
+        await service.fetch(new Request(url));
+        const script = path.join(fixture.projectRoot, 'src/scenes/Menu.ts');
+        fs.writeFileSync(script, fs.readFileSync(script, 'utf8').replace("default: '开始'", "default: '刷新'"));
+        await service.fetch(new Request('http://localhost/api/project?refresh=1'));
+        expect(await json(await service.fetch(new Request(url)))).toMatchObject({
+            'src/scenes/Menu.scene': { interface: { props: { title: { default: '刷新' } } } },
+        });
+        const imageUrl = 'http://localhost/api/file?path=assets%2Fbutton.png&v=1';
+        const previous = await service.fetch(new Request(imageUrl));
+        expect(previous.headers.get('cache-control')).toBe('no-store');
+        expect(await previous.text()).toBe('png');
+        fs.writeFileSync(path.join(fixture.projectRoot, 'assets/button.png'), 'new-png');
+        const latest = await service.fetch(new Request(imageUrl.replace('v=1', 'v=2')));
+        expect(await latest.text()).toBe('new-png');
+    });
+
     it('coalesces external Scene, paired script, and image file notifications', async () => {
         const fixture = createFixture();
         const changedPaths: string[] = [];

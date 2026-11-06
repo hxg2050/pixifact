@@ -138,8 +138,8 @@ function listProjectFiles(projectRoot: string) {
     return files.sort((left, right) => left.path.localeCompare(right.path));
 }
 
-function readProjectSceneBindings(projectRoot: string) {
-    const scenePaths = listProjectFiles(projectRoot)
+function readProjectSceneBindings(projectRoot: string, files: readonly EditorProjectFile[]) {
+    const scenePaths = files
         .filter((file) => file.kind === 'scene')
         .map((file) => normalizeSceneAssetId(file.path));
     return extractSceneScriptInterfaces(scenePaths.map((scene) => {
@@ -249,12 +249,27 @@ function serveStaticFile(staticRoot: string, pathname: string) {
 export function createEditorProjectService(options: EditorProjectServiceOptions) {
     const projectRoot = fs.realpathSync(options.projectRoot);
     const staticRoot = fs.realpathSync(options.staticRoot);
+    let files: EditorProjectFile[] | undefined;
+    let bindings: ReturnType<typeof readProjectSceneBindings> | undefined;
+
+    function invalidate(changedPath: string) {
+        const known = files?.some((file) => file.path === changedPath);
+        const entry = fs.statSync(path.resolve(projectRoot, changedPath), { throwIfNoEntry: false });
+        if (!known || !entry?.isFile()) files = undefined;
+        if (!known || !entry?.isFile() || scriptExtensions.has(path.extname(changedPath))) {
+            bindings = undefined;
+        }
+    }
 
     async function fetch(request: Request): Promise<Response> {
         try {
             const url = new URL(request.url);
             if (url.pathname === '/api/project' && request.method === 'GET') {
-                const files = listProjectFiles(projectRoot);
+                if (url.searchParams.get('refresh') === '1') {
+                    files = undefined;
+                    bindings = undefined;
+                }
+                files ??= listProjectFiles(projectRoot);
                 return jsonResponse({
                     name: path.basename(projectRoot),
                     root: projectRoot,
@@ -283,7 +298,9 @@ export function createEditorProjectService(options: EditorProjectServiceOptions)
                 return jsonResponse({ path: scenePath, source, version: sceneVersion(source) });
             }
             if (url.pathname === '/api/scene-bindings' && request.method === 'GET') {
-                return jsonResponse(readProjectSceneBindings(projectRoot));
+                files ??= listProjectFiles(projectRoot);
+                bindings ??= readProjectSceneBindings(projectRoot, files);
+                return jsonResponse(bindings);
             }
             if (url.pathname === '/api/scene' && request.method === 'PUT') {
                 const scenePath = requestPath(url);
@@ -300,6 +317,7 @@ export function createEditorProjectService(options: EditorProjectServiceOptions)
                     throw new EditorRequestError(409, 'Scene file version changed.');
                 }
                 fs.writeFileSync(filePath, body.source, 'utf8');
+                invalidate(scenePath);
                 return jsonResponse({ path: scenePath, version: sceneVersion(body.source) });
             }
             if (url.pathname === '/api/file' && request.method === 'GET') {
@@ -308,6 +326,7 @@ export function createEditorProjectService(options: EditorProjectServiceOptions)
                 return new Response(fs.readFileSync(filePath), {
                     headers: {
                         'content-type': contentTypes[extension] ?? 'application/octet-stream',
+                        'cache-control': 'no-store',
                     },
                 });
             }
@@ -323,7 +342,7 @@ export function createEditorProjectService(options: EditorProjectServiceOptions)
         }
     }
 
-    return { fetch };
+    return { fetch, invalidate };
 }
 
 function defaultEditorStaticRoot() {
@@ -341,14 +360,14 @@ function openBrowser(url: string) {
 
 export function watchEditorProject(projectRoot: string, onProjectFileChanged: (path: string) => void) {
     const changedPathTimers = new Map<string, ReturnType<typeof setTimeout>>();
-    const watcher = fs.watch(projectRoot, { recursive: true }, (_event, fileName) => {
+    const watcher = fs.watch(projectRoot, { recursive: true }, (event, fileName) => {
         if (!fileName) return;
         const filePath = String(fileName);
         if (filePath.split(/[\\/]/).some((segment) => ignoredDirectories.has(segment))) {
             return;
         }
         const absolutePath = path.resolve(projectRoot, filePath);
-        if (fs.existsSync(absolutePath) && fs.statSync(absolutePath).isDirectory()) {
+        if (event !== 'rename' && fs.existsSync(absolutePath) && fs.statSync(absolutePath).isDirectory()) {
             return;
         }
         const changedPath = filePath.split(path.sep).join('/');
@@ -414,7 +433,10 @@ export async function startEditorServer(options: StartEditorOptions): Promise<Ed
             },
         },
     });
-    const stopWatcher = watchEditorProject(projectRoot, hostSession.notifyProjectFileChanged);
+    const stopWatcher = watchEditorProject(projectRoot, (changedPath) => {
+        service.invalidate(changedPath);
+        hostSession.notifyProjectFileChanged(changedPath);
+    });
     const url = `http://${server.hostname}:${server.port}`;
     const descriptor: EditorSessionDescriptor = {
         protocolVersion: editorSessionProtocolVersion,

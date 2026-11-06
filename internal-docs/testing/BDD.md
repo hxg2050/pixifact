@@ -702,9 +702,26 @@ Scenario: Agent changes a referenced Scene or paired script
 Scenario: Agent replaces an indexed image
   Given the open Scene references a project image
   When an external Agent replaces that image file
-  Then the project index is read from disk again
+  Then the project service updates its index if file membership changed
   And the authoring preview reads the new image bytes through the project service
   And the Pixi Application, Canvas, zoom, and pan remain unchanged
+
+Scenario: User switches between previously opened Scenes
+  Given the Editor has multiple Scene tabs and an unrelated Scene with large images
+  When the user switches the active Scene
+  Then the preview reads only that Scene's recursive Scene and slot dependencies
+  And it loads only the images referenced by those dependencies
+  And unchanged templates, script contracts, and decoded textures are reused on later switches
+  And restoring tabs builds only the active Scene
+
+Scenario: User switches again while a preview image is loading
+  Given a preview is waiting for a shared image load
+  When another Scene becomes active
+  Then the obsolete preview stops waiting and does not publish a ready state
+  And another preview may continue using the shared request
+  And loading or construction failure releases the preview's resource references
+  And idle textures are evicted in least recently used order above the 64 MiB budget
+  And changed textures unload after their last active user releases them
 ```
 
 TDD 入口：`tests/editor-external-sync.test.ts`、`tests/editor-scene-document.test.ts` 与浏览器验收。

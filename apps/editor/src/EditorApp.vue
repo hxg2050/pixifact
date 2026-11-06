@@ -15,6 +15,7 @@ import AssetPreviewPanel from './panels/AssetPreviewPanel.vue';
 import HierarchyPanel from './panels/HierarchyPanel.vue';
 import InspectorPanel from './panels/InspectorPanel.vue';
 import SceneCanvas from './preview/SceneCanvas.vue';
+import { CompilerScenePreviewCache } from './preview/compilerSceneRuntimePreview';
 import type { SceneCanvasLayoutFrame, SceneCanvasView } from './preview/sceneCanvasGeometry';
 import { SceneDocument } from './document/SceneDocument';
 import {
@@ -28,7 +29,6 @@ import {
     connectEditorSession,
     createEditorProjectTree,
     editorSceneFileApi,
-    readEditorSceneBindings,
     readEditorProject,
     readEditorScene,
     readEditorUiState,
@@ -45,6 +45,7 @@ import type { ProjectFileTreeNode } from './services/projectFileTree';
 import { useEditorUiStore } from './stores/editorUi';
 
 const ui = useEditorUiStore();
+const previewCache = markRaw(new CompilerScenePreviewCache());
 const { currentScenePath, selectedLocator, selectedLocators, syncState } = storeToRefs(ui);
 const project = ref<EditorProject>();
 const projectTree = ref<ProjectFileTreeNode>();
@@ -126,6 +127,8 @@ const hierarchyPanel = ref<{
 const sceneCanvas = ref<{
     readLayoutFrame?: (locator: string) => SceneCanvasLayoutFrame | undefined;
     cancelCurrentInteraction?: () => boolean;
+    cancelPreviewBuild?: () => void;
+    resumePreviewBuild?: () => void;
     captureScreenshot?: () => Promise<{
         path: string;
         revision: string;
@@ -337,7 +340,7 @@ async function activateTab(tab: SceneTab) {
     if (currentScenePath.value === tab.path && tab.view) sceneCanvas.value?.restoreView?.(tab.view);
 }
 
-async function openScene(path: string, selection?: string) {
+async function openScene(path: string, selection?: string, activate = true) {
     const revision = sessionStateRevision;
     const generation = ++sceneOpenGeneration;
     error.value = '';
@@ -362,7 +365,7 @@ async function openScene(path: string, selection?: string) {
             subscribeTab(tab);
             sceneTabs.value = [...sceneTabs.value, tab];
         }
-        await activateTab(tab);
+        if (activate) await activateTab(tab);
         if (generation !== sceneOpenGeneration) return false;
         return true;
     } catch (cause) {
@@ -418,7 +421,7 @@ function navigateToSceneReference(reference: string) {
 }
 
 async function readSceneInterfaces() {
-    const descriptors = await readEditorSceneBindings();
+    const descriptors = await previewCache.bindings.readDescriptors();
     return Object.fromEntries(
         Object.entries(descriptors).map(([scenePath, descriptor]) => [scenePath, descriptor.interface]),
     );
@@ -436,7 +439,6 @@ async function applyProjectChanges(paths: readonly string[], generation: number)
             .filter(([path]) => !changedDefaults.includes(path)));
         sceneDefaultsRevision.value += 1;
     }
-    const current = document.value;
     const currentProject = project.value;
     const knownFiles = new Map(currentProject?.files.map((file) => [file.path, file]));
     const unknownPaths = new Set(paths.filter((path) => !knownFiles.has(path)));
@@ -452,16 +454,16 @@ async function applyProjectChanges(paths: readonly string[], generation: number)
     });
     const pairedScripts = new Set(indexedProject?.scenes.map(pairedSceneScriptPath));
     const pairedScriptChanged = changedFiles.some((file) => file.kind === 'script' && pairedScripts.has(file.path));
-    const projectIndexChanged = changedFiles.some((file) => (
+    const projectIndexChanged = unknownPaths.size > 0 || changedFiles.some((file) => (
         file.kind === 'image'
-        || (file.kind === 'scene' && file.path !== current?.path)
-        || (file.kind === 'script' && pairedScripts.has(file.path) && unknownPaths.has(file.path))
+        || file.kind === 'scene'
+        || (file.kind === 'script' && pairedScripts.has(file.path))
     ));
     const changedTabs = sceneTabs.value.filter((tab) => paths.includes(tab.path));
     for (const tab of changedTabs) {
         if (tab.document.dirty) tab.pendingExternalReload = true;
     }
-    const [nextProject, nextSceneInterfaces, reloadedTabs] = await Promise.all([
+    let [nextProject, nextSceneInterfaces, reloadedTabs] = await Promise.all([
         projectIndexChanged
             ? indexedProject === currentProject ? readEditorProject() : indexedProject
             : undefined,
@@ -474,6 +476,20 @@ async function applyProjectChanges(paths: readonly string[], generation: number)
     ]);
     if (!projectChangeIsCurrent(generation)) return;
     if (nextProject) {
+        const previousScenes = new Set(currentProject?.scenes);
+        const nextScenes = new Set(nextProject.scenes);
+        const scenesChanged = nextProject.scenes.some((path) => !previousScenes.has(path))
+            || [...previousScenes].some((path) => !nextScenes.has(path));
+        if (scenesChanged && !nextSceneInterfaces) {
+            previewCache.bindings.invalidateDescriptors();
+            nextSceneInterfaces = await readSceneInterfaces();
+            if (!projectChangeIsCurrent(generation)) return;
+        }
+        const nextPaths = new Set(nextProject.files.map((file) => file.path));
+        previewCache.invalidate([
+            ...nextProject.files.filter((file) => !knownFiles.has(file.path)).map((file) => file.path),
+            ...[...knownFiles.keys()].filter((path) => !nextPaths.has(path)),
+        ]);
         project.value = nextProject;
         projectTree.value = createEditorProjectTree(nextProject);
     }
@@ -524,10 +540,14 @@ async function flushProjectChanges() {
         }
     } finally {
         projectRefreshRunning = false;
+        await nextTick();
+        if (!editorDisposed && sessionState.value === 'active') sceneCanvas.value?.resumePreviewBuild?.();
     }
 }
 
 function scheduleProjectChange(path: string) {
+    previewCache.invalidate([path]);
+    sceneCanvas.value?.cancelPreviewBuild?.();
     pendingProjectChanges.add(path);
     projectChangeGeneration += 1;
     if (projectChangeTimer) clearTimeout(projectChangeTimer);
@@ -623,8 +643,10 @@ async function refreshEditor() {
     error.value = '';
     refreshing.value = true;
     try {
-        const [nextProject, nextSceneInterfaces, latest] = await Promise.all([
-            readEditorProject(),
+        sceneCanvas.value?.cancelPreviewBuild?.();
+        void previewCache.clear();
+        const nextProject = await readEditorProject({ refresh: true });
+        const [nextSceneInterfaces, latest] = await Promise.all([
             readSceneInterfaces(),
             current.reloadIfChanged(),
         ]);
@@ -1093,6 +1115,7 @@ function endAssetDrag() {
 }
 
 function clearWorkspace() {
+    void previewCache.clear();
     endSceneTabDrag();
     projectChangeGeneration += 1;
     sceneOpenGeneration += 1;
@@ -1147,7 +1170,7 @@ async function loadActiveWorkspace(resume?: EditorSessionResumeState) {
         ?? (nextUiState.openScenePaths ? undefined : nextProject.scenes[0]);
     const paths = [...new Set([...savedPaths, ...(activePath ? [activePath] : [])])];
     for (const path of paths) {
-        await openScene(path, path === resume?.scenePath ? resume?.selectedLocator : undefined);
+        await openScene(path, path === resume?.scenePath ? resume?.selectedLocator : undefined, false);
     }
     if (activePath && await openScene(activePath)) {
         resetSceneNavigation(activePath);
@@ -1225,6 +1248,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+    void previewCache.clear();
     endSceneTabDrag();
     clearTimeout(sceneTabClickTimer);
     globalThis.document.documentElement.removeAttribute('data-theme');
@@ -1526,6 +1550,7 @@ onBeforeUnmount(() => {
       <section class="canvas-panel" aria-label="Scene 画布">
         <SceneCanvas
           ref="sceneCanvas"
+          :preview-cache="previewCache"
           :document="document"
           :dragged-asset="draggedAsset"
           :project-tree="projectTree"

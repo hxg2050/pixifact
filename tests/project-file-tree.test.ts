@@ -3,11 +3,12 @@ import * as Pixi from 'pixi.js';
 import { BitmapLabel, Group, Label, Rect, ScrollContainer } from 'pixifact/runtime';
 import {
     createCompilerSceneRuntimePreview,
+    CompilerScenePreviewCache,
 } from '../apps/editor/src/preview/compilerSceneRuntimePreview';
 import { incrementalScenePreviewCommands } from '../apps/editor/src/preview/scenePreviewCommands';
 import { createEditorProjectTree } from '../apps/editor/src/services/editorApi';
 import {
-    readCompilerSceneBindingIndex,
+    CompilerSceneBindingCache,
     sceneInterfacesForCompilerTemplate,
 } from '../apps/editor/src/services/sceneBindingIndex';
 import type { SceneScriptInterface } from 'pixifact/compiler';
@@ -77,10 +78,19 @@ function createProject(
     return projectTree;
 }
 
-async function createPreview(projectTree: ReturnType<typeof createEditorProjectTree>, scenePath: string) {
-    const bindingIndex = await readCompilerSceneBindingIndex(projectTree);
+const previewCaches: CompilerScenePreviewCache[] = [];
+function previewCache(unusedBytes?: number) {
+    const cache = new CompilerScenePreviewCache(unusedBytes);
+    previewCaches.push(cache);
+    return cache;
+}
+
+async function createPreview(projectTree: ReturnType<typeof createEditorProjectTree>, scenePath: string, cache = previewCache(), signal?: AbortSignal) {
+    const bindingIndex = await cache.bindings.readIndex(projectTree, scenePath, undefined, signal);
     const binding = bindingIndex[scenePath];
     return createCompilerSceneRuntimePreview({
+        cache,
+        signal,
         document: {
             template: binding.template,
             sceneInterfaces: sceneInterfacesForCompilerTemplate(
@@ -94,12 +104,183 @@ async function createPreview(projectTree: ReturnType<typeof createEditorProjectT
     });
 }
 
-afterEach(() => {
+afterEach(async () => {
+    await Promise.all(previewCaches.splice(0).map((cache) => cache.clear()));
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
 });
 
 describe('browser Editor runtime preview', () => {
+    it('reuses unchanged templates, contracts, and textures across Scene switches', async () => {
+        const projectTree = createProject({
+            'src/scenes/A.scene': '<Scene name="A"><Image id="image" texture="assets/shared.png" /></Scene>',
+            'src/scenes/A.ts': sceneScript('A'),
+            'src/scenes/B.scene': '<Scene name="B"><Rect /></Scene>',
+            'src/scenes/B.ts': sceneScript('B'),
+            'assets/shared.png': new Uint8Array([1]),
+        });
+        const load = vi.spyOn(Pixi.Assets, 'load').mockResolvedValue(Pixi.Texture.EMPTY);
+        const unload = vi.spyOn(Pixi.Assets, 'unload').mockResolvedValue();
+        const cache = previewCache();
+        for (const path of ['A', 'B', 'A', 'B', 'A']) {
+            const preview = await createPreview(projectTree, `src/scenes/${path}.scene`, cache);
+            preview.dispose();
+        }
+        expect(load).toHaveBeenCalledOnce();
+        expect(fetch).toHaveBeenCalledTimes(3);
+        expect(unload).not.toHaveBeenCalled();
+        await cache.clear();
+        expect(unload).toHaveBeenCalledOnce();
+    });
+
+    it('invalidates changed child templates and textures while retaining active texture users', async () => {
+        const files = {
+            'src/scenes/Main.scene': '<Scene name="Main"><Child id="child" scene="./Child.scene" /></Scene>',
+            'src/scenes/Main.ts': sceneScript('Main'),
+            'src/scenes/Child.scene': '<Scene name="Child"><Image id="icon" texture="assets/icon.png" /><Rect id="rect" fillColor="#111111" /></Scene>',
+            'src/scenes/Child.ts': sceneScript('Child'),
+            'assets/icon.png': new Uint8Array([1]),
+        };
+        const projectTree = createProject(files);
+        const load = vi.spyOn(Pixi.Assets, 'load').mockResolvedValue(Pixi.Texture.EMPTY);
+        const unload = vi.spyOn(Pixi.Assets, 'unload').mockResolvedValue();
+        const cache = previewCache();
+        const previous = await createPreview(projectTree, 'src/scenes/Main.scene', cache);
+        files['src/scenes/Child.scene'] = files['src/scenes/Child.scene'].replace('#111111', '#eeeeee');
+        cache.invalidate(['src/scenes/Child.scene', 'assets/icon.png']);
+        const next = await createPreview(projectTree, 'src/scenes/Main.scene', cache);
+        expect((next.nodes.get('0:child')!.children[1] as Rect).fillColor).toBe(0xeeeeee);
+        expect(load).toHaveBeenCalledTimes(2);
+        expect(load.mock.calls[1][0]).not.toEqual(load.mock.calls[0][0]);
+        expect(unload).not.toHaveBeenCalled();
+        previous.dispose();
+        expect(unload).toHaveBeenCalledWith(load.mock.calls[0][0].src);
+        next.dispose();
+        await cache.clear();
+        expect(unload).toHaveBeenCalledTimes(2);
+    });
+
+    it('cancels an obsolete preview without cancelling a shared image load', async () => {
+        const projectTree = createProject({
+            'src/scenes/Main.scene': '<Scene name="Main"><Image id="image" texture="assets/shared.png" /></Scene>',
+            'src/scenes/Main.ts': sceneScript('Main'),
+            'assets/shared.png': new Uint8Array([1]),
+        });
+        let finish!: (texture: Pixi.Texture) => void;
+        const load = vi.spyOn(Pixi.Assets, 'load').mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+        const unload = vi.spyOn(Pixi.Assets, 'unload').mockResolvedValue();
+        const cache = previewCache();
+        const controller = new AbortController();
+        const obsolete = createPreview(projectTree, 'src/scenes/Main.scene', cache, controller.signal);
+        const rejected = expect(obsolete).rejects.toMatchObject({ name: 'AbortError' });
+        await vi.waitFor(() => expect(load).toHaveBeenCalledOnce());
+        const latest = createPreview(projectTree, 'src/scenes/Main.scene', cache);
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+        controller.abort();
+        await rejected;
+        expect(unload).not.toHaveBeenCalled();
+        finish(Pixi.Texture.EMPTY);
+        const preview = await latest;
+        expect(preview.nodes.has('0:image')).toBe(true);
+        expect(load).toHaveBeenCalledOnce();
+        preview.dispose();
+        await cache.clear();
+        expect(unload).toHaveBeenCalledOnce();
+    });
+
+    it('evicts least recently used idle textures without unloading active previews', async () => {
+        const projectTree = createProject({
+            'src/scenes/A.scene': '<Scene name="A"><Image texture="assets/a.png" /></Scene>',
+            'src/scenes/A.ts': sceneScript('A'),
+            'src/scenes/B.scene': '<Scene name="B"><Image texture="assets/b.png" /></Scene>',
+            'src/scenes/B.ts': sceneScript('B'),
+            'assets/a.png': new Uint8Array([1]),
+            'assets/b.png': new Uint8Array([2]),
+        });
+        const load = vi.spyOn(Pixi.Assets, 'load').mockResolvedValue(Pixi.Texture.EMPTY);
+        const unload = vi.spyOn(Pixi.Assets, 'unload').mockResolvedValue();
+        const cache = previewCache(4);
+        const a = await createPreview(projectTree, 'src/scenes/A.scene', cache);
+        const b = await createPreview(projectTree, 'src/scenes/B.scene', cache);
+        expect(unload).not.toHaveBeenCalled();
+        a.dispose();
+        expect(unload).not.toHaveBeenCalled();
+        b.dispose();
+        expect(unload).toHaveBeenCalledWith(load.mock.calls[0][0].src);
+        expect(unload).toHaveBeenCalledOnce();
+        await cache.clear();
+        expect(unload).toHaveBeenCalledTimes(2);
+    });
+
+    it('releases successful loads after a sibling image fails and permits retry', async () => {
+        const projectTree = createProject({
+            'src/scenes/Main.scene': '<Scene name="Main"><Image texture="assets/a.png" /><Image texture="assets/b.png" /></Scene>',
+            'src/scenes/Main.ts': sceneScript('Main'),
+            'assets/a.png': new Uint8Array([1]),
+            'assets/b.png': new Uint8Array([2]),
+        });
+        const load = vi.spyOn(Pixi.Assets, 'load').mockResolvedValue(Pixi.Texture.EMPTY);
+        load.mockRejectedValueOnce(new Error('图片读取失败'));
+        const unload = vi.spyOn(Pixi.Assets, 'unload').mockResolvedValue();
+        const cache = previewCache(0);
+        await expect(createPreview(projectTree, 'src/scenes/Main.scene', cache)).rejects.toThrow('图片读取失败');
+        expect(unload).toHaveBeenCalledOnce();
+        const preview = await createPreview(projectTree, 'src/scenes/Main.scene', cache);
+        preview.dispose();
+        await cache.clear();
+        expect(load).toHaveBeenCalledTimes(4);
+        expect(unload).toHaveBeenCalledTimes(3);
+    });
+
+    it('releases textures when node construction fails', async () => {
+        const projectTree = createProject({
+            'src/scenes/Main.scene': '<Scene name="Main"><Image texture="assets/a.png" /></Scene>',
+            'src/scenes/Main.ts': sceneScript('Main'),
+            'assets/a.png': new Uint8Array([1]),
+        });
+        vi.spyOn(Pixi.Assets, 'load').mockResolvedValue(Pixi.Texture.EMPTY);
+        const unload = vi.spyOn(Pixi.Assets, 'unload').mockResolvedValue();
+        vi.spyOn(Group.prototype, 'setSize').mockImplementationOnce(() => { throw new Error('节点构建失败'); });
+        const cache = previewCache(0);
+        await expect(createPreview(projectTree, 'src/scenes/Main.scene', cache)).rejects.toThrow('节点构建失败');
+        await cache.clear();
+        expect(unload).toHaveBeenCalledOnce();
+    });
+
+    it('waits for retired in-flight textures to unload when clearing the cache', async () => {
+        const projectTree = createProject({ 'assets/image.png': new Uint8Array([1]) });
+        let finish!: (texture: Pixi.Texture) => void;
+        vi.spyOn(Pixi.Assets, 'load').mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+        const unload = vi.spyOn(Pixi.Assets, 'unload').mockResolvedValue();
+        const cache = previewCache();
+        const lease = cache.acquire(projectTree, 'assets/image.png');
+        cache.invalidate(['assets/image.png']);
+        lease.release();
+        let cleared = false;
+        const clearing = cache.clear().then(() => { cleared = true; });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const clearedBeforeLoad = cleared;
+        finish(Pixi.Texture.EMPTY);
+        await clearing;
+        expect(clearedBeforeLoad).toBe(false);
+        expect(unload).toHaveBeenCalledOnce();
+    });
+
+    it('does not load unrelated Scene textures when previewing a texture-free Scene', async () => {
+        const projectTree = createProject({
+            'src/scenes/Hud.scene': '<Scene name="Hud"><Rect id="panel" width="80" height="40" /></Scene>',
+            'src/scenes/Hud.ts': sceneScript('Hud'),
+            'src/scenes/Unrelated.scene': '<Scene name="Unrelated"><Image texture="assets/large.png" /></Scene>',
+            'src/scenes/Unrelated.ts': sceneScript('Unrelated'),
+            'assets/large.png': new Uint8Array([1]),
+        });
+        const loadAsset = vi.spyOn(Pixi.Assets, 'load').mockResolvedValue(Pixi.Texture.EMPTY);
+        const preview = await createPreview(projectTree, 'src/scenes/Hud.scene');
+        expect(loadAsset).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalledWith('/api/file?path=src%2Fscenes%2FUnrelated.scene');
+        preview.dispose();
+    });
+
     it('rebuilds when removing frame constraints so authored position and intrinsic size are restored', () => {
         for (const prop of ['left', 'right', 'top', 'bottom', 'horizontal', 'vertical']) {
             const enabled = { op: 'setNodeProp' as const, node: '0:title', prop, value: 0 };
@@ -193,7 +374,7 @@ describe('browser Editor runtime preview', () => {
             },
         });
 
-        const index = await readCompilerSceneBindingIndex(projectTree);
+        const index = await new CompilerSceneBindingCache().readIndex(projectTree, 'src/scenes/Button.scene');
 
         expect(index['src/scenes/Button.scene']).toMatchObject({
             className: 'Button',
@@ -397,18 +578,19 @@ describe('browser Editor runtime preview', () => {
             ].join('\n'),
             'src/scenes/Button.ts': sceneScript('Button'),
         });
-        const createObjectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:pixifact-preview-texture');
-        const revokeObjectUrl = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+        const unloadAsset = vi.spyOn(Pixi.Assets, 'unload').mockResolvedValue();
+        const cache = previewCache();
         const loadAsset = vi.spyOn(Pixi.Assets, 'load').mockResolvedValue(Pixi.Texture.EMPTY);
 
-        const preview = await createPreview(projectTree, 'src/scenes/Button.scene');
+        const preview = await createPreview(projectTree, 'src/scenes/Button.scene', cache);
 
         expect(loadAsset).toHaveBeenCalledWith({
-            src: 'blob:pixifact-preview-texture',
+            src: expect.stringMatching(/^\/api\/file\?path=assets%2Fplay\.png&v=/),
             parser: 'texture',
         });
         preview.dispose();
-        expect(revokeObjectUrl).toHaveBeenCalledWith('blob:pixifact-preview-texture');
-        createObjectUrl.mockRestore();
+        expect(unloadAsset).not.toHaveBeenCalled();
+        await cache.clear();
+        expect(unloadAsset).toHaveBeenCalledWith(loadAsset.mock.calls[0][0].src);
     });
 });

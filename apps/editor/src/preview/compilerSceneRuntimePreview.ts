@@ -36,12 +36,14 @@ import {
 import type { PixifactProjectResolution } from 'pixifact';
 import {
     findFileByPath,
-    readProjectFileBytes,
     type ProjectFileTreeNode,
 } from '../services/projectFileTree';
-import { readCompilerSceneBindingIndex } from '../services/sceneBindingIndex';
+import { awaitScenePreviewTask, CompilerSceneBindingCache } from '../services/sceneBindingIndex';
+import { editorProjectFileUrl } from '../services/editorApi';
 
 interface CreateCompilerSceneRuntimePreviewOptions {
+    cache: CompilerScenePreviewCache;
+    signal?: AbortSignal;
     document: CompilerScenePreviewDocument;
     projectResolution?: PixifactProjectResolution;
     projectTree: ProjectFileTreeNode;
@@ -64,7 +66,6 @@ export interface CompilerSceneRuntimePreview {
 interface AuthoringContext {
     interfaces: Record<string, SceneTemplateInterface>;
     nodes: Map<string, Container>;
-    objectUrls: string[];
     projectResolution?: PixifactProjectResolution;
     projectTree: ProjectFileTreeNode;
     templates: Map<string, SceneTemplate>;
@@ -77,15 +78,6 @@ interface RenderScope {
     scenePath: string;
     slots: Map<string, Container>;
 }
-
-const assetMimeTypes: Record<string, string> = {
-    '.gif': 'image/gif',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.png': 'image/png',
-    '.svg': 'image/svg+xml',
-    '.webp': 'image/webp',
-};
 
 const assetParsers: Record<string, string> = {
     '.jpg': 'texture',
@@ -122,7 +114,7 @@ function projectAbsolutePath(projectTree: ProjectFileTreeNode, relativePath: str
 }
 
 function projectExtension(projectPath: string) {
-    const fileName = projectPath.split('/').at(-1) ?? projectPath;
+    const fileName = projectPath.split(/[?#]/)[0].split('/').at(-1) ?? '';
     const index = fileName.lastIndexOf('.');
     return index >= 0 ? fileName.slice(index).toLowerCase() : '';
 }
@@ -372,38 +364,129 @@ function collectTextureReferences(template: SceneTemplate, textures: Set<string>
     visit(template.children);
 }
 
-async function loadTextures(context: AuthoringContext) {
-    const references = new Set<string>();
-    for (const template of context.templates.values()) {
-        collectTextureReferences(template, references);
-    }
-    await Promise.all([...references].map(async (reference) => {
-        context.textures.set(reference, await loadPreviewAsset(context, reference));
-    }));
+interface PreviewTextureEntry {
+    source: string;
+    url: string;
+    promise: Promise<Texture>;
+    texture?: Texture;
+    references: number;
+    bytes: number;
+    stale: boolean;
 }
 
-async function loadPreviewAsset(context: AuthoringContext, source: string) {
-    const file = findFileByPath(context.projectTree, projectAbsolutePath(context.projectTree, source));
-    if (!file) {
-        return Pixi.Assets.load(source);
-    }
-    const bytes = await readProjectFileBytes(context.projectTree, file);
-    const objectUrl = URL.createObjectURL(new Blob([bytes as BlobPart], { type: assetMimeType(source) }));
-    context.objectUrls.push(objectUrl);
-    return Pixi.Assets.load({
-        src: objectUrl,
-        parser: assetParsers[projectExtension(source)],
-    });
-}
+let nextPreviewCacheId = 0;
 
-function assetMimeType(projectPath: string) {
-    return assetMimeTypes[projectExtension(projectPath)] ?? 'application/octet-stream';
+export class CompilerScenePreviewCache {
+    readonly bindings = new CompilerSceneBindingCache();
+    #id = ++nextPreviewCacheId;
+    #version = 0;
+    #textures = new Map<string, PreviewTextureEntry>();
+    #entries = new Set<PreviewTextureEntry>();
+    #unused = new Map<PreviewTextureEntry, number>();
+    #unusedBytes = 0;
+    #unloads = new Set<Promise<void>>();
+
+    constructor(private readonly unusedTextureBudget = 64 * 1024 * 1024) {}
+
+    invalidate(paths: readonly string[]) {
+        this.bindings.invalidate(paths);
+        for (const [source, entry] of this.#textures) {
+            if (paths.some((path) => source === path || source.startsWith(`${path}/`))) this.#invalidateTexture(entry);
+        }
+    }
+
+    async clear() {
+        this.bindings.clear();
+        const entries = [...this.#entries];
+        for (const entry of entries) this.#invalidateTexture(entry);
+        await Promise.allSettled(entries.map((entry) => entry.promise));
+        await Promise.all(this.#unloads);
+    }
+
+    acquire(projectTree: ProjectFileTreeNode, source: string) {
+        let entry = this.#textures.get(source);
+        if (!entry) {
+            const file = findFileByPath(projectTree, projectAbsolutePath(projectTree, source));
+            const version = `${this.#id}-${++this.#version}`;
+            const url = file ? editorProjectFileUrl(source, version)
+                : `${source}${source.includes('#') ? '&' : '#'}pixifact-preview=${version}`;
+            entry = { source, url, promise: undefined!, references: 0, bytes: 0, stale: false };
+            const current = entry;
+            this.#entries.add(current);
+            current.promise = Pixi.Assets.load<Texture>({ src: url, parser: assetParsers[projectExtension(source)] }).then((texture) => {
+                current.texture = texture;
+                current.bytes = texture.source.pixelWidth * texture.source.pixelHeight * 4;
+                if (current.references === 0) this.#retainUnused(current);
+                return texture;
+            }, (error) => {
+                if (this.#textures.get(source) === current) this.#textures.delete(source);
+                this.#entries.delete(current);
+                Pixi.Assets.resolver.removeAlias(current.url);
+                throw error;
+            });
+            this.#textures.set(source, current);
+        }
+        this.#removeUnused(entry);
+        entry.references += 1;
+        let released = false;
+        return {
+            ready: entry.promise,
+            release: () => {
+                if (released) return;
+                released = true;
+                entry.references -= 1;
+                if (entry.references === 0 && entry.texture) this.#retainUnused(entry);
+            },
+        };
+    }
+
+    #removeUnused(entry: PreviewTextureEntry) {
+        const bytes = this.#unused.get(entry);
+        if (bytes !== undefined) {
+            this.#unusedBytes -= bytes;
+            this.#unused.delete(entry);
+        }
+    }
+
+    #retainUnused(entry: PreviewTextureEntry) {
+        if (entry.stale) {
+            this.#unload(entry);
+            return;
+        }
+        this.#unused.set(entry, entry.bytes);
+        this.#unusedBytes += entry.bytes;
+        while (this.#unusedBytes > this.unusedTextureBudget) {
+            this.#invalidateTexture(this.#unused.keys().next().value!);
+        }
+    }
+
+    #invalidateTexture(entry: PreviewTextureEntry) {
+        entry.stale = true;
+        if (this.#textures.get(entry.source) === entry) this.#textures.delete(entry.source);
+        this.#removeUnused(entry);
+        if (entry.references === 0 && entry.texture) this.#unload(entry);
+    }
+
+    #unload(entry: PreviewTextureEntry) {
+        entry.texture = undefined;
+        const task = Pixi.Assets.unload(entry.url)
+            .then(() => Pixi.Assets.resolver.removeAlias(entry.url))
+            .finally(() => {
+                this.#entries.delete(entry);
+                this.#unloads.delete(task);
+            });
+        this.#unloads.add(task);
+    }
 }
 
 export async function createCompilerSceneRuntimePreview(
     options: CreateCompilerSceneRuntimePreviewOptions,
 ): Promise<CompilerSceneRuntimePreview> {
-    const bindingIndex = await readCompilerSceneBindingIndex(options.projectTree);
+    const { cache, signal } = options;
+    signal?.throwIfAborted();
+    const bindingIndex = await cache.bindings.readIndex(
+        options.projectTree, options.scenePath, options.document.template, signal,
+    );
     const scenePath = normalizeSceneAssetId(options.scenePath);
     const currentBinding = bindingIndex[scenePath];
     if (!currentBinding) {
@@ -418,39 +501,51 @@ export async function createCompilerSceneRuntimePreview(
     const context: AuthoringContext = {
         interfaces,
         nodes: new Map(),
-        objectUrls: [],
         projectResolution: options.projectResolution,
         projectTree: options.projectTree,
         templates,
         textures: new Map(),
     };
-    await loadTextures(context);
+    const references = new Set<string>();
+    for (const template of templates.values()) collectTextureReferences(template, references);
+    const leases = [...references].map((reference) => ({ reference, ...cache.acquire(options.projectTree, reference) }));
+    let root: Group | undefined;
+    try {
+        await awaitScenePreviewTask(Promise.all(leases.map(async (lease) => {
+            context.textures.set(lease.reference, await lease.ready);
+        })), signal);
+        signal?.throwIfAborted();
+        root = new Group();
+        const rootInterface = interfaces[scenePath] ?? currentBinding.interface;
+        initializeScenePropsFromInterface(root, rootInterface, {}, scenePropDefaults(options.document.template, rootInterface));
+        applyRootProps(root, options.document.template, context.projectResolution);
+        renderNodes(context, {
+            bindingRoot: root,
+            collectNodes: true,
+            scenePath,
+            slots: new Map(),
+        }, root, options.document.template.children);
+        layoutFrameChildren(root);
 
-    const root = new Group();
-    const rootInterface = interfaces[scenePath] ?? currentBinding.interface;
-    initializeScenePropsFromInterface(root, rootInterface, {}, scenePropDefaults(options.document.template, rootInterface));
-    applyRootProps(root, options.document.template, context.projectResolution);
-    renderNodes(context, {
-        bindingRoot: root,
-        collectNodes: true,
-        scenePath,
-        slots: new Map(),
-    }, root, options.document.template.children);
-    layoutFrameChildren(root);
-
-    const size = sceneSize(options.document.template, context.projectResolution);
-    return {
-        root,
-        nodes: context.nodes,
-        width: size.width,
-        height: size.height,
-        dispose: () => {
-            root.destroy({ children: true });
-            for (const objectUrl of context.objectUrls) {
-                URL.revokeObjectURL(objectUrl);
-            }
-        },
-    };
+        const size = sceneSize(options.document.template, context.projectResolution);
+        let disposed = false;
+        return {
+            root,
+            nodes: context.nodes,
+            width: size.width,
+            height: size.height,
+            dispose: () => {
+                if (disposed) return;
+                disposed = true;
+                root!.destroy({ children: true });
+                for (const lease of leases) lease.release();
+            },
+        };
+    } catch (error) {
+        root?.destroy({ children: true });
+        for (const lease of leases) lease.release();
+        throw error;
+    }
 }
 
 export function destroyCompilerSceneRuntimePreview(preview?: CompilerSceneRuntimePreview) {

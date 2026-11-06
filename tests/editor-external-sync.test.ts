@@ -72,6 +72,7 @@ function createFixture() {
 }
 
 class EditorWebSocket {
+    static invalidateProjectFile?: (path: string) => void;
     static readonly OPEN = 1;
     static instances: EditorWebSocket[] = [];
     readonly listeners = new Map<string, Array<(event: { data?: string }) => void>>();
@@ -108,11 +109,13 @@ class EditorWebSocket {
     }
 
     change(path: string) {
+        EditorWebSocket.invalidateProjectFile?.(path);
         this.emit('message', JSON.stringify({ type: 'projectFileChanged', path }));
     }
 }
 
 function serviceFetcher(service: ReturnType<typeof createEditorProjectService>) {
+    EditorWebSocket.invalidateProjectFile = service.invalidate;
     return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
         if (input instanceof Request) return service.fetch(input);
         return service.fetch(new Request(new URL(String(input), 'http://localhost'), init));
@@ -120,6 +123,7 @@ function serviceFetcher(service: ReturnType<typeof createEditorProjectService>) 
 }
 
 afterEach(() => {
+    EditorWebSocket.invalidateProjectFile = undefined;
     EditorWebSocket.instances = [];
     vi.unstubAllGlobals();
     for (const root of tempRoots.splice(0)) {
@@ -128,6 +132,42 @@ afterEach(() => {
 });
 
 describe('Editor external project synchronization', () => {
+    it('refreshes contracts when Scene membership changes without a paired script notification', async () => {
+        const fixture = createFixture();
+        vi.stubGlobal('fetch', serviceFetcher(fixture.service));
+        vi.stubGlobal('WebSocket', EditorWebSocket);
+        const pinia = createPinia();
+        setActivePinia(pinia);
+        const contractsChanged = vi.fn();
+        const SceneCanvasStub = defineComponent({
+            props: { sceneInterfaces: Object },
+            setup(props) {
+                watch(() => props.sceneInterfaces, contractsChanged, { immediate: true });
+                return () => h('div');
+            },
+        });
+        const wrapper = mount(EditorApp, {
+            global: { plugins: [pinia], stubs: { SceneCanvas: SceneCanvasStub } },
+        });
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="0:button"]').exists()).toBe(true));
+        fs.writeFileSync(path.join(fixture.projectRoot, 'src/scenes/New.scene'), '<Scene name="New"><Text text="{label}" /></Scene>');
+        fs.writeFileSync(path.join(fixture.projectRoot, 'src/scenes/New.ts'), buttonScript().replace('class ZButton', 'class New'));
+        fs.writeFileSync(path.join(fixture.projectRoot, 'src/scenes/Menu.scene'),
+            '<Scene name="Menu"><New id="new" scene="./New.scene" label="新组件" /></Scene>');
+        EditorWebSocket.instances[0].change('src/scenes/New.scene');
+        EditorWebSocket.instances[0].change('src/scenes/Menu.scene');
+        await vi.waitFor(() => expect(wrapper.find('[data-locator="0:new"]').exists()).toBe(true));
+        await wrapper.get('[data-locator="0:new"]').trigger('click');
+        await vi.waitFor(() => expect((wrapper.get('input[data-prop="label"]').element as HTMLInputElement).value).toBe('新组件'));
+        expect(contractsChanged.mock.calls.at(-1)?.[0]).toMatchObject({
+            'src/scenes/New.scene': { props: { label: { default: '按钮' } } },
+        });
+        fs.unlinkSync(path.join(fixture.projectRoot, 'src/scenes/New.scene'));
+        EditorWebSocket.instances[0].change('src/scenes/New.scene');
+        await vi.waitFor(() => expect(contractsChanged.mock.calls.at(-1)?.[0]).not.toHaveProperty('src/scenes/New.scene'));
+        wrapper.unmount();
+    });
+
     it('loads an external version when undo returns a dirty tab to its saved state', async () => {
         const fixture = createFixture();
         vi.stubGlobal('fetch', serviceFetcher(fixture.service));

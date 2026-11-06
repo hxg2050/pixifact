@@ -87,8 +87,8 @@ async function checkedResponse(response: Response) {
     throw new EditorApiError(response.status, body.error ?? `Editor request failed with ${response.status}.`);
 }
 
-export async function readEditorProject() {
-    const response = await checkedResponse(await fetch('/api/project'));
+export async function readEditorProject(options: { refresh?: boolean } = {}) {
+    const response = await checkedResponse(await fetch(options.refresh ? '/api/project?refresh=1' : '/api/project'));
     return response.json() as Promise<EditorProject>;
 }
 
@@ -125,8 +125,12 @@ export async function writeEditorScene(path: string, source: string, expectedVer
     return response.json() as Promise<{ path: string; version: string }>;
 }
 
+export function editorProjectFileUrl(path: string, version?: string) {
+    return `/api/file?path=${encodeURIComponent(path)}${version === undefined ? '' : `&v=${encodeURIComponent(version)}`}`;
+}
+
 export async function readEditorProjectFile(path: string) {
-    return checkedResponse(await fetch(`/api/file?path=${encodeURIComponent(path)}`));
+    return checkedResponse(await fetch(editorProjectFileUrl(path)));
 }
 
 export function connectEditorSession(

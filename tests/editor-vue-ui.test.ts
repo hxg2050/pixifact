@@ -735,7 +735,7 @@ describe('Editor Vue UI', () => {
         let diskVersion = 'sha256:before';
         const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-            if (url === '/api/project') return Response.json(project);
+            if (url.startsWith('/api/project')) return Response.json(project);
             if (url === '/api/editor-ui-state') return Response.json({ autoSave: false, theme: 'system' });
             if (url === '/api/scene-bindings') return Response.json(bindings);
             if (url.startsWith('/api/scene?')) {
@@ -794,7 +794,7 @@ describe('Editor Vue UI', () => {
         const urls = fetcher.mock.calls.map(([input]) => (
             typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
         ));
-        expect(urls.filter((url) => url === '/api/project')).toHaveLength(2);
+        expect(urls.filter((url) => url.startsWith('/api/project'))).toEqual(['/api/project', '/api/project?refresh=1']);
         expect(urls.filter((url) => url === '/api/scene-bindings')).toHaveLength(2);
         expect(fetcher.mock.calls.filter(([input, init]) => {
             const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
