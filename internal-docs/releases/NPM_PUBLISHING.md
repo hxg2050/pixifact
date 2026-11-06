@@ -13,18 +13,20 @@ Pixifact 发布清单包含六个公开 npm 包：
 
 ## 当前发布状态
 
-当前已发布版本为 `0.20.0`：
+当前已发布版本为 `0.20.1`：
 
-- npm packages: 六包 `0.20.0`，`latest` 均为 `0.20.0`
-- git tag: `v0.20.0`
+- npm packages: 六包 `0.20.1`，`latest` 均为 `0.20.1`
+- git tag: `v0.20.1`
 - changelog sources: [`pixifact`](../../packages/pixifact/CHANGELOG.md)、[`pixifact-cli`](../../packages/pixifact-cli/CHANGELOG.md)、[`create-pixifact`](../../packages/create-pixifact/CHANGELOG.md)、[`@pixifact/three`](../../packages/three/CHANGELOG.md)
 
-本次发布记录见 [GitHub Release v0.20.0](https://github.com/hxg2050/pixifact/releases/tag/v0.20.0)，包含可选 Three.js 插件、微信和抖音小游戏代码分包、Scene 与代码分包组合构建修复，以及 Editor 按 Scene 依赖缓存和标签切换优化。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/42186682425) 已通过 32 个测试文件 / 443 项测试、全部构建、六包内容和仓库外安装验收，包括 Three 示例 Web / 微信 / 抖音构建。现有五包通过 Trusted Publishing 发布；新包 `@pixifact/three@0.20.0` 在 CI 检查通过后使用 npm 网页认证完成首次手动发布，tarball shasum 与 CI 一致（`946ecfcf138b999de6075fa7eca60e4bf3606391`）。重跑同一 workflow 后发布步骤全部成功，npm registry 已确认六包目标版本和 `latest` 均为 `0.20.0`。
+本次发布记录见 [GitHub Release v0.20.1](https://github.com/hxg2050/pixifact/releases/tag/v0.20.1)。Editor 资产面板支持双击图片调用系统默认程序，保留单击预览、图片拖拽和 Scene 双击编辑，打开失败显示原因且不改变当前 Scene 和选区。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/42260513202) 已通过 32 个测试文件 / 451 项测试、全部构建、六包内容和仓库外安装验收，包括 Three 示例 Web / 微信 / 抖音构建。六包均通过 Trusted Publishing 发布，npm registry 已确认目标版本和 `latest` 均为 `0.20.1`。
+
+上一版本 [GitHub Release v0.20.0](https://github.com/hxg2050/pixifact/releases/tag/v0.20.0) 包含可选 Three.js 插件、微信和抖音小游戏代码分包、Scene 与代码分包组合构建修复，以及 Editor 按 Scene 依赖缓存和标签切换优化。该版本[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/42186682425) 通过 32 个测试文件 / 443 项测试、全部构建、六包内容和仓库外安装验收。新包 `@pixifact/three@0.20.0` 使用 npm 网页认证完成首次手动发布，tarball shasum 与 CI 一致（`946ecfcf138b999de6075fa7eca60e4bf3606391`）；原有五包通过 Trusted Publishing 发布，同一 workflow 重跑成功。
 上一版本发布记录见 [GitHub Release v0.19.0](https://github.com/hxg2050/pixifact/releases/tag/v0.19.0)、[GitHub Release v0.18.0](https://github.com/hxg2050/pixifact/releases/tag/v0.18.0)、[GitHub Release v0.17.0](https://github.com/hxg2050/pixifact/releases/tag/v0.17.0)、[GitHub Release v0.16.0](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0)、[GitHub Release v0.15.0](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)、[`v0.14.0.md`](./v0.14.0.md)、[`v0.13.0.md`](./v0.13.0.md)。
 历史发布记录见 [`v0.12.0.md`](./v0.12.0.md)、[`v0.11.2.md`](./v0.11.2.md)、[`v0.11.1.md`](./v0.11.1.md)、[`v0.11.0.md`](./v0.11.0.md)。
 首个 npm 发布记录见 [`v0.1.3.md`](./v0.1.3.md)。
 
-六包均已保存 npm Trusted Publisher 配置。`@pixifact/three` 已在用户安全密钥验证后保存 GitHub Actions 连接：`hxg2050/pixifact`、`publish.yml`、Environment 留空，允许 `npm publish`。网页返回添加成功并列出该连接，状态为 Pending validation，首次 CI 发布验证期限为 `2026-11-08 08:43 UTC`。下一次发布前必须确认其配置有效；超过期限未验证时需重新添加。原有五包已经完成 OIDC 发布验证，正常发布路径不需要本地 npm token。
+六包均已完成 npm Trusted Publisher 的 OIDC 发布验证。`@pixifact/three` 在用户安全密钥验证后保存的 GitHub Actions 连接为：`hxg2050/pixifact`、`publish.yml`、Environment 留空，允许 `npm publish`。本次 CI 实际发布 `@pixifact/three@0.20.1` 并生成带来源和构建信息的 provenance，完成其首次 OIDC 发布验证；npm registry 也已返回该版本的 attestations。正常发布路径不需要本地 npm token。
 
 ## 新包首次发布
 

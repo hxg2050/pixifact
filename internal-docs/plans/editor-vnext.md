@@ -20,15 +20,17 @@ Test Plan：先验证双击请求链路和失败提示；服务覆盖默认程�
 
 Verification：新增测试先以 9 项失败复现入口缺失；实现后相关 82 项测试通过，全量 32 个文件 / 451 项测试通过，`editor:typecheck`、`editor:frontend:build` 和 `git diff --check` 通过。服务测试使用 Node Request；通知合并测试改在可控事件边界验证，保留实际目录监听集成覆盖，避免依赖 macOS 原生事件批次。macOS Chrome 实测单击图片预览、双击一次 POST、系统“预览”显示含中文 / 空格 / 特殊字符的原始图片；源文件、当前 Scene、选区和单 Canvas 保持，删除图片后返回 404 并显示原因，浏览器无异常。Windows / Linux 的委派参数已自动测试，尚无实机验收。浏览器记录位于 `/tmp/pixifact-system-open-browser.json`。
 
+发布验证：[v0.20.1 发布 CI](https://github.com/hxg2050/pixifact/actions/runs/42260513202) 通过 32 个文件 / 451 项测试、全部构建、六包内容和仓库外安装验收。六包通过 Trusted Publishing 发布，npm registry 的目标版本和 `latest` 均为 `0.20.1`；Three 首次 OIDC 发布成功并生成 provenance。[GitHub Release](https://github.com/hxg2050/pixifact/releases/tag/v0.20.1) 已发布。
+
 Progress：
 - [x] 检查当前 UI、项目服务、BDD 和既有计划，确认图片双击入口缺失。
 - [x] 补充失败测试，实现并验证系统打开。
-- [ ] 发布 `0.20.1`，核对六包 registry、发布 CI 和 Three 首次 OIDC 验证。
+- [x] 发布 `0.20.1`，核对六包 registry、发布 CI 和 Three 首次 OIDC 验证。
 
 Resume Notes：
-- Done：系统打开、错误反馈、路径边界、UI 回归、类型检查、构建和 macOS 实际窗口验收完成；全量 451 项通过。
-- Current State：功能已提交 `262a9aa`；用户已授权发布，六包 `0.20.1`、changelog 和脚手架版本已生成并审阅。
-- Next：提交版本并推送 main / tag，等待 CI 并核对六包 npm、GitHub Release 和 Three 首次 OIDC 状态。
+- Done：系统打开、错误反馈、路径边界、UI 回归、类型检查、构建和 macOS 实际窗口验收完成；全量 451 项通过，六包 `0.20.1` 已发布。
+- Current State：功能提交 `262a9aa`；版本提交 `5deb12a` 与 tag `v0.20.1` 已推送，发布 CI、六包 npm / latest、GitHub Release 和 Three 首次 OIDC 验证完成。
+- Next：本轮无剩余工作；按后续用户需求继续。
 
 状态：活跃，第一条浏览器 Editor 纵向闭环已完成
 权威范围：Pixifact Editor vNext 的产品边界、用户行为、数据流和首版实现范围
