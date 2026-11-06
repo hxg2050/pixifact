@@ -56,4 +56,4 @@ pixifact build --mode production
 
 - Bun
 - PixiJS v8
-- Vite 6 或更高版本
+- Vite 8 或更高版本

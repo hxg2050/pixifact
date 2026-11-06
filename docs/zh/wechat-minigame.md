@@ -70,7 +70,7 @@ platforms/wechat/game.json
 platforms/wechat/project.config.json
 ```
 
-Pixifact 把模板复制到产物，写入 `VITE_APP_ID`，并根据本地 resource pack 生成 `subpackages`。源 `game.json` 不得自行声明 `subpackages`。
+Pixifact 把模板复制到产物，写入 `VITE_APP_ID`，并根据本地 resource pack 和代码分包生成 `subpackages`。源 `game.json` 不得自行声明 `subpackages`。
 
 ## 单一入口与 Assets
 
@@ -95,6 +95,39 @@ const level = await Assets.load('resources/chapter1/level.json');
 
 平台专属开放能力直接从平台包导入，并用 Vite 常量分支保护；非目标 production build 会通过常量折叠和 tree-shaking 删除该分支。Pixifact 当前不提供分享、登录、广告或支付 facade。
 
+## 代码分包
+
+使用 Vite 8，在 `vite.config.ts` 的 `pixifact()` 中声明分包名和项目相对入口：
+
+```ts
+export default defineConfig({
+  plugins: [pixifact({
+    codePackages: {
+      game: 'src/game.ts',
+      chapter2: 'src/chapters/chapter2.ts',
+    },
+  })],
+});
+```
+
+业务代码继续使用标准动态导入，模块导出及 TypeScript 类型推断保留：
+
+```ts
+// src/main.ts，在需要进入游戏时调用 enterGame()。
+async function enterGame() {
+  const { startGame } = await import('./game');
+  await startGame();
+}
+```
+
+微信构建自动先调用 `wx.loadSubpackage()`，再执行对应模块。并发导入共享下载和模块实例；下载失败时 `import()` 拒绝，再次导入可重试。资源加载与代码加载也共享同一个原生分包下载。
+
+开启代码分包后，应用入口为 CommonJS `game.js`，分包入口为 `subpackages/<name>/game.js`，共享代码位于主包 `chunks/`，不会为每个分包复制一份引擎。代码与同名本地资源包合并成一个原生分包，`Assets` manifest 和资源路径沿用。
+
+分包名使用字母、数字、连字符和下划线，并以字母或数字开头；入口必须位于项目内，同一入口不能分配给多个分包，也不能使用应用主入口。主包应通过字面量路径的 `import()` 加载分包入口，不能提前静态导入；分包之间不能直接引用代码，应由主包控制切换。未声明的动态模块及共享依赖由 Vite 放在主包中，需按需移出主包的模块应声明为代码分包入口。
+
+Web 使用同一份业务代码及配置，保持 Vite 原生动态导入，不生成小游戏代码分包，也不引入 `wx`。`pixifact dev --mode wechat` 会追踪并重建分包源码及依赖。未配置 `codePackages` 时继续生成单个 IIFE 主脚本。
+
 ## 命令与产物
 
 ```bash
@@ -105,7 +138,7 @@ pixifact dev --mode wechat
 
 未传 `--mode` 时，`dev` 默认 `development`，`build` / `validate` 默认 `production`。小游戏 `dev` 使用 Vite build watch；修改已纳入项目的 Scene、配对脚本、资源或原生配置会触发重建。
 
-默认输出是 `dist/wechat/`，可通过 Vite `build.outDir` 修改。产物包含单一主代码 `game.js`、原生配置、主包资源和 `subpackages/<pack>/`。微信检查 4 MiB 主包和 20 MiB 总包限制；source map 与 `project.config.json` 不计入报告。
+默认输出是 `dist/wechat/`，可通过 Vite `build.outDir` 修改。产物包含主入口 `game.js`、原生配置、主包资源和 `subpackages/<pack>/`；配置代码分包时还包含主包共享 `chunks/`。微信检查 4 MiB 主包和 20 MiB 总包限制，代码分包也计入分包和总包报告；source map 与 `project.config.json` 不计入报告。
 
 把 `dist/wechat/` 导入微信开发者工具即可调试。Pixifact 不负责上传、体验版、审核或发布。
 

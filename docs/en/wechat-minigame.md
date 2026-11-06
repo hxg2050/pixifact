@@ -66,7 +66,7 @@ platforms/wechat/game.json
 platforms/wechat/project.config.json
 ```
 
-Pixifact copies these templates, writes `VITE_APP_ID`, and generates WeChat `subpackages` from local resource packs. The source `game.json` must not declare `subpackages` itself.
+Pixifact copies these templates, writes `VITE_APP_ID`, and generates WeChat `subpackages` from local resource packs and code packages. The source `game.json` must not declare `subpackages` itself.
 
 ## Single Entry and Assets
 
@@ -90,6 +90,39 @@ Use project-relative logical paths without a leading `/`. Before PixiJS reads a 
 
 Import genuine platform APIs directly from the optional package and protect their use with a Vite constant branch. Constant folding and tree-shaking remove the branch from non-target production bundles. Pixifact does not currently provide share, login, ads, or payment facades.
 
+## Code Subpackages
+
+With Vite 8, declare package names and project-relative entries in `vite.config.ts`:
+
+```ts
+export default defineConfig({
+  plugins: [pixifact({
+    codePackages: {
+      game: 'src/game.ts',
+      chapter2: 'src/chapters/chapter2.ts',
+    },
+  })],
+});
+```
+
+Keep standard dynamic imports in the shared application, including normal TypeScript export inference:
+
+```ts
+// src/main.ts: call enterGame() when the game is needed.
+async function enterGame() {
+  const { startGame } = await import('./game');
+  await startGame();
+}
+```
+
+The WeChat build calls `wx.loadSubpackage()` before executing the module. Concurrent imports share the download and module instance. Download failures reject the import and allow a later retry. Resource and code loaders also share the same native package download.
+
+With code packages enabled, the main entry is CommonJS `game.js`, package entries are `subpackages/<name>/game.js`, and shared chunks remain in the main package's `chunks/` directory. Shared engines are not copied into each package. Code and a local resource pack with the same name share one native declaration; asset manifests and paths remain unchanged.
+
+Names contain letters, digits, hyphens, and underscores, beginning with a letter or digit. Entries must be inside the project, cannot be reused by another package, and cannot be the application entry. Import package entries with literal-path `import()` calls from the main package; eager static imports and direct references between packages are rejected. Unconfigured dynamic modules and shared dependencies stay in the main package under Vite's chunking rules; declare additional code entries for modules that need their own native package.
+
+Web keeps native Vite dynamic imports, without Mini Game code packages or `wx`. Mini Game watch rebuilds track code entries and their dependencies. Without `codePackages`, output remains one IIFE main script.
+
 ## Commands and Output
 
 ```bash
@@ -100,7 +133,7 @@ pixifact dev --mode wechat
 
 Without `--mode`, `dev` defaults to `development`; `build` and `validate` default to `production`. Mini Game `dev` uses Vite build watch and rebuilds when tracked Scenes, paired scripts, resources, or native configs change.
 
-The default output is `dist/wechat/`; override it with Vite `build.outDir`. It contains one main code file, `game.js`, native config, main-package resources, and `subpackages/<pack>/`. Pixifact enforces the 4 MiB main-package and 20 MiB total limits; source maps and `project.config.json` are excluded from the report.
+The default output is `dist/wechat/`; override it with Vite `build.outDir`. It contains the main `game.js`, native config, main-package resources, and `subpackages/<pack>/`, plus main-package shared `chunks/` when code packages are enabled. Code packages count toward package reports and limits. Pixifact enforces the 4 MiB main-package and 20 MiB total limits; source maps and `project.config.json` are excluded from the report.
 
 Import `dist/wechat/` into WeChat DevTools. Pixifact does not upload, submit, review, or publish the game.
 

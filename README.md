@@ -75,7 +75,7 @@ pixifact build --mode douyin
 pixifact dev --mode douyin
 ```
 
-平台由标准 Vite mode env 文件中的 `VITE_PLATFORM` 选择，小游戏 AppID 来自 `VITE_APP_ID`。Web、微信和抖音共享 `src/main.ts`；资源统一通过 PixiJS `Assets` 加载。
+平台由标准 Vite mode env 文件中的 `VITE_PLATFORM` 选择，小游戏 AppID 来自 `VITE_APP_ID`。Web、微信和抖音共享 `src/main.ts`；资源统一通过 PixiJS `Assets` 加载。在 Vite 8 的 `pixifact({ codePackages: { game: 'src/game.ts' } })` 中声明[代码分包](./docs/zh/wechat-minigame.md#代码分包)，业务继续使用 `import('./game')`，小游戏端自动先加载对应原生分包。
 
 当前 `pixifact-cli` 和 `create-pixifact` 都是 Bun-first 工具，需要本机安装 Bun。
 

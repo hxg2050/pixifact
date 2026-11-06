@@ -2,6 +2,7 @@ import { access, readFile, readdir, stat } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import ts from 'typescript';
 import {
     loadEnv,
     type ConfigEnv,
@@ -19,6 +20,8 @@ import { compileScenes, generatedSceneAssetsFileName } from '../compiler/compile
 export type PixifactPlatform = 'web' | 'wechat' | 'douyin';
 
 export interface PixifactPluginOptions {
+    /** Code subpackage names mapped to project-relative TypeScript/JavaScript entries. */
+    codePackages?: Record<string, string>;
     projectRoot?: string | URL;
 }
 
@@ -47,6 +50,7 @@ interface PreparedAsset {
 }
 
 interface PixifactPluginState {
+    codePackages: Map<string, string>;
     config?: PixifactProjectConfig;
     env?: Record<string, string>;
     mode?: string;
@@ -78,14 +82,16 @@ const descriptors: Record<Exclude<PixifactPlatform, 'web'>, PlatformDescriptor> 
 const virtualPlatformId = '\0pixifact:platform';
 const virtualAssetsId = '\0pixifact:assets';
 const virtualScenesId = '\0pixifact:scenes';
+const virtualCodeLoaderId = '\0pixifact:code-loader';
 
 export function pixifact(options: PixifactPluginOptions = {}): Plugin[] {
-    const state: PixifactPluginState = {};
+    const state: PixifactPluginState = { codePackages: new Map() };
     return [
         scenePlugin(state, options),
         platformPlugin(state),
         assetsPlugin(state),
         resourcePlugin(state),
+        codePackagesPlugin(state),
         miniGamePlugin(state),
     ];
 }
@@ -99,7 +105,7 @@ function scenePlugin(state: PixifactPluginState, options: PixifactPluginOptions)
             const platform = required(state.platform);
             const output = platform === 'web'
                 ? {}
-                : miniGameBuildConfig(projectRoot, platform, config);
+                : miniGameBuildConfig(projectRoot, platform, config, state.codePackages.size > 0);
             return {
                 ...output,
                 root: projectRoot,
@@ -185,11 +191,145 @@ function resourcePlugin(state: PixifactPluginState): Plugin {
             }
             if (platform !== 'web') {
                 for (const pack of localPacks(required(state.config))) {
+                    if (state.codePackages.has(pack)) continue;
                     this.emitFile({
                         type: 'asset',
                         fileName: path.posix.join('subpackages', pack, 'game.js'),
                         source: '// Pixifact asset-only subpackage.\n',
                     });
+                }
+            }
+        },
+    };
+}
+
+function codePackagesPlugin(state: PixifactPluginState): Plugin {
+    return {
+        name: 'pixifact-code-packages',
+        apply: 'build',
+        enforce: 'post',
+        async buildStart(input) {
+            if (state.platform === 'web' || state.codePackages.size === 0) return;
+            const entries = typeof input.input === 'string' ? [input.input]
+                : Array.isArray(input.input) ? input.input : Object.values(input.input);
+            const entryIds = await Promise.all(entries.map(async entry => (await this.resolve(entry))?.id));
+            for (const [name, id] of state.codePackages) {
+                if (entryIds.includes(id)) {
+                    this.error(`代码分包 ${name} 不能使用应用主入口 ${id}。`);
+                }
+                this.emitFile({ type: 'chunk', id, fileName: `subpackages/${name}/game.js`, preserveSignature: 'strict' });
+            }
+        },
+        resolveId(id) {
+            return id === virtualCodeLoaderId ? id : undefined;
+        },
+        load(id) {
+            if (id !== virtualCodeLoaderId) return;
+            const api = state.platform === 'wechat' ? 'wx' : 'tt';
+            return [
+                "import { createMiniGameSubpackageLoader } from 'pixifact/internal/minigame';",
+                `export const loadCodePackage = createMiniGameSubpackageLoader(() => ${api}, ${JSON.stringify(state.platform)});`,
+            ].join('\n');
+        },
+        async transform(code, id) {
+            if (state.platform === 'web' || state.codePackages.size === 0) return;
+            // Native require() loads chunks. Vite's browser preload/error helper
+            // would otherwise access Event/window and mask module exceptions.
+            if (id === '\0vite/preload-helper.js') {
+                return 'export function __vitePreload(load) { return load(); }';
+            }
+            if (!code.includes('import')) return;
+            const source = ts.createSourceFile(id, code, ts.ScriptTarget.Latest, true);
+            const specifiers = new Set<string>();
+            function visit(node: ts.Node) {
+                if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+                    const argument = node.arguments[0];
+                    if (argument && ts.isStringLiteralLike(argument)) specifiers.add(argument.text);
+                }
+                ts.forEachChild(node, visit);
+            }
+            visit(source);
+            const packagesById = new Map([...state.codePackages].map(([name, entry]) => [entry, name]));
+            const imports = new Map<string, string>();
+            for (const specifier of specifiers) {
+                const resolved = await this.resolve(specifier, id);
+                const name = resolved && packagesById.get(resolved.id);
+                if (name) imports.set(specifier, name);
+            }
+            if (imports.size === 0) return;
+            const result = ts.transpileModule(code, {
+                fileName: id,
+                compilerOptions: {
+                    target: ts.ScriptTarget.ESNext,
+                    module: ts.ModuleKind.ESNext,
+                    verbatimModuleSyntax: true,
+                    sourceMap: true,
+                    inlineSources: true,
+                },
+                transformers: { before: [(context) => (file) => {
+                    const factory = context.factory;
+                    const loader = factory.createUniqueName('__pixifactLoadCodePackage');
+                    const transform: ts.Visitor = (node) => {
+                        if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+                            const argument = node.arguments[0];
+                            const name = argument && ts.isStringLiteralLike(argument) && imports.get(argument.text);
+                            if (name) {
+                                return factory.createCallExpression(
+                                    factory.createPropertyAccessExpression(
+                                        factory.createCallExpression(loader, undefined, [factory.createStringLiteral(name)]),
+                                        'then',
+                                    ),
+                                    undefined,
+                                    [factory.createArrowFunction(undefined, undefined, [], undefined,
+                                        factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken), node)],
+                                );
+                            }
+                        }
+                        return ts.visitEachChild(node, transform, context);
+                    };
+                    const transformed = ts.visitEachChild(file, transform, context);
+                    return factory.updateSourceFile(transformed, [
+                        factory.createImportDeclaration(undefined,
+                            factory.createImportClause(false, undefined, factory.createNamedImports([
+                                factory.createImportSpecifier(false, factory.createIdentifier('loadCodePackage'), loader),
+                            ])), factory.createStringLiteral(virtualCodeLoaderId)),
+                        ...transformed.statements,
+                    ]);
+                }] },
+            });
+            return { code: result.outputText, map: result.sourceMapText };
+        },
+        buildEnd(error) {
+            if (error || state.platform === 'web' || state.codePackages.size === 0) return;
+            const packagesById = new Map([...state.codePackages].map(([name, id]) => [id, name]));
+            for (const root of this.getModuleIds()) {
+                if (!this.getModuleInfo(root)?.isEntry) continue;
+                const owner = packagesById.get(root);
+                const visited = new Set<string>();
+                const visit = (id: string) => {
+                    if (visited.has(id)) return;
+                    visited.add(id);
+                    for (const dependency of this.getModuleInfo(id)?.importedIds ?? []) {
+                        const name = packagesById.get(dependency);
+                        if (name && name !== owner) {
+                            this.error(`不能静态引用代码分包 ${name}（${id}）；请从主包使用 import() 加载分包入口。`);
+                        }
+                        visit(dependency);
+                    }
+                };
+                visit(root);
+            }
+        },
+        generateBundle(_options, bundle) {
+            if (state.platform === 'web' || state.codePackages.size === 0) return;
+            for (const chunk of Object.values(bundle)) {
+                if (chunk.type !== 'chunk') continue;
+                const owner = chunk.fileName.match(/^subpackages\/([^/]+)\//)?.[1];
+                for (const dependency of [...chunk.imports, ...chunk.dynamicImports]) {
+                    const name = dependency.match(/^subpackages\/([^/]+)\//)?.[1];
+                    if (name && owner && name !== owner) {
+                        this.error(`代码分包 ${owner} 不能引用分包 ${name}；请由主包发起分包加载。`);
+                    }
                 }
             }
         },
@@ -212,10 +352,12 @@ function miniGamePlugin(state: PixifactPluginState): Plugin {
             ) as Record<string, unknown>;
             if (gameJson[descriptor.subpackageProperty] !== undefined) {
                 throw new Error(
-                    `platforms/${platform}/game.json must not declare ${descriptor.subpackageProperty}; Pixifact manages resource subpackages.`,
+                    `platforms/${platform}/game.json 的 ${descriptor.subpackageProperty} 由 Pixifact 根据资源包和代码分包生成，不能在源模板中重复声明。`,
                 );
             }
-            gameJson[descriptor.subpackageProperty] = localPacks(required(state.config)).map((name) => ({
+            gameJson[descriptor.subpackageProperty] = [...new Set([
+                ...localPacks(required(state.config)), ...state.codePackages.keys(),
+            ])].map((name) => ({
                 name,
                 root: `subpackages/${name}`,
             }));
@@ -283,12 +425,28 @@ async function configureState(
     state.config = parsePixifactProjectConfig(JSON.parse(
         await readFile(path.join(projectRoot, pixifactProjectConfigFileName), 'utf8'),
     ));
+    state.codePackages = new Map();
+    for (const [name, entry] of Object.entries(options.codePackages ?? {})) {
+        if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(name)) {
+            throw new Error(`代码分包名称 ${name} 只能包含字母、数字、连字符和下划线，并以字母或数字开头。`);
+        }
+        const absolute = realpathSync(path.resolve(projectRoot, entry)).replaceAll(path.sep, '/');
+        const relative = path.relative(projectRoot, absolute);
+        if (path.isAbsolute(entry) || relative.startsWith(`..${path.sep}`) || relative === '..') {
+            throw new Error(`代码分包 ${name} 的入口必须位于项目内并使用项目相对路径。`);
+        }
+        if ([...state.codePackages.values()].includes(absolute)) {
+            throw new Error(`代码分包 ${name} 重复声明入口 ${entry}。`);
+        }
+        state.codePackages.set(name, absolute);
+    }
 }
 
 function miniGameBuildConfig(
     projectRoot: string,
     platform: Exclude<PixifactPlatform, 'web'>,
     config: UserConfig,
+    hasCodePackages: boolean,
 ): UserConfig {
     const descriptor = descriptors[platform];
     return {
@@ -303,6 +461,7 @@ function miniGameBuildConfig(
             modulePreload: false,
             rollupOptions: {
                 ...config.build?.rollupOptions,
+                ...(hasCodePackages ? { preserveEntrySignatures: 'strict' as const } : {}),
                 input: config.build?.rollupOptions?.input ?? path.join(projectRoot, 'src/main.ts'),
                 output: {
                     ...(Array.isArray(config.build?.rollupOptions?.output)
@@ -313,7 +472,12 @@ function miniGameBuildConfig(
                         `var navigator=globalThis.navigator||(globalThis.navigator={gpu:null,userAgent:${JSON.stringify(descriptor.userAgent)}});`,
                     ].join('\n'),
                     entryFileNames: 'game.js',
-                    format: 'iife',
+                    format: hasCodePackages ? 'cjs' : 'iife',
+                    ...(hasCodePackages ? {
+                        chunkFileNames: 'chunks/[name]-[hash].js',
+                        codeSplitting: true,
+                        dynamicImportInCjs: false,
+                    } : {}),
                 },
             },
             target: descriptor.ecmascriptTarget,

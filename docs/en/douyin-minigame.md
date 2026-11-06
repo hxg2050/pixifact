@@ -36,7 +36,7 @@ platforms/douyin/game.json
 platforms/douyin/project.config.json
 ```
 
-Pixifact writes `VITE_APP_ID` into the output `project.config.json` and generates Douyin `subPackages` from local `resourcePacks`. The source `game.json` must not duplicate `subPackages`.
+Pixifact writes `VITE_APP_ID` into the output `project.config.json` and generates Douyin `subPackages` from local `resourcePacks` and code packages. The source `game.json` must not duplicate `subPackages`.
 
 Resource pack configuration, remote HTTPS packs, and `pixifact:assets` follow [WeChat Mini Game Builds](./wechat-minigame.md). Game assets use only PixiJS `Assets.init()`, `Assets.load()`, and `Assets.loadBundle()`; the adapter prepares a subpackage before its first read.
 
@@ -55,6 +55,25 @@ await Assets.loadBundle('chapter1');
 
 `createApplication()` returns a native PixiJS `Application`. Shared logic should not depend on `tt`. Import genuine Douyin APIs from `@pixifact/platform-douyin` and guard their use with `import.meta.env.VITE_PLATFORM === 'douyin'`.
 
+## Code Subpackages
+
+Use the same Vite 8 configuration and application code as [WeChat code subpackages](./wechat-minigame.md#code-subpackages):
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  plugins: [pixifact({ codePackages: { game: 'src/game.ts' } })],
+});
+
+// src/main.ts
+async function enterGame() {
+  const { startGame } = await import('./game');
+  await startGame();
+}
+```
+
+The build calls `tt.loadSubpackage()` before module execution. Concurrent code imports and asset reads share one native download, with retry after failure. Entries are written to `subpackages/<name>/game.js`, shared dependencies stay in the main package's `chunks/`, and code and resources with the same name share one native package. Entry validation, static references, cross-package restrictions, and Web behavior follow the WeChat guide.
+
 ## Commands and Output
 
 ```bash
@@ -63,7 +82,7 @@ pixifact build --mode douyin
 pixifact dev --mode douyin
 ```
 
-Default output is `dist/douyin/`, containing one main `game.js`, native config, main-package resources, and `subpackages/<pack>/`. Douyin output targets ES2018 so its device compiler does not receive unsupported newer syntax. Without subpackages Pixifact checks the 20 MiB total limit; with subpackages it also checks the 4 MiB main-package limit.
+Default output is `dist/douyin/`, containing the main `game.js`, native config, main-package resources, and `subpackages/<pack>/`, plus shared `chunks/` when code packages are enabled. All code counts toward package reports. Douyin output targets ES2018 so its device compiler does not receive unsupported newer syntax. Without subpackages Pixifact checks the 20 MiB total limit; with subpackages it also checks the 4 MiB main-package limit.
 
 Import `dist/douyin/` into Douyin DevTools. Vite watch rebuilds when tracked Scenes, scripts, resources, or native configs change. Pixifact does not upload, review, or publish the game.
 

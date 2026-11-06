@@ -126,7 +126,7 @@ Web mode 只需要 `pixifact`，不安装小游戏平台包也能构建。`dev` 
 
 `pixifact dev` 同时自动启用 Bun Inspector，默认监听 `0.0.0.0`，端口由系统分配；项目的 `dev` 脚本直接调用 `pixifact dev` 即可。远程调试时，将 Bun 输出的 WebSocket 或浏览器调试链接中的 `0.0.0.0` 替换为开发电脑的局域网 IP，保留端口和路径。若启动 Bun 时已指定 `--inspect`、`--inspect-brk` 或 `--inspect-wait`（包括自定义地址），CLI 使用已有调试参数。
 
-CLI 使用 Vite 完成 env、TypeScript、tree-shaking、watch、静态资源和产物生命周期；Pixifact 插件负责 Scene 编译、当前平台虚拟模块、Pixi manifest、资源分包、原生配置和包体检查。业务代码只使用 PixiJS `Assets`，不需要手动加载分包。
+CLI 使用 Vite 完成 env、TypeScript、tree-shaking、watch、静态资源和产物生命周期；Pixifact 插件负责 Scene 编译、当前平台虚拟模块、Pixi manifest、资源与代码分包、原生配置和包体检查。资源使用 PixiJS `Assets`；代码分包在 Vite 8 配置中声明 `pixifact({ codePackages: { game: 'src/game.ts' } })`，业务使用 `import('./game')`，由构建自动补上原生分包加载。完整用法见[微信代码分包](../../docs/zh/wechat-minigame.md#代码分包)。
 
 完整配置见 [微信小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/wechat-minigame.md) 和 [抖音小游戏构建](https://github.com/hxg2050/pixifact/blob/main/docs/zh/douyin-minigame.md)，可运行三端示例见 [wechat-minigame-demo](https://github.com/hxg2050/pixifact/tree/main/sample-projects/wechat-minigame-demo)。
 

@@ -15,7 +15,7 @@
 | [playable-sample-agent-eval.md](./playable-sample-agent-eval.md) | Web 可玩样板游戏与固定 Agent 任务评测；首轮完成，统计复测待开展 |
 | [release-v0.11.2.md](./release-v0.11.2.md) | Editor 覆盖层拖拽修复的五包 `0.11.2` 发布 |
 | [release-v0.11.1.md](./release-v0.11.1.md) | Editor 布局节点编辑和画布拖拽修复的五包 `0.11.1` 发布 |
-| [unified-vite-platform-build.md](./unified-vite-platform-build.md) | Web、微信、抖音单入口、可选平台包、统一 Vite 构建与 Pixi Assets 资源链路 |
+| [unified-vite-platform-build.md](./unified-vite-platform-build.md) | Web、微信、抖音统一 Vite 构建、资源链路与代码分包扩展 |
 | [runtime-observation-v1.md](./runtime-observation-v1.md) | 真实 Vite Web 游戏的 Runtime 观测闭环、局域网开发预览和 Inspector |
 | [editor-vnext.md](./editor-vnext.md) | 浏览器 Editor vNext 的产品边界、数据流、实现范围和续作记录 |
 | [scene-binding.md](./scene-binding.md) | Scene 静态 Prop、Variant、声明式绑定、Runtime 构造与 Editor Authoring 预览 |

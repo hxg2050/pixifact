@@ -3,6 +3,7 @@ import { createApplication } from '@pixifact/platform-wechat';
 import { fetchWechatResource } from '../packages/platform-wechat/src/fetch';
 import { bindWechatLifecycle } from '../packages/platform-wechat/src/lifecycle';
 import type { WechatMiniGameApi } from '../packages/platform-wechat/src/types';
+import { createMiniGameSubpackageLoader } from '../packages/pixifact/src/platform/minigame/subpackage';
 
 const originalWechatApi = (globalThis as typeof globalThis & { wx?: WechatMiniGameApi }).wx;
 
@@ -111,6 +112,32 @@ describe('WeChat platform runtime', () => {
             { ok: true },
         ]);
         expect(attempts).toBe(2);
+    });
+
+    it('shares native downloads between code and resource package loaders', async () => {
+        const requests: Array<{ fail(error: { errMsg: string }): void; success(): void }> = [];
+        const api = {
+            loadSubpackage(options: typeof requests[number]) { requests.push(options); },
+            getFileSystemManager: () => ({
+                readFile(options: { success(result: { data: string }): void }) {
+                    options.success({ data: '{"shared":true}' });
+                },
+            }),
+        } as unknown as WechatMiniGameApi;
+        (globalThis as typeof globalThis & { wx: WechatMiniGameApi }).wx = api;
+        const loadCode = createMiniGameSubpackageLoader(() => api, 'WeChat');
+        const code = loadCode('shared-code-assets');
+        const resource = fetchWechatResource('subpackages/shared-code-assets/data.json');
+        const settled = Promise.allSettled([code, resource]);
+        expect(requests).toHaveLength(1);
+        requests[0].fail({ errMsg: 'interrupted' });
+        expect((await settled).every(result => result.status === 'rejected')).toBe(true);
+        const retried = [loadCode('shared-code-assets'), fetchWechatResource('subpackages/shared-code-assets/data.json')];
+        expect(requests).toHaveLength(2);
+        requests[1].success();
+        await Promise.all(retried);
+        await loadCode('shared-code-assets');
+        expect(requests).toHaveLength(2);
     });
 
     it('resumes a running ticker after the game returns to the foreground', () => {

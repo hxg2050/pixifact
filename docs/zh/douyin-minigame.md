@@ -36,7 +36,7 @@ platforms/douyin/game.json
 platforms/douyin/project.config.json
 ```
 
-Pixifact 从 `VITE_APP_ID` 写入输出 `project.config.json`，并根据本地 `resourcePacks` 生成抖音的 `subPackages`。源 `game.json` 不得重复声明 `subPackages`。
+Pixifact 从 `VITE_APP_ID` 写入输出 `project.config.json`，并根据本地 `resourcePacks` 和代码分包生成抖音的 `subPackages`。源 `game.json` 不得重复声明 `subPackages`。
 
 资源包配置、远程 HTTPS 包和 `pixifact:assets` 用法与[微信小游戏构建](./wechat-minigame.md)一致。所有业务资源都通过 PixiJS `Assets.init()`、`Assets.load()` 和 `Assets.loadBundle()` 加载；分包由 adapter 在首次读取前自动准备。
 
@@ -55,6 +55,25 @@ await Assets.loadBundle('chapter1');
 
 `createApplication()` 返回原生 PixiJS `Application`。共享逻辑不直接依赖 `tt`；确实需要抖音开放能力时，从 `@pixifact/platform-douyin` 静态导入对应 API，并用 `import.meta.env.VITE_PLATFORM === 'douyin'` 分支保护。
 
+## 代码分包
+
+与[微信代码分包](./wechat-minigame.md#代码分包)使用相同的 Vite 8 配置和业务代码：
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  plugins: [pixifact({ codePackages: { game: 'src/game.ts' } })],
+});
+
+// src/main.ts
+async function enterGame() {
+  const { startGame } = await import('./game');
+  await startGame();
+}
+```
+
+抖音构建在模块执行前自动调用 `tt.loadSubpackage()`；同一包的资源及并发代码导入共享下载，失败可重试。分包入口为 `subpackages/<name>/game.js`，共享依赖在主包 `chunks/` 中，代码与同名资源包合并。入口、静态引用、分包间引用及 Web 行为遵循微信文档中的相同约束。
+
 ## 命令与产物
 
 ```bash
@@ -63,7 +82,7 @@ pixifact build --mode douyin
 pixifact dev --mode douyin
 ```
 
-默认输出为 `dist/douyin/`，包含单一主代码 `game.js`、原生配置、主包资源和 `subpackages/<pack>/`。抖音构建目标固定为 ES2018，避免真机编译器无法解析较新语法。没有分包时检查 20 MiB 总包；存在分包时同时检查 4 MiB 主包和 20 MiB 总包。
+默认输出为 `dist/douyin/`，包含主入口 `game.js`、原生配置、主包资源和 `subpackages/<pack>/`；配置代码分包时还包含主包共享 `chunks/`，全部代码计入包体报告。抖音构建目标固定为 ES2018，避免真机编译器无法解析较新语法。没有分包时检查 20 MiB 总包；存在分包时同时检查 4 MiB 主包和 20 MiB 总包。
 
 把 `dist/douyin/` 导入抖音小游戏开发者工具。修改已纳入项目的 Scene、脚本、资源或原生配置时，`dev` 由 Vite watch 重建。Pixifact 不负责上传、审核和发布。
 

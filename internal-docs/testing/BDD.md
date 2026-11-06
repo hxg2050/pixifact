@@ -15,7 +15,7 @@ Scenario: User builds one source entry for Web, WeChat, and Douyin
   When the user runs "pixifact build --mode <mode>"
   Then Vite builds only the selected platform
   And Web emits a normal HTML application
-  And WeChat and Douyin each emit one IIFE "game.js" without HTML
+  And without codePackages WeChat and Douyin each emit one IIFE "game.js" without HTML
   And the production bundle contains no code from an unselected platform
 ```
 
@@ -31,6 +31,24 @@ Scenario: User selects a platform with an arbitrary Vite mode
   And validates the WeChat project and AppID
   And import.meta.env.MODE remains "game1"
   But no --target flag, project JSON define, or Pixifact global macro is used
+```
+
+### BDD-BUILD-003 标准动态导入加载代码分包
+
+Feature: Lazy code subpackages
+
+```gherkin
+Scenario: User dynamically imports a configured code package
+  Given vite.config.ts declares codePackages entries in pixifact()
+  When the shared application calls import() for a configured entry
+  Then a Mini Game downloads and loads the native subpackage before executing its modules
+  And concurrent imports share the download and the module instance
+  And a failed download rejects the import and can be retried
+  And shared dependencies remain a single instance in the main package
+  And code and resources with the same package name share one native declaration
+  And Web uses Vite native dynamic imports without Mini Game APIs
+  But the main package cannot eagerly import a code subpackage
+  And one subpackage cannot directly import another subpackage's code
 ```
 
 ### BDD-ASSETS-001 资源加载复用 PixiJS Assets

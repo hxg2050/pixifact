@@ -25,6 +25,7 @@
 | `tests/editor-server.test.ts` | 浏览器 Editor 本地服务 | 项目索引、Scene versioned write、文件监听合并、project root guard |
 | `tests/project-file-tree.test.ts` | 浏览器 Editor 项目树与 runtime preview | 浏览器文件读取、Scene binding、Pixi 节点布局和图片 parser |
 | `tests/project-config.test.ts` | project config service | `pixifact.project.json` 解析、默认值、path guard、resource pack 数据 |
+| `tests/unified-vite-platform.test.ts` | Vite 平台构建与代码分包 | 真实构建、CommonJS 产物执行、延迟加载、共享实例、重试、引用边界、sourcemap 与 watch |
 | `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、Editor context 路由、path guard、旧 live 命令移除、exit code |
 | `tests/editor-session.test.ts` | Editor Host session / context | 单活动标签页接管、context auth、revision 一致性、session discovery |
 | `tests/editor-context.test.ts` | Editor context / selection | Scene 与节点 context、Compiler locator、外部 revision 选择重定位 |

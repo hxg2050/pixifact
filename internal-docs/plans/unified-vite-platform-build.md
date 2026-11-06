@@ -1,7 +1,7 @@
 # Unified Vite Platform Build
 
-状态：自动化实施完成，待手工验收
-最后更新：2026-08-11
+状态：统一构建及代码分包扩展自动化完成
+最后更新：2026-11-06
 
 ## Goal
 
@@ -23,6 +23,17 @@ VITE_APP_ID=abc123
 ```
 
 ## Decisions
+
+### Code subpackages (2026-11-06)
+
+- 在 `vite.config.ts` 的 `pixifact({ codePackages: { game: 'src/game.ts' } })` 声明代码分包，保持构建配置单一来源，不修改 project schema。
+- 业务使用标准、静态字符串的 `import('./game')`，保留 TypeScript 模块类型推断。小游戏构建自动在模块执行前调用已有的原生分包 loader，复用并发去重与下载失败后重试。
+- 配置代码分包时，小游戏由 Vite 输出 CommonJS 多 chunk：`game.js` 为应用入口，`subpackages/<name>/game.js` 为分包入口，共享 chunk 放主包 `chunks/`；不配置时继续使用单个 IIFE 主脚本。
+- 普通动态依赖与共享依赖由 Vite 管理；不允许主包提前静态引用分包，也不允许分包之间直接引用代码。分包通过主包发起加载；包内静态依赖可正常使用。
+- 代码与同名本地资源包共享一个原生分包声明，保留资源 manifest，并由真正的代码入口替代资源包空 `game.js`。
+- Web 的动态导入保留原生 Vite 行为，不注入小游戏 API。微信与抖音均支持，平台选择与 CLI 命令保持现有 mode 契约。
+- 验证真实构建产物的延迟执行、模块导出、共享实例、并发、下载失败重试、原生分包入口自动执行、代码/资源同包、包体报告、错误边界和 watch 重建。
+- 本轮不接入 Three.js 或 Rapier，不增加独立分包、跨分包异步引用或 WASM 改写。
 
 ### Platform and package boundaries
 
@@ -101,7 +112,7 @@ export default defineConfig({
 - Web `dev` 使用 Vite `createServer()`；Web `build` 和小游戏 production 使用 `vite.build()`；小游戏 `dev` 使用 Vite build watch。
 - 不使用 Vite 8 experimental `createBuilder` 多环境 API；一次命令只构建一个 `VITE_PLATFORM`。
 - Web 保持标准 `index.html` 入口；小游戏构建以 `src/main.ts` 为无 HTML input。
-- 小游戏 Vite invariants 由插件拥有：`appType: 'custom'`、单个 `game.js`、IIFE、inline dynamic imports、无 module preload、平台 ECMAScript target、正确 banner 和不内联受管资源。
+- 小游戏 Vite invariants 由插件拥有：`appType: 'custom'`、主入口 `game.js`、无 module preload、平台 ECMAScript target、正确 banner 和不内联受管资源。未配置代码分包使用单个 IIFE；配置后按 Code subpackages 决策输出 CommonJS 多 chunk。
 - 默认输出目录为 `dist/<platform>`；用户确有需要时通过 `vite.config.ts` 的 `build.outDir` 修改，`pixifact.project.json` 不重复保存。
 - 默认项目入口为 `src/main.ts`；小游戏特殊 input 通过 Vite config 修改，`pixifact.project.json` 不重复保存。
 - 输出目录删除交给 Vite `emptyOutDir`，但 Pixifact 仍保留 outDir 必须位于项目内且不得包含输入源的 destructive-path guard。
@@ -357,6 +368,14 @@ pixifact build [--mode <vite-mode>]
 - 为五个公开包检查 tarball 内容、peer dependencies、README、license、exports 和 public access。
 - 添加 Changeset，并验证 version sync 不遗漏两个新包。
 
+### Phase 7: Code subpackages
+
+- 在 `pixifact()` 增加 `codePackages` 配置；Vite 输出主包 CommonJS、分包入口与主包共享 chunk。
+- 转换已声明入口的标准动态导入，复用小游戏原生分包 loader；代码与资源共享下载状态。
+- 合并代码和资源的原生分包声明，并将代码产物纳入包体报告与限制校验。
+- 校验入口边界、静态引用和跨分包引用，保留 Web 原生动态导入与未启用代码分包的 IIFE 行为。
+- 通过真实产物执行、watch、sourcemap 和引用错误回归验证；更新中英文构建文档及 Vite 8 peer 要求。
+
 ## Test Plan
 
 ### Project, env, and CLI
@@ -379,7 +398,7 @@ pixifact build [--mode <vite-mode>]
 ### Vite build and tree-shaking
 
 - [x] Web、微信、抖音从同一 `src/main.ts` 构建成功。
-- [x] mini 输出单一 `game.js` IIFE，无 HTML 依赖、无运行时 dynamic import。
+- [x] 未配置代码分包时，mini 输出单一 `game.js` IIFE，无 HTML 依赖、无运行时 dynamic import。
 - [x] Web bundle 不含微信/抖音 marker、`wx` / `tt` adapter 和包代码。
 - [x] 微信 bundle 不含抖音 marker；抖音 bundle 不含微信 marker。
 - [x] 静态 import 的平台专属函数在 env 常量 false 时从 production bundle 删除。
@@ -398,6 +417,16 @@ pixifact build [--mode <vite-mode>]
 - [x] 生成的 `game.json` 使用微信 `subpackages` / 抖音 `subPackages` 正确字段。
 - [x] 主包、各分包、总包报告与输出字节一致，平台限制继续生效。
 
+### Code subpackages
+
+- [x] 微信和抖音真实 CommonJS 产物在原生分包下载后执行，默认导出、具名导出与 live binding 正确。
+- [x] 并发动态导入只下载一次，失败拒绝且下次可重试；模块只求值一次，共享依赖保持同一实例。
+- [x] 代码与同名资源包合并声明和入口，代码与资源请求共用原生下载及失败重试。
+- [x] Web 保留原生动态导入，无小游戏分包或 API；未启用代码分包的三端构建继续通过。
+- [x] 拒绝非法名称、重复/越界/缺失入口、主入口（含符号链接）、静态导入及跨分包导入。
+- [x] watch 跟踪包内依赖重建，保留 sourcemap，分包报告与输出字节精确一致。
+- [x] 模块初始化错误保留原始异常，不被 Vite 浏览器预加载辅助逻辑覆盖。
+
 ### Packaging and release
 
 - [x] Web-only tarball install 不拉取可选平台包。
@@ -411,8 +440,17 @@ pixifact build [--mode <vite-mode>]
 - [ ] 微信开发者工具模拟器及至少一台真机完成启动、WebGL、Text、Graphics、触摸、前后台恢复、主包和分包资源验证。
 - [ ] 抖音开发者工具模拟器及至少一台真机完成同一矩阵，重点检查 ES2018 输出。
 - [ ] 清理开发者工具缓存后复验，避免旧 `game.js` 造成假阳性或假阴性。
+- [ ] 微信/抖音开发者工具及真机验证代码分包首次加载、重复进入、弱网失败重试、同包资源和共享依赖。
 
 ## Verification
+
+2026-11-06 代码分包扩展验证：
+
+- `bunx --no-install vitest run tests/unified-vite-platform.test.ts tests/wechat-platform-runtime.test.ts tests/wechat-target.test.ts tests/douyin-target.test.ts`：4 个测试文件、24 项测试通过。
+- `bun run build`：core、微信和抖音平台包 TypeScript 构建通过。
+- `bun run test`：29 个测试文件、415 项测试通过。
+- `git diff --check`：通过。
+- 真实产物由 CommonJS VM 模拟原生加载顺序执行；本轮尚未完成代码分包的开发者工具/真机人工验收。
 
 最小相关测试按阶段运行，最终执行：
 
@@ -463,6 +501,7 @@ pixifact build --mode douyin
 
 ## Progress
 
+- [x] Phase 7：代码分包配置、真实构建与执行回归、文档和验证。
 - [x] 讨论并确认平台包、单入口、Vite、env/mode、Application 和 Assets 的目标契约。
 - [x] 审计现有 esbuild builder、Vite plugin、资源 runtime、project schema 和 release scripts。
 - [x] 创建实施计划。
@@ -488,7 +527,7 @@ pixifact build --mode douyin
 
 ## Resume Notes
 
-Last updated: 2026-08-11
+Last updated: 2026-11-06
 
 Done:
 - Web、微信、抖音已由一份 `src/main.ts` 和统一 Vite plugin 构建；两个小游戏平台包可选安装。
@@ -497,15 +536,17 @@ Done:
 - 平台包、Application、tree-shaking、Vite watch、Scene 生成稳定性、脚手架、示例、文档和 release smoke 均有自动化验证。
 - Changesets fixed group 已确认五包 minor bump 到 `0.7.0`。
 - 抖音 ES2018 修复后的产物已由用户完成真机运行验证。
+- 已增加 `pixifact({ codePackages })`，小游戏 CommonJS 分包和原生加载顺序、模块导出、共享实例、并发、下载失败重试、同名资源合并、包体报告、sourcemap 与 watch 均有真实构建回归。
+- 已修复 Vite 浏览器预加载辅助逻辑覆盖模块原始异常的问题，并校验符号链接主入口、静态引用和跨分包引用。
+- 已更新中英文平台文档、CLI 说明和 Vite 8 peer 要求；本轮完整测试 29 个文件、415 项通过，三个 runtime 包构建通过。
 
 Current State:
-- 自动化实施与最终验证完成，当前准备提交。
-- `bun run release:check` 已通过 23 个测试文件、292 项测试、三包构建、Editor 构建、五包内容检查和真实安装 smoke。
-- `bun run editor:typecheck`、Changesets `0.7.0` version status、旧 API 搜索和 `git diff --check` 均通过。
+- 统一 Vite 构建与普通代码分包扩展已完成，设计见 Decisions 的 Code subpackages。
+- 本轮实施前 worktree 干净；改动仅包含本任务的 tracked 文件，未发布 npm 包。
+- 代码分包尚未完成开发者工具/真机人工验收；本轮未接入 Three.js、Rapier 或 WASM。
 
 Currently Failing:
 - 无已知仓库自动化失败。
 
 Next:
-1. 提交统一 Vite 平台构建变更。
-2. 发布前按 Manual acceptance 在 Web、微信开发者工具和抖音开发者工具复验新架构产物。
+1. 本轮无待实现事项；发布前按 Manual acceptance 在微信/抖音开发者工具及真机验证代码分包。

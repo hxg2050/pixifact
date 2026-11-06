@@ -1,8 +1,10 @@
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
-import { afterEach, describe, expect, it } from 'vitest';
+import { createContext, runInContext } from 'node:vm';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { build, type Rollup } from 'vite';
 import {
     loadPixifactEnv,
@@ -102,7 +104,7 @@ function aliases() {
     ];
 }
 
-async function buildMode(root: string, mode: 'web' | 'wechat' | 'douyin') {
+async function buildMode(root: string, mode: 'web' | 'wechat' | 'douyin', codePackages?: Record<string, string>) {
     let dedupe: string[] = [];
     let target: string | string[] | false = false;
     let report: PixifactBuildReport | undefined;
@@ -112,7 +114,7 @@ async function buildMode(root: string, mode: 'web' | 'wechat' | 'douyin') {
         configFile: false,
         logLevel: 'silent',
         plugins: [
-            pixifact({ projectRoot: root }),
+            pixifact({ projectRoot: root, codePackages }),
             pixifactBuildReporter(mode, (value) => {
                 report = value;
             }),
@@ -138,6 +140,73 @@ async function buildMode(root: string, mode: 'web' | 'wechat' | 'douyin') {
         source,
         target,
         report: report!,
+    };
+}
+
+async function createCodeProject() {
+    const root = await createProject();
+    await writeFile(path.join(root, 'src/shared.ts'), 'export const shared = { count: 0 };\n');
+    await writeFile(path.join(root, 'src/game-detail.ts'), "export const detail = 'CODE_PACKAGE_ONLY_GAME';\n");
+    await writeFile(path.join(root, 'src/game.ts'), [
+        "import { shared } from './shared';",
+        "import { detail } from './game-detail';",
+        'globalThis.evaluations = (globalThis.evaluations ?? 0) + 1;',
+        'export { shared };',
+        'export let count = 0;',
+        'export function step() { count++; shared.count++; }',
+        'export default detail;',
+    ].join('\n'));
+    await writeFile(path.join(root, 'src/extra.ts'), [
+        "import { shared } from './shared';",
+        'export { shared };',
+        "export const extra = 'CODE_PACKAGE_ONLY_EXTRA';",
+    ].join('\n'));
+    await writeFile(path.join(root, 'src/failing.ts'), "throw new Error('module initialization failed'); export {};\n");
+    await writeFile(path.join(root, 'src/main.ts'), [
+        "import { shared } from './shared';",
+        'globalThis.shared = shared;',
+        "globalThis.loadGame = () => import('./game');",
+        "globalThis.loadExtra = () => import('./extra');",
+        "globalThis.loadFailure = () => import('./failing');",
+        "globalThis.importText = \"import('./game')\";",
+    ].join('\n'));
+    return root;
+}
+
+// Execute the emitted CommonJS modules with native-style subpackage loading.
+// A package's game.js executes before success, as on the Mini Game hosts.
+function codeRuntime(output: string, platform: 'wechat' | 'douyin') {
+    const pending: Array<{ name: string; success(): void; fail(error: { errMsg: string }): void }> = [];
+    const loaded = new Set<string>();
+    const cache = new Map<string, { exports: object }>();
+    const context = createContext({
+        console,
+        [platform === 'wechat' ? 'wx' : 'tt']: {
+            loadSubpackage(request: typeof pending[number]) { pending.push(request); },
+        },
+    });
+    function requireFile(file: string): object {
+        const relative = path.relative(output, file).replaceAll(path.sep, '/');
+        const pack = relative.match(/^subpackages\/([^/]+)\//)?.[1];
+        if (pack && !loaded.has(pack)) throw new Error(`Required ${relative} before its subpackage loaded.`);
+        const cached = cache.get(file);
+        if (cached) return cached.exports;
+        const module = { exports: {} };
+        cache.set(file, module);
+        const factory = runInContext(`(function(require, module, exports) {\n${readFileSync(file, 'utf8')}\n})`, context);
+        factory((specifier: string) => requireFile(path.resolve(path.dirname(file), specifier)), module, module.exports);
+        return module.exports;
+    }
+    requireFile(path.join(output, 'game.js'));
+    return {
+        context,
+        pending,
+        complete(index: number) {
+            const request = pending[index];
+            loaded.add(request.name);
+            requireFile(path.join(output, 'subpackages', request.name, 'game.js'));
+            request.success();
+        },
     };
 }
 
@@ -193,6 +262,137 @@ afterEach(async () => {
 });
 
 describe('unified Vite platform build', () => {
+    it.each(['wechat', 'douyin'] as const)('loads %s code packages lazily with shared exports and retryable downloads', async (platform) => {
+        const root = await createCodeProject();
+        const result = await buildMode(root, platform, { local: 'src/game.ts', extra: 'src/extra.ts' });
+        expect(result.files).toContain('subpackages/local/game.js');
+        expect(result.files).toContain('subpackages/extra/game.js');
+        const nativeConfig = JSON.parse(await readFile(path.join(result.output, 'game.json'), 'utf8'));
+        expect(nativeConfig[platform === 'wechat' ? 'subpackages' : 'subPackages']).toEqual([
+            { name: 'local', root: 'subpackages/local' },
+            { name: 'extra', root: 'subpackages/extra' },
+        ]);
+        const mainCode = (await Promise.all(result.files.filter(file => file.endsWith('.js') && !file.startsWith('subpackages/'))
+            .map(file => readFile(path.join(result.output, file), 'utf8')))).join('\n');
+        expect(mainCode).not.toContain('CODE_PACKAGE_ONLY_GAME');
+        expect(mainCode).not.toContain('CODE_PACKAGE_ONLY_EXTRA');
+        expect(result.report.subpackages.extra).toBeGreaterThan(0);
+        expect(result.report.subpackages.local).toBeGreaterThan(0);
+
+        const runtime = codeRuntime(result.output, platform);
+        expect(runtime.pending).toHaveLength(0);
+        expect(runtime.context.evaluations).toBeUndefined();
+        expect(runtime.context.importText).toBe("import('./game')");
+        await expect(runtime.context.loadFailure()).rejects.toThrow('module initialization failed');
+        const failures = Promise.allSettled([runtime.context.loadGame(), runtime.context.loadGame()]);
+        await vi.waitFor(() => expect(runtime.pending).toHaveLength(1));
+        runtime.pending[0].fail({ errMsg: 'download interrupted' });
+        const rejected = await failures;
+        expect(rejected.every(value => value.status === 'rejected' && /download interrupted/.test(value.reason.message))).toBe(true);
+        expect(runtime.context.evaluations).toBeUndefined();
+
+        const imports = [runtime.context.loadGame(), runtime.context.loadGame()];
+        await vi.waitFor(() => expect(runtime.pending).toHaveLength(2));
+        runtime.complete(1);
+        const [game, again] = await Promise.all(imports);
+        expect(game).toBe(again);
+        expect(game.default).toBe('CODE_PACKAGE_ONLY_GAME');
+        expect(game.shared).toBe(runtime.context.shared);
+        game.step();
+        expect(game.count).toBe(1);
+        expect(runtime.context.shared.count).toBe(1);
+        expect(runtime.context.evaluations).toBe(1);
+        expect(await runtime.context.loadGame()).toBe(game);
+        expect(runtime.pending).toHaveLength(2);
+
+        const extraImport = runtime.context.loadExtra();
+        await vi.waitFor(() => expect(runtime.pending).toHaveLength(3));
+        runtime.complete(2);
+        expect((await extraImport).shared).toBe(game.shared);
+    }, 30_000);
+
+    it('keeps Web code imports native while accepting the same package configuration', async () => {
+        const root = await createCodeProject();
+        const result = await buildMode(root, 'web', { local: 'src/game.ts', extra: 'src/extra.ts' });
+        expect(result.files).toContain('index.html');
+        expect(result.files.some(file => file.startsWith('subpackages/'))).toBe(false);
+        expect(result.source).not.toContain('loadSubpackage');
+        expect(result.source).not.toContain('WeChat');
+        expect(result.source).toContain('CODE_PACKAGE_ONLY_GAME');
+        expect(result.files.filter(file => file.endsWith('.js')).length).toBeGreaterThan(1);
+    });
+
+    it('rejects eager and cross-package references to code package entries', async () => {
+        const root = await createCodeProject();
+        await writeFile(path.join(root, 'src/main.ts'), "import value from './game'; console.info(value);\n");
+        await expect(buildMode(root, 'wechat', { local: 'src/game.ts' })).rejects.toThrow('静态引用代码分包');
+        await writeFile(path.join(root, 'src/main.ts'), "globalThis.loadGame = () => import('./game');\n");
+        await writeFile(path.join(root, 'src/game.ts'), "import { extra } from './extra'; export default extra;\n");
+        await expect(buildMode(root, 'wechat', { local: 'src/game.ts', extra: 'src/extra.ts' })).rejects.toThrow('静态引用代码分包');
+        await writeFile(path.join(root, 'src/game.ts'), "export const loadExtra = () => import('./extra');\n");
+        await expect(buildMode(root, 'wechat', { local: 'src/game.ts', extra: 'src/extra.ts' })).rejects.toThrow('不能引用分包');
+    });
+
+    it('validates code package names, entries, and the main entry boundary', async () => {
+        const root = await createCodeProject();
+        await expect(buildMode(root, 'wechat', { '../outside': 'src/game.ts' })).rejects.toThrow('代码分包名称');
+        await expect(buildMode(root, 'wechat', { local: 'src/game.ts', other: 'src/game.ts' })).rejects.toThrow('重复声明入口');
+        await expect(buildMode(root, 'wechat', { local: 'src/missing.ts' })).rejects.toThrow('ENOENT');
+        await expect(buildMode(root, 'wechat', { local: 'src/main.ts' })).rejects.toThrow('主入口');
+        await rm(path.join(root, 'src/main.ts'));
+        await symlink(path.join(root, 'src/game.ts'), path.join(root, 'src/main.ts'));
+        await expect(buildMode(root, 'wechat', { local: 'src/game.ts' })).rejects.toThrow('主入口');
+        const otherRoot = await createCodeProject();
+        await expect(buildMode(root, 'wechat', { local: path.relative(root, path.join(otherRoot, 'src/game.ts')) }))
+            .rejects.toThrow('入口必须位于项目内');
+    });
+
+    it('rebuilds code package imports and private dependencies with sourcemaps', async () => {
+        const root = await createCodeProject();
+        const reports = buildReports();
+        const watcher = await build({
+            root,
+            mode: 'wechat',
+            configFile: false,
+            logLevel: 'silent',
+            plugins: [
+                pixifact({ projectRoot: root, codePackages: { local: 'src/game.ts', extra: 'src/extra.ts' } }),
+                pixifactBuildReporter('wechat', reports.push),
+            ],
+            resolve: { alias: aliases() },
+            build: { watch: {}, sourcemap: true, minify: false },
+        }) as Rollup.RollupWatcher;
+        const ended = () => new Promise<void>((resolve, reject) => {
+            const listener = (event: Rollup.RollupWatcherEvent) => {
+                if (event.code === 'END' || event.code === 'ERROR') {
+                    watcher.off('event', listener);
+                    if (event.code === 'ERROR') reject(event.error);
+                    else resolve();
+                }
+            };
+            watcher.on('event', listener);
+        });
+        try {
+            await Promise.all([reports.next(), ended()]);
+            const next = Promise.all([reports.next(), ended()]);
+            await writeFile(path.join(root, 'src/game-detail.ts'), "export const detail = 'UPDATED_PRIVATE_GAME_CODE';\n");
+            const [report] = await next;
+            const runtime = codeRuntime(report.outputDirectory, 'wechat');
+            const loaded = runtime.context.loadGame();
+            await vi.waitFor(() => expect(runtime.pending).toHaveLength(1));
+            runtime.complete(0);
+            expect((await loaded).default).toBe('UPDATED_PRIVATE_GAME_CODE');
+            const sourceMap = JSON.parse(await readFile(path.join(report.outputDirectory, 'subpackages/local/game.js.map'), 'utf8'));
+            expect(sourceMap.sources.some((source: string) => source.endsWith('src/game.ts'))).toBe(true);
+            const packageFiles = (await collectFiles(path.join(report.outputDirectory, 'subpackages/local')))
+                .filter(file => !file.endsWith('.map'));
+            const bytes = (await Promise.all(packageFiles.map(file => readFile(file)))).reduce((sum, file) => sum + file.byteLength, 0);
+            expect(report.subpackages.local).toBe(bytes);
+        } finally {
+            await watcher.close();
+        }
+    }, 30_000);
+
     it('lets Vite load mode env without Bun preloading the base file', async () => {
         if (!process.versions.bun) return;
         const root = await createProject();

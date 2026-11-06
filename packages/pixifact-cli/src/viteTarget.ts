@@ -71,6 +71,7 @@ export async function validatePixifactTarget(projectRootInput: string, mode: str
         'pixifact-platform',
         'pixifact-assets',
         'pixifact-resources',
+        'pixifact-code-packages',
         'pixifact-minigame',
     ]) {
         if (!pluginNames.has(name)) {
@@ -232,7 +233,7 @@ async function collectDiagnostics(
             if (gameJson[property] !== undefined) {
                 diagnostics.push({
                     asset: `platforms/${platform}/game.json`,
-                    message: `${property} 由 Pixifact 根据 resourcePacks 生成，不能在源模板中重复声明。`,
+                    message: `${property} 由 Pixifact 根据资源包和代码分包生成，不能在源模板中重复声明。`,
                 });
             }
         }
