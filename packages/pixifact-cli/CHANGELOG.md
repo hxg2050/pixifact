@@ -1,5 +1,12 @@
 # pixifact-cli
 
+## 0.20.1
+
+### Patch Changes
+
+- Editor 资产面板支持双击图片，通过系统默认程序打开原始资源文件；保留单击预览、图片拖拽和 Scene 双击编辑。打开失败会显示原因，当前 Scene 文档和选区保持不变。
+  - pixifact@0.20.1
+
 ## 0.20.0
 
 ### Patch Changes

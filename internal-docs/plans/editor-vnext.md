@@ -27,8 +27,8 @@ Progress：
 
 Resume Notes：
 - Done：系统打开、错误反馈、路径边界、UI 回归、类型检查、构建和 macOS 实际窗口验收完成；全量 451 项通过。
-- Current State：功能完成；用户已授权随后发布，准备生成 `0.20.1`。
-- Next：提交本任务 tracked 功能变动，消费 Changeset 生成版本，提交并推送 main / tag，等待 CI 并核对 npm、GitHub Release 和 Three OIDC 状态。
+- Current State：功能已提交 `262a9aa`；用户已授权发布，六包 `0.20.1`、changelog 和脚手架版本已生成并审阅。
+- Next：提交版本并推送 main / tag，等待 CI 并核对六包 npm、GitHub Release 和 Three 首次 OIDC 状态。
 
 状态：活跃，第一条浏览器 Editor 纵向闭环已完成
 权威范围：Pixifact Editor vNext 的产品边界、用户行为、数据流和首版实现范围
