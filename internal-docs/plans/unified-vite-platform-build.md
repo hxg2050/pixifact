@@ -1,6 +1,6 @@
 # Unified Vite Platform Build
 
-状态：统一构建及代码分包扩展自动化完成
+状态：统一构建、代码分包及真实项目组合回归自动化完成
 最后更新：2026-11-06
 
 ## Goal
@@ -33,6 +33,7 @@ VITE_APP_ID=abc123
 - 代码与同名本地资源包共享一个原生分包声明，保留资源 manifest，并由真正的代码入口替代资源包空 `game.js`。
 - Web 的动态导入保留原生 Vite 行为，不注入小游戏 API。微信与抖音均支持，平台选择与 CLI 命令保持现有 mode 契约。
 - 验证真实构建产物的延迟执行、模块导出、共享实例、并发、下载失败重试、原生分包入口自动执行、代码/资源同包、包体报告、错误边界和 watch 重建。
+- 真实项目同时保留 Scene 注册、平台 Application 与代码分包时，Rolldown 1.0.2 的跨模块常量内联会崩溃；小游戏 CommonJS 构建关闭该项优化，其他优化继续交给 Vite。
 - 本轮不接入 Three.js 或 Rapier，不增加独立分包、跨分包异步引用或 WASM 改写。
 
 ### Platform and package boundaries
@@ -426,6 +427,7 @@ pixifact build [--mode <vite-mode>]
 - [x] 拒绝非法名称、重复/越界/缺失入口、主入口（含符号链接）、静态导入及跨分包导入。
 - [x] watch 跟踪包内依赖重建，保留 sourcemap，分包报告与输出字节精确一致。
 - [x] 模块初始化错误保留原始异常，不被 Vite 浏览器预加载辅助逻辑覆盖。
+- [x] 生成的 Scene 注册、平台 Application 与代码分包共同参与构建，微信/抖音均能生成并执行产物。
 
 ### Packaging and release
 
@@ -443,6 +445,15 @@ pixifact build [--mode <vite-mode>]
 - [ ] 微信/抖音开发者工具及真机验证代码分包首次加载、重复进入、弱网失败重试、同包资源和共享依赖。
 
 ## Verification
+
+2026-11-06 真实项目组合修正（Three.js 接入评估期间）：
+
+- 新增微信/抖音组合用例，在修复前均复现 Rolldown `no entry found for key`；修复后 `tests/unified-vite-platform.test.ts` 14 项通过，包含真实 CommonJS 产物执行。
+- `bun run build`：core、微信和抖音平台包构建通过。
+- `bun run test`：29 个测试文件、417 项通过。一次与构建探针并行运行时，CLI `--help` 用例因额外的 `memory allocation` stderr 失败；CLI 独立复验 65 项和后续完整复验均通过，未修改 CLI。
+- Three.js `0.186.1` 无 WASM 最小场景使用生成的 Scene 注册与平台 Application，在 Bun 下的 Web、微信、抖音默认构建均通过。
+- 产物 module metadata 断言 Three.js 全部位于小游戏 `subpackages/game/game.js`；微信主包 519,708 字节、游戏分包 529,279 字节，抖音主包 527,244 字节、游戏分包 529,282 字节。数字只代表该最小构建探针。
+- 临时探针已删除，没有向本仓库安装 Three.js；本轮不包含 Three.js 运行时插件或实际 GPU 渲染验收。
 
 2026-11-06 代码分包扩展验证：
 
@@ -501,6 +512,7 @@ pixifact build --mode douyin
 
 ## Progress
 
+- [x] 补齐 Scene 注册、平台 Application 与代码分包的真实项目组合回归。
 - [x] Phase 7：代码分包配置、真实构建与执行回归、文档和验证。
 - [x] 讨论并确认平台包、单入口、Vite、env/mode、Application 和 Assets 的目标契约。
 - [x] 审计现有 esbuild builder、Vite plugin、资源 runtime、project schema 和 release scripts。
@@ -539,9 +551,11 @@ Done:
 - 已增加 `pixifact({ codePackages })`，小游戏 CommonJS 分包和原生加载顺序、模块导出、共享实例、并发、下载失败重试、同名资源合并、包体报告、sourcemap 与 watch 均有真实构建回归。
 - 已修复 Vite 浏览器预加载辅助逻辑覆盖模块原始异常的问题，并校验符号链接主入口、静态引用和跨分包引用。
 - 已更新中英文平台文档、CLI 说明和 Vite 8 peer 要求；本轮完整测试 29 个文件、415 项通过，三个 runtime 包构建通过。
+- Three.js 接入评估期间已修复真实项目组合的 CommonJS 构建崩溃，增加两项回归；当前完整测试为 29 个文件、417 项通过，三个 runtime 包构建通过。
 
 Current State:
 - 统一 Vite 构建与普通代码分包扩展已完成，设计见 Decisions 的 Code subpackages。
+- Three.js 接入评估使用 `0.186.1` 做无 WASM 临时构建；修正 CommonJS 常量内联后，Web、微信和抖音默认探针通过，Three.js 留在游戏分包。运行时插件仍为评估方案。
 - 本轮实施前 worktree 干净；改动仅包含本任务的 tracked 文件，未发布 npm 包。
 - 代码分包尚未完成开发者工具/真机人工验收；本轮未接入 Three.js、Rapier 或 WASM。
 
@@ -549,4 +563,5 @@ Currently Failing:
 - 无已知仓库自动化失败。
 
 Next:
-1. 本轮无待实现事项；发布前按 Manual acceptance 在微信/抖音开发者工具及真机验证代码分包。
+1. 本轮无待修复事项；Three.js 插件实现需单独制定运行时接入计划。
+2. 发布前按 Manual acceptance 在微信/抖音开发者工具及真机验证代码分包。

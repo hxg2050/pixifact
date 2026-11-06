@@ -40,6 +40,7 @@ Feature: Lazy code subpackages
 ```gherkin
 Scenario: User dynamically imports a configured code package
   Given vite.config.ts declares codePackages entries in pixifact()
+  And the shared main entry imports generated Scenes and the platform Application
   When the shared application calls import() for a configured entry
   Then a Mini Game downloads and loads the native subpackage before executing its modules
   And concurrent imports share the download and the module instance

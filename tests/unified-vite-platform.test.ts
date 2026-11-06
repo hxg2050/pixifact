@@ -311,6 +311,25 @@ describe('unified Vite platform build', () => {
         expect((await extraImport).shared).toBe(game.shared);
     }, 30_000);
 
+    it.each(['wechat', 'douyin'] as const)('builds %s code packages alongside Scene registration and Application', async (platform) => {
+        const root = await createCodeProject();
+        const entry = path.join(root, 'src/main.ts');
+        await writeFile(entry, [
+            "import 'pixifact:scenes';",
+            "import { createApplication } from 'pixifact:platform';",
+            'globalThis.createApp = createApplication;',
+            await readFile(entry, 'utf8'),
+        ].join('\n'));
+        const result = await buildMode(root, platform, { local: 'src/game.ts', extra: 'src/extra.ts' });
+        const runtime = codeRuntime(result.output, platform);
+        expect(typeof runtime.context.createApp).toBe('function');
+        expect(runtime.pending).toHaveLength(0);
+        const game = runtime.context.loadGame();
+        await vi.waitFor(() => expect(runtime.pending).toHaveLength(1));
+        runtime.complete(0);
+        expect((await game).default).toBe('CODE_PACKAGE_ONLY_GAME');
+    }, 30_000);
+
     it('keeps Web code imports native while accepting the same package configuration', async () => {
         const root = await createCodeProject();
         const result = await buildMode(root, 'web', { local: 'src/game.ts', extra: 'src/extra.ts' });

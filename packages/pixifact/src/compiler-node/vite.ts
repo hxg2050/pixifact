@@ -461,7 +461,15 @@ function miniGameBuildConfig(
             modulePreload: false,
             rollupOptions: {
                 ...config.build?.rollupOptions,
-                ...(hasCodePackages ? { preserveEntrySignatures: 'strict' as const } : {}),
+                ...(hasCodePackages ? {
+                    preserveEntrySignatures: 'strict' as const,
+                    // Rolldown's cross-chunk constant inlining crashes when Scene
+                    // registration and Pixi's async Application imports share CJS chunks.
+                    optimization: {
+                        ...config.build?.rollupOptions?.optimization,
+                        inlineConst: false,
+                    },
+                } : {}),
                 input: config.build?.rollupOptions?.input ?? path.join(projectRoot, 'src/main.ts'),
                 output: {
                     ...(Array.isArray(config.build?.rollupOptions?.output)
