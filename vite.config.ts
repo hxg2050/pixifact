@@ -20,7 +20,7 @@ export default defineConfig({
     build: {
         outDir: '../../packages/pixifact-cli/editor',
         emptyOutDir: true,
-        rollupOptions: {
+        rolldownOptions: {
             input: {
                 editor: new URL('./apps/editor/index.html', import.meta.url).pathname,
                 capture: new URL('./apps/editor/capture.html', import.meta.url).pathname,

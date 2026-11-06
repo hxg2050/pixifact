@@ -4,7 +4,7 @@ import type { Plugin } from 'vite';
 const platformModule = 'pixifact:three-platform';
 const virtualPlatform = '\0' + platformModule;
 
-/** 与 pixifact() 一起注册，小游戏端局部适配 Three r186 资源加载。 */
+/** 与 pixifact() 一起注册，小游戏端局部适配 Three r187 资源加载。 */
 export function three(): Plugin {
     let platform: PixifactPlatform;
     return {

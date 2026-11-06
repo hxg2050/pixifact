@@ -5,6 +5,7 @@ const pixifactSrc = new URL('./packages/pixifact/src', import.meta.url).pathname
 
 export default defineConfig({
     plugins: [vue()],
+    oxc: { decorator: { legacy: true } },
     resolve: {
         alias: [
             {

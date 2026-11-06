@@ -275,6 +275,8 @@ skills/                         本仓库维护的 Codex skills
 
 ## 验证
 
+仓库维护使用 Bun 1.4.4 与 Node.js 24，与发布 CI 保持一致。Vite 自定义构建配置使用 `build.rolldownOptions`。
+
 优先运行最小相关验证。
 
 ```bash

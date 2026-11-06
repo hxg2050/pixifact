@@ -34,7 +34,7 @@ bun run test
 
 编辑器相关改动：
 
-当前工具链固定为 `typescript@7.1.0-beta` 与 `@vue/content-mapper@4.0.0-alpha.3`，均为预发布版本；Vue runtime 仍为 3.5。仓库和 CI 使用 Bun 1.3.13、Node.js 24。Editor 直接通过 `tsc --runExternalCode` 加载 Vue content mapper，不再使用 `vue-tsc` 或 TypeScript 桥接包。mapper 的选项放在 `apps/editor/tsconfig.json` 的顶层 `contentMappers[].options`。
+当前工具链固定为 `typescript@7.1.0-beta` 与 `@vue/content-mapper@4.0.0-alpha.3`，均为预发布版本；Vue runtime 仍为 3.5。仓库和 CI 使用 Bun 1.4.4、Node.js 24。Editor 直接通过 `tsc --runExternalCode` 加载 Vue content mapper，不再使用 `vue-tsc` 或 TypeScript 桥接包。mapper 的选项放在 `apps/editor/tsconfig.json` 的顶层 `contentMappers[].options`。
 
 ```bash
 bun run editor:typecheck
@@ -42,6 +42,8 @@ bun run editor:frontend:build
 ```
 
 `editor-vue-ui.test.ts` 会运行真实的原生 TypeScript CLI：正确的 Vue 模板和组件 props 应通过，错误的组件 prop 与模板表达式必须报告原 `.vue` 文件中的位置。`unified-vite-platform.test.ts` 同时检查分包包装不捕获业务变量，以及合并后的 sourcemap 能映射回原始入口行列。
+
+测试使用 Vitest 5 / Happy DOM 21。Scene 使用 TypeScript 的 `experimentalDecorators` 语义；测试执行器通过 `oxc.decorator.legacy` 显式选择该语义，构建测试的合成游戏项目也必须像真实模板一样声明装饰器配置，避免产物残留未转换的 `@scene()`。
 
 Scene 脚本契约提取和内置契约读取直接使用 `typescript/async`，调用方必须 `await`；每批源码共用一个 API 实例，解析租约和原生进程都在 `finally` 释放。不要在 Bun CLI 中改用依赖 Node 私有管道句柄的同步 API。
 

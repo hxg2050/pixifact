@@ -11,12 +11,12 @@
     "validate": "pixifact validate --mode production --project-root ."
   },
   "dependencies": {
-    "pixi.js": "8.18.1",
+    "pixi.js": "8.22.0",
     "pixifact": "^0.20.1"
   },
   "devDependencies": {
     "pixifact-cli": "^0.20.1",
     "typescript": "7.1.0-beta",
-    "vite": "^8.0.10"
+    "vite": "^8.3.6"
   }
 }

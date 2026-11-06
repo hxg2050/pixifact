@@ -437,22 +437,16 @@ function miniGameBuildConfig(
         build: {
             assetsInlineLimit: 0,
             modulePreload: false,
-            rollupOptions: {
-                ...config.build?.rollupOptions,
+            rolldownOptions: {
+                ...config.build?.rolldownOptions,
                 ...(hasCodePackages ? {
                     preserveEntrySignatures: 'strict' as const,
-                    // Rolldown's cross-chunk constant inlining crashes when Scene
-                    // registration and Pixi's async Application imports share CJS chunks.
-                    optimization: {
-                        ...config.build?.rollupOptions?.optimization,
-                        inlineConst: false,
-                    },
                 } : {}),
-                input: config.build?.rollupOptions?.input ?? path.join(projectRoot, 'src/main.ts'),
+                input: config.build?.rolldownOptions?.input ?? path.join(projectRoot, 'src/main.ts'),
                 output: {
-                    ...(Array.isArray(config.build?.rollupOptions?.output)
+                    ...(Array.isArray(config.build?.rolldownOptions?.output)
                         ? {}
-                        : config.build?.rollupOptions?.output),
+                        : config.build?.rolldownOptions?.output),
                     banner: [
                         'var Intl=globalThis.Intl||{};',
                         `var navigator=globalThis.navigator||(globalThis.navigator={gpu:null,userAgent:${JSON.stringify(descriptor.userAgent)}});`,

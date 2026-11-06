@@ -10,8 +10,8 @@
 ## 安装和构建
 
 ```bash
-bun add @pixifact/three three@0.186.1
-bun add -d @types/three@0.186.0
+bun add @pixifact/three three@0.187.0
+bun add -d @types/three@0.187.0
 ```
 
 继续使用现有 `pixifact()`、Vite mode 与平台包：
@@ -29,7 +29,7 @@ export default defineConfig({
 });
 ```
 
-`VITE_PLATFORM=web/wechat/douyin` 的选择方式、`pixifact validate/build/dev --mode <mode>` 与原有出包流程相同。微信和抖音分别安装对应的 `@pixifact/platform-*` 包。小游戏适配基于 Three r186 源码 loader，peer 版本限制为 `>=0.186.1 <0.187.0`；PixiJS 使用 `>=8.18.1 <9`。
+`VITE_PLATFORM=web/wechat/douyin` 的选择方式、`pixifact validate/build/dev --mode <mode>` 与原有出包流程相同。微信和抖音分别安装对应的 `@pixifact/platform-*` 包。小游戏适配基于 Three r187 源码 loader，peer 版本限制为 `>=0.187.0 <0.188.0`；PixiJS 使用 `>=8.22.0 <9`。Three r187 的 WebGLRenderer 使用 `WeakRef` 与 `FinalizationRegistry`，目标小游戏 JavaScript 引擎也需支持这两个原生能力。
 
 ## 创建 3D 世界
 

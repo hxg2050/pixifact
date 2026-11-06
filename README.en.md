@@ -190,6 +190,8 @@ The root `pixifact` entry exports project config helpers, runtime extensions, an
 
 ## Verification
 
+Repository development uses Bun 1.4.4 and Node.js 24, matching release CI. Configure Vite builds through `build.rolldownOptions`.
+
 Run the smallest relevant check first.
 
 ```bash

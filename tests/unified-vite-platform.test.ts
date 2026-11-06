@@ -6,7 +6,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { createContext, runInContext } from 'node:vm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { build, type Rollup } from 'vite';
+import { build, type Rolldown } from 'vite';
 import {
     loadPixifactEnv,
     pixifact,
@@ -22,6 +22,9 @@ const execFileAsync = promisify(execFile);
 async function createProject() {
     const root = await mkdtemp(path.join(repositoryRoot, '.pixifact-vite-platform-'));
     roots.push(root);
+    await writeFile(path.join(root, 'tsconfig.json'), JSON.stringify({
+        compilerOptions: { experimentalDecorators: true, useDefineForClassFields: true },
+    }));
     await mkdir(path.join(root, 'src'), { recursive: true });
     await mkdir(path.join(root, 'resources', 'local'), { recursive: true });
     await mkdir(path.join(root, 'resources', 'remote'), { recursive: true });
@@ -382,9 +385,9 @@ describe('unified Vite platform build', () => {
             ],
             resolve: { alias: aliases() },
             build: { watch: {}, sourcemap: true, minify: false },
-        }) as Rollup.RollupWatcher;
+        }) as Rolldown.RolldownWatcher;
         const ended = () => new Promise<void>((resolve, reject) => {
-            const listener = (event: Rollup.RollupWatcherEvent) => {
+            const listener = (event: Rolldown.RolldownWatcherEvent) => {
                 if (event.code === 'END' || event.code === 'ERROR') {
                     watcher.off('event', listener);
                     if (event.code === 'ERROR') reject(event.error);
@@ -547,6 +550,13 @@ describe('unified Vite platform build', () => {
                 minify: false,
                 outDir: 'custom-output',
                 sourcemap: true,
+                rolldownOptions: {
+                    output: {
+                        intro: 'globalThis.userBuildMarker = true;',
+                        entryFileNames: 'custom-user-entry.js',
+                        format: 'es',
+                    },
+                },
             },
         });
 
@@ -557,6 +567,7 @@ describe('unified Vite platform build', () => {
             .map((file) => path.relative(path.join(root, 'custom-output'), file).replaceAll(path.sep, '/'));
         expect(files).toContain('game.js');
         expect(files).toContain('game.js.map');
+        expect(await readFile(path.join(root, 'custom-output/game.js'), 'utf8')).toContain('userBuildMarker');
         expect(files).not.toContain('index.html');
         expect(files.filter((file) => !file.includes('/') && file.endsWith('.js'))).toEqual(['game.js']);
     }, 30_000);
@@ -575,7 +586,7 @@ describe('unified Vite platform build', () => {
             ],
             resolve: { alias: aliases() },
             build: { watch: {} },
-        }) as Rollup.RollupWatcher;
+        }) as Rolldown.RolldownWatcher;
         const initialBuildEnded = new Promise<void>((resolve, reject) => {
             watcher.on('event', (event) => {
                 if (event.code === 'END') resolve();

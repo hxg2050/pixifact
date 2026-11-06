@@ -7,8 +7,8 @@ Upstream: [Docs](./index.md)
 `@pixifact/three` renders a native Three world beneath Pixifact / PixiJS UI on the same WebGL2 canvas and Application ticker. It stays out of projects that do not import it.
 
 ```bash
-bun add @pixifact/three three@0.186.1
-bun add -d @types/three@0.186.0
+bun add @pixifact/three three@0.187.0
+bun add -d @types/three@0.187.0
 ```
 
 Register the optional Vite plugin alongside Pixifact:
@@ -48,6 +48,6 @@ Web, WeChat and Douyin keep the same `pixifact build --mode <mode>` commands and
 
 For Web development Runtime screenshots, pass `captureScreenshot: layer.captureScreenshot` to `registerPixiRuntime`. The screenshot includes the full 3D + UI frame at logical screen dimensions. Runtime trees and Editor previews continue to describe 2D Pixi content; `.scene` does not gain 3D object tags.
 
-The initial Mini Game loader integration targets Three r186 (`>=0.186.1 <0.187.0`) and PixiJS `>=8.18.1 <9`, and requires WebGL2. WASM, Draco/KTX2 decoders, and DOM/Worker-specific addons are outside this release. Native device GPU validation remains a separate acceptance step.
+The Mini Game loader integration targets Three r187 (`>=0.187.0 <0.188.0`) and PixiJS `>=8.22.0 <9`, and requires WebGL2. Three r187 WebGLRenderer also requires native `WeakRef` and `FinalizationRegistry` support in the target Mini Game JavaScript engine. WASM, Draco/KTX2 decoders, and DOM/Worker-specific addons are outside this release. Native device GPU validation remains a separate acceptance step.
 
 See the [working three-platform sample](../../sample-projects/three-demo/README.md) and [detailed Chinese guide](../zh/three.md).

@@ -2,6 +2,35 @@
 
 后续已实施的 [手动保存](./editor-manual-save.md) 与 [多 Scene 标签](./editor-multi-scene-tabs.md) 决策覆盖下文的首版单 Scene、自动保存约束；下方进度记录保留当时的实现历史。
 
+## 2026-11-07：第三方依赖升级
+
+Goal：将构建、Editor、渲染、测试和发布工具升级到当前版本，保留刚完成的 TypeScript / Vue mapper 路线，完成实际三端与仓库外安装验收。
+
+Decisions：固定 TypeScript 7.1.0-beta 和 Vue content mapper 4.0.0-alpha.3；分批升级 Vite 8.3.6、Vue 3.5.45、Pinia 4.1.0、Reka 2.11.0、Playwright 1.65.0 等 Editor / 构建依赖，PixiJS 8.22.0 与 Three r187，再迁移 Vitest 5.1.0、Happy DOM 21.0.4、magic-string 1.4.5、Changesets 3.0.3。仓库、模板和 CI 的 Bun 对齐 1.4.4，Node 类型对齐 CI 的 Node 24；本机验证使用已安装的 Node 24.21.0。所有调用方直接迁移，不新增旧版本兼容层或 fallback。
+
+Non-Goals：更改 Scene 格式、添加产品功能、调整 TS / mapper 的预发布版本、发布 npm 包或创建 release tag。
+
+Public API / User-Facing Behavior：生成项目使用新版依赖；Three 插件要求 r187。现有 Scene、Editor、分包、资源加载和 Web / 微信 / 抖音出包行为由回归验收保持。
+
+Implementation Scope：依赖声明与锁文件、脚手架及示例、CI / 工具链说明、新依赖引起的必要 API 迁移及既有测试中的真实回归覆盖。Vite 配置直接使用 rolldownOptions 和 Rolldown 类型，移除旧 Rollup 别名；在新版 Rolldown 下取消旧的 inlineConst: false 绕行设置，明确 Vite peer 为 >=8.3.6 <9。
+
+Test Plan：以 b0fa7da 已通过的 32 文件 / 452 项和完整 release:check 为基线；分批执行最小 Editor / CLI / 渲染 / 分包检查，记录实际失败再迁移。验证真实 Chrome 中 2D / 3D 合成、截图、原生 TS 与 Vue 类型检查、三端构建、sourcemap、Changesets 只读状态、六包内容、仓库外模板和安装矩阵。最终执行 frozen-lockfile、完整 release:check、diff 检查并仅提交本轮 tracked 文件。
+
+Verification：升级前工作区干净；已核对 npm 官方版本及 Vitest / Three / Changesets 迁移资料。基线验证复用上一节最终验收。第一批 Editor 类型检查、前端构建和 3 文件 / 141 项通过。渲染升级后分包 VM 测试 4 项 Red：合成 fixture 缺少显式 experimentalDecorators，产物保留了未转换的 @scene()；fixture 对齐实际项目配置后，平台 / Three 8 文件 / 39 项和 runtime 构建通过。真实 Chrome 156 在 2 倍像素比下完成 3D + UI 合成、UI 点击屏蔽世界拾取、拖动相机、模型拾取、800×600 / 640×480 resize 和 CLI 合成截图，页面错误为零。测试工具升级后首次全量 31 文件 / 355 项通过，Scene compiler suite 因装饰器未转换而失败；测试执行器显式指定既有 TypeScript 装饰器语义后，该文件 97 项通过。
+
+Progress：
+- [x] 核对规范、依赖目标、官方迁移说明和环境。
+- [x] 构建 / Editor 依赖与 Bun / Node 类型升级及验证。
+- [x] 渲染依赖升级、实际 WebGL 与三端验收。
+- [x] 测试 / 发布工具升级、全量验证、文档与提交。
+
+Resume Protocol：先读本节、检查 git status；从 Resume Notes 的最小失败项继续。
+
+Resume Notes：
+- Done：依赖与锁文件、模板 / 示例、Bun / CI、Three 版本约束和原生 WeakRef / FinalizationRegistry 要求已同步；141 项 Editor / CLI、39 项平台 / Three、97 项 Scene 和真实 Chrome 合成验收通过。
+- Current State：两轮完整 release:check 均通过 32 文件 / 452 项、Editor 类型检查、全部构建、六包内容、仓库外两个模板和 Web / 微信 / 抖音的 2D / Three 安装矩阵；最终一轮包含 Rolldown API 迁移和取消旧 inlineConst 设置。Changesets 3 在带 Bun lockfile 的隔离 workspace 中验证六包统一升版与模板同步通过；无 changeset 的 version 明确退出 1，本仓库未升版。三个示例原生 TS 类型检查、最终 frozen-lockfile、真实 Scene 截图和 diff 检查通过。工作区仅含本轮 tracked 变动并随本节提交；小游戏真机 GPU 与其 JS 引擎能力仍需设备验收，不能由构建 / VM / Chrome 测试替代。
+- Next：本轮升级完成，未创建 release tag 或发布 npm；后续发布按独立任务执行。
+
 ## 2026-11-07：TypeScript 7.1 与 Vue content mapper
 
 Goal：框架、CLI、示例与脚手架直接使用 TypeScript 7.1 官方 API，Editor 使用 Vue content mapper 类型检查。

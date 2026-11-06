@@ -8,7 +8,7 @@
     "apps/*",
     "sample-projects/*"
   ],
-  "packageManager": "bun@1.3.13",
+  "packageManager": "bun@1.4.4",
   "type": "module",
   "files": [
     "skills/",
@@ -46,23 +46,23 @@
     "test:watch": "bunx --no-install vitest"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.31.0",
-    "@types/bun": "^1.3.14",
-    "@types/three": "0.186.0",
-    "@vitejs/plugin-vue": "^6.0.8",
+    "@changesets/cli": "^3.0.3",
+    "@types/bun": "^1.4.4",
+    "@types/three": "0.187.0",
+    "@vitejs/plugin-vue": "^6.0.10",
     "@vue/content-mapper": "4.0.0-alpha.3",
-    "@vue/test-utils": "^2.4.11",
-    "happy-dom": "^20.9.0",
-    "pixi.js": "8.18.1",
-    "three": "0.186.1",
+    "@vue/test-utils": "^2.5.1",
+    "happy-dom": "^21.0.4",
+    "pixi.js": "8.22.0",
+    "three": "0.187.0",
     "typescript": "7.1.0-beta",
-    "vite": "^8.0.10",
-    "vitest": "^4.1.5"
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
   },
   "dependencies": {
     "lucide-vue-next": "^1.0.0",
-    "pinia": "^4.0.2",
-    "reka-ui": "^2.10.1",
-    "vue": "^3.5.40"
+    "pinia": "^4.1.0",
+    "reka-ui": "^2.11.0",
+    "vue": "^3.5.45"
   }
 }

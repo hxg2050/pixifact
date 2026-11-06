@@ -50,13 +50,13 @@ describe('create-pixifact scaffold', () => {
                 validate: 'pixifact validate --mode production --project-root .',
             },
             dependencies: {
-                'pixi.js': '8.18.1',
+                'pixi.js': '8.22.0',
                 pixifact: `^${pixifactPackage.version}`,
             },
             devDependencies: {
                 'pixifact-cli': `^${pixifactCliPackage.version}`,
                 typescript: '7.1.0-beta',
-                vite: '^8.0.10',
+                vite: '^8.3.6',
             },
         });
         const viteConfig = await readProjectFile(projectRoot, 'vite.config.ts');

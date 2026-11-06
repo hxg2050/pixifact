@@ -3,8 +3,8 @@
 Pixifact 可选 Three.js 插件。Three 绘制 3D 世界，Pixifact / PixiJS 绘制 2D UI，共用一个 WebGL2 Canvas 和 Application ticker。
 
 ```bash
-bun add @pixifact/three three@0.186.1
-bun add -d @types/three@0.186.0
+bun add @pixifact/three three@0.187.0
+bun add -d @types/three@0.187.0
 ```
 
 在现有 Vite 配置中注册：
@@ -43,6 +43,6 @@ export function startGame(app: Application) {
 - 普通 glTF/GLB、外部纹理和内嵌图片支持小游戏资源通道及资源分包。资源 URL 可从 `Assets.resolver.resolve(alias).src` 获取。
 - Web 开发 Runtime 注册时传入 `captureScreenshot: layer.captureScreenshot`，截图包含 3D 和 UI。
 - `layer.destroy()` 释放插件 renderer 和输入，恢复 Pixi 绘制；共享 Canvas/context 保留。控件、模型 geometry/material/texture 按 Three 原生规则 dispose。
-- 需要 WebGL2；首版小游戏 loader 适配 Three r186。WASM、Draco/KTX2、3D 可视化编辑不在此版本范围内。
+- 需要 WebGL2 和原生 `WeakRef` / `FinalizationRegistry`；小游戏 loader 适配 Three r187。WASM、Draco/KTX2、3D 可视化编辑不在此版本范围内。
 
 [完整接入文档](https://github.com/hxg2050/pixifact/blob/main/docs/zh/three.md) · [三端示例](https://github.com/hxg2050/pixifact/tree/main/sample-projects/three-demo)

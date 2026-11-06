@@ -5,7 +5,7 @@ import {
     createServer,
     resolveConfig,
     type ResolvedServerUrls,
-    type Rollup,
+    type Rolldown,
 } from 'vite';
 import {
     parsePixifactProjectConfig,
@@ -155,7 +155,7 @@ export async function devPixifactTarget(
         plugins: [pixifactBuildReporter(validation.platform, (report) => {
             completedReport = report;
         })],
-    }) as Rollup.RollupWatcher;
+    }) as Rolldown.RolldownWatcher;
     watcher.on('event', (event) => {
         if (event.code === 'END' && completedReport) {
             const report = completedReport;

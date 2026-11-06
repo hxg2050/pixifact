@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createContext, runInContext } from 'node:vm';
 import { afterEach, describe, expect, it } from 'vitest';
-import { build, type Rollup } from 'vite';
+import { build, type Rolldown } from 'vite';
 import { pixifact } from 'pixifact/compiler-node';
 import { three } from '../packages/three/src/vite';
 
@@ -42,6 +42,9 @@ function glb() {
 async function fixture() {
     const root = await mkdtemp(path.join(repository, '.pixifact-three-test-'));
     roots.push(root);
+    await writeFile(path.join(root, 'tsconfig.json'), JSON.stringify({
+        compilerOptions: { experimentalDecorators: true, useDefineForClassFields: true },
+    }));
     await mkdir(path.join(root, 'src/scenes'), { recursive: true });
     await mkdir(path.join(root, 'resources/models'), { recursive: true });
     await writeFile(path.join(root, 'pixifact.project.json'), JSON.stringify({
@@ -82,7 +85,7 @@ export function loadModel(api, url) {
 }
 
 async function buildFixture(root: string, mode: string, codePackage = true) {
-    const chunks: Rollup.OutputChunk[] = [];
+    const chunks: Rolldown.OutputChunk[] = [];
     const source = path.join(repository, 'packages/pixifact/src');
     const threeSource = path.join(repository, 'packages/three/src');
     await build({

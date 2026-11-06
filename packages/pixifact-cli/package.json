@@ -2,7 +2,7 @@
   "name": "pixifact-cli",
   "version": "0.20.1",
   "description": "Pixifact Scene 自动化 CLI。",
-  "packageManager": "bun@1.3.13",
+  "packageManager": "bun@1.4.4",
   "type": "module",
   "bin": {
     "pixifact": "src/pixifact-cli.ts"
@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "pixifact": "^0.20.1",
-    "playwright": "1.58.2",
-    "vite": "^8.0.10"
+    "playwright": "1.65.0",
+    "vite": "^8.3.6"
   }
 }
