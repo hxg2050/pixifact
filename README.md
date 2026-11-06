@@ -27,6 +27,7 @@ Pixifact 当前发布包：
 - `pixifact`：runtime 扩展、项目配置和 compiler API。
 - `@pixifact/platform-wechat`：按需安装的微信小游戏 PixiJS adapter。
 - `@pixifact/platform-douyin`：按需安装的抖音小游戏 PixiJS adapter。
+- `@pixifact/three`：按需安装的 Three.js 3D 世界与 Pixifact UI 合成插件。
 - `pixifact-cli`：Bun-first Scene 自动化 CLI。
 - `create-pixifact`：Bun-first 项目脚手架。
 

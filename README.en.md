@@ -27,6 +27,7 @@ The current Pixifact npm packages are:
 - `pixifact`: runtime extensions, project config, and compiler APIs.
 - `@pixifact/platform-wechat`: optional WeChat Mini Game PixiJS adapter.
 - `@pixifact/platform-douyin`: optional Douyin Mini Game PixiJS adapter.
+- `@pixifact/three`: optional Three.js world and Pixifact UI composition plugin.
 - `pixifact-cli`: Bun-first Scene automation CLI.
 - `create-pixifact`: Bun-first project scaffold.
 

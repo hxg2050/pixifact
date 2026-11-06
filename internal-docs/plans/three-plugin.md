@@ -52,7 +52,10 @@ WASM、物理引擎、Draco/KTX2 解码器、3D Scene schema 或可视化 3D 编
 - GPU 冒烟发现并修复 Pixi 初始化后的 premultiply unpack 状态影响 Three 构造 texImage3D；创建 Three 前先调用 Pixi resetState。
 - 示例 Web Runtime 实际截图 800×600，包含 Three 模型和 Scene HUD。点击 HUD 暂停按钮后 `paused:true`，camera 仍为 `[3,2,5]`。
 - 示例微信产物约主包 591 KB / game 657 KB / models 1.5 KB，抖音约主包 601 KB / game 657 KB；引擎模块只位于游戏代码分包。数值为本次本地构建观测，不作为预算承诺。
-- `bun install --frozen-lockfile` / `git diff --check` 通过。小游戏设备 GPU 未验收；未发布 npm。
+- `bun install --frozen-lockfile` / `git diff --check` 通过。小游戏设备 GPU 未验收。
+- `0.20.0` [发布 CI](https://github.com/hxg2050/pixifact/actions/runs/42186682425) 完成 32 个文件 / 443 项测试、全部构建、六包 tarball 和仓库外安装验收。Three 首发采用 npm 网页认证，产物 shasum 与 CI 一致；现有五包由 Trusted Publishing 发布。同一 workflow 重跑成功。
+- npm registry 已确认六包目标版本和 `latest` 均为 `0.20.0`；[GitHub Release](https://github.com/hxg2050/pixifact/releases/tag/v0.20.0) 已发布。
+- 新包 Trusted Publisher 已保存：GitHub Actions、`hxg2050/pixifact`、`publish.yml`、Environment 留空、允许 `npm publish`。用户完成安全密钥验证后，网页显示添加成功并列出连接；状态 Pending validation，需在 `2026-11-08 08:43 UTC` 前首次通过 CI 发布，否则下次发布前重新添加。
 
 ## Progress
 
@@ -62,7 +65,9 @@ WASM、物理引擎、Draco/KTX2 解码器、3D Scene schema 或可视化 3D 编
 - [x] 实现与示例。
 - [x] 验证与文档；完成后按仓库规则提交。
 - [x] 生成六包 `0.20.0`、更新 changelog 和脚手架版本；版本一致性、frozen lockfile、diff 检查通过。
-- [ ] 发布六包、配置新包 Trusted Publisher 并核对发布结果。
+- [x] 发布六包并核对 npm registry、CI 和 GitHub Release。
+- [x] 新包 Trusted Publisher 网页配置与保存结果核对。
+- 首次 OIDC 发布验证随下一版本进行；发布前检查未验证配置的有效期。
 
 ## Resume Protocol
 
@@ -72,11 +77,10 @@ WASM、物理引擎、Draco/KTX2 解码器、3D Scene schema 或可视化 3D 编
 
 Last updated: 2026-11-06
 
-Done: 插件、Vite 资源适配、完整截图、小游戏 resize、示例、中英文文档、发布清单和测试均完成，验证见上。
+Done: 插件、Vite 资源适配、完整截图、小游戏 resize、示例、中英文文档、测试和六包 `0.20.0` 发布完成，验证见上。
 
-Current State: 功能与六包 `0.20.0` 版本准备完成；用户已授权发布。现有五包通过 Trusted Publishing 发布；本机 npm 尚未登录，已启动网页登录供用户完成 `@pixifact/three` 首次发布认证。GitHub API 正常，Git HTTPS 连接需重试。WASM 与 3D Editor 保持 Non-Goals。
+Current State: 六包 `0.20.0` 发布完成，Three Trusted Publisher 已保存。新包首次发布的 npm 登录、发布认证和配置安全密钥验证均由用户完成；浏览器控制连接超时后，通过 Chrome 本地辅助功能接口核对表单、保存并确认网页成功结果。Git 通过系统 HTTP 代理正常推送。npm 新建 Trusted Publisher 需在 2 天内首次成功发布；本次 CI 跳过已手动发布的 Three，不能作为其 OIDC 验证。WASM 与 3D Editor 保持 Non-Goals。
 
 Next:
-1. 提交 `0.20.0`，推送 main/tag，由 CI 完整验证。
-2. 完成新包 npm 首次发布和 Trusted Publisher 配置，重跑 CI 并核对六包 registry / GitHub Release。
-3. 更新发布记录并提交；小游戏开发者工具/真机 GPU 验收仍由用户后续安排。
+1. 下一版本发布前检查 Three 的未验证 Trusted Publisher 是否过期，必要时重建，并通过 CI 验证；当前期限 `2026-11-08 08:43 UTC`。
+2. 小游戏开发者工具/真机 GPU 验收或下游游戏接入由用户后续安排。
