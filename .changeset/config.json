@@ -8,7 +8,8 @@
       "pixifact-cli",
       "create-pixifact",
       "@pixifact/platform-wechat",
-      "@pixifact/platform-douyin"
+      "@pixifact/platform-douyin",
+      "@pixifact/three"
     ]
   ],
   "linked": [],

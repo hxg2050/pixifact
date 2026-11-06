@@ -14,7 +14,7 @@ class MiniGameResponseHeaders {
 
 type MiniGameResponseBody = ArrayBuffer | string;
 
-function decodeUtf8(buffer: ArrayBuffer) {
+export function decodeUtf8(buffer: ArrayBuffer) {
     const bytes = new Uint8Array(buffer);
     let output = '';
     for (let index = 0; index < bytes.length;) {
@@ -39,7 +39,7 @@ function decodeUtf8(buffer: ArrayBuffer) {
     return output;
 }
 
-function encodeUtf8(value: string) {
+export function encodeUtf8(value: string) {
     const bytes: number[] = [];
     for (const character of value) {
         const codePoint = character.codePointAt(0)!;

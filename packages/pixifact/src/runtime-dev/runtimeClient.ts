@@ -31,6 +31,8 @@ type RuntimeApplication = Pick<Application, 'canvas' | 'renderer' | 'screen' | '
 
 export interface RegisterPixiRuntimeOptions {
     getState?: () => RuntimeJsonValue;
+    /** 为共享 Canvas 的渲染插件提供完整合成截图。 */
+    captureScreenshot?: () => Pick<RuntimeScreenshotResult, 'width' | 'height' | 'dataUrl'> | Promise<Pick<RuntimeScreenshotResult, 'width' | 'height' | 'dataUrl'>>;
 }
 
 export interface PixifactRuntimeHotContext {
@@ -369,6 +371,7 @@ export function createPixifactRuntimeClient(options: RuntimeClientOptions) {
     const logs = createRuntimeLogCapture(options.console, options.window, now);
     let app: RuntimeApplication | undefined;
     let getState: (() => RuntimeJsonValue) | undefined;
+    let captureComposite: RegisterPixiRuntimeOptions['captureScreenshot'];
 
     function descriptor(): RuntimePageDescriptor {
         return {
@@ -389,6 +392,7 @@ export function createPixifactRuntimeClient(options: RuntimeClientOptions) {
     }
 
     async function captureScreenshot(currentApp: RuntimeApplication): Promise<RuntimeScreenshotResult> {
+        if (captureComposite) return { ...await captureComposite(), runtimeId: options.runtimeId };
         const width = Math.max(1, Math.floor(currentApp.screen.width));
         const height = Math.max(1, Math.floor(currentApp.screen.height));
         const target = RenderTexture.create({ width, height, resolution: 1 });
@@ -488,6 +492,7 @@ export function createPixifactRuntimeClient(options: RuntimeClientOptions) {
             if (app) throw new Error('This page already has a registered PixiJS Application.');
             app = application;
             getState = registerOptions.getState;
+            captureComposite = registerOptions.captureScreenshot;
             announce();
         },
         handleRequest,

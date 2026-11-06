@@ -40,6 +40,12 @@
       ],
       "@pixifact/platform-douyin": [
         "packages/platform-douyin/src/index.ts"
+      ],
+      "@pixifact/three": [
+        "packages/three/src/index.ts"
+      ],
+      "@pixifact/three/vite": [
+        "packages/three/src/vite.ts"
       ]
     }
   },

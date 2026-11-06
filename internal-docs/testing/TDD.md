@@ -26,6 +26,8 @@
 | `tests/project-file-tree.test.ts` | 浏览器 Editor 项目树与 runtime preview | 浏览器文件读取、Scene binding、Pixi 节点布局和图片 parser |
 | `tests/project-config.test.ts` | project config service | `pixifact.project.json` 解析、默认值、path guard、resource pack 数据 |
 | `tests/unified-vite-platform.test.ts` | Vite 平台构建与代码分包 | 真实构建、CommonJS 产物执行、延迟加载、共享实例、重试、引用边界、sourcemap 与 watch |
+| `tests/three-runtime.test.ts` | 可选 Three / Pixi 共享 runtime | 渲染顺序、尺寸、销毁归属、真实 OrbitControls / Raycaster 和 UI 手势 |
+| `tests/three-resources.test.ts`、`tests/three-build.test.ts` | Three 资源与 Vite 三端构建 | 原生 transport、GLB 内嵌图片清理、真实三端构建与小游戏 CommonJS glTF/GLB 执行、2D 隔离 |
 | `tests/pixifact-cli.test.ts` | Pixifact CLI | summary、scene inspect/validate、Editor context 路由、path guard、旧 live 命令移除、exit code |
 | `tests/editor-session.test.ts` | Editor Host session / context | 单活动标签页接管、context auth、revision 一致性、session discovery |
 | `tests/editor-context.test.ts` | Editor context / selection | Scene 与节点 context、Compiler locator、外部 revision 选择重定位 |
@@ -171,6 +173,7 @@ bunx --no-install vitest run tests/pixifact-cli.test.ts tests/editor-session.tes
 必须先覆盖：
 
 - Runtime client 使用当前 `app.stage`、`app.screen` 逻辑尺寸、`resolution: 1` 和 renderer background 生成 PNG data URL。
+- 注册 captureScreenshot 回调时使用插件的完整合成截图，保持 runtime id 与 Host PNG 验证协议。
 - Runtime Host 只接受专用 screenshot endpoint，并校验 runtime id、尺寸、PNG data URL 和 PNG 文件头。
 - Runtime Host 断连、超时或无效 PNG 时返回结构化失败，不返回部分图像。
 - CLI 的 `runtime screenshot` 默认写入项目根下 `.pixifact/runtime/frame.png`，显式 `--output` 可覆盖；两种路径都正确选择 runtime、创建父目录、写入 PNG，并在失败时不创建目标文件。

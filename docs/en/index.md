@@ -36,6 +36,7 @@ If you are maintaining this repository, start from [Internal Docs](../../interna
 | [Scene Objects](./scene-objects.md) | `.scene` object tags, common props, object-specific props, use cases, and examples |
 | [Agent Scene Authoring](./agent-scene-authoring.md) | Rules, contracts, and validation boundaries for external agents editing `.scene` directly |
 | [Agent Runtime](./runtime-agent.md) | Runtime setup, CLI, and boundaries for external agents observing and operating a Vite Web game |
+| [Three.js Plugin](./three.md) | Optional 3D world, 2D UI composition, input, resources, and three-platform builds |
 | [WeChat Mini Game Builds](./wechat-minigame.md) | WeChat Vite modes, optional platform package, Pixi Assets, CLI, and output boundary |
 | [Douyin Mini Game Builds](./douyin-minigame.md) | Douyin Vite modes, optional platform package, Pixi Assets, CLI, and output boundary |
 
@@ -46,6 +47,7 @@ If you are maintaining this repository, start from [Internal Docs](../../interna
 - `.scene` object tags, object props, and object usage guidance belong to [Scene Objects](./scene-objects.md).
 - Agent `.scene` editing workflow belongs to [Agent Scene Authoring](./agent-scene-authoring.md).
 - Live game observation and input workflow belongs to [Agent Runtime](./runtime-agent.md).
+- Three.js composition, input, and asset integration belong to [Three.js Plugin](./three.md).
 - WeChat Mini Game support, configuration, and build boundaries belong to [WeChat Mini Game Builds](./wechat-minigame.md).
 - Douyin Mini Game support, configuration, and build boundaries belong to [Douyin Mini Game Builds](./douyin-minigame.md).
 - Repository maintenance, testing, release, plans, and historical specs belong to [Internal Docs](../../internal-docs/index.md).

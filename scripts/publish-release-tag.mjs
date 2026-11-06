@@ -6,6 +6,7 @@ const packageFiles = [
     'packages/pixifact/package.json',
     'packages/platform-wechat/package.json',
     'packages/platform-douyin/package.json',
+    'packages/three/package.json',
     'packages/pixifact-cli/package.json',
     'packages/create-pixifact/package.json',
 ];

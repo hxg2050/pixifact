@@ -36,6 +36,7 @@
 | [Scene Objects](./scene-objects.md) | `.scene` 可写对象、通用属性、对象专属属性、适用场景和示例 |
 | [Agent Scene Authoring](./agent-scene-authoring.md) | 外部 Agent 直接编辑 `.scene` 的规则、契约和校验边界 |
 | [Agent Runtime](./runtime-agent.md) | 外部 Agent 观察和操作 Vite Web 真实游戏的 Runtime 接入、CLI 与边界 |
+| [Three.js 插件](./three.md) | 可选 3D 世界、2D UI 合成、输入、资源和三端分包 |
 | [微信小游戏构建](./wechat-minigame.md) | 微信 Vite mode、可选平台包、Pixi Assets、CLI 和产物边界 |
 | [抖音小游戏构建](./douyin-minigame.md) | 抖音 Vite mode、可选平台包、Pixi Assets、CLI 和产物边界 |
 
@@ -46,6 +47,7 @@
 - `.scene` 可写对象、对象属性和对象使用建议以 [Scene Objects](./scene-objects.md) 为准。
 - Agent 编辑 `.scene` 的流程以 [Agent Scene Authoring](./agent-scene-authoring.md) 为准。
 - Agent 观察和操作运行中游戏的流程以 [Agent Runtime](./runtime-agent.md) 为准。
+- Three.js 共享渲染、输入和资源适配以 [Three.js 插件](./three.md) 为准。
 - 微信小游戏支持矩阵、配置和构建边界以 [微信小游戏构建](./wechat-minigame.md) 为准。
 - 抖音小游戏支持矩阵、配置和构建边界以 [抖音小游戏构建](./douyin-minigame.md) 为准。
 - 仓库维护、测试、发布和历史规格以 [内部文档入口](../../internal-docs/index.md) 为准。

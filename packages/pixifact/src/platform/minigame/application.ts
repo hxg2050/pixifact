@@ -54,11 +54,18 @@ export async function createMiniGameApplication(
     const lifecycle = bindMiniGameLifecycle(api, app.ticker, {
         onHide: () => input.cancelAll(),
     });
+    const resize = (size: { windowWidth: number; windowHeight: number }) => {
+        runtime.width = size.windowWidth;
+        runtime.height = size.windowHeight;
+        app.renderer.resize(runtime.width, runtime.height);
+    };
+    api.onWindowResize?.(resize);
     let destroyed = false;
     const destroy = app.destroy.bind(app);
     app.destroy = ((...args: Parameters<Application['destroy']>) => {
         if (destroyed) return;
         destroyed = true;
+        api.offWindowResize?.(resize);
         lifecycle.dispose();
         input.dispose();
         destroy(...args);

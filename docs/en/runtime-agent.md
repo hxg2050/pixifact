@@ -40,6 +40,8 @@ if (import.meta.env.DEV) {
 
 `getState` is optional. Call only `registerPixiRuntime(app)` when no business state should be exposed.
 
+Rendering plugins that share the canvas may supply `captureScreenshot`, returning `{ width, height, dataUrl }` synchronously or asynchronously. The [Three.js plugin](./three.md) uses `captureScreenshot: layer.captureScreenshot` to capture the complete 3D + UI frame. Without this callback, screenshots use the Pixi stage path below.
+
 `getState` runs only for a `runtime state` request and must synchronously return JSON data. It can read closure or class-private state available through its normal JavaScript scope. Pixifact does not traverse the JavaScript heap or infer business meanings such as HP, inventory, or current level.
 
 ## CLI

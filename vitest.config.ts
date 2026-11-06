@@ -8,6 +8,14 @@ export default defineConfig({
     resolve: {
         alias: [
             {
+                find: '@pixifact/three/vite',
+                replacement: new URL('./packages/three/src/vite.ts', import.meta.url).pathname,
+            },
+            {
+                find: /^@pixifact\/three$/,
+                replacement: new URL('./packages/three/src/index.ts', import.meta.url).pathname,
+            },
+            {
                 find: '@pixifact/platform-wechat',
                 replacement: new URL('./packages/platform-wechat/src/index.ts', import.meta.url).pathname,
             },

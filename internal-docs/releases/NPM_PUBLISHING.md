@@ -1,14 +1,15 @@
 # npm Publishing
 
-Pixifact 发布五个公开 npm 包：
+Pixifact 发布清单包含六个公开 npm 包：
 
 - `pixifact`
 - `@pixifact/platform-wechat`
 - `@pixifact/platform-douyin`
+- `@pixifact/three`
 - `pixifact-cli`
 - `create-pixifact`
 
-发布顺序是 `pixifact` -> 两个平台包 -> `pixifact-cli` -> `create-pixifact`。仓库使用 Changesets 管版本和 changelog，使用 GitHub Actions Trusted Publishing 发布 npm 包。
+发布顺序是 `pixifact` -> 两个平台包 -> `@pixifact/three` -> `pixifact-cli` -> `create-pixifact`。仓库使用 Changesets 管版本和 changelog，使用 GitHub Actions Trusted Publishing 发布 npm 包。`@pixifact/three` 为新增可选包，尚未发布，首次发布按下述新包流程处理。
 
 ## 当前发布状态
 
@@ -39,7 +40,7 @@ npm Trusted Publishing 只能配置已经存在的包。首次发布新的公开
 bun run changeset
 ```
 
-按提示选择包和 semver 类型。当前五个发布包在 `.changeset/config.json` 中配置为 fixed group，因此会保持同版本发布：`pixifact`、`pixifact-cli`、`create-pixifact`、`@pixifact/platform-wechat` 和 `@pixifact/platform-douyin`。
+按提示选择包和 semver 类型。当前六个发布包在 `.changeset/config.json` 中配置为 fixed group，因此会保持同版本发布：`pixifact`、`pixifact-cli`、`create-pixifact`、`@pixifact/platform-wechat`、`@pixifact/platform-douyin` 和 `@pixifact/three`。
 
 ## 准备发布
 
@@ -52,7 +53,7 @@ bun run release:version
 这个命令会：
 
 - 执行 `changeset version`
-- 更新五个发布包版本
+- 更新六个发布包版本
 - 更新 `CHANGELOG.md`
 - 删除已消费的 changeset 文件
 - 同步 `packages/create-pixifact/templates/minimal/package.json` 和 `templates/game/package.json` 中的 `pixifact` / `pixifact-cli` 版本
@@ -94,9 +95,10 @@ git commit -m "Release vX.Y.Z"
 - `bun run build`
 - `bun run editor:frontend:build`
 - `packages/create-pixifact` build
-- 五个发布包的 `npm pack --dry-run --json`
+- 六个发布包的 `npm pack --dry-run --json`
 - 当前 `create-pixifact` tarball 在仓库外生成 Git 仓库和完整项目 skill；`pixifact` / `pixifact-cli` tarball 的安装、CLI、构建和 Editor 启动冒烟
-- 五个包的 npm Trusted Publishing
+- Three 示例使用六包 tarball 在仓库外安装，并构建 Web / 微信 / 抖音
+- 六个包的 npm Trusted Publishing（新包首次发布需先配置）
 
 ## 触发发布
 
@@ -106,7 +108,7 @@ git commit -m "Release vX.Y.Z"
 bun run release:publish
 ```
 
-脚本会读取五个发布包版本，确认版本一致，然后：
+脚本会读取六个发布包版本，确认版本一致，然后：
 
 - 创建 `vX.Y.Z` tag
 - 向当前 `main` 分支配置的 upstream remote push `main`

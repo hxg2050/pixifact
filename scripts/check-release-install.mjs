@@ -245,6 +245,7 @@ try {
     const wechatTarball = packPackage('packages/platform-wechat', artifactsRoot);
     const douyinTarball = packPackage('packages/platform-douyin', artifactsRoot);
     const scaffoldTarball = packPackage('packages/create-pixifact', artifactsRoot);
+    const threeTarball = packPackage('packages/three', artifactsRoot);
     const artifacts = {
         pixifact: pixifactTarball,
         cli: cliTarball,
@@ -261,6 +262,10 @@ try {
     if (await exists(path.join(projectRoot, 'node_modules', '@pixifact', 'platform-wechat'))
         || await exists(path.join(projectRoot, 'node_modules', '@pixifact', 'platform-douyin'))) {
         throw new Error('Web-only install unexpectedly contains a Mini Game platform package.');
+    }
+    if (await exists(path.join(projectRoot, 'node_modules', 'three'))
+        || await exists(path.join(projectRoot, 'node_modules', '@pixifact', 'three'))) {
+        throw new Error('2D-only install unexpectedly contains Three.js.');
     }
     run('bun', ['run', 'pixifact', '--help'], { cwd: projectRoot, silent: true });
     run('bun', ['run', 'pixifact', 'summary'], { cwd: projectRoot, silent: true });
@@ -282,6 +287,25 @@ try {
         if (platformNames.includes('douyin')) {
             await verifyMiniGameBuild(isolatedRoot, 'douyin', 'WeChatMiniGame');
         }
+    }
+
+    const threeRoot = path.join(temporaryRoot, 'three-demo');
+    await copyProject('sample-projects/three-demo', threeRoot);
+    const threeManifestPath = path.join(threeRoot, 'package.json');
+    const threeManifest = JSON.parse(await readFile(threeManifestPath, 'utf8'));
+    Object.assign(threeManifest.dependencies, {
+        pixifact: `file:${pixifactTarball}`,
+        '@pixifact/platform-wechat': `file:${wechatTarball}`,
+        '@pixifact/platform-douyin': `file:${douyinTarball}`,
+        '@pixifact/three': `file:${threeTarball}`,
+    });
+    threeManifest.devDependencies['pixifact-cli'] = `file:${cliTarball}`;
+    threeManifest.overrides = { pixifact: `file:${pixifactTarball}` };
+    await writeFile(threeManifestPath, `${JSON.stringify(threeManifest, null, 2)}\n`);
+    run('bun', ['install'], { cwd: threeRoot });
+    run('bun', ['run', 'pixifact', 'scene', 'validate', '--all'], { cwd: threeRoot, silent: true });
+    for (const mode of ['web', 'wechat', 'douyin']) {
+        run('bun', ['run', 'pixifact', 'build', '--mode', mode], { cwd: threeRoot });
     }
 
     console.log('Release install smoke passed.');

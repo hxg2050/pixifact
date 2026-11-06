@@ -7,6 +7,7 @@ const packageDirs = [
     'packages/pixifact',
     'packages/platform-wechat',
     'packages/platform-douyin',
+    'packages/three',
     'packages/pixifact-cli',
     'packages/create-pixifact',
 ];

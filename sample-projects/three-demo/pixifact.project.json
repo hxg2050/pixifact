@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "name": "Pixifact Three.js 示例",
+  "resolution": { "width": 800, "height": 600 },
+  "scenes": { "main": "src/scenes/Hud.scene" },
+  "resourcePacks": ["models"]
+}

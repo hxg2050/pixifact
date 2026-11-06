@@ -6,6 +6,7 @@ const packageFiles = {
     pixifactCli: 'packages/pixifact-cli/package.json',
     platformWechat: 'packages/platform-wechat/package.json',
     platformDouyin: 'packages/platform-douyin/package.json',
+    three: 'packages/three/package.json',
 };
 const templateFiles = ['minimal', 'game'].map((name) => `packages/create-pixifact/templates/${name}/package.json`);
 
@@ -21,6 +22,7 @@ const pixifactPackage = await readJson(packageFiles.pixifact);
 const pixifactCliPackage = await readJson(packageFiles.pixifactCli);
 const platformWechatPackage = await readJson(packageFiles.platformWechat);
 const platformDouyinPackage = await readJson(packageFiles.platformDouyin);
+const threePackage = await readJson(packageFiles.three);
 const nextPixifactMajor = Number(pixifactPackage.version.split('.')[0]) + 1;
 
 for (const templateFile of templateFiles) {
@@ -32,9 +34,11 @@ for (const templateFile of templateFiles) {
 pixifactCliPackage.dependencies.pixifact = `^${pixifactPackage.version}`;
 platformWechatPackage.peerDependencies.pixifact = `>=${pixifactPackage.version} <${nextPixifactMajor}`;
 platformDouyinPackage.peerDependencies.pixifact = `>=${pixifactPackage.version} <${nextPixifactMajor}`;
+threePackage.peerDependencies.pixifact = `>=${pixifactPackage.version} <${nextPixifactMajor}`;
 
 await writeJson(packageFiles.pixifactCli, pixifactCliPackage);
 await writeJson(packageFiles.platformWechat, platformWechatPackage);
 await writeJson(packageFiles.platformDouyin, platformDouyinPackage);
+await writeJson(packageFiles.three, threePackage);
 
 console.log(`Synced downstream manifests and platform peers to pixifact@^${pixifactPackage.version} and pixifact-cli@^${pixifactCliPackage.version}.`);

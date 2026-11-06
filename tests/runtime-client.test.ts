@@ -358,6 +358,23 @@ describe('Pixifact Runtime client', () => {
         });
     });
 
+    it('captures a registered composite frame without redrawing only the Pixi stage', async () => {
+        const { client } = createClient();
+        const captureScreenshot = vi.fn(async () => ({
+            width: 750,
+            height: 1334,
+            dataUrl: 'data:image/png;base64,iVBORw0KGgo=composite',
+        }));
+        client.register(createApplication(), { captureScreenshot });
+        await expect(client.handleRequest({ type: 'screenshot' })).resolves.toEqual({
+            runtimeId: 'runtime-test',
+            width: 750,
+            height: 1334,
+            dataUrl: 'data:image/png;base64,iVBORw0KGgo=composite',
+        });
+        expect(captureScreenshot).toHaveBeenCalledOnce();
+    });
+
     it('returns a structured HMR failure when getState cannot produce JSON', async () => {
         const circular: Record<string, unknown> = {};
         circular.self = circular;

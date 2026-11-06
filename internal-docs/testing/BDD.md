@@ -66,6 +66,30 @@ Scenario: User initializes and loads project resources
   And remote packs resolve to HTTPS without being emitted into a local build
 ```
 
+## 0.1 Optional Three.js
+
+### BDD-THREE-001 可选 3D 插件与跨平台构建
+
+```gherkin
+Scenario: A game attaches a Three world below Pixifact UI
+  Given a WebGL2 Application and the optional @pixifact/three package
+  When the game creates a Three layer and advances the Application ticker
+  Then Three and Pixi render once on the same context with UI preserved
+  And interactive UI owns gestures that start on it
+  And world gestures work with native OrbitControls and Raycaster
+  And resize, pause/resume, detach, and resource ownership follow the Application lifecycle
+  And Runtime screenshots include the full 3D and UI frame
+
+Scenario: The game builds through the existing Vite platform modes
+  Given Three is imported only inside the configured game code package
+  When Web, WeChat, or Douyin is built
+  Then Three stays inside the lazy game package on Mini Games
+  And native CommonJS output can load ordinary glTF, buffers, external and embedded images
+  And temporary embedded-image files are removed after decoding
+  And Web retains native Three loaders
+  And a 2D project does not include Three
+```
+
 ## 1. Agent Authoring
 
 ### BDD-AGENT-001 直接编辑 `.scene`

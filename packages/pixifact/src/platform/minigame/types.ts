@@ -90,6 +90,8 @@ export interface MiniGameApi {
     offHide?(callback: () => void): void;
     onShow(callback: () => void): void;
     offShow?(callback: () => void): void;
+    onWindowResize?(callback: (size: { windowWidth: number; windowHeight: number }) => void): void;
+    offWindowResize?(callback: (size: { windowWidth: number; windowHeight: number }) => void): void;
     onTouchStart(callback: (event: MiniGameTouchEvent) => void): void;
     offTouchStart?(callback: (event: MiniGameTouchEvent) => void): void;
     onTouchMove(callback: (event: MiniGameTouchEvent) => void): void;

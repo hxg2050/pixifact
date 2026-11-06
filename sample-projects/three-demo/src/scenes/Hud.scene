@@ -1,0 +1,7 @@
+<Scene name="Hud" width="800" height="600">
+  <Graphics id="panel" shape="roundRect" x="20" y="20" width="280" height="160" radius="12" fill="#26384c" />
+  <Text id="title" text="Three.js + Pixifact" x="36" y="34" fontSize="24" fontWeight="700" fill="#ffffff" />
+  <Text id="hint" text="拖动旋转 · 点击模型变色" x="36" y="72" fontSize="18" fill="#bfcede" />
+  <Graphics id="toggle" shape="roundRect" x="36" y="114" width="130" height="44" radius="8" fill="#e2b367" eventMode="static" cursor="pointer" />
+  <Text id="toggleText" text="暂停旋转" x="51" y="125" fontSize="19" fill="#172331" eventMode="none" />
+</Scene>

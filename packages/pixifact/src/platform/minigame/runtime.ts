@@ -124,19 +124,19 @@ function installEventTarget(target: MutableEventTarget, nativeTypes: Set<string>
     };
 }
 
-function installCanvasSurface(canvas: MiniGameCanvas, width: number, height: number) {
+function installCanvasSurface(canvas: MiniGameCanvas, viewport: { width: number; height: number }) {
     installEventTarget(canvas, new Set(['webglcontextlost', 'webglcontextrestored']));
     canvas.style ??= {};
     Object.defineProperty(canvas, 'isConnected', { configurable: true, value: true });
     Object.defineProperty(canvas, 'getBoundingClientRect', {
         configurable: true,
         value: () => ({
-            bottom: height,
-            height,
+            bottom: viewport.height,
+            height: viewport.height,
             left: 0,
-            right: width,
+            right: viewport.width,
             top: 0,
-            width,
+            width: viewport.width,
             x: 0,
             y: 0,
         }),
@@ -219,8 +219,9 @@ export function createMiniGameRuntime(api: MiniGameApi, userAgent: string): Mini
     const width = Math.max(1, Math.round(Number(info.windowWidth ?? info.screenWidth)));
     const height = Math.max(1, Math.round(Number(info.windowHeight ?? info.screenHeight)));
     const resolution = Math.min(2, Math.max(1, Number(info.pixelRatio ?? 1)));
-    installCanvasSurface(canvas, width, height);
+    const viewport = { width, height };
+    installCanvasSurface(canvas, viewport);
     installGlobals(api, canvas, userAgent);
     const { context, webGLVersion } = createContext(canvas);
-    return { canvas, context, height, resolution, userAgent, webGLVersion, width };
+    return Object.assign(viewport, { canvas, context, resolution, userAgent, webGLVersion });
 }

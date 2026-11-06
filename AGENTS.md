@@ -30,6 +30,7 @@ Pixifact 只专注提供 AI 可操作的 Scene 能力：inspect、edit、validat
 - `packages/pixifact/src/scene/`：Scene decorator、事件、slot、异步准备和跨平台资源运行时。
 - `packages/platform-wechat/`：可选微信小游戏 PixiJS adapter、输入、生命周期和资源访问。
 - `packages/platform-douyin/`：可选抖音小游戏 PixiJS adapter、输入、生命周期和资源访问。
+- `packages/three/`：可选 `@pixifact/three` 插件，共享 WebGL2 渲染、3D 输入、Three 资源与 Vite 适配。
 - `packages/pixifact/src/platform/minigame/`：两个小游戏平台包复用的内部公共 runtime。
 - `packages/pixifact/src/project/`：`pixifact.project.json` 解析、默认开发分辨率和项目摘要。
 - `packages/pixifact/src/compiler/`：compiler `.scene` 解析、校验、生成。

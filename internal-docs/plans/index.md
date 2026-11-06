@@ -28,6 +28,7 @@
 
 | 文档 | 负责什么 |
 | --- | --- |
+| [three-plugin.md](./three-plugin.md) | 可选 Three.js 插件、共享 WebGL2 渲染、输入、资源与三端出包 |
 | [game-starter-template.md](./game-starter-template.md) | 独立基础游戏模板、完整游戏流程与可直接替换 PNG 的基础 UI |
 | [release-v0.19.0.md](./release-v0.19.0.md) | 基础游戏模板、可替换 PNG 的基础 UI 和项目 skill 最佳实践的五包 `0.19.0` 发布 |
 | [editor-multi-scene-tabs.md](./editor-multi-scene-tabs.md) | 多 Scene 标签、拖动排序、右键批量关闭、未保存保护与细滚动条 |

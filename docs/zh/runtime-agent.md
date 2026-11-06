@@ -40,6 +40,8 @@ if (import.meta.env.DEV) {
 
 `getState` 可选。没有业务状态需要暴露时只调用 `registerPixiRuntime(app)`。
 
+共享 Canvas 的渲染插件可以额外提供 `captureScreenshot` 回调，返回 `{ width, height, dataUrl }`，支持异步结果。例如 [Three.js 插件](./three.md)使用 `captureScreenshot: layer.captureScreenshot` 捕获完整 3D + UI；未提供时继续按下述 Pixi stage 方式截图。
+
 `getState` 只在 CLI 请求 `runtime state` 时执行，必须同步返回 JSON 数据。回调可以读取其正常 JavaScript 作用域内的闭包或类私有状态；Pixifact 不遍历 JavaScript 堆，也不会自动识别 `hp`、背包或关卡等业务语义。
 
 ## CLI

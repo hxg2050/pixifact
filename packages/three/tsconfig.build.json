@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "pixifact/compiler-node": ["../pixifact/dist/compiler-node/index.d.ts"],
+      "pixifact/internal/minigame": ["../pixifact/dist/platform/minigame/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

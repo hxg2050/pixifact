@@ -20,7 +20,7 @@ describe('sample projects', () => {
     it('keeps the sample projects discoverable', async () => {
         const sampleProjectDirectories = await readdir(join(repoRoot, 'sample-projects'), { withFileTypes: true });
         expect(sampleProjectDirectories.filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort())
-            .toEqual(['star-game-demo', 'wechat-minigame-demo']);
+            .toEqual(['star-game-demo', 'three-demo', 'wechat-minigame-demo']);
     });
 
     it('keeps the playable Web sample as a Scene and script pair', async () => {

@@ -17,6 +17,7 @@ Pixifact focuses on one capability: AI-operable Scene authoring. Agent orchestra
 - [Agent Runtime](./docs/en/runtime-agent.md): how external agents observe and operate a running Vite Web game.
 - [WeChat Mini Game Builds](./docs/en/wechat-minigame.md): Vite modes, optional platform package, resource delivery, and build output.
 - [Douyin Mini Game Builds](./docs/en/douyin-minigame.md): Vite modes, optional platform package, resource delivery, and build output.
+- [Three.js Plugin](./docs/en/three.md): optional 3D world and Pixifact UI on one WebGL2 canvas, with the existing three-platform build flow.
 - [Internal Docs](./internal-docs/index.md): repository maintenance, testing, release, plans, and historical specs.
 
 ## npm Quick Start

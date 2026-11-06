@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => {
     class Application {
         readonly init = vi.fn(async () => undefined);
         readonly renderer = {
+            resize: vi.fn(),
             events: {
                 _onPointerDown: vi.fn(),
                 _onPointerMove: vi.fn(),
@@ -75,6 +76,27 @@ import { Application } from 'pixi.js';
 import { createMiniGameApplication } from '../packages/pixifact/src/platform/minigame/application';
 
 describe('Mini Game Application', () => {
+    it('resizes the shared render viewport on native window resize and removes the listener', async () => {
+        let resize!: (size: { windowWidth: number; windowHeight: number }) => void;
+        const offWindowResize = vi.fn();
+        const api = {
+            onWindowResize: (callback: typeof resize) => { resize = callback; },
+            offWindowResize,
+        } as unknown as MiniGameApi;
+        const app = await createMiniGameApplication(api, 'MiniGame', vi.fn(), () => ({ x: 0, y: 0 }));
+        resize({ windowWidth: 640, windowHeight: 360 });
+        expect(app.renderer.resize).toHaveBeenCalledWith(640, 360);
+        expect(mocks.runtime.width).toBe(640);
+        expect(mocks.runtime.height).toBe(360);
+        app.destroy();
+        expect(offWindowResize).toHaveBeenCalledWith(resize);
+        mocks.runtime.width = 360;
+        mocks.runtime.height = 640;
+        mocks.baseDestroy.mockClear();
+        mocks.input.dispose.mockClear();
+        mocks.lifecycle.dispose.mockClear();
+    });
+
     it('returns a Pixi Application, passes options through, and disposes bindings once', async () => {
         const api = {} as MiniGameApi;
         const fetchResource = vi.fn();
