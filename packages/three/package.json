@@ -1,12 +1,15 @@
 {
   "name": "@pixifact/three",
-  "version": "0.19.0",
+  "version": "0.20.0",
   "description": "Pixifact 可选 Three.js 3D 世界与 2D UI 合成插件。",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "files": ["dist/", "README.md"],
+  "files": [
+    "dist/",
+    "README.md"
+  ],
   "sideEffects": false,
   "repository": {
     "type": "git",
@@ -14,20 +17,37 @@
     "directory": "packages/three"
   },
   "exports": {
-    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "require": "./dist/index.js" },
-    "./vite": { "types": "./dist/vite.d.ts", "import": "./dist/vite.js", "require": "./dist/vite.js" },
-    "./internal/loaders": { "types": "./dist/nativeLoaders.d.ts", "import": "./dist/nativeLoaders.js" },
-    "./internal/resources": { "types": "./dist/nativeResources.d.ts", "import": "./dist/nativeResources.js" }
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.js",
+      "require": "./dist/vite.js"
+    },
+    "./internal/loaders": {
+      "types": "./dist/nativeLoaders.d.ts",
+      "import": "./dist/nativeLoaders.js"
+    },
+    "./internal/resources": {
+      "types": "./dist/nativeResources.d.ts",
+      "import": "./dist/nativeResources.js"
+    }
   },
   "scripts": {
     "build": "bun ../pixifact/scripts/clean-dist.mjs dist && bunx --no-install tsc -p tsconfig.build.json && bun ../pixifact/scripts/fix-dist-esm-imports.mjs dist"
   },
   "peerDependencies": {
-    "pixifact": ">=0.19.0 <1",
+    "pixifact": ">=0.20.0 <1",
     "pixi.js": ">=8.18.1 <9",
     "three": ">=0.186.1 <0.187.0",
     "vite": ">=8.0.0"
   },
-  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "license": "MIT"
 }

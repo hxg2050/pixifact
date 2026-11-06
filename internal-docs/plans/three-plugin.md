@@ -4,6 +4,8 @@
 
 以可选包接入原生 Three.js：共享 WebGL2 Canvas，Three 绘制世界、Pixifact 绘制 UI，沿用 Web / 微信 / 抖音 Vite 构建与代码分包。
 
+2026-11-06 用户追加发布要求：随固定发布组六包发布 `0.20.0`，包含 `@pixifact/three` 首次 npm 发布。
+
 ## Decisions
 
 - 包名 `@pixifact/three`，版本跟随仓库固定发布组；`three`、`pixi.js`、`pixifact` 为 peer dependencies。首版验证 Three 0.186.1 / Pixi 8.18.1；小游戏 loader 的内部接入固定 Three r186。
@@ -12,10 +14,11 @@
 - `three()` Vite 插件沿用 VITE_PLATFORM。Web 使用 Three 原 loader；小游戏选择 Three 源码入口，替换 FileLoader / ImageLoader，并为 GLTFLoader 提供局部 Blob/URL 环境。网络、文件、图片与分包下载复用 Pixi DOMAdapter 和原生分包 loader；嵌入图片写临时文件并清理。
 - `registerPixiRuntime` 增加可选 captureScreenshot 回调；layer.captureScreenshot 同步重绘并导出完整 3D+UI 的逻辑分辨率 PNG。
 - Native Scene/Camera/Mesh 与游戏 TypeScript 保持原生；`.scene` 继续负责 2D UI。只在游戏分包导入插件/Three，即可将引擎留在分包。
+- 发布沿用 Changesets、tag workflow 和 npm Trusted Publishing；`@pixifact/three` 首次发布使用 npm 账号认证，再配置该包的 Trusted Publisher。
 
 ## Non-Goals
 
-WASM、物理引擎、Draco/KTX2 解码器、3D Scene schema 或可视化 3D 编辑器、迁移 find-more 项目、npm 发布。
+WASM、物理引擎、Draco/KTX2 解码器、3D Scene schema 或可视化 3D 编辑器、迁移 find-more 项目。
 
 ## Public API / User-Facing Behavior
 
@@ -36,6 +39,7 @@ WASM、物理引擎、Draco/KTX2 解码器、3D Scene schema 或可视化 3D 编
 3. Green：渲染顺序/尺寸/销毁，真实 OrbitControls 与 Raycaster，原生资源 transport、分包/失败清理；真实 Vite 三端构建。
 4. Chrome WebGL2 冒烟：Three 模型 + Pixi UI、多帧/resize/截图像素、无 GL 错误；小游戏以 mock host + 实际 CommonJS 执行验收，真机状态单独注明。
 5. 全量测试、runtime 构建、npm tarball 入口与仓库外安装检查。
+6. 发布由 tag workflow 重跑全量测试、构建、六包内容和仓库外安装检查；完成后核对六包 npm 版本、latest 和 GitHub Release。
 
 ## Verification
 
@@ -57,6 +61,8 @@ WASM、物理引擎、Draco/KTX2 解码器、3D Scene schema 或可视化 3D 编
 - [x] 失败测试。
 - [x] 实现与示例。
 - [x] 验证与文档；完成后按仓库规则提交。
+- [x] 生成六包 `0.20.0`、更新 changelog 和脚手架版本；版本一致性、frozen lockfile、diff 检查通过。
+- [ ] 发布六包、配置新包 Trusted Publisher 并核对发布结果。
 
 ## Resume Protocol
 
@@ -68,8 +74,9 @@ Last updated: 2026-11-06
 
 Done: 插件、Vite 资源适配、完整截图、小游戏 resize、示例、中英文文档、发布清单和测试均完成，验证见上。
 
-Current State: 功能完成；与前序代码分包配合使用。`@pixifact/three` 尚未发布 npm。WASM 与 3D Editor 保持 Non-Goals。
+Current State: 功能与六包 `0.20.0` 版本准备完成；用户已授权发布。现有五包通过 Trusted Publishing 发布；本机 npm 尚未登录，已启动网页登录供用户完成 `@pixifact/three` 首次发布认证。GitHub API 正常，Git HTTPS 连接需重试。WASM 与 3D Editor 保持 Non-Goals。
 
 Next:
-1. 用户后续安排小游戏开发者工具/真机 GPU 验收或下游游戏接入。
-2. 正式发布时按新包首次发布流程配置 npm Trusted Publisher，消费本次 changeset。
+1. 提交 `0.20.0`，推送 main/tag，由 CI 完整验证。
+2. 完成新包 npm 首次发布和 Trusted Publisher 配置，重跑 CI 并核对六包 registry / GitHub Release。
+3. 更新发布记录并提交；小游戏开发者工具/真机 GPU 验收仍由用户后续安排。
