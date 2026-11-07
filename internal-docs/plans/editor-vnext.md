@@ -2,6 +2,35 @@
 
 后续已实施的 [手动保存](./editor-manual-save.md) 与 [多 Scene 标签](./editor-multi-scene-tabs.md) 决策覆盖下文的首版单 Scene、自动保存约束；下方进度记录保留当时的实现历史。
 
+## 2026-11-07：发布 0.21.0
+
+Goal：将 TypeScript / Vue mapper 迁移和第三方依赖升级统一发布为六包 0.21.0，包含 @pixifact/three。
+
+Decisions：用户已明确授权发布。采用 minor 版本 0.21.0，六包 fixed group 保持一致；通过 Changesets 生成版本和中文 changelog，并同步模板、内部依赖与平台 peer。沿用 NPM_PUBLISHING.md 快速路径，本地审查版本与依赖后提交、推送 main / tag，由 publish.yml 执行完整验收和 Trusted Publishing；完成后核对六包 registry / latest / provenance，创建 GitHub Release 并更新本地记录。
+
+Non-Goals：继续升级第三方依赖、增加产品功能、手动 npm publish 或把未验证的小游戏真机结果标成通过。
+
+Public API / User-Facing Behavior：六包与模板使用 0.21.0。发布说明明确契约提取 API 改为 Promise、TypeScript 7.1 Beta / Vue mapper Alpha 状态、Vite 8.3.6 与 Rolldown 配置、Three r187 / PixiJS 8.22，以及 WeakRef / FinalizationRegistry 原生要求。
+
+Implementation Scope：Changesets 消费后的六包 manifest / changelog、模板版本、锁文件、发布计划 / 状态 / 入口文档，以及 GitHub tag / workflow / Release。
+
+Test Plan：本地核对六包版本、模板 / 内部依赖 / peer、frozen-lockfile 和 diff；tag CI 验证全量测试、Editor 类型、全部构建、六包内容及仓库外安装矩阵。发布后直接查询官方 npm registry，确认六包目标版本、latest、tarball 和来源证明；核对 GitHub Release 与工作区状态。
+
+Verification：初始工作区干净，当前六包 latest 均为 0.20.1，0.21.0 尚不存在；GitHub 账号与 publish.yml 已核对可用。远端 main 无新增提交，本地包含两项待发布升级。上一阶段两轮完整 release:check / 452 项通过。本地生成后的六包版本 / changelog、模板版本、内部依赖、平台 / Three peer、frozen-lockfile 和 diff 检查均通过。
+
+Progress：
+- [x] 核对授权范围、发布流程和远端状态。
+- [x] 生成 0.21.0 版本与中文 changelog，审阅并提交。
+- [ ] 推送 tag，跟进 CI 完整验收与六包发布。
+- [ ] 核对 registry / provenance，创建 Release，更新记录与提交。
+
+Resume Protocol：先读本节、查看 git status 和 tag / CI 状态，已存在的 tag 不重复创建；如需重试只重跑对应 workflow。
+
+Resume Notes：
+- Done：Changesets 已生成六包 0.21.0 与中文 changelog，模板 / peer / 内部依赖与 lockfile 同步完成；本地版本和 frozen-lockfile 验证通过。
+- Current State：随本节提交 Release v0.21.0，随后由 tag workflow 执行完整验收和 Trusted Publishing。
+- Next：运行 release:publish，跟进 CI / registry，完成 GitHub Release 与发布记录。
+
 ## 2026-11-07：第三方依赖升级
 
 Goal：将构建、Editor、渲染、测试和发布工具升级到当前版本，保留刚完成的 TypeScript / Vue mapper 路线，完成实际三端与仓库外安装验收。

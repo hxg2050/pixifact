@@ -27,7 +27,7 @@
     },
     "packages/create-pixifact": {
       "name": "create-pixifact",
-      "version": "0.20.1",
+      "version": "0.21.0",
       "bin": {
         "create-pixifact": "dist/index.js",
       },
@@ -38,7 +38,7 @@
     },
     "packages/pixifact": {
       "name": "pixifact",
-      "version": "0.20.1",
+      "version": "0.21.0",
       "dependencies": {
         "magic-string": "^1.4.5",
         "typescript": "7.1.0-beta",
@@ -53,38 +53,38 @@
     },
     "packages/pixifact-cli": {
       "name": "pixifact-cli",
-      "version": "0.20.1",
+      "version": "0.21.0",
       "bin": {
         "pixifact": "src/pixifact-cli.ts",
       },
       "dependencies": {
-        "pixifact": "^0.20.1",
+        "pixifact": "^0.21.0",
         "playwright": "1.65.0",
         "vite": "^8.3.6",
       },
     },
     "packages/platform-douyin": {
       "name": "@pixifact/platform-douyin",
-      "version": "0.20.1",
+      "version": "0.21.0",
       "peerDependencies": {
         "pixi.js": ">=8.3.0",
-        "pixifact": ">=0.20.1 <1",
+        "pixifact": ">=0.21.0 <1",
       },
     },
     "packages/platform-wechat": {
       "name": "@pixifact/platform-wechat",
-      "version": "0.20.1",
+      "version": "0.21.0",
       "peerDependencies": {
         "pixi.js": ">=8.3.0",
-        "pixifact": ">=0.20.1 <1",
+        "pixifact": ">=0.21.0 <1",
       },
     },
     "packages/three": {
       "name": "@pixifact/three",
-      "version": "0.20.1",
+      "version": "0.21.0",
       "peerDependencies": {
         "pixi.js": ">=8.22.0 <9",
-        "pixifact": ">=0.20.1 <1",
+        "pixifact": ">=0.21.0 <1",
         "three": ">=0.187.0 <0.188.0",
         "vite": ">=8.3.6 <9",
       },

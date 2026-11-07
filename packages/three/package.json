@@ -1,6 +1,6 @@
 {
   "name": "@pixifact/three",
-  "version": "0.20.1",
+  "version": "0.21.0",
   "description": "Pixifact 可选 Three.js 3D 世界与 2D UI 合成插件。",
   "type": "module",
   "main": "./dist/index.js",
@@ -40,7 +40,7 @@
     "build": "bun ../pixifact/scripts/clean-dist.mjs dist && bunx --no-install tsc -p tsconfig.build.json && bun ../pixifact/scripts/fix-dist-esm-imports.mjs dist"
   },
   "peerDependencies": {
-    "pixifact": ">=0.20.1 <1",
+    "pixifact": ">=0.21.0 <1",
     "pixi.js": ">=8.22.0 <9",
     "three": ">=0.187.0 <0.188.0",
     "vite": ">=8.3.6 <9"

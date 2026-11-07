@@ -1,6 +1,6 @@
 {
   "name": "create-pixifact",
-  "version": "0.20.1",
+  "version": "0.21.0",
   "description": "创建 Pixifact 游戏项目。",
   "packageManager": "bun@1.4.4",
   "type": "module",

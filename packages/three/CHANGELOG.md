@@ -1,5 +1,15 @@
 # @pixifact/three
 
+## 0.21.0
+
+### Minor Changes
+
+- 直接迁移到 TypeScript 7.1 官方 API，Editor 使用 Vue content mapper 检查模板和组件 props；固定 TypeScript 7.1.0-beta 与 @vue/content-mapper 4.0.0-alpha.3。Scene 脚本契约提取和内置契约读取改为 Promise，调用方需要 await。
+
+  构建配置迁移到 Vite 8.3.6 的 rolldownOptions 与 Rolldown 类型，代码分包保留静态 import()、变量作用域和原始 sourcemap 行列。同步升级 Vue、Pinia、Reka、Playwright、测试和发布工具，仓库与 CI 使用 Bun 1.4.4 / Node.js 24，脚手架和示例依赖一并更新。
+
+  渲染依赖升级到 PixiJS 8.22.0 和 Three r187；@pixifact/three 要求 three >=0.187.0 <0.188.0、pixi.js >=8.22.0 <9 与 vite >=8.3.6 <9。目标小游戏 JavaScript 引擎需原生支持 WeakRef 和 FinalizationRegistry；保留共享 WebGL2 合成、普通 glTF/GLB、资源和代码分包能力。
+
 ## 0.20.1
 
 ## 0.20.0
