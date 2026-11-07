@@ -3,7 +3,7 @@
 状态：活跃
 权威范围：Pixifact npm 发布流程和发布记录目录入口
 上游文档：[../index.md](../index.md)
-下游文档：[./NPM_PUBLISHING.md](./NPM_PUBLISHING.md)、[v0.20.1 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.20.1)、[v0.20.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.20.0)、[v0.19.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.19.0)、[v0.18.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.18.0)、[v0.17.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.17.0)、[v0.16.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0)、[v0.15.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)、各包 `CHANGELOG.md`
+下游文档：[./NPM_PUBLISHING.md](./NPM_PUBLISHING.md)、[v0.21.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.21.0)、[v0.20.1 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.20.1)、[v0.20.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.20.0)、[v0.19.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.19.0)、[v0.18.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.18.0)、[v0.17.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.17.0)、[v0.16.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0)、[v0.15.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)、各包 `CHANGELOG.md`
 更新规则：发布流程或版本发布记录变化时更新
 
 ## 当前文档
@@ -15,6 +15,7 @@
 | [pixifact-cli CHANGELOG](../../packages/pixifact-cli/CHANGELOG.md) | `pixifact-cli` 版本记录 |
 | [create-pixifact CHANGELOG](../../packages/create-pixifact/CHANGELOG.md) | `create-pixifact` 版本记录 |
 | [Three 插件 CHANGELOG](../../packages/three/CHANGELOG.md) | `@pixifact/three` 版本记录 |
+| [v0.21.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.21.0) | TypeScript 7 / Vue mapper、Three r187 和第三方依赖升级版本记录 |
 | [v0.20.1 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.20.1) | Editor 图片双击系统打开版本记录 |
 | [v0.20.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.20.0) | Three 插件、小游戏代码分包和 Editor Scene 预览提速版本记录 |
 | [v0.19.0 发布说明](https://github.com/hxg2050/pixifact/releases/tag/v0.19.0) | 基础游戏/UI 展示模板、可替换 PNG、九宫格素材 Scene 和项目 skill 最佳实践版本记录 |

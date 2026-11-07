@@ -21,15 +21,15 @@ Verification：初始工作区干净，当前六包 latest 均为 0.20.1，0.21.
 Progress：
 - [x] 核对授权范围、发布流程和远端状态。
 - [x] 生成 0.21.0 版本与中文 changelog，审阅并提交。
-- [ ] 推送 tag，跟进 CI 完整验收与六包发布。
-- [ ] 核对 registry / provenance，创建 Release，更新记录与提交。
+- [x] 推送 tag，跟进 CI 完整验收与六包发布。
+- [x] 核对 registry / provenance，创建 Release，更新记录与提交。
 
 Resume Protocol：先读本节、查看 git status 和 tag / CI 状态，已存在的 tag 不重复创建；如需重试只重跑对应 workflow。
 
 Resume Notes：
-- Done：Changesets 已生成六包 0.21.0 与中文 changelog，模板 / peer / 内部依赖与 lockfile 同步完成；本地版本和 frozen-lockfile 验证通过。
-- Current State：随本节提交 Release v0.21.0，随后由 tag workflow 执行完整验收和 Trusted Publishing。
-- Next：运行 release:publish，跟进 CI / registry，完成 GitHub Release 与发布记录。
+- Done：Release commit e5efd84、v0.21.0、六包 manifest / changelog / 模板同步及 Trusted Publishing 全部完成。CI 通过 32 文件 / 452 项、Editor 类型、全部构建、包内容与仓库外安装矩阵。六包目标版本与 latest 均为 0.21.0；实际下载 tarball 的 SHA-1 / SHA-512 / SRI 与 provenance subject 一致，工作流、tag 和来源 commit 已逐包核对。GitHub Release 已公开并设为 latest，发布记录已更新并随本节提交。
+- Current State：发布成功。npm 处理延迟已等待解决，包含 @pixifact/three 的六包均公开可下载；发布记录见 https://github.com/hxg2050/pixifact/releases/tag/v0.21.0 。小游戏真机 GPU 表现仍需设备验收，此次不作已验证声明。
+- Next：本次发布无剩余工作。
 
 ## 2026-11-07：第三方依赖升级
 

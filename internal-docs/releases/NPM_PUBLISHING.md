@@ -13,20 +13,22 @@ Pixifact 发布清单包含六个公开 npm 包：
 
 ## 当前发布状态
 
-当前已发布版本为 `0.20.1`：
+当前已发布版本为 `0.21.0`：
 
-- npm packages: 六包 `0.20.1`，`latest` 均为 `0.20.1`
-- git tag: `v0.20.1`
+- npm packages: 六包 `0.21.0`，`latest` 均为 `0.21.0`
+- git tag: `v0.21.0`，release commit `e5efd84`
 - changelog sources: [`pixifact`](../../packages/pixifact/CHANGELOG.md)、[`pixifact-cli`](../../packages/pixifact-cli/CHANGELOG.md)、[`create-pixifact`](../../packages/create-pixifact/CHANGELOG.md)、[`@pixifact/three`](../../packages/three/CHANGELOG.md)
 
-本次发布记录见 [GitHub Release v0.20.1](https://github.com/hxg2050/pixifact/releases/tag/v0.20.1)。Editor 资产面板支持双击图片调用系统默认程序，保留单击预览、图片拖拽和 Scene 双击编辑，打开失败显示原因且不改变当前 Scene 和选区。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/42260513202) 已通过 32 个测试文件 / 451 项测试、全部构建、六包内容和仓库外安装验收，包括 Three 示例 Web / 微信 / 抖音构建。六包均通过 Trusted Publishing 发布，npm registry 已确认目标版本和 `latest` 均为 `0.20.1`。
+本次发布记录见 [GitHub Release v0.21.0](https://github.com/hxg2050/pixifact/releases/tag/v0.21.0)。本版本直接迁移 TypeScript 7.1 官方 API 与 Vue content mapper，契约提取改为 Promise，构建配置改用 Rolldown API，并升级 PixiJS 8.22、Three r187 与相关第三方库。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/42334914317) 已通过 32 个测试文件 / 452 项测试、Editor 类型检查、全部构建、六包内容，以及仓库外 minimal/game 模板和 Web / 微信 / 抖音的 2D / Three 安装矩阵。六包均通过 Trusted Publishing 发布；官方 registry 已确认目标版本与 `latest` 均为 `0.21.0`，实际下载 tarball 的 SHA-1 / SHA-512、SRI 和 provenance subject digest 一致，来源均指向 `e5efd84`、`v0.21.0` 和本次 workflow。npm 曾返回新包处理中，已等待至六包均公开可用。
+
+上一版本 [GitHub Release v0.20.1](https://github.com/hxg2050/pixifact/releases/tag/v0.20.1) 支持 Editor 图片资源双击系统打开，并完成 Three 首次 OIDC 自动发布验证。[对应发布工作流](https://github.com/hxg2050/pixifact/actions/runs/42260513202) 通过 32 个测试文件 / 451 项测试、全部构建、六包内容与仓库外安装验收，六包 `0.20.1` 均通过 Trusted Publishing 发布。
 
 上一版本 [GitHub Release v0.20.0](https://github.com/hxg2050/pixifact/releases/tag/v0.20.0) 包含可选 Three.js 插件、微信和抖音小游戏代码分包、Scene 与代码分包组合构建修复，以及 Editor 按 Scene 依赖缓存和标签切换优化。该版本[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/42186682425) 通过 32 个测试文件 / 443 项测试、全部构建、六包内容和仓库外安装验收。新包 `@pixifact/three@0.20.0` 使用 npm 网页认证完成首次手动发布，tarball shasum 与 CI 一致（`946ecfcf138b999de6075fa7eca60e4bf3606391`）；原有五包通过 Trusted Publishing 发布，同一 workflow 重跑成功。
 上一版本发布记录见 [GitHub Release v0.19.0](https://github.com/hxg2050/pixifact/releases/tag/v0.19.0)、[GitHub Release v0.18.0](https://github.com/hxg2050/pixifact/releases/tag/v0.18.0)、[GitHub Release v0.17.0](https://github.com/hxg2050/pixifact/releases/tag/v0.17.0)、[GitHub Release v0.16.0](https://github.com/hxg2050/pixifact/releases/tag/v0.16.0)、[GitHub Release v0.15.0](https://github.com/hxg2050/pixifact/releases/tag/v0.15.0)、[`v0.14.0.md`](./v0.14.0.md)、[`v0.13.0.md`](./v0.13.0.md)。
 历史发布记录见 [`v0.12.0.md`](./v0.12.0.md)、[`v0.11.2.md`](./v0.11.2.md)、[`v0.11.1.md`](./v0.11.1.md)、[`v0.11.0.md`](./v0.11.0.md)。
 首个 npm 发布记录见 [`v0.1.3.md`](./v0.1.3.md)。
 
-六包均已完成 npm Trusted Publisher 的 OIDC 发布验证。`@pixifact/three` 在用户安全密钥验证后保存的 GitHub Actions 连接为：`hxg2050/pixifact`、`publish.yml`、Environment 留空，允许 `npm publish`。本次 CI 实际发布 `@pixifact/three@0.20.1` 并生成带来源和构建信息的 provenance，完成其首次 OIDC 发布验证；npm registry 也已返回该版本的 attestations。正常发布路径不需要本地 npm token。
+六包均已完成 npm Trusted Publisher 的 OIDC 发布验证。`@pixifact/three` 在用户安全密钥验证后保存的 GitHub Actions 连接为：`hxg2050/pixifact`、`publish.yml`、Environment 留空，允许 `npm publish`。`0.20.1` 的 CI 完成 Three 首次 OIDC 发布；`0.21.0` 六包继续通过同一 workflow 发布，官方 registry 返回的 attestations 已核对来源和下载包摘要。正常发布路径不需要本地 npm token。
 
 ## 新包首次发布
 
@@ -96,6 +98,7 @@ git commit -m "Release vX.Y.Z"
 推送 `vX.Y.Z` tag 后，`.github/workflows/publish.yml` 自动运行：
 
 - `bun run test`
+- `bun run editor:typecheck`
 - `bun run build`
 - `bun run editor:frontend:build`
 - `packages/create-pixifact` build
@@ -126,6 +129,9 @@ bun run release:publish
 
 ```bash
 npm view pixifact version --registry https://registry.npmjs.org/
+npm view @pixifact/platform-wechat version --registry https://registry.npmjs.org/
+npm view @pixifact/platform-douyin version --registry https://registry.npmjs.org/
+npm view @pixifact/three version --registry https://registry.npmjs.org/
 npm view pixifact-cli version --registry https://registry.npmjs.org/
 npm view create-pixifact version --registry https://registry.npmjs.org/
 ```
