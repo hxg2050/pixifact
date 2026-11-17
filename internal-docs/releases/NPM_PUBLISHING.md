@@ -13,13 +13,17 @@ Pixifact 发布清单包含六个公开 npm 包：
 
 ## 当前发布状态
 
-当前已发布版本为 `0.21.0`：
+当前已发布版本为 `0.21.1`：
 
-- npm packages: 六包 `0.21.0`，`latest` 均为 `0.21.0`
-- git tag: `v0.21.0`，release commit `e5efd84`
+- npm packages: 六包 `0.21.1`，`latest` 均为 `0.21.1`
+- git tag: `v0.21.1`，release commit `e14c606`
 - changelog sources: [`pixifact`](../../packages/pixifact/CHANGELOG.md)、[`pixifact-cli`](../../packages/pixifact-cli/CHANGELOG.md)、[`create-pixifact`](../../packages/create-pixifact/CHANGELOG.md)、[`@pixifact/three`](../../packages/three/CHANGELOG.md)
 
-本次发布记录见 [GitHub Release v0.21.0](https://github.com/hxg2050/pixifact/releases/tag/v0.21.0)。本版本直接迁移 TypeScript 7.1 官方 API 与 Vue content mapper，契约提取改为 Promise，构建配置改用 Rolldown API，并升级 PixiJS 8.22、Three r187 与相关第三方库。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/42334914317) 已通过 32 个测试文件 / 452 项测试、Editor 类型检查、全部构建、六包内容，以及仓库外 minimal/game 模板和 Web / 微信 / 抖音的 2D / Three 安装矩阵。六包均通过 Trusted Publishing 发布；官方 registry 已确认目标版本与 `latest` 均为 `0.21.0`，实际下载 tarball 的 SHA-1 / SHA-512、SRI 和 provenance subject digest 一致，来源均指向 `e5efd84`、`v0.21.0` 和本次 workflow。npm 曾返回新包处理中，已等待至六包均公开可用。
+本次发布记录见 [GitHub Release v0.21.1](https://github.com/hxg2050/pixifact/releases/tag/v0.21.1)。本版本修复 Windows 下模板本地命令包装器报告 `bun is not installed in %PATH%` 的问题；game / minimal 的 dev、build、compile、editor 和 validate 脚本改为 `bun run --bun pixifact ...`。已有项目需修改原有 `package.json` 脚本，更新依赖不会自动改写。尚未完成 Windows 实机复测。
+
+[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/44102664890) 已通过 32 个测试文件 / 454 项测试、Editor 类型检查、全部构建、六包内容，以及仓库外 minimal/game 模板和 Web / 微信 / 抖音的 2D / Three 安装矩阵。六包均通过 Trusted Publishing 发布；官方 registry 已确认目标版本与 `latest` 均为 `0.21.1`，正式 tarball 的 SHA-1 / SHA-512、SRI 和 provenance subject digest 一致，来源均指向 `e14c606`、`v0.21.1` 和本次 workflow。正式 create-pixifact tarball 中的两套模板脚本、内部依赖和缓存排除已确认。npm 发布后曾短暂返回旧版本，已等待至六包均公开可用。
+
+上一版本 [GitHub Release v0.21.0](https://github.com/hxg2050/pixifact/releases/tag/v0.21.0) 直接迁移 TypeScript 7.1 官方 API 与 Vue content mapper，契约提取改为 Promise，构建配置改用 Rolldown API，并升级 PixiJS 8.22、Three r187 与相关第三方库。[发布工作流](https://github.com/hxg2050/pixifact/actions/runs/42334914317) 已通过 32 个测试文件 / 452 项测试、Editor 类型检查、全部构建、六包内容，以及仓库外安装矩阵。六包 `0.21.0` 均通过 Trusted Publishing 发布，正式 tarball 摘要与来源已核对。
 
 上一版本 [GitHub Release v0.20.1](https://github.com/hxg2050/pixifact/releases/tag/v0.20.1) 支持 Editor 图片资源双击系统打开，并完成 Three 首次 OIDC 自动发布验证。[对应发布工作流](https://github.com/hxg2050/pixifact/actions/runs/42260513202) 通过 32 个测试文件 / 451 项测试、全部构建、六包内容与仓库外安装验收，六包 `0.20.1` 均通过 Trusted Publishing 发布。
 
@@ -28,7 +32,7 @@ Pixifact 发布清单包含六个公开 npm 包：
 历史发布记录见 [`v0.12.0.md`](./v0.12.0.md)、[`v0.11.2.md`](./v0.11.2.md)、[`v0.11.1.md`](./v0.11.1.md)、[`v0.11.0.md`](./v0.11.0.md)。
 首个 npm 发布记录见 [`v0.1.3.md`](./v0.1.3.md)。
 
-六包均已完成 npm Trusted Publisher 的 OIDC 发布验证。`@pixifact/three` 在用户安全密钥验证后保存的 GitHub Actions 连接为：`hxg2050/pixifact`、`publish.yml`、Environment 留空，允许 `npm publish`。`0.20.1` 的 CI 完成 Three 首次 OIDC 发布；`0.21.0` 六包继续通过同一 workflow 发布，官方 registry 返回的 attestations 已核对来源和下载包摘要。正常发布路径不需要本地 npm token。
+六包均已完成 npm Trusted Publisher 的 OIDC 发布验证。`@pixifact/three` 在用户安全密钥验证后保存的 GitHub Actions 连接为：`hxg2050/pixifact`、`publish.yml`、Environment 留空，允许 `npm publish`。`0.20.1` 的 CI 完成 Three 首次 OIDC 发布；`0.21.1` 六包继续通过同一 workflow 发布，官方 registry 返回的 attestations 已核对来源和下载包摘要。正常发布路径不需要本地 npm token。
 
 ## 新包首次发布
 
