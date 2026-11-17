@@ -1,5 +1,11 @@
 # create-pixifact
 
+## 0.21.1
+
+### Patch Changes
+
+- 修复 Windows 下 game / minimal 模板运行 `bun dev` 时本地命令包装器报告 `bun is not installed in %PATH%` 的问题。dev、build、compile、editor 和 validate 脚本统一使用 `bun run --bun pixifact ...` 显式执行本地 CLI，并补充两套模板的 Bun 运行时、中文空格路径与参数传递回归测试。
+
 ## 0.21.0
 
 ### Minor Changes

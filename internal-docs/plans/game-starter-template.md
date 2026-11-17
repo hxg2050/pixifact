@@ -1,6 +1,6 @@
 # Game Starter Template
 
-状态：已完成每张九宫格 PNG 的独立 Scene 封装与集中调参验证
+状态：Windows 模板命令启动修复已完成，正在发布六包 0.21.1
 权威范围：独立游戏项目模板、基础游戏流程与可替换 UI 库的实现和验收
 上游文档：[./index.md](./index.md)、[../../AGENTS.md](../../AGENTS.md)、[../testing/TESTING.md](../testing/TESTING.md)
 
@@ -10,6 +10,7 @@
 
 ## Decisions
 
+- 2026-11-17：用户要求发布 Windows 模板命令启动修复，使用 patch Changeset；六个公开包按 fixed group 同版发布为 `0.21.1`。沿用快速发布流程，由 tag 触发完整 CI 和 Trusted Publishing，发布后核对 npm registry 与 GitHub Release。
 - 用户已选择独立游戏项目模板；最新明确只提供一套基础 UI，后续用户直接覆盖同名 PNG 素材文件。
 - 新增 `create-pixifact --template game`，保留当前最小模板的用途。
 - 首版交付 Web 项目，复用 Pixifact 的 Scene、事件、slot、资源准备、viewport 和 Runtime；平台扩展沿用既有平台包。
@@ -66,6 +67,8 @@
 
 ## Verification
 
+- 2026-11-17：修复提交 `f241dfd` 已通过脚手架与 CLI 的 75 项测试；minimal / game 在 macOS 中文空格目录、Bun Shell 下真实启动成功，页面与入口模块返回 200，Inspector 各启动一次。尚无 Windows 实机验证结果。发布前官方 npm registry 的 `create-pixifact` 和 `pixifact` 的 `latest` 均为 `0.21.0`。
+- 2026-11-17：Changesets 已生成六包 `0.21.1`，两套模板与内部依赖已同步；lockfile 无额外变动。生成版本后 75 项脚手架 / CLI 测试、`bun install --frozen-lockfile --dry-run` 与 `git diff --check` 通过。GitHub API 确认远端 `main` 为 `0da3589`，没有 `v0.21.1` tag。
 - 上次 PNG 迁移后，`bun run test -- tests/create-pixifact.test.ts tests/game-starter-core.test.ts tests/game-starter-ui.test.ts tests/game-starter-flow.test.ts`：4 个文件、22 项通过；下方历史记录中的两套外观已由用户最新要求替代。
 - 两套 UI 用真实 compiler 生成节点，使用官方 Pixi events extension 和 RenderGroup 变换更新进行 EventBoundary 命中检查；暂停、恢复、结算、重玩、返回、旧事件隔离和重新实例化恢复存档均通过。
 - `bun run build`：核心包和平台包构建通过；create-pixifact 自身 TypeScript 构建通过。
@@ -140,6 +143,10 @@
 
 ## Progress
 
+- [x] Windows 模板命令启动修复、两套模板参数回归与真实启动检查。
+- [x] 生成并审阅六包 `0.21.1`、模板依赖、lockfile 和 changelog。
+- [ ] 提交发布变更并推送 `main` / `v0.21.1`。
+- [ ] 确认完整 CI、六包 npm 发布与 GitHub Release，更新发布记录。
 - [x] 每张九宫格 PNG 封装独立 Scene，迁移引用并验证集中调参、动态尺寸和真实预览。
 - [x] 收敛为一套基础 UI，移除 kit 与切换命令，验证直接替换 PNG 和预览。
 - [x] PNG 素材转换、引用迁移、两套外观回归与真实加载检查。
@@ -159,9 +166,11 @@
 
 ## Resume Notes
 
-Last updated: 2026-10-12
+Last updated: 2026-11-17
 
 Done:
+- Windows 模板命令启动修复已提交为 `f241dfd`，75 项相关测试和两套模板真实启动检查通过；用户已授权发布。
+- 六包 `0.21.1`、内部依赖、模板与 changelog 已生成，发布前最小检查通过。
 - 实现 `game` 模板、4 个基础 UI 组件、交互展台和游戏／暂停／结算流程。
 - Button 支持三种 size、97% 按压与 140ms 回弹；使用 1080p fixedWidth，页面与弹窗随可用视口高度变化，短窗口可滚动。
 - 已按用户最新要求删除多套 kit 和安装入口，只保留一套基础 UI；使用者覆盖两张同名 PNG 即可更换对应背景。
@@ -170,10 +179,11 @@ Done:
 - 两张九宫格 PNG 已封装独立配对 Scene，Button／Panel／Dialog 引用背景 Scene；集中修改切片参数、动态尺寸、实际视口和点击／弹窗验证通过。
 
 Current State:
-- 最新要求已完成；`http://127.0.0.1:5175/` 使用素材 Scene 并保留一套基础 UI，开发服务 session 为 78225，等待用户检查。
+- 正在按 patch 发布 `0.21.1`，完整检查由 tag 的 GitHub Actions 执行；不重复本地全量发布检查。
 
 Currently Failing:
 - 本次定向测试、构建和组件展台真实输入无失败；初版全量套件与游戏手动全流程限制见上方记录。
 
 Next:
-- 无必需的实现或验证待办；后续按用户检查反馈继续。
+1. 提交发布变更，运行 `bun run release:publish` 推送 `main` 和 tag。
+2. 等待 CI 与 npm 六包公开可用，创建中文 GitHub Release 并更新发布记录。
