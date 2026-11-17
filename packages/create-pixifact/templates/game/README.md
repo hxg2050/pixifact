@@ -11,6 +11,8 @@ bun install
 bun run dev
 ```
 
+项目脚本通过 `bun run --bun pixifact ...` 执行本地 CLI，避免 Windows 命令包装器查找 Bun 时出现 `bun is not installed in %PATH%`。已有项目可将 `package.json` 的 `dev` 改为 `bun run --bun pixifact dev --mode development --project-root .`。
+
 打开终端输出的地址，先在组件展台试用：
 
 - **Button**：大、中、小三种尺寸、轻微按压回弹、图标、禁用状态、启用／禁用切换与点击计数。

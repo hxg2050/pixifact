@@ -5,11 +5,11 @@
   "packageManager": "bun@1.4.4",
   "type": "module",
   "scripts": {
-    "dev": "pixifact dev --mode development --project-root .",
-    "build": "pixifact build --mode production --project-root .",
-    "compile": "pixifact compile-scenes --project-root .",
-    "editor": "pixifact editor --project-root .",
-    "validate": "pixifact validate --mode production --project-root .",
+    "dev": "bun run --bun pixifact dev --mode development --project-root .",
+    "build": "bun run --bun pixifact build --mode production --project-root .",
+    "compile": "bun run --bun pixifact compile-scenes --project-root .",
+    "editor": "bun run --bun pixifact editor --project-root .",
+    "validate": "bun run --bun pixifact validate --mode production --project-root .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

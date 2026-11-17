@@ -43,11 +43,11 @@ describe('create-pixifact scaffold', () => {
             name: 'my-game',
             type: 'module',
             scripts: {
-                dev: 'pixifact dev --mode development --project-root .',
-                build: 'pixifact build --mode production --project-root .',
-                compile: 'pixifact compile-scenes --project-root .',
-                editor: 'pixifact editor --project-root .',
-                validate: 'pixifact validate --mode production --project-root .',
+                dev: 'bun run --bun pixifact dev --mode development --project-root .',
+                build: 'bun run --bun pixifact build --mode production --project-root .',
+                compile: 'bun run --bun pixifact compile-scenes --project-root .',
+                editor: 'bun run --bun pixifact editor --project-root .',
+                validate: 'bun run --bun pixifact validate --mode production --project-root .',
             },
             dependencies: {
                 'pixi.js': '8.22.0',
@@ -100,6 +100,42 @@ describe('create-pixifact scaffold', () => {
                 mainMenu: 'src/scenes/MainMenu.scene',
             },
         });
+    });
+
+    it.each(['minimal', 'game'] as const)('runs %s template commands with Bun and preserves CLI arguments', async (template) => {
+        const cwd = await makeTempRoot();
+        const { root } = await createPixifactProject({ cwd, name: '中文 game', template });
+        const fixtureRoot = join(cwd, 'cli-fixture');
+        await mkdir(fixtureRoot);
+        await writeFile(join(fixtureRoot, 'package.json'), JSON.stringify({
+            name: 'pixifact-cli',
+            version: '0.0.0',
+            bin: { pixifact: 'cli.ts' },
+        }));
+        await writeFile(join(fixtureRoot, 'cli.ts'), [
+            '#!/usr/bin/env node',
+            'console.log(JSON.stringify({ bun: !!process.versions.bun, cwd: process.cwd(), args: process.argv.slice(2) }));',
+            '',
+        ].join('\n'));
+        const manifest = JSON.parse(await readProjectFile(root, 'package.json'));
+        await writeFile(join(root, 'package.json'), JSON.stringify({
+            name: 'template-command-test',
+            private: true,
+            scripts: manifest.scripts,
+            devDependencies: { 'pixifact-cli': 'file:../cli-fixture' },
+        }));
+        execFileSync('bun', ['install', '--offline', '--ignore-scripts'], { cwd: root, stdio: 'pipe' });
+
+        for (const [script, args] of Object.entries({
+            dev: ['dev', '--mode', 'development', '--project-root', '.'],
+            build: ['build', '--mode', 'production', '--project-root', '.'],
+            compile: ['compile-scenes', '--project-root', '.'],
+            editor: ['editor', '--project-root', '.'],
+            validate: ['validate', '--mode', 'production', '--project-root', '.'],
+        })) {
+            const output = execFileSync('bun', ['run', script], { cwd: root, encoding: 'utf8', stdio: 'pipe' });
+            expect(JSON.parse(output)).toEqual({ bun: true, cwd: await realpath(root), args });
+        }
     });
 
     it('initializes Git and ignores generated files while keeping the skill and source trackable', async () => {
